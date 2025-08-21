@@ -1,0 +1,17 @@
+const fs = require('fs');
+
+function isWSL() {
+  try {
+    if (process.env.WSL_INTEROP) return true;
+    const v = fs.readFileSync('/proc/sys/kernel/osrelease', 'utf8');
+    return /microsoft/i.test(v);
+  } catch { return false; }
+}
+
+if (isWSL()) {
+  console.error('[E2E-INFRA] WSL2 detected: MV3 persistent Chrome + Xvfb is unreliable and often hangs before extension boot.');
+  console.error('[E2E-INFRA] Please run E2E on GitHub Actions (Ubuntu) or in the Playwright Docker image. See docs/e2e-runners.md.');
+  process.exit(42); // distinct non-zero for infra
+}
+
+console.log('[E2E-INFRA] Non-WSL Linux detected — proceeding.');
