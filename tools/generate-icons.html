@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator for Smart Reply</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1da1f2;
+        }
+        .canvas-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .icon-box {
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        button {
+            background: #1da1f2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0d8bd9;
+        }
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Smart Reply Icon Generator</h1>
+        <p>This tool generates the required icon sizes for your Chrome extension.</p>
+        
+        <div class="canvas-container">
+            <div class="icon-box">
+                <canvas id="icon16" width="16" height="16"></canvas>
+                <p>16x16</p>
+                <button onclick="downloadIcon(16)">Download</button>
+            </div>
+            <div class="icon-box">
+                <canvas id="icon32" width="32" height="32"></canvas>
+                <p>32x32</p>
+                <button onclick="downloadIcon(32)">Download</button>
+            </div>
+            <div class="icon-box">
+                <canvas id="icon48" width="48" height="48"></canvas>
+                <p>48x48</p>
+                <button onclick="downloadIcon(48)">Download</button>
+            </div>
+            <div class="icon-box">
+                <canvas id="icon128" width="128" height="128"></canvas>
+                <p>128x128</p>
+                <button onclick="downloadIcon(128)">Download</button>
+            </div>
+        </div>
+        
+        <button onclick="downloadAll()">📦 Download All Icons</button>
+        <button onclick="regenerateIcons()">🔄 Regenerate Icons</button>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ol>
+                <li>Click "Download All Icons" to get all 4 required icon sizes</li>
+                <li>Save them to: <code>smart-reply-extension/public/icons/</code></li>
+                <li>Name them: <code>icon16.png</code>, <code>icon32.png</code>, <code>icon48.png</code>, <code>icon128.png</code></li>
+                <li>Rebuild the extension: <code>npm run build</code></li>
+                <li>Reload the extension in Chrome</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(size) {
+            const canvas = document.getElementById(`icon${size}`);
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#1da1f2');
+            gradient.addColorStop(1, '#0d8bd9');
+            
+            // Draw rounded rectangle background
+            const radius = size * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Draw AI/robot icon
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = size * 0.06;
+            
+            // Scale factor for different sizes
+            const scale = size / 128;
+            
+            // Draw simple AI symbol (brain/chip icon)
+            ctx.save();
+            ctx.translate(size / 2, size / 2);
+            ctx.scale(scale, scale);
+            
+            // Draw circuit-like pattern
+            ctx.beginPath();
+            // Central circle (processor)
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw connection lines
+            ctx.beginPath();
+            ctx.moveTo(-30, 0);
+            ctx.lineTo(-20, 0);
+            ctx.moveTo(20, 0);
+            ctx.lineTo(30, 0);
+            ctx.moveTo(0, -30);
+            ctx.lineTo(0, -20);
+            ctx.moveTo(0, 20);
+            ctx.lineTo(0, 30);
+            // Diagonal connections
+            ctx.moveTo(-20, -20);
+            ctx.lineTo(-14, -14);
+            ctx.moveTo(20, -20);
+            ctx.lineTo(14, -14);
+            ctx.moveTo(-20, 20);
+            ctx.lineTo(-14, 14);
+            ctx.moveTo(20, 20);
+            ctx.lineTo(14, 14);
+            ctx.stroke();
+            
+            // Draw small nodes at line ends
+            const nodePositions = [
+                [-30, 0], [30, 0], [0, -30], [0, 30],
+                [-20, -20], [20, -20], [-20, 20], [20, 20]
+            ];
+            
+            nodePositions.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Add "AI" text for larger sizes
+            if (size >= 48) {
+                ctx.fillStyle = gradient;
+                ctx.font = `bold ${size * 0.15}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('AI', 0, 0);
+            }
+            
+            ctx.restore();
+        }
+        
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`icon${size}`);
+            const link = document.createElement('a');
+            link.download = `icon${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function downloadAll() {
+            [16, 32, 48, 128].forEach(size => {
+                setTimeout(() => downloadIcon(size), size * 10);
+            });
+        }
+        
+        function regenerateIcons() {
+            [16, 32, 48, 128].forEach(size => drawIcon(size));
+        }
+        
+        // Generate icons on load
+        window.onload = () => {
+            regenerateIcons();
+        };
+    </script>
+</body>
+</html>

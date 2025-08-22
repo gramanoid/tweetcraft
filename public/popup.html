@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Reply Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="popup-root">
+    <div class="popup-container">
+      <header class="popup-header">
+        <h1>Smart Reply</h1>
+        <p>AI-powered Twitter replies</p>
+      </header>
+      
+      <main class="popup-content">
+        <div class="setting-group">
+          <label for="api-key">OpenRouter API Key:</label>
+          <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
+          <small>Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="model-select">Model:</label>
+          <select id="model-select">
+            <option value="openai/gpt-4o">GPT-4o</option>
+            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+            <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
+            <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+          </select>
+        </div>
+        
+        <div class="setting-group">
+          <label for="system-prompt">Your Style/Personality:</label>
+          <textarea id="system-prompt" placeholder="e.g., I'm a tech entrepreneur who writes concise, helpful replies with occasional humor. I focus on practical advice and avoid corporate speak."></textarea>
+        </div>
+        
+        <div class="setting-group">
+          <label>
+            <input type="checkbox" id="context-aware">
+            Analyze original tweet for context
+          </label>
+        </div>
+      </main>
+      
+      <footer class="popup-footer">
+        <button id="save-settings" class="btn-primary">Save Settings</button>
+        <div id="status-message"></div>
+      </footer>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
