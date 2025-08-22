@@ -131,6 +131,16 @@ export class DOMUtils {
     dropdown.id = `smart-reply-dropdown-${Date.now()}`; // Unique ID
     dropdown.style.display = 'none';
 
+    // Add status/progress container at the top
+    const statusContainer = document.createElement('div');
+    statusContainer.className = 'smart-reply-status';
+    statusContainer.style.display = 'none';
+    statusContainer.innerHTML = `
+      <span class="status-text"></span>
+      <span class="char-count"><span class="char-current">0</span>/<span class="char-limit">280</span></span>
+    `;
+    dropdown.appendChild(statusContainer);
+
     const tones = [
       { id: 'professional', name: 'Professional', emoji: '💼' },
       { id: 'casual', name: 'Casual', emoji: '😊' },
@@ -139,10 +149,30 @@ export class DOMUtils {
       { id: 'contrarian', name: 'Contrarian', emoji: '🤔' }
     ];
 
-    tones.forEach(tone => {
+    tones.forEach((tone, index) => {
       const option = document.createElement('div');
       option.className = 'smart-reply-option';
       option.innerHTML = `${tone.emoji} ${tone.name}`;
+      option.setAttribute('role', 'button');
+      option.setAttribute('tabindex', index === 0 ? '0' : '-1');
+      
+      // Add hover and focus effects
+      option.addEventListener('mouseenter', () => {
+        option.style.backgroundColor = 'rgba(29, 155, 240, 0.1)';
+      });
+      option.addEventListener('mouseleave', () => {
+        option.style.backgroundColor = '';
+      });
+      option.addEventListener('focus', () => {
+        option.style.backgroundColor = 'rgba(29, 155, 240, 0.1)';
+        option.style.outline = '2px solid rgb(29, 155, 240)';
+        option.style.outlineOffset = '-2px';
+      });
+      option.addEventListener('blur', () => {
+        option.style.backgroundColor = '';
+        option.style.outline = '';
+      });
+      
       option.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -163,6 +193,9 @@ export class DOMUtils {
       span.textContent = 'Generating...';
     }
     (button as HTMLButtonElement).disabled = true;
+    
+    // Show progress text
+    this.updateProgressText('Analyzing tweet context...');
   }
 
   static hideLoadingState(button: HTMLElement): void {
@@ -172,6 +205,60 @@ export class DOMUtils {
       span.textContent = 'AI Reply';
     }
     (button as HTMLButtonElement).disabled = false;
+    
+    // Hide progress text but keep character count visible
+    const statusElements = document.querySelectorAll('.smart-reply-status');
+    statusElements.forEach(element => {
+      const statusText = element.querySelector('.status-text');
+      if (statusText) {
+        statusText.textContent = '';
+      }
+    });
+  }
+
+  static updateProgressText(text: string): void {
+    const statusElements = document.querySelectorAll('.smart-reply-status');
+    statusElements.forEach(element => {
+      const statusText = element.querySelector('.status-text');
+      if (statusText) {
+        statusText.textContent = text;
+        (element as HTMLElement).style.display = text ? 'flex' : 'none';
+      }
+    });
+  }
+
+  static updateCharCount(count: number): void {
+    const charCountElements = document.querySelectorAll('.char-current');
+    const limitElements = document.querySelectorAll('.char-limit');
+    
+    charCountElements.forEach(element => {
+      element.textContent = count.toString();
+      // Change color based on count
+      const parent = element.closest('.char-count') as HTMLElement;
+      if (parent) {
+        if (count > 280) {
+          parent.style.color = '#f4212e'; // Twitter red
+        } else if (count > 260) {
+          parent.style.color = '#ff8c00'; // Warning orange  
+        } else {
+          parent.style.color = '#536471'; // Default gray
+        }
+      }
+    });
+
+    // Check if user has premium (longer limit)
+    const isPremium = document.querySelector('[data-testid="tweetTextarea_0_label"]')?.textContent?.includes('25,000');
+    if (isPremium) {
+      limitElements.forEach(element => {
+        element.textContent = '25000';
+      });
+    }
+    
+    // Show status container when we have a count
+    const statusElements = document.querySelectorAll('.smart-reply-status');
+    statusElements.forEach(element => {
+      (element as HTMLElement).style.display = count > 0 ? 'flex' : 'none';
+    });
   }
 
   static showError(button: HTMLElement, message: string): void {

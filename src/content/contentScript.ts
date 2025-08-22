@@ -142,15 +142,56 @@ class SmartReplyContentScript {
           dropdown.style.top = `${rect.bottom + 5}px`;
           dropdown.style.left = `${rect.left}px`;
           dropdown.style.zIndex = '10000'; // Higher z-index
+          
+          // Focus first option for keyboard nav
+          const firstOption = dropdown.querySelector('.smart-reply-option') as HTMLElement;
+          if (firstOption) {
+            firstOption.focus();
+            firstOption.setAttribute('tabindex', '0');
+          }
         }
         
         return false; // Prevent any default action
       }, true); // Use capture phase
 
-      // Close dropdown when clicking outside
+      // Close dropdown when clicking outside or pressing Escape
       document.addEventListener('click', (e) => {
-        if (!buttonContainer.contains(e.target as Node)) {
+        if (!buttonContainer.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
           dropdown.style.display = 'none';
+        }
+      });
+      
+      // Keyboard navigation
+      document.addEventListener('keydown', (e) => {
+        if (dropdown.style.display === 'block') {
+          const options = Array.from(dropdown.querySelectorAll('.smart-reply-option')) as HTMLElement[];
+          const focusedIndex = options.findIndex(opt => opt === document.activeElement);
+          
+          switch(e.key) {
+            case 'Escape':
+              dropdown.style.display = 'none';
+              button.focus();
+              e.preventDefault();
+              break;
+            case 'ArrowDown':
+              e.preventDefault();
+              const nextIndex = focusedIndex < options.length - 1 ? focusedIndex + 1 : 0;
+              options[nextIndex]?.focus();
+              options[nextIndex]?.setAttribute('tabindex', '0');
+              break;
+            case 'ArrowUp':
+              e.preventDefault();
+              const prevIndex = focusedIndex > 0 ? focusedIndex - 1 : options.length - 1;
+              options[prevIndex]?.focus();
+              options[prevIndex]?.setAttribute('tabindex', '0');
+              break;
+            case 'Enter':
+              if (focusedIndex >= 0) {
+                e.preventDefault();
+                options[focusedIndex]?.click();
+              }
+              break;
+          }
         }
       });
 
@@ -195,6 +236,9 @@ class SmartReplyContentScript {
       // Show loading state
       DOMUtils.showLoadingState(button);
       console.log('Smart Reply: Generating reply with tone:', tone);
+      
+      // Update progress text sequence
+      setTimeout(() => DOMUtils.updateProgressText('Generating reply...'), 500);
 
       // Check if API key is configured
       const apiKey = await StorageService.getApiKey();
@@ -218,7 +262,21 @@ class SmartReplyContentScript {
       if (response.success && response.reply) {
         // Set the generated text in the textarea
         DOMUtils.setTextareaValue(textarea, response.reply);
+        
+        // Update character count
+        DOMUtils.updateCharCount(response.reply.length);
+        
         console.log('Smart Reply: Reply generated successfully:', response.reply);
+        
+        // Listen for further edits to update char count
+        const updateCount = () => {
+          const currentText = textarea.textContent || '';
+          DOMUtils.updateCharCount(currentText.length);
+        };
+        textarea.addEventListener('input', updateCount);
+        
+        // Store the listener for cleanup
+        textarea.setAttribute('data-smart-reply-listener', 'true');
       } else {
         // Show error
         DOMUtils.showError(button, response.error || 'Failed to generate reply');

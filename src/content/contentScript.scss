@@ -69,6 +69,32 @@
   overflow: hidden !important;
   padding: 4px 0 !important;
   
+  // Status container for progress and char count
+  .smart-reply-status {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 8px 16px !important;
+    background-color: rgb(247, 249, 250) !important;
+    border-bottom: 1px solid rgb(239, 243, 244) !important;
+    font-size: 13px !important;
+    
+    .status-text {
+      color: rgb(83, 100, 113) !important;
+      font-style: italic !important;
+    }
+    
+    .char-count {
+      color: rgb(83, 100, 113) !important;
+      font-weight: 500 !important;
+      margin-left: auto !important;
+      
+      .char-current {
+        font-weight: 600 !important;
+      }
+    }
+  }
+  
   .smart-reply-option {
     padding: 12px 16px !important;
     cursor: pointer !important;
@@ -117,6 +143,19 @@
   .smart-reply-dropdown {
     background: rgb(21, 32, 43) !important;
     border-color: rgb(83, 100, 113) !important;
+    
+    .smart-reply-status {
+      background-color: rgb(39, 51, 64) !important;
+      border-bottom-color: rgb(83, 100, 113) !important;
+      
+      .status-text {
+        color: rgb(139, 152, 165) !important;
+      }
+      
+      .char-count {
+        color: rgb(139, 152, 165) !important;
+      }
+    }
     
     .smart-reply-option {
       color: white !important;
