@@ -325,6 +325,16 @@ class SmartReplyContentScript {
         
         console.log('Smart Reply: Reply generated successfully:', response.reply);
         
+        // Close dropdown after successful generation
+        const dropdown = document.querySelector('.smart-reply-dropdown') as HTMLElement;
+        if (dropdown) {
+          setTimeout(() => {
+            dropdown.style.display = 'none';
+            // Remove scroll listener
+            window.removeEventListener('scroll', () => {}, true);
+          }, 500); // Small delay to show the completion
+        }
+        
         // Listen for further edits to update char count
         const updateCount = () => {
           const currentText = textarea.textContent || '';

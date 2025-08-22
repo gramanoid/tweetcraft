@@ -178,7 +178,8 @@ export class DOMUtils {
         e.stopPropagation();
         e.stopImmediatePropagation();
         onToneSelect(tone.id);
-        dropdown.style.display = 'none';
+        // Don't close dropdown immediately - let it show progress
+        // dropdown.style.display = 'none';
       }, true);
       dropdown.appendChild(option);
     });

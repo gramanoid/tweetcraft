@@ -126,11 +126,17 @@ export class OpenRouterService {
     // System prompt with user's style
     let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
     
+    // Debug logging
+    console.log('Smart Reply: Building messages with tone:', request.tone);
+    console.log('Smart Reply: Config tonePresets:', config.tonePresets);
+    
     // Add tone modifier if specified
     if (request.tone && config.tonePresets) {
       const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
+      console.log('Smart Reply: Found tone preset:', tonePreset);
       if (tonePreset) {
         systemPrompt += ' ' + tonePreset.promptModifier;
+        console.log('Smart Reply: Final system prompt:', systemPrompt);
       }
     }
 
