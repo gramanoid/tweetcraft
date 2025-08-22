@@ -126,7 +126,7 @@ export class OpenRouterService {
     // System prompt with user's style
     let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
     
-    // Debug logging
+    // Debug logging for tones
     console.log('Smart Reply: Building messages with tone:', request.tone);
     console.log('Smart Reply: Config tonePresets:', config.tonePresets);
     
@@ -146,6 +146,7 @@ export class OpenRouterService {
     }
 
     systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
+    systemPrompt += ' IMPORTANT: Write only the reply text itself. Do not include any meta-commentary, labels, or phrases like "A reply could be:" or "Here\'s a response:". Start directly with the actual reply content.';
 
     messages.push({
       role: 'system' as const,
@@ -172,11 +173,28 @@ export class OpenRouterService {
   }
 
   private static cleanupReply(reply: string): string {
-    // Remove common artifacts
-    return reply
+    // Remove common artifacts and meta text
+    let cleaned = reply
       .replace(/^["']|["']$/g, '') // Remove surrounding quotes
       .replace(/\n+/g, ' ') // Replace newlines with spaces
       .trim();
+    
+    // Remove common meta-text patterns
+    const metaPatterns = [
+      /^(A |An )?(balanced |measured |witty |professional |casual |supportive |contrarian |thoughtful )?(reply|response)( could be| might be)?:?\s*/i,
+      /^Here(\'s| is) (a |an )?(reply|response):?\s*/i,
+      /^(Reply|Response):?\s*/i,
+      /^You could (say|reply|respond with):?\s*/i,
+    ];
+    
+    for (const pattern of metaPatterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+    
+    // Remove quotes that might have been added around the actual reply
+    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+    
+    return cleaned;
   }
 
   static async validateApiKey(apiKey: string): Promise<boolean> {

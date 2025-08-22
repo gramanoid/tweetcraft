@@ -293,9 +293,6 @@ class SmartReplyContentScript {
       // Show loading state
       DOMUtils.showLoadingState(button);
       console.log('Smart Reply: Generating reply with tone:', tone);
-      
-      // Update progress text sequence
-      setTimeout(() => DOMUtils.updateProgressText('Generating reply...'), 500);
 
       // Check if API key is configured
       const apiKey = await StorageService.getApiKey();

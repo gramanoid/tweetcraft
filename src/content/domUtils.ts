@@ -131,15 +131,14 @@ export class DOMUtils {
     dropdown.id = `smart-reply-dropdown-${Date.now()}`; // Unique ID
     dropdown.style.display = 'none';
 
-    // Add status/progress container at the top
-    const statusContainer = document.createElement('div');
-    statusContainer.className = 'smart-reply-status';
-    statusContainer.style.display = 'none';
-    statusContainer.innerHTML = `
-      <span class="status-text"></span>
+    // Character count only (no status messages)
+    const charCountContainer = document.createElement('div');
+    charCountContainer.className = 'smart-reply-char-count';
+    charCountContainer.style.display = 'none';
+    charCountContainer.innerHTML = `
       <span class="char-count"><span class="char-current">0</span>/<span class="char-limit">280</span></span>
     `;
-    dropdown.appendChild(statusContainer);
+    dropdown.appendChild(charCountContainer);
 
     const tones = [
       { id: 'professional', name: 'Professional', emoji: '💼' },
@@ -194,9 +193,7 @@ export class DOMUtils {
       span.textContent = 'Generating...';
     }
     (button as HTMLButtonElement).disabled = true;
-    
-    // Show progress text
-    this.updateProgressText('Analyzing tweet context...');
+    // No progress text - loading animation is enough
   }
 
   static hideLoadingState(button: HTMLElement): void {
@@ -206,28 +203,9 @@ export class DOMUtils {
       span.textContent = 'AI Reply';
     }
     (button as HTMLButtonElement).disabled = false;
-    
-    // Hide progress text but keep character count visible
-    const statusElements = document.querySelectorAll('.smart-reply-status');
-    statusElements.forEach(element => {
-      const statusText = element.querySelector('.status-text');
-      if (statusText) {
-        statusText.textContent = '';
-      }
-    });
   }
 
-  static updateProgressText(text: string): void {
-    const statusElements = document.querySelectorAll('.smart-reply-status');
-    statusElements.forEach(element => {
-      const statusText = element.querySelector('.status-text');
-      if (statusText) {
-        statusText.textContent = text;
-        // Always show the status container when there's text
-        (element as HTMLElement).style.display = 'flex';
-      }
-    });
-  }
+  // Removed updateProgressText - no longer needed
 
   static updateCharCount(count: number): void {
     const charCountElements = document.querySelectorAll('.char-current');
@@ -250,10 +228,10 @@ export class DOMUtils {
       });
     }
     
-    // Show status container when we have a count
-    const statusElements = document.querySelectorAll('.smart-reply-status');
-    statusElements.forEach(element => {
-      (element as HTMLElement).style.display = count > 0 ? 'flex' : 'none';
+    // Show char count container when we have a count
+    const charCountContainers = document.querySelectorAll('.smart-reply-char-count');
+    charCountContainers.forEach(element => {
+      (element as HTMLElement).style.display = count > 0 ? 'block' : 'none';
     });
   }
 
