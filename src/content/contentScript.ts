@@ -166,6 +166,16 @@ class SmartReplyContentScript {
         this.generateReply(textarea, context, tone);
       });
 
+      // Function to update dropdown position
+      const updateDropdownPosition = () => {
+        if (dropdown.style.display === 'block') {
+          const rect = button.getBoundingClientRect();
+          dropdown.style.position = 'fixed';
+          dropdown.style.top = `${rect.bottom + 5}px`;
+          dropdown.style.left = `${rect.left}px`;
+        }
+      };
+
       // Add click handler for the main button
       button.addEventListener('click', (e) => {
         e.preventDefault();
@@ -177,12 +187,12 @@ class SmartReplyContentScript {
         dropdown.style.display = isVisible ? 'none' : 'block';
         
         if (!isVisible) {
-          // Position dropdown as fixed element
-          const rect = button.getBoundingClientRect();
-          dropdown.style.position = 'fixed'; // Use fixed positioning
-          dropdown.style.top = `${rect.bottom + 5}px`;
-          dropdown.style.left = `${rect.left}px`;
+          // Position dropdown relative to button
+          updateDropdownPosition();
           dropdown.style.zIndex = '10000'; // Higher z-index
+          
+          // Add scroll listener to update position
+          window.addEventListener('scroll', updateDropdownPosition, true);
           
           // Focus first option for keyboard nav
           const firstOption = dropdown.querySelector('.smart-reply-option') as HTMLElement;
@@ -190,6 +200,9 @@ class SmartReplyContentScript {
             firstOption.focus();
             firstOption.setAttribute('tabindex', '0');
           }
+        } else {
+          // Remove scroll listener when closing
+          window.removeEventListener('scroll', updateDropdownPosition, true);
         }
         
         return false; // Prevent any default action
@@ -199,6 +212,8 @@ class SmartReplyContentScript {
       document.addEventListener('click', (e) => {
         if (!buttonContainer.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
           dropdown.style.display = 'none';
+          // Remove scroll listener
+          window.removeEventListener('scroll', updateDropdownPosition, true);
         }
       });
       
@@ -211,6 +226,7 @@ class SmartReplyContentScript {
           switch(e.key) {
             case 'Escape':
               dropdown.style.display = 'none';
+              window.removeEventListener('scroll', updateDropdownPosition, true);
               button.focus();
               e.preventDefault();
               break;

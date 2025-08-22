@@ -222,7 +222,8 @@ export class DOMUtils {
       const statusText = element.querySelector('.status-text');
       if (statusText) {
         statusText.textContent = text;
-        (element as HTMLElement).style.display = text ? 'flex' : 'none';
+        // Always show the status container when there's text
+        (element as HTMLElement).style.display = 'flex';
       }
     });
   }
@@ -233,16 +234,10 @@ export class DOMUtils {
     
     charCountElements.forEach(element => {
       element.textContent = count.toString();
-      // Change color based on count
+      // Keep subtle gray color always
       const parent = element.closest('.char-count') as HTMLElement;
       if (parent) {
-        if (count > 280) {
-          parent.style.color = '#f4212e'; // Twitter red
-        } else if (count > 260) {
-          parent.style.color = '#ff8c00'; // Warning orange  
-        } else {
-          parent.style.color = '#536471'; // Default gray
-        }
+        parent.style.color = '#536471'; // Subtle gray
       }
     });
 
