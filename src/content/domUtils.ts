@@ -48,6 +48,9 @@ export class DOMUtils {
       const tweetTextElement = originalTweetElement.querySelector(this.TWEET_TEXT_SELECTOR);
       if (tweetTextElement) {
         context.tweetText = tweetTextElement.textContent || '';
+        console.log('Smart Reply: Extracted tweet text from DOM:', context.tweetText);
+      } else {
+        console.log('Smart Reply: Tweet text element not found in DOM');
       }
 
       // Extract author handle (if needed for future features)
@@ -56,8 +59,11 @@ export class DOMUtils {
         const href = handleElement.getAttribute('href');
         if (href) {
           context.authorHandle = href.replace('/', '');
+          console.log('Smart Reply: Tweet author:', context.authorHandle);
         }
       }
+    } else {
+      console.log('Smart Reply: Not a reply context - no original tweet found');
     }
 
     return context;

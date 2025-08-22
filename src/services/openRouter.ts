@@ -164,6 +164,10 @@ export class OpenRouterService {
       userPrompt = 'Write an engaging tweet.';
     }
 
+    // Debug logging to see what text we're replying to
+    console.log('Smart Reply: Original tweet text:', context.tweetText || '[No tweet text captured]');
+    console.log('Smart Reply: User prompt being sent:', userPrompt);
+
     messages.push({
       role: 'user' as const,
       content: userPrompt
