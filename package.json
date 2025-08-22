@@ -1,6 +1,6 @@
 {
   "name": "smart-reply-extension",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "AI-powered Twitter reply generation with custom prompts",
   "scripts": {
     "build": "webpack --config webpack.prod.js",
