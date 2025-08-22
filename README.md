@@ -1,15 +1,24 @@
-# Smart Reply Extension
+# Smart Reply Extension v1.0.2
 
 AI-powered Twitter reply generation with custom prompts and OpenRouter integration.
 
 ## Features
 
+### Core Features
 - 🤖 **OpenRouter Integration** - Use any LLM (GPT-4, Claude, Gemini, etc.)
 - 🎨 **Custom Prompts** - Define your personal style and tonality
-- 🎯 **Tone Selection** - Quick presets (Professional, Casual, Witty, etc.)
+- 🎯 **Tone Selection** - Quick presets (Professional, Casual, Witty, Supportive, Contrarian)
 - 🧠 **Context Aware** - Analyzes original tweets for relevant replies
 - ⚡ **Fast Integration** - Seamless Twitter/X DOM integration
 - 🔒 **BYOK** - Bring Your Own Key for privacy and control
+
+### v1.0.2 Improvements (Phase 1 Complete)
+- 📊 **Character Counter** - Live character count with color warnings (red >280, orange >260)
+- 📝 **Progress Feedback** - Shows generation progress ("Analyzing tweet context...", "Generating reply...")
+- ⌨️ **Keyboard Navigation** - Use arrow keys to navigate, Enter to select, Escape to close
+- 🎨 **Visual Feedback** - Hover effects and focus states for better UX
+- 🖱️ **Click Outside to Close** - Dropdown closes when clicking elsewhere
+- 🔧 **Error Handling** - Graceful handling of extension reloads and context invalidation
 
 ## Installation
 
