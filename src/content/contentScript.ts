@@ -8,18 +8,33 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
+  private static readonly VERSION = '1.0.2';
+  private isDestroyed = false;
 
   constructor() {
+    // Check if another instance already exists
+    if ((window as any).__smartReplyInstance) {
+      console.log('Smart Reply: Previous instance detected, cleaning up...');
+      (window as any).__smartReplyInstance.destroy();
+    }
+    
+    // Register this instance
+    (window as any).__smartReplyInstance = this;
     this.init();
   }
 
   private init(): void {
+    // Check if already destroyed
+    if (this.isDestroyed) return;
+    
     // Establish connection with service worker
     this.connectToServiceWorker();
     
     // Wait for the page to be ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.startObserving());
+      document.addEventListener('DOMContentLoaded', () => {
+        if (!this.isDestroyed) this.startObserving();
+      });
     } else {
       this.startObserving();
     }
@@ -27,15 +42,41 @@ class SmartReplyContentScript {
 
   private connectToServiceWorker(): void {
     try {
+      // Check if extension context is still valid
+      if (!chrome.runtime?.id) {
+        console.log('Smart Reply: Extension context invalidated, cleaning up...');
+        this.destroy();
+        return;
+      }
+      
       this.port = chrome.runtime.connect({ name: 'content-script' });
       
       this.port.onDisconnect.addListener(() => {
-        // Silent reconnection
+        // Check if it's an invalidation error
+        const error = chrome.runtime.lastError;
+        if (error?.message?.includes('Extension context invalidated')) {
+          console.log('Smart Reply: Extension was reloaded, cleaning up old instance...');
+          this.destroy();
+          return;
+        }
+        
+        // Otherwise try silent reconnection
         this.port = null;
         setTimeout(() => this.connectToServiceWorker(), 1000);
       });
-    } catch (error) {
-      console.error('Smart Reply: Failed to connect to service worker:', error);
+    } catch (error: any) {
+      // Check for context invalidation
+      if (error?.message?.includes('Extension context invalidated')) {
+        console.log('Smart Reply: Extension context invalidated, stopping reconnection attempts');
+        this.destroy();
+        return;
+      }
+      
+      // Only log actual errors, not context invalidation
+      if (!error?.message?.includes('context invalidated')) {
+        console.error('Smart Reply: Connection error:', error);
+      }
+      
       setTimeout(() => this.connectToServiceWorker(), 5000);
     }
   }
@@ -293,6 +334,10 @@ class SmartReplyContentScript {
   }
 
   public destroy(): void {
+    // Prevent multiple destroy calls
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
+    
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
@@ -309,6 +354,11 @@ class SmartReplyContentScript {
     
     // Clear processed toolbars
     this.processedToolbars = new WeakSet<Element>();
+    
+    // Unregister this instance
+    if ((window as any).__smartReplyInstance === this) {
+      delete (window as any).__smartReplyInstance;
+    }
     
     console.log('Smart Reply: Content script destroyed');
   }
