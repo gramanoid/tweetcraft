@@ -1,4 +1,5 @@
 import { TwitterContext } from '@/types';
+import { URLCleaner } from '@/utils/urlCleaner';
 
 export class DOMUtils {
   // Twitter's reply textarea selector
@@ -47,10 +48,15 @@ export class DOMUtils {
       // Extract original tweet text
       const tweetTextElement = originalTweetElement.querySelector(this.TWEET_TEXT_SELECTOR);
       if (tweetTextElement) {
-        context.tweetText = tweetTextElement.textContent || '';
-        console.log('Smart Reply: Extracted tweet text from DOM:', context.tweetText);
+        const rawText = tweetTextElement.textContent || '';
+        // Clean tracking parameters from any URLs in the tweet
+        context.tweetText = URLCleaner.cleanTextURLs(rawText);
+        if (rawText !== context.tweetText) {
+          console.log('TweetCraft: Cleaned tracking parameters from URLs');
+        }
+        console.log('TweetCraft: Extracted tweet text from DOM:', context.tweetText);
       } else {
-        console.log('Smart Reply: Tweet text element not found in DOM');
+        console.log('TweetCraft: Tweet text element not found in DOM');
       }
 
       // Extract author handle (if needed for future features)
@@ -59,14 +65,74 @@ export class DOMUtils {
         const href = handleElement.getAttribute('href');
         if (href) {
           context.authorHandle = href.replace('/', '');
-          console.log('Smart Reply: Tweet author:', context.authorHandle);
+          console.log('TweetCraft: Tweet author:', context.authorHandle);
         }
       }
+
+      // Extract thread context (up to 3 previous tweets)
+      const threadContext = this.extractThreadContext();
+      if (threadContext && threadContext.length > 0) {
+        context.threadContext = threadContext;
+        console.log(`TweetCraft: Found ${threadContext.length} tweets in thread`);
+      }
     } else {
-      console.log('Smart Reply: Not a reply context - no original tweet found');
+      console.log('TweetCraft: Not a reply context - no original tweet found');
     }
 
     return context;
+  }
+
+  /**
+   * Extract thread context by finding previous tweets in the conversation
+   * @returns Array of tweet objects with author and text
+   */
+  static extractThreadContext(): Array<{author: string, text: string}> | null {
+    const threadTweets: Array<{author: string, text: string}> = [];
+    const seenTexts = new Set<string>();
+    
+    try {
+      // Twitter/X shows thread tweets in article elements with specific data-testid
+      // Look for all tweet articles on the page
+      const allTweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
+      
+      // We want tweets that appear before the reply box
+      // The reply box is typically at the bottom, so we process tweets from top
+      for (let i = 0; i < allTweetArticles.length; i++) {
+        const article = allTweetArticles[i];
+        // Skip if we already have 3 unique tweets
+        if (threadTweets.length >= 3) break;
+        
+        // Extract tweet text
+        const tweetTextEl = article.querySelector('[data-testid="tweetText"]');
+        if (!tweetTextEl) continue;
+        
+        const tweetText = URLCleaner.cleanTextURLs(tweetTextEl.textContent || '');
+        
+        // Skip duplicates
+        if (seenTexts.has(tweetText)) continue;
+        seenTexts.add(tweetText);
+        
+        // Extract author info
+        const authorEl = article.querySelector('[data-testid="User-Name"] a');
+        let author = 'Unknown';
+        if (authorEl) {
+          const href = authorEl.getAttribute('href');
+          if (href) {
+            author = href.replace('/', '@');
+          }
+        }
+        
+        // Add to thread context
+        threadTweets.push({ author, text: tweetText });
+      }
+      
+      // Reverse to get chronological order (oldest first)
+      return threadTweets.reverse();
+      
+    } catch (error) {
+      console.error('TweetCraft: Error extracting thread context:', error);
+      return null;
+    }
   }
 
   static setTextareaValue(textarea: HTMLElement, text: string): void {
@@ -131,11 +197,22 @@ export class DOMUtils {
     return button;
   }
 
-  static createToneDropdown(onToneSelect: (tone: string) => void): HTMLElement {
+  static async createToneDropdown(onToneSelect: (tone: string) => void): Promise<HTMLElement> {
     const dropdown = document.createElement('div');
     dropdown.className = 'smart-reply-dropdown';
     dropdown.id = `smart-reply-dropdown-${Date.now()}`; // Unique ID
     dropdown.style.display = 'none';
+    
+    // Get last used tone from session storage via service worker
+    let lastTone: string | undefined;
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_LAST_TONE' });
+      if (response?.success) {
+        lastTone = response.lastTone;
+      }
+    } catch (error) {
+      console.log('Smart Reply: Could not get last tone:', error);
+    }
 
     // Character count only (no status messages)
     const charCountContainer = document.createElement('div');
@@ -157,7 +234,16 @@ export class DOMUtils {
     tones.forEach((tone, index) => {
       const option = document.createElement('div');
       option.className = 'smart-reply-option';
-      option.innerHTML = `${tone.emoji} ${tone.name}`;
+      
+      // Pre-select last used tone
+      const isLastUsed = tone.id === lastTone;
+      if (isLastUsed) {
+        option.innerHTML = `${tone.emoji} ${tone.name} ✓`;
+        option.style.fontWeight = '600';
+      } else {
+        option.innerHTML = `${tone.emoji} ${tone.name}`;
+      }
+      
       option.setAttribute('role', 'button');
       option.setAttribute('tabindex', index === 0 ? '0' : '-1');
       
@@ -178,10 +264,18 @@ export class DOMUtils {
         option.style.outline = '';
       });
       
-      option.addEventListener('click', (e) => {
+      option.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        
+        // Save the selected tone to session storage via service worker
+        try {
+          await chrome.runtime.sendMessage({ type: 'SET_LAST_TONE', tone: tone.id });
+        } catch (error) {
+          console.log('Smart Reply: Could not save last tone:', error);
+        }
+        
         onToneSelect(tone.id);
         // Don't close dropdown immediately - let it show progress
         // dropdown.style.display = 'none';

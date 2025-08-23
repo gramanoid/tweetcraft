@@ -130,6 +130,155 @@ body {
       accent-color: #1da1f2;
     }
   }
+  
+  // Range slider styling
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: #e1e8ed;
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    margin: 10px 0;
+    
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #1da1f2;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(29, 161, 242, 0.3);
+      }
+    }
+    
+    &::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #1da1f2;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      
+      &:hover {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(29, 161, 242, 0.3);
+      }
+    }
+  }
+  
+  .temperature-info {
+    display: block;
+    margin-top: -5px;
+    margin-bottom: 10px;
+    color: #8899a6;
+    font-size: 10px;
+    overflow: hidden;
+  }
+}
+
+// API key row styling
+.api-key-row, .model-select-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  
+  input, select {
+    flex: 1;
+  }
+  
+  .btn-secondary {
+    padding: 8px 16px;
+    background-color: #ffffff;
+    color: #1da1f2;
+    border: 1px solid #1da1f2;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover:not(:disabled) {
+      background-color: #e8f5fd;
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+  
+  .btn-icon {
+    padding: 8px 10px;
+    background-color: transparent;
+    border: 1px solid #e1e8ed;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 40px;
+    
+    &:hover {
+      background-color: #f7f9fa;
+      border-color: #1da1f2;
+    }
+    
+    &.active {
+      background-color: #e8f5fd;
+      border-color: #1da1f2;
+    }
+  }
+}
+
+// Model info styling
+.model-info {
+  display: block;
+  margin-top: 4px;
+  color: #657786;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+// Test result styling
+.test-result {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  display: none;
+  
+  &.success {
+    display: block;
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  &.error {
+    display: block;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  
+  &.testing {
+    display: block;
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+}
+
+// Spin animation for refresh button
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .popup-footer {

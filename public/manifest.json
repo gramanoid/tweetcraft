@@ -1,7 +1,7 @@
 {
-  "name": "Smart Reply",
-  "description": "AI-powered Twitter replies with custom prompts and OpenRouter integration",
-  "version": "1.0.3",
+  "name": "TweetCraft",
+  "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
+  "version": "1.4.1",
   "manifest_version": 3,
   "background": {
     "service_worker": "serviceWorker.js"

@@ -3,32 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Smart Reply Settings</title>
+  <title>TweetCraft Settings</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="popup-root">
     <div class="popup-container">
       <header class="popup-header">
-        <h1>Smart Reply</h1>
-        <p>AI-powered Twitter replies</p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <img src="icons/logo48.png" alt="TweetCraft" style="width: 32px; height: 32px;">
+          <h1>TweetCraft</h1>
+        </div>
+        <p>Craft perfect replies with AI</p>
       </header>
       
       <main class="popup-content">
         <div class="setting-group">
           <label for="api-key">OpenRouter API Key:</label>
-          <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
+          <div class="api-key-row">
+            <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
+            <button id="toggle-api-key" class="btn-icon" title="Show/Hide API Key">👁️</button>
+            <button id="test-api-key" class="btn-secondary" title="Test API Key">Test</button>
+          </div>
           <small>Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+          <div id="api-test-result" class="test-result"></div>
         </div>
         
         <div class="setting-group">
           <label for="model-select">Model:</label>
-          <select id="model-select">
-            <option value="openai/gpt-4o">GPT-4o</option>
-            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-            <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
-            <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
-          </select>
+          <div class="model-select-row">
+            <select id="model-select">
+              <option value="openai/gpt-4o">GPT-4o (Default)</option>
+            </select>
+            <button id="refresh-models" class="btn-secondary" title="Refresh Models">↻</button>
+          </div>
+          <small id="model-info" class="model-info"></small>
         </div>
         
         <div class="setting-group">
@@ -37,10 +46,22 @@
         </div>
         
         <div class="setting-group">
-          <label>
-            <input type="checkbox" id="context-aware">
-            Analyze original tweet for context
-          </label>
+          <label for="temperature">Temperature: <span id="temperature-value">0.7</span></label>
+          <input type="range" id="temperature" min="0.1" max="1.0" step="0.1" value="0.7">
+          <small class="temperature-info">
+            <span style="float: left">← Focused</span>
+            <span style="float: right">Creative →</span>
+          </small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="context-mode">Context Mode:</label>
+          <select id="context-mode">
+            <option value="none">No context (generic reply)</option>
+            <option value="single">Single tweet only</option>
+            <option value="thread" selected>Full thread context (up to 3 tweets)</option>
+          </select>
+          <small>Choose how much conversation context to include when generating replies</small>
         </div>
       </main>
       

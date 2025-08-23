@@ -2,7 +2,8 @@ import { AppConfig, DEFAULT_CONFIG } from '@/types';
 
 const STORAGE_KEYS = {
   CONFIG: 'smartReply_config',
-  API_KEY: 'smartReply_apiKey'
+  API_KEY: 'smartReply_apiKey',
+  LAST_TONE: 'smartReply_lastTone'
 } as const;
 
 export class StorageService {
@@ -61,9 +62,31 @@ export class StorageService {
     try {
       await chrome.storage.local.clear();
       await chrome.storage.sync.clear();
+      await chrome.storage.session.clear();
     } catch (error) {
       console.error('Failed to clear all data:', error);
       throw error;
+    }
+  }
+
+  static async getLastTone(): Promise<string | undefined> {
+    try {
+      const result = await chrome.storage.session.get(STORAGE_KEYS.LAST_TONE);
+      return result[STORAGE_KEYS.LAST_TONE];
+    } catch (error) {
+      console.error('Failed to get last tone from session storage:', error);
+      return undefined;
+    }
+  }
+
+  static async setLastTone(tone: string): Promise<void> {
+    try {
+      await chrome.storage.session.set({
+        [STORAGE_KEYS.LAST_TONE]: tone
+      });
+      console.log('Smart Reply: Saved last used tone:', tone);
+    } catch (error) {
+      console.error('Failed to save last tone to session storage:', error);
     }
   }
 }

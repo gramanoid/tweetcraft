@@ -2,8 +2,9 @@ export interface AppConfig {
   apiKey: string;
   model: string;
   systemPrompt: string;
-  contextAware: boolean;
+  contextMode?: 'none' | 'single' | 'thread';
   tonePresets: TonePreset[];
+  temperature?: number;
 }
 
 export interface TonePreset {
@@ -27,11 +28,17 @@ export interface ReplyGenerationResponse {
   error?: string;
 }
 
+export interface ThreadTweet {
+  author: string;
+  text: string;
+}
+
 export interface TwitterContext {
   tweetText?: string;
   authorHandle?: string;
   tweetId?: string;
   isReply: boolean;
+  threadContext?: ThreadTweet[];
 }
 
 export interface OpenRouterMessage {
@@ -108,6 +115,6 @@ export const DEFAULT_TONE_PRESETS: TonePreset[] = [
 export const DEFAULT_CONFIG: Partial<AppConfig> = {
   model: 'openai/gpt-4o',
   systemPrompt: 'You are a helpful social media user who writes engaging, authentic replies to tweets. Keep responses concise and natural.',
-  contextAware: true,
+  contextMode: 'thread',
   tonePresets: DEFAULT_TONE_PRESETS
 };

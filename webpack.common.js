@@ -6,7 +6,7 @@ module.exports = {
   entry: {
     contentScript: './src/content/contentScript.ts',
     serviceWorker: './src/background/serviceWorker.ts',
-    popup: './src/popup/popup.ts'
+    popup: './src/popup/popup-simple.ts'
   },
   module: {
     rules: [

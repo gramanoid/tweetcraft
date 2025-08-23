@@ -127,8 +127,112 @@ class SmartReplyServiceWorker {
           sendResponse({ success: true });
           break;
 
+        case 'GET_LAST_TONE':
+          const lastTone = await StorageService.getLastTone();
+          sendResponse({ success: true, lastTone });
+          break;
+
+        case 'SET_LAST_TONE':
+          await StorageService.setLastTone(message.tone);
+          sendResponse({ success: true });
+          break;
+
         case 'PING':
           sendResponse({ success: true, message: 'Service worker is active' });
+          break;
+
+        case 'TEST_API_KEY':
+          // Test API key by fetching models from OpenRouter
+          const testApiKey = message.apiKey;
+          if (!testApiKey) {
+            sendResponse({ success: false, error: 'No API key provided' });
+            break;
+          }
+          
+          fetch('https://openrouter.ai/api/v1/models', {
+            headers: {
+              'Authorization': `Bearer ${testApiKey}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => {
+            if (response.ok) {
+              sendResponse({ success: true });
+            } else {
+              sendResponse({ 
+                success: false, 
+                error: `Error ${response.status}: ${response.statusText}` 
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Smart Reply: API key test failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: 'Network error: Could not connect to OpenRouter' 
+            });
+          });
+          break;
+
+        case 'FETCH_MODELS':
+          // Fetch available models from OpenRouter
+          const fetchApiKey = message.apiKey;
+          if (!fetchApiKey) {
+            sendResponse({ success: false, error: 'No API key provided' });
+            break;
+          }
+          
+          fetch('https://openrouter.ai/api/v1/models', {
+            headers: {
+              'Authorization': `Bearer ${fetchApiKey}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.data && Array.isArray(data.data)) {
+              // Sort and prioritize popular models
+              const priorityModels = [
+                'openai/gpt-4o',
+                'openai/gpt-4o-mini', 
+                'anthropic/claude-3.5-sonnet',
+                'anthropic/claude-3-opus',
+                'google/gemini-pro-1.5',
+                'meta-llama/llama-3.1-70b-instruct'
+              ];
+              
+              const models = data.data
+                .filter((model: any) => model.id && model.name)
+                .map((model: any) => ({
+                  id: model.id,
+                  name: model.name,
+                  context_length: model.context_length || 'N/A',
+                  pricing: {
+                    prompt: model.pricing?.prompt || 0,
+                    completion: model.pricing?.completion || 0
+                  }
+                }))
+                .sort((a: any, b: any) => {
+                  const aIndex = priorityModels.indexOf(a.id);
+                  const bIndex = priorityModels.indexOf(b.id);
+                  if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                  if (aIndex !== -1) return -1;
+                  if (bIndex !== -1) return 1;
+                  return a.name.localeCompare(b.name);
+                });
+              
+              sendResponse({ success: true, models });
+            } else {
+              sendResponse({ success: false, error: 'Invalid response from OpenRouter' });
+            }
+          })
+          .catch(error => {
+            console.error('TweetCraft: Failed to fetch models:', error);
+            sendResponse({ 
+              success: false, 
+              error: 'Network error: Could not fetch models from OpenRouter' 
+            });
+          });
           break;
 
         default:
@@ -180,3 +284,19 @@ self.addEventListener('beforeunload', () => {
 self.addEventListener('activate', (event) => {
   console.log('Smart Reply: Service worker activated');
 });
+
+// Keep service worker alive
+const keepAlive = () => {
+  // Send a keep-alive ping every 20 seconds
+  setInterval(() => {
+    chrome.runtime.getPlatformInfo(() => {
+      // Just a dummy call to keep the service worker alive
+    });
+  }, 20000);
+};
+
+// Initialize keep-alive
+keepAlive();
+
+// Log that service worker is starting
+console.log('Smart Reply: Service worker starting...');

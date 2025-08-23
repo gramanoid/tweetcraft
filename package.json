@@ -1,7 +1,7 @@
 {
-  "name": "smart-reply-extension",
-  "version": "1.0.3",
-  "description": "AI-powered Twitter reply generation with custom prompts",
+  "name": "tweetcraft",
+  "version": "1.4.1",
+  "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "dev": "webpack --config webpack.dev.js --watch",

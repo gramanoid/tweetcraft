@@ -2,6 +2,7 @@ import { DOMUtils } from './domUtils';
 import { OpenRouterService } from '@/services/openRouter';
 import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
+import { debounce, throttle } from '@/utils/debounce';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -14,12 +15,16 @@ class SmartReplyContentScript {
   constructor() {
     // Check if another instance already exists
     if ((window as any).__smartReplyInstance) {
-      console.log('Smart Reply: Previous instance detected, cleaning up...');
+      console.log('TweetCraft: Previous instance detected, cleaning up...');
       (window as any).__smartReplyInstance.destroy();
     }
     
     // Register this instance
     (window as any).__smartReplyInstance = this;
+    
+    // Set up cleanup handlers
+    this.setupCleanupHandlers();
+    
     this.init();
   }
 
@@ -27,17 +32,60 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
+    console.log('TweetCraft Content Script: Initializing on', window.location.href);
+    
     // Establish connection with service worker
     this.connectToServiceWorker();
     
     // Wait for the page to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
+        console.log('TweetCraft Content Script: DOM ready, starting observation');
         if (!this.isDestroyed) this.startObserving();
       });
     } else {
+      console.log('TweetCraft Content Script: DOM already ready, starting observation');
       this.startObserving();
     }
+  }
+
+  private setupCleanupHandlers(): void {
+    // Clean up on page navigation (SPA navigation)
+    const handleNavigation = () => {
+      if (!this.isDestroyed) {
+        console.log('Smart Reply: Page navigation detected, cleaning up...');
+        this.destroy();
+      }
+    };
+    
+    // Listen for various navigation events
+    window.addEventListener('beforeunload', handleNavigation);
+    window.addEventListener('pagehide', handleNavigation);
+    
+    // Listen for history changes (Twitter is an SPA)
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(history, args);
+      handleNavigation();
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(history, args);
+      handleNavigation();
+    };
+    
+    window.addEventListener('popstate', handleNavigation);
+    
+    // Store cleanup functions for later
+    (this as any).cleanupFunctions = [
+      () => window.removeEventListener('beforeunload', handleNavigation),
+      () => window.removeEventListener('pagehide', handleNavigation),
+      () => window.removeEventListener('popstate', handleNavigation),
+      () => { history.pushState = originalPushState; },
+      () => { history.replaceState = originalReplaceState; }
+    ];
   }
 
   private connectToServiceWorker(): void {
@@ -85,29 +133,36 @@ class SmartReplyContentScript {
     // Find the React root element
     const reactRoot = document.querySelector('#react-root');
     if (!reactRoot) {
-      console.warn('Smart Reply: React root not found, retrying...');
-      setTimeout(() => this.startObserving(), 1000);
+      console.warn('Smart Reply: React root not found, retrying in 1 second...');
+      setTimeout(() => {
+        if (!this.isDestroyed) this.startObserving();
+      }, 1000);
       return;
     }
+    
+    console.log('Smart Reply: React root found, setting up observer');
+
+    // Create debounced handler for processing mutations
+    const debouncedMutationHandler = debounce(() => {
+      const toolbarsToProcess = new Set<Element>();
+      
+      // Find all unprocessed toolbars
+      document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
+        if (!this.processedToolbars.has(toolbar)) {
+          toolbarsToProcess.add(toolbar);
+        }
+      });
+      
+      // Process all found toolbars
+      toolbarsToProcess.forEach(toolbar => {
+        this.handleToolbarAdded(toolbar);
+      });
+    }, 500); // Debounce for 500ms to batch rapid DOM changes
 
     // Set up mutation observer to detect new toolbars
     this.observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const element = node as Element;
-            
-            // Check if the added node is a toolbar
-            if (element.matches(DOMUtils.TOOLBAR_SELECTOR)) {
-              this.handleToolbarAdded(element);
-            }
-            
-            // Check for toolbars within the added node
-            const toolbars = element.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
-            toolbars.forEach(toolbar => this.handleToolbarAdded(toolbar));
-          }
-        });
-      });
+      // Just trigger the debounced handler, don't process mutations directly
+      debouncedMutationHandler();
     });
 
     this.observer.observe(reactRoot, {
@@ -117,10 +172,11 @@ class SmartReplyContentScript {
 
     // Process existing toolbars
     const existingToolbars = document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
+    console.log(`Smart Reply: Found ${existingToolbars.length} existing toolbars`);
     existingToolbars.forEach(toolbar => this.handleToolbarAdded(toolbar));
   }
 
-  private handleToolbarAdded(toolbarElement: Element): void {
+  private async handleToolbarAdded(toolbarElement: Element): Promise<void> {
     // Avoid processing the same toolbar multiple times
     if (this.processedToolbars.has(toolbarElement)) {
       return;
@@ -145,14 +201,14 @@ class SmartReplyContentScript {
     const context = DOMUtils.extractTwitterContext(toolbarElement);
     
     // Create and inject the Smart Reply button
-    this.injectSmartReplyButton(toolbarElement, textarea, context);
+    await this.injectSmartReplyButton(toolbarElement, textarea, context);
   }
 
-  private injectSmartReplyButton(
+  private async injectSmartReplyButton(
     toolbarElement: Element, 
     textarea: HTMLElement, 
     context: any
-  ): void {
+  ): Promise<void> {
     try {
       // Create the button container
       const buttonContainer = document.createElement('div');
@@ -162,7 +218,7 @@ class SmartReplyContentScript {
       const button = DOMUtils.createSmartReplyButton();
       
       // Create the dropdown for tone selection
-      const dropdown = DOMUtils.createToneDropdown((tone: string) => {
+      const dropdown = await DOMUtils.createToneDropdown((tone: string) => {
         this.generateReply(textarea, context, tone);
       });
 
@@ -361,19 +417,37 @@ class SmartReplyContentScript {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
     
+    // Disconnect observer
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
     
+    // Disconnect port
     if (this.port) {
       this.port.disconnect();
       this.port = null;
     }
     
+    // Run all cleanup functions
+    const cleanupFunctions = (this as any).cleanupFunctions || [];
+    cleanupFunctions.forEach((cleanup: Function) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.error('Smart Reply: Error during cleanup:', error);
+      }
+    });
+    
     // Remove all injected buttons and dropdowns
     document.querySelectorAll('.smart-reply-container').forEach(el => el.remove());
     document.querySelectorAll('.smart-reply-dropdown').forEach(el => el.remove());
+    
+    // Remove event listeners from buttons by cloning
+    document.querySelectorAll('.smart-reply-button').forEach(button => {
+      const newButton = button.cloneNode(true);
+      button.parentNode?.replaceChild(newButton, button);
+    });
     
     // Clear processed toolbars
     this.processedToolbars = new WeakSet<Element>();
