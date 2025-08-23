@@ -4,20 +4,28 @@
 
 ### Fixed
 - **Empty Response Bug**: Fixed issue where API responses were incorrectly cleaned to empty strings
-- **Thread Context Duplicates**: Removed duplicate tweets from thread context extraction
+- **MAX_TOKENS Issue**: Removed token limit for unlimited LLM output (better for Twitter Premium users)
+- **Thread Context Logic**: Fixed to include original tweet PLUS 3 additional tweets (4 total) in thread mode
 - **Model Fetching**: Fixed fetch models button not working correctly from OpenRouter API
 
 ### Added
-- **Thread Context Toggle**: Added on/off toggle for thread context inclusion in popup settings
-- **Enhanced Logging**: Added console logs for single vs thread reply generation
-- **Temperature Confirmation**: Added console log confirmation of temperature settings
-- **Better Error Logging**: Improved error logging for API response debugging
+- **Context Mode Selector**: Replaced confusing dual toggles with single dropdown (None/Single/Thread)
+- **Beautiful Console Logging**: 
+  - Color-coded categories with emojis for visual organization
+  - White text for tweet content (visible in dark mode)
+  - Structured output with separators and sections
+  - Collapsible thread details
+  - Status badges for different modes
+- **Enhanced Thread Context**: Shows original tweet + up to 3 additional context tweets
+- **Temperature Confirmation**: Console log confirmation of temperature settings
 
 ### Technical Improvements
 - Deduplicated thread tweets using Set to track seen content
+- Improved context extraction to properly separate original tweet from thread context
 - Added fallback to use original reply if cleanup removes all content
 - Implemented FETCH_MODELS handler in service worker with model prioritization
 - Improved frontend-backend mapping for all settings
+- Enhanced error messages with visual indicators
 
 ## [1.4.0] - 2024-12-22
 

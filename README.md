@@ -18,10 +18,13 @@ TweetCraft is a Chrome extension that leverages AI to generate contextually rele
 
 ### Advanced Features (v1.4.1)
 - 📊 **Context Mode Selector** - Choose between None/Single/Thread context
+  - **None**: Generic reply without context
+  - **Single**: Reply to just the original tweet
+  - **Thread**: Original tweet + up to 3 additional tweets (4 total context)
 - 🔄 **Smart Model Fetching** - Dynamic retrieval of all OpenRouter models
 - 💾 **Session Caching** - Reduces API calls for duplicate requests
-- 🔧 **Debounced Operations** - Optimized performance with DOM mutation handling
-- 📝 **Enhanced Error Logging** - Better debugging with detailed console output
+- 🔧 **Unlimited Token Output** - No truncation, full LLM responses (great for Premium users)
+- 📝 **Beautiful Console Logging** - Color-coded, structured debugging output
 - ⌨️ **Keyboard Navigation** - Arrow keys, Enter, Escape support
 - 🎨 **Visual Feedback** - Hover effects and focus states
 - 🔄 **SPA Navigation Support** - Proper cleanup on Twitter's single-page navigation
@@ -121,10 +124,11 @@ smart-reply-extension/
 ## 🔄 Version History
 
 ### v1.4.1 (2024-12-23)
-- Fixed empty response bug with better error handling
+- Fixed empty response bug and MAX_TOKENS issue
 - Replaced dual context toggles with single Context Mode selector
-- Added deduplication for thread tweets
-- Improved console logging for debugging
+- Thread mode now includes original tweet + 3 additional (4 total)
+- Beautiful console logging with color coding and structure
+- Unlimited token output for longer responses
 
 ### v1.4.0 (2024-12-22)
 - Added thread context extraction (up to 3 tweets)

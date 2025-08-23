@@ -52,11 +52,12 @@ export class DOMUtils {
         // Clean tracking parameters from any URLs in the tweet
         context.tweetText = URLCleaner.cleanTextURLs(rawText);
         if (rawText !== context.tweetText) {
-          console.log('TweetCraft: Cleaned tracking parameters from URLs');
+          console.log('%c🧽 URL Tracking Cleaned', 'color: #FFAD1F; font-weight: bold');
         }
-        console.log('TweetCraft: Extracted tweet text from DOM:', context.tweetText);
+        console.log('%c🔍 Tweet Extraction', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+        console.log(`%c  Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
       } else {
-        console.log('TweetCraft: Tweet text element not found in DOM');
+        console.warn('%c⚠️ Tweet text element not found in DOM', 'color: #E0245E; font-weight: bold');
       }
 
       // Extract author handle (if needed for future features)
@@ -65,26 +66,33 @@ export class DOMUtils {
         const href = handleElement.getAttribute('href');
         if (href) {
           context.authorHandle = href.replace('/', '');
-          console.log('TweetCraft: Tweet author:', context.authorHandle);
+          console.log(`%c  Author: @${context.authorHandle}`, 'color: #657786');
         }
       }
 
-      // Extract thread context (up to 3 previous tweets)
+      // Extract thread context (3 additional tweets for more context)
       const threadContext = this.extractThreadContext();
       if (threadContext && threadContext.length > 0) {
         context.threadContext = threadContext;
-        console.log(`TweetCraft: Found ${threadContext.length} tweets in thread`);
+        console.log('%c🧵 Thread Detection', 'color: #17BF63; font-weight: bold; font-size: 14px');
+        console.log(`%c  Found ${threadContext.length} additional tweets for context`, 'color: #657786');
+        console.groupCollapsed('%c  Click to view thread details', 'color: #794BC4; cursor: pointer');
+        threadContext.forEach((tweet, index) => {
+          console.log(`%c  Context Tweet ${index + 1}: ${tweet.author}`, 'color: #1DA1F2');
+          console.log(`%c    "${tweet.text.substring(0, 80)}${tweet.text.length > 80 ? '...' : ''}"`, 'color: #657786; font-style: italic');
+        });
+        console.groupEnd();
       }
     } else {
-      console.log('TweetCraft: Not a reply context - no original tweet found');
+      console.log('%c💬 Not a reply context', 'color: #657786; font-style: italic');
     }
 
     return context;
   }
 
   /**
-   * Extract thread context by finding previous tweets in the conversation
-   * @returns Array of tweet objects with author and text
+   * Extract thread context by finding the first 3 tweets in the conversation
+   * @returns Array of tweet objects with author and text (up to 3 tweets for context)
    */
   static extractThreadContext(): Array<{author: string, text: string}> | null {
     const threadTweets: Array<{author: string, text: string}> = [];
@@ -95,11 +103,10 @@ export class DOMUtils {
       // Look for all tweet articles on the page
       const allTweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
       
-      // We want tweets that appear before the reply box
-      // The reply box is typically at the bottom, so we process tweets from top
+      // Get the first 3 tweets on the page (these are usually the thread context)
       for (let i = 0; i < allTweetArticles.length; i++) {
         const article = allTweetArticles[i];
-        // Skip if we already have 3 unique tweets
+        // Stop after collecting 3 tweets
         if (threadTweets.length >= 3) break;
         
         // Extract tweet text
@@ -130,7 +137,8 @@ export class DOMUtils {
       return threadTweets.reverse();
       
     } catch (error) {
-      console.error('TweetCraft: Error extracting thread context:', error);
+      console.error('%c❌ Error extracting thread context', 'color: #E0245E; font-weight: bold');
+      console.error(error);
       return null;
     }
   }

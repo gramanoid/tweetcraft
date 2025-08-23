@@ -64,13 +64,15 @@ export class OpenRouterService {
       const temperature = config.temperature || 0.7;
       
       // Log temperature setting
-      console.log(`TweetCraft: Using temperature setting: ${temperature}`);
+      console.log('%c⚙️ TweetCraft Settings', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+      console.log(`%c  Temperature: ${temperature}`, 'color: #657786');
+      console.log(`%c  Model: ${request.model || config.model || 'openai/gpt-4o'}`, 'color: #657786');
       
       const openRouterRequest: OpenRouterRequest = {
         model: request.model || config.model || 'openai/gpt-4o',
         messages,
         temperature,
-        max_tokens: 280, // Twitter's character limit
+        // max_tokens intentionally omitted for unlimited output
         top_p: 0.9
       };
 
@@ -150,7 +152,8 @@ export class OpenRouterService {
       if (!reply) {
         // Check if it was cut off due to max_tokens
         if (result.choices[0]?.finish_reason === 'length' || (result.choices[0] as any)?.native_finish_reason === 'MAX_TOKENS') {
-          console.error('TweetCraft: Response hit token limit, may be incomplete');
+          console.warn('%c⚠️ Response hit token limit', 'color: #FFAD1F; font-weight: bold; font-size: 14px');
+          console.warn('%c  Response may be incomplete', 'color: #657786');
           // Even if empty, there might be partial content we can use
           const partialReply = result.choices[0]?.message?.content || '';
           if (partialReply.length > 0) {
@@ -160,16 +163,21 @@ export class OpenRouterService {
             };
           }
         }
-        console.error('TweetCraft: Empty content in API response:', result.choices[0]);
+        console.error('%c❌ Empty API Response', 'color: #E0245E; font-weight: bold; font-size: 14px');
+        console.error('%c  Details:', 'color: #657786', result.choices[0]);
         return {
           success: false,
           error: 'Empty response generated. Please try again.'
         };
       }
 
-      console.log('TweetCraft: Raw API response:', reply);
+      console.log('%c✅ API Response Received', 'color: #17BF63; font-weight: bold; font-size: 14px');
+      console.log(`%c  Raw length: ${reply.length} chars`, 'color: #657786');
       const cleanedReply = this.cleanupReply(reply);
-      console.log('TweetCraft: Cleaned reply:', cleanedReply);
+      console.log(`%c  Cleaned length: ${cleanedReply.length} chars`, 'color: #657786');
+      if (reply !== cleanedReply) {
+        console.log('%c  ⚠️ Meta-text removed during cleanup', 'color: #FFAD1F');
+      }
       
       if (!cleanedReply) {
         console.error('TweetCraft: Reply became empty after cleanup. Original:', reply);
@@ -232,16 +240,15 @@ export class OpenRouterService {
     let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
     
     // Debug logging for tones
-    console.log('TweetCraft: Building messages with tone:', request.tone);
-    console.log('TweetCraft: Config tonePresets:', config.tonePresets);
+    console.log('%c🎨 Tone Selection', 'color: #E1AD01; font-weight: bold; font-size: 14px');
+    console.log(`%c  Selected tone: ${request.tone || 'none'}`, 'color: #657786');
     
     // Add tone modifier if specified
     if (request.tone && config.tonePresets) {
       const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
-      console.log('TweetCraft: Found tone preset:', tonePreset);
       if (tonePreset) {
+        console.log(`%c  Tone modifier: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
         systemPrompt += ' ' + tonePreset.promptModifier;
-        console.log('TweetCraft: Final system prompt:', systemPrompt);
       }
     }
 
@@ -270,35 +277,53 @@ export class OpenRouterService {
       if (contextMode === 'thread' && context.threadContext && context.threadContext.length > 0) {
         userPrompt = 'Here is a Twitter conversation thread:\n\n';
         
-        // Add each previous tweet in the thread
+        // Log the thread context tweets
+        console.log('%c🧵 Thread Context Mode', 'color: #17BF63; font-weight: bold; font-size: 14px');
+        console.log(`%c  Total context: ${context.threadContext.length + 1} tweets (original + ${context.threadContext.length} additional)`, 'color: #657786');
+        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
+        
+        console.log('%c  📚 Additional Context Tweets:', 'color: #794BC4; font-weight: bold');
         context.threadContext.forEach((tweet, index) => {
+          console.log(`%c  📝 Context Tweet ${index + 1}`, 'color: #1DA1F2; font-weight: bold');
+          console.log(`%c     Author: ${tweet.author}`, 'color: #657786');
+          console.log(`%c     Text: "${tweet.text.substring(0, 100)}${tweet.text.length > 100 ? '...' : ''}"`, 'color: #FFFFFF');
           userPrompt += `${tweet.author}: ${tweet.text}\n`;
         });
         
+        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
+        console.log('%c  📍 Original Tweet (replying to)', 'color: #E1AD01; font-weight: bold');
+        
         // Add the tweet we're directly replying to
         if (context.authorHandle) {
+          console.log(`%c     Author: @${context.authorHandle}`, 'color: #657786');
+          console.log(`%c     Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
           userPrompt += `@${context.authorHandle}: ${context.tweetText}\n\n`;
         } else {
+          console.log(`%c     Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
           userPrompt += `Latest tweet: ${context.tweetText}\n\n`;
         }
+        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
         
         userPrompt += 'Write a contextually relevant reply that continues this conversation naturally.';
-        console.log(`TweetCraft: Generating THREAD reply with ${context.threadContext.length} previous tweets for context`);
+        console.log('%c  Mode: THREAD REPLY (4 tweets context)', 'background: #17BF63; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
       } else if (contextMode === 'single' || (contextMode === 'thread' && !context.threadContext)) {
         userPrompt = `Write a reply to this tweet: "${context.tweetText}"`;
-        console.log(`TweetCraft: Generating SINGLE tweet reply (context mode: ${contextMode})`);
+        console.log('%c📝 Single Tweet Context', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+        console.log(`%c  Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
+        console.log('%c  Mode: SINGLE REPLY', 'background: #1DA1F2; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
       } else if (contextMode === 'none') {
         userPrompt = 'Write an engaging tweet reply.';
-        console.log('TweetCraft: Generating GENERIC reply (context mode: none)');
+        console.log('%c💬 Generic Reply', 'color: #657786; font-weight: bold; font-size: 14px');
+        console.log('%c  Mode: NO CONTEXT', 'background: #657786; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
       }
     } else {
       userPrompt = 'Write an engaging tweet.';
     }
 
-    // Debug logging to see what text we're replying to
-    console.log('TweetCraft: Original tweet text:', context.tweetText || '[No tweet text captured]');
-    console.log('TweetCraft: Thread context:', context.threadContext || 'No thread context');
-    console.log('TweetCraft: User prompt being sent:', userPrompt);
+    // Summary log
+    console.log('%c📤 Request Summary', 'color: #794BC4; font-weight: bold; font-size: 14px');
+    console.log(`%c  Prompt length: ${userPrompt.length} characters`, 'color: #657786');
+    console.log('%c═══════════════════════════════════════', 'color: #E1E8ED; font-weight: bold');
 
     messages.push({
       role: 'user' as const,
