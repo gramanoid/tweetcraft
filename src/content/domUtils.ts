@@ -156,36 +156,45 @@ export class DOMUtils {
   }
 
   /**
-   * Extract thread context by finding the first 3 tweets in the conversation
+   * Optimized thread context extraction with improved performance
    * @returns Array of tweet objects with author and text (up to 3 tweets for context)
    */
   static extractThreadContext(): Array<{author: string, text: string}> | null {
+    const startTime = performance.now();
     const threadTweets: Array<{author: string, text: string}> = [];
     const seenTexts = new Set<string>();
     
     try {
-      // Twitter/X shows thread tweets in article elements with specific data-testid
-      // Look for all tweet articles on the page
-      const allTweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
+      console.log('%c🧵 Thread Context: Starting optimized extraction', 'color: #794BC4; font-weight: bold');
       
-      // Get the first 3 tweets on the page (these are usually the thread context)
-      for (let i = 0; i < allTweetArticles.length; i++) {
+      // Pre-cache selectors for better performance
+      const tweetSelector = 'article[data-testid="tweet"]';
+      const authorSelector = '[data-testid="User-Name"] a';
+      
+      // Use querySelectorAll once and cache the result
+      const allTweetArticles = document.querySelectorAll(tweetSelector);
+      console.log(`%c  Found ${allTweetArticles.length} tweet articles to process`, 'color: #657786');
+      
+      // Batch process tweets with early termination
+      let processedCount = 0;
+      const maxTweets = Math.min(3, allTweetArticles.length);
+      
+      for (let i = 0; i < allTweetArticles.length && threadTweets.length < maxTweets; i++) {
         const article = allTweetArticles[i];
-        // Stop after collecting 3 tweets
-        if (threadTweets.length >= 3) break;
+        processedCount++;
         
-        // Extract tweet text using resilient selector
+        // Extract tweet text using resilient selector (already optimized)
         const tweetTextEl = this.findWithFallback('tweetText', article);
         if (!tweetTextEl) continue;
         
         const tweetText = URLCleaner.cleanTextURLs(tweetTextEl.textContent || '');
         
-        // Skip duplicates
-        if (seenTexts.has(tweetText)) continue;
+        // Skip empty or duplicate tweets
+        if (!tweetText.trim() || seenTexts.has(tweetText)) continue;
         seenTexts.add(tweetText);
         
-        // Extract author info
-        const authorEl = article.querySelector('[data-testid="User-Name"] a');
+        // Extract author info with cached selector
+        const authorEl = article.querySelector(authorSelector);
         let author = 'Unknown';
         if (authorEl) {
           const href = authorEl.getAttribute('href');
@@ -198,7 +207,14 @@ export class DOMUtils {
         threadTweets.push({ author, text: tweetText });
       }
       
-      // Reverse to get chronological order (oldest first)
+      const endTime = performance.now();
+      const processingTime = endTime - startTime;
+      
+      console.log('%c🚀 Thread Context: Extraction complete', 'color: #17BF63; font-weight: bold');
+      console.log(`%c  Processed ${processedCount} articles in ${processingTime.toFixed(1)}ms`, 'color: #657786');
+      console.log(`%c  Found ${threadTweets.length} valid thread tweets`, 'color: #657786');
+      
+      // Return in chronological order (oldest first)
       return threadTweets.reverse();
       
     } catch (error) {

@@ -5,6 +5,25 @@ class SmartReplyServiceWorker {
     this.init();
   }
 
+  /**
+   * Shared utility for OpenRouter API calls
+   */
+  private async fetchFromOpenRouter(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<Response> {
+    const url = `https://openrouter.ai/api/v1/${endpoint}`;
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    console.log(`%c🌐 Service Worker: Fetching ${endpoint}`, 'color: #9146FF; font-weight: bold');
+
+    return fetch(url, {
+      ...options,
+      headers
+    });
+  }
+
   private init(): void {
     console.log('Smart Reply: Service worker initialized');
 
@@ -142,54 +161,52 @@ class SmartReplyServiceWorker {
           break;
 
         case 'TEST_API_KEY':
-          // Test API key by fetching models from OpenRouter
+          // Test API key using shared utility
           const testApiKey = message.apiKey;
           if (!testApiKey) {
             sendResponse({ success: false, error: 'No API key provided' });
             break;
           }
           
-          fetch('https://openrouter.ai/api/v1/models', {
-            headers: {
-              'Authorization': `Bearer ${testApiKey}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          .then(response => {
-            if (response.ok) {
-              sendResponse({ success: true });
-            } else {
+          this.fetchFromOpenRouter('models', testApiKey)
+            .then(response => {
+              if (response.ok) {
+                console.log('%c✅ API key test successful', 'color: #17BF63');
+                sendResponse({ success: true });
+              } else {
+                console.warn(`%c❌ API key test failed: ${response.status}`, 'color: #DC3545');
+                sendResponse({ 
+                  success: false, 
+                  error: `Error ${response.status}: ${response.statusText}` 
+                });
+              }
+            })
+            .catch(error => {
+              console.error('%c❌ Smart Reply: API key test failed:', 'color: #DC3545; font-weight: bold', error);
               sendResponse({ 
                 success: false, 
-                error: `Error ${response.status}: ${response.statusText}` 
+                error: 'Network error: Could not connect to OpenRouter' 
               });
-            }
-          })
-          .catch(error => {
-            console.error('Smart Reply: API key test failed:', error);
-            sendResponse({ 
-              success: false, 
-              error: 'Network error: Could not connect to OpenRouter' 
             });
-          });
           break;
 
         case 'FETCH_MODELS':
-          // Fetch available models from OpenRouter
+          // Fetch available models using shared utility
           const fetchApiKey = message.apiKey;
           if (!fetchApiKey) {
             sendResponse({ success: false, error: 'No API key provided' });
             break;
           }
           
-          fetch('https://openrouter.ai/api/v1/models', {
-            headers: {
-              'Authorization': `Bearer ${fetchApiKey}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          .then(response => response.json())
-          .then(data => {
+          this.fetchFromOpenRouter('models', fetchApiKey)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              console.log(`%c📋 Fetched ${data.data?.length || 0} models`, 'color: #1DA1F2');
             if (data.data && Array.isArray(data.data)) {
               // Sort and prioritize popular models
               const priorityModels = [

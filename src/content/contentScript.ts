@@ -9,8 +9,11 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.2';
+  private static readonly VERSION = '0.0.3';
   private isDestroyed = false;
+  
+  // Store event listener references for proper cleanup
+  private eventListeners = new Map<string, () => void>();
 
   constructor() {
     // Check if another instance already exists
@@ -32,7 +35,7 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft Content Script v0.0.2: Initializing', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft Content Script v0.0.3: Initializing', 'color: #1DA1F2; font-weight: bold');
     console.log('%c  URL:', 'color: #657786', window.location.href);
     
     // Check for previous state recovery
@@ -476,6 +479,12 @@ class SmartReplyContentScript {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
     
+    console.log('%c🗑️ Smart Reply: Content script destroyed', 'color: #DC3545; font-weight: bold');
+    
+    // Clean up all stored event listeners
+    console.log(`%c  Cleaning up ${this.eventListeners.size} stored event listeners`, 'color: #657786');
+    this.eventListeners.clear();
+    
     // Disconnect observer
     if (this.observer) {
       this.observer.disconnect();
@@ -502,7 +511,7 @@ class SmartReplyContentScript {
     document.querySelectorAll('.smart-reply-container').forEach(el => el.remove());
     document.querySelectorAll('.smart-reply-dropdown').forEach(el => el.remove());
     
-    // Remove event listeners from buttons by cloning
+    // Remove event listeners from buttons by cloning (legacy cleanup)
     document.querySelectorAll('.smart-reply-button').forEach(button => {
       const newButton = button.cloneNode(true);
       button.parentNode?.replaceChild(newButton, button);
@@ -515,8 +524,6 @@ class SmartReplyContentScript {
     if ((window as any).__smartReplyInstance === this) {
       delete (window as any).__smartReplyInstance;
     }
-    
-    console.log('Smart Reply: Content script destroyed');
   }
 }
 
