@@ -375,14 +375,41 @@ export class DOMUtils {
     return dropdown;
   }
 
-  static showLoadingState(button: HTMLElement): void {
+  /**
+   * Enhanced loading states with multi-stage progress
+   */
+  static showLoadingState(button: HTMLElement, stage: string = 'Generating'): void {
     button.classList.add('loading');
     const span = button.querySelector('span');
     if (span) {
-      span.textContent = 'Generating...';
+      span.textContent = `${stage}...`;
     }
     (button as HTMLButtonElement).disabled = true;
-    // No progress text - loading animation is enough
+    
+    // Add or update progress indicator
+    let progressContainer = button.querySelector('.loading-progress') as HTMLElement;
+    if (!progressContainer) {
+      progressContainer = document.createElement('div');
+      progressContainer.className = 'loading-progress';
+      progressContainer.innerHTML = `
+        <div class="progress-bar-container">
+          <div class="progress-bar"></div>
+        </div>
+        <div class="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+      button.appendChild(progressContainer);
+    }
+    
+    // Update loading stage
+    const existingStage = button.getAttribute('data-loading-stage');
+    button.setAttribute('data-loading-stage', stage);
+    
+    console.log(`%c⏳ Loading State: ${stage}`, 'color: #FFA500; font-weight: bold');
+    if (existingStage && existingStage !== stage) {
+      console.log(`%c  Progress: ${existingStage} → ${stage}`, 'color: #657786');
+    }
   }
 
   static hideLoadingState(button: HTMLElement): void {
@@ -392,6 +419,23 @@ export class DOMUtils {
       span.textContent = 'AI Reply';
     }
     (button as HTMLButtonElement).disabled = false;
+    
+    // Remove progress indicator after a brief success animation
+    const progressContainer = button.querySelector('.loading-progress');
+    if (progressContainer) {
+      // Show success state briefly
+      progressContainer.innerHTML = '<div class="success-checkmark">✓</div>';
+      progressContainer.classList.add('success');
+      
+      setTimeout(() => {
+        progressContainer.remove();
+      }, 800);
+    }
+    
+    // Clear loading stage
+    button.removeAttribute('data-loading-stage');
+    
+    console.log('%c✅ Loading Complete', 'color: #17BF63; font-weight: bold');
   }
 
   // Removed updateProgressText - no longer needed
@@ -424,7 +468,7 @@ export class DOMUtils {
     });
   }
 
-  static showError(button: HTMLElement, message: string): void {
+  static showError(button: HTMLElement, message: string, errorType: 'network' | 'api' | 'context' | 'general' = 'general'): void {
     button.classList.add('error');
     const span = button.querySelector('span');
     if (span) {
@@ -432,13 +476,31 @@ export class DOMUtils {
     }
     button.setAttribute('title', message);
     
-    // Reset after 3 seconds
+    // Remove any loading progress
+    const progressContainer = button.querySelector('.loading-progress');
+    if (progressContainer) {
+      progressContainer.innerHTML = '<div class="error-icon">⚠</div>';
+      progressContainer.classList.add('error');
+    }
+    
+    // Enhanced error logging with context
+    console.log(`%c❌ Error State: ${errorType}`, 'color: #DC3545; font-weight: bold');
+    console.log(`%c  Message: ${message}`, 'color: #657786');
+    
+    // Reset after 4 seconds (longer for users to read error)
     setTimeout(() => {
       button.classList.remove('error');
       if (span) {
         span.textContent = 'AI Reply';
       }
       button.setAttribute('title', 'Generate AI reply');
-    }, 3000);
+      
+      // Remove error progress container
+      if (progressContainer) {
+        progressContainer.remove();
+      }
+      
+      console.log('%c🔄 Error state cleared', 'color: #657786');
+    }, 4000);
   }
 }

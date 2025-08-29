@@ -48,6 +48,128 @@ export class ErrorHandler {
   }
 
   /**
+   * Enhanced error handling with user-friendly messages and recovery actions
+   */
+  static handleUserFriendlyError(error: Error, context: ErrorContext, button?: HTMLElement): RecoveryAction[] {
+    console.log('%c🚨 User-Friendly Error Handler', 'color: #DC3545; font-weight: bold');
+    console.log('%c  Error:', 'color: #657786', error.message);
+    console.log('%c  Context:', 'color: #657786', context);
+
+    const errorType = this.classifyError(error);
+    const recoveryActions = this.getRecoveryActions(error, errorType, context);
+    const userMessage = this.getUserFriendlyMessage(error, errorType);
+
+    // Update button with error state if provided
+    if (button && 'showError' in (window as any).DOMUtils) {
+      (window as any).DOMUtils.showError(button, userMessage, errorType);
+    }
+
+    // Log structured error for debugging
+    console.groupCollapsed('%c  🔍 Error Details', 'color: #794BC4');
+    console.log('%c    Type:', 'color: #657786', errorType);
+    console.log('%c    User Message:', 'color: #657786', userMessage);
+    console.log('%c    Recovery Actions:', 'color: #657786', recoveryActions);
+    console.log('%c    Stack:', 'color: #657786', error.stack);
+    console.groupEnd();
+
+    return recoveryActions;
+  }
+
+  /**
+   * Classify error types for appropriate handling
+   */
+  private static classifyError(error: Error): 'network' | 'api' | 'context' | 'general' {
+    const message = error.message.toLowerCase();
+    
+    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+      return 'network';
+    }
+    if (message.includes('api') || message.includes('401') || message.includes('403') || message.includes('key')) {
+      return 'api';
+    }
+    if (message.includes('context') || message.includes('invalidated') || message.includes('extension')) {
+      return 'context';
+    }
+    return 'general';
+  }
+
+  /**
+   * Get user-friendly error messages
+   */
+  private static getUserFriendlyMessage(error: Error, errorType: string): string {
+    const messages = {
+      network: 'Connection issue - please check your internet and try again',
+      api: 'API key issue - please check your OpenRouter API key in settings',
+      context: 'Extension needs refresh - please reload this Twitter page',
+      general: 'Something went wrong - please try again or refresh the page'
+    };
+
+    return messages[errorType as keyof typeof messages] || messages.general;
+  }
+
+  /**
+   * Get contextual recovery actions
+   */
+  private static getRecoveryActions(error: Error, errorType: string, context: ErrorContext): RecoveryAction[] {
+    const baseActions: RecoveryAction[] = [
+      {
+        label: 'Try Again',
+        action: 'retry',
+        primary: true,
+        handler: context.retryAction || (() => window.location.reload())
+      }
+    ];
+
+    const typeSpecificActions = {
+      network: [
+        ...baseActions,
+        {
+          label: 'Check Connection',
+          action: 'info',
+          handler: () => alert('Please check your internet connection and try again.')
+        }
+      ],
+      api: [
+        {
+          label: 'Open Settings',
+          action: 'settings',
+          primary: true,
+          handler: () => {
+            if (chrome.runtime?.openOptionsPage) {
+              chrome.runtime.openOptionsPage();
+            } else {
+              // Fallback: open popup
+              chrome.action?.openPopup();
+            }
+          }
+        },
+        ...baseActions.slice(1) // Exclude retry for API errors
+      ],
+      context: [
+        {
+          label: 'Refresh Page',
+          action: 'refresh',
+          primary: true,
+          handler: () => window.location.reload()
+        },
+        ...baseActions.slice(1)
+      ],
+      general: baseActions
+    };
+
+    return typeSpecificActions[errorType as keyof typeof typeSpecificActions] || baseActions;
+  }
+}
+
+// Recovery action interface
+interface RecoveryAction {
+  label: string;
+  action: string;
+  primary?: boolean;
+  handler: () => void;
+}
+
+  /**
    * Setup global error handlers
    */
   private setupGlobalErrorHandlers(): void {

@@ -13,8 +13,8 @@ export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';
   private static readonly HEADERS = {
     'Content-Type': 'application/json',
-    'HTTP-Referer': chrome.runtime.getURL(''),
-    'X-Title': 'Smart Reply Extension'
+    'HTTP-Referer': 'https://tweetcraft.ai/extension',
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.4'
   };
   
   // Simple rate limiting

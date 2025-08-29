@@ -3,13 +3,14 @@ import { OpenRouterService } from '@/services/openRouter';
 import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
 import { debounce, throttle } from '@/utils/debounce';
+import { ErrorHandler } from '@/utils/errorHandler';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.3';
+  private static readonly VERSION = '0.0.4';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
@@ -35,7 +36,7 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft Content Script v0.0.3: Initializing', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft Content Script v0.0.4: Initializing', 'color: #1DA1F2; font-weight: bold');
     console.log('%c  URL:', 'color: #657786', window.location.href);
     
     // Check for previous state recovery
@@ -408,27 +409,33 @@ class SmartReplyContentScript {
     }
 
     try {
-      // Show loading state
-      DOMUtils.showLoadingState(button);
-      console.log('Smart Reply: Generating reply with tone:', tone);
+      // Enhanced loading states with progress
+      DOMUtils.showLoadingState(button, 'Preparing');
+      console.log('%c🚀 Smart Reply: Starting generation with tone:', 'color: #1DA1F2; font-weight: bold', tone);
 
+      // Brief delay to show first stage
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Check if API key is configured
+      DOMUtils.showLoadingState(button, 'Validating API');
       const apiKey = await StorageService.getApiKey();
       if (!apiKey) {
-        DOMUtils.showError(button, 'Please configure your API key in the extension popup');
-        console.error('Smart Reply: No API key configured');
+        DOMUtils.showError(button, 'Please configure your API key in the extension popup', 'api');
+        console.error('%c❌ Smart Reply: No API key configured', 'color: #DC3545; font-weight: bold');
         return;
       }
 
       // Prepare the request
+      DOMUtils.showLoadingState(button, 'Building Request');
       const request: ReplyGenerationRequest = {
         originalTweet: context.tweetText,
         tone: tone
       };
 
-      console.log('Smart Reply: Request prepared:', request);
+      console.log('%c📦 Smart Reply: Request prepared:', 'color: #9146FF', request);
 
-      // Generate the reply
+      // Generate the reply with final loading state
+      DOMUtils.showLoadingState(button, 'Generating AI Reply');
       const response = await OpenRouterService.generateReply(request, context);
 
       if (response.success && response.reply) {
@@ -460,14 +467,36 @@ class SmartReplyContentScript {
         // Store the listener for cleanup
         textarea.setAttribute('data-smart-reply-listener', 'true');
       } else {
-        // Show error
-        DOMUtils.showError(button, response.error || 'Failed to generate reply');
+        // Use enhanced error handling for API failures
+        const apiError = new Error(response.error || 'Failed to generate reply');
+        ErrorHandler.handleUserFriendlyError(
+          apiError,
+          {
+            action: 'api_response_failure',
+            component: 'SmartReplyContentScript',
+            retryAction: () => this.generateReply(textarea, context, tone),
+            metadata: { tone, apiError: response.error }
+          },
+          button
+        );
         console.error('Smart Reply: Generation failed:', response.error);
       }
 
     } catch (error) {
-      console.error('Smart Reply: Error generating reply:', error);
-      DOMUtils.showError(button, 'Network error occurred');
+      // Use enhanced error handling with recovery actions
+      const recoveryActions = ErrorHandler.handleUserFriendlyError(
+        error as Error,
+        {
+          action: 'generate_reply',
+          component: 'SmartReplyContentScript',
+          retryAction: () => this.generateReply(textarea, context, tone),
+          metadata: { tone, tweetText: context.tweetText }
+        },
+        button
+      );
+      
+      // Log the recovery actions for debugging
+      console.log('%c🔧 Recovery actions available:', 'color: #FFA500', recoveryActions);
     } finally {
       // Hide loading state
       DOMUtils.hideLoadingState(button);

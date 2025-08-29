@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.2 Stability Release
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.3 Quick Wins Release
 
 ## Project Structure
 
