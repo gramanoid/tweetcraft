@@ -14,26 +14,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 1.5.0
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.1 MVP
 
 ## Project Structure
 
-### Main Extension
-- **tweetcraft/** - The primary TypeScript Chrome extension with OpenRouter integration
-  - Built with TypeScript, Webpack, and Chrome Manifest V3
-  - BYOK (Bring Your Own Key) architecture
-  - Custom prompt system for personalization
-  - Multiple tone presets for quick reply generation
-  - Located at project root
-
-### Reference Projects (in inspiration/ folder)
-The `inspiration/` folder contains multiple open-source Twitter/X extensions used as reference, including XReplyGPT, XAI, generative-x, tweetGPT, and others.
+The repository is a single Chrome extension project built with TypeScript, Webpack, and Chrome Manifest V3:
+- BYOK (Bring Your Own Key) architecture
+- Custom prompt system for personalization  
+- Multiple tone presets for quick reply generation
+- Thread context awareness and caching
 
 ## Development Commands
 
-### TweetCraft Extension (Main Project)
 ```bash
-cd tweetcraft
 npm install              # Install dependencies
 npm run dev             # Development build with watch mode
 npm run build           # Production build
@@ -50,7 +43,7 @@ npm run clean && npm run build  # Clean rebuild for production
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable "Developer mode" (top right)
 4. Click "Load unpacked"
-5. Select the `tweetcraft/dist` folder
+5. Select the `dist` folder
 6. Configure your OpenRouter API key in the extension popup
 
 ### Testing the Extension
@@ -68,50 +61,59 @@ All browser extensions follow Chrome Manifest V3 structure:
 - **Popup/Options** - UI for extension settings and interactions
 - **Manifest** (`manifest.json`) - Extension configuration
 
-### Common Extension Patterns
-1. **OpenAI Integration**: Most extensions use OpenAI API for text generation
+### Extension Architecture Patterns
+1. **OpenRouter Integration**: Uses OpenRouter API for multiple LLM access
 2. **Twitter DOM Manipulation**: Content scripts interact with Twitter's DOM structure
 3. **Storage API**: Chrome storage API for persisting user settings and API keys
 4. **Message Passing**: Communication between content scripts, service workers, and popup
+5. **Instance Management**: Singleton pattern prevents multiple content script instances
+6. **Memory Management**: WeakSet for DOM references, proper cleanup on navigation
+7. **Debounced Operations**: Performance optimization for DOM mutations and API calls
 
-### Tech Stack Variations
-- **Build Tools**: Webpack, Vite, or native browser support
-- **Frameworks**: React, Vue.js, vanilla JavaScript
-- **Languages**: TypeScript or JavaScript
-- **Styling**: SCSS, CSS, Tailwind CSS
+### Tech Stack
+- **Build Tool**: Webpack with TypeScript loader and SCSS support
+- **Framework**: Vanilla TypeScript (no React/Vue)
+- **Language**: TypeScript with strict type checking
+- **Styling**: SCSS with CSS extraction
 
 ## Key Files to Understand
 
-### Main Extension (tweetcraft/)
+### Core Extension Files
 - `public/manifest.json` - Chrome extension configuration and permissions
-- `src/content/contentScript.ts` - Main DOM manipulation and button injection
+- `src/content/contentScript.ts` - Main DOM manipulation and button injection with singleton pattern
 - `src/content/domUtils.ts` - Twitter DOM helpers and context extraction
+- `src/content/toneSelector.ts` - Visual tone selection interface
+- `src/content/presetTemplates.ts` - Reply template system
+- `src/content/replyCarousel.ts` - Multiple suggestion carousel UI
+- `src/content/suggestionCarousel.ts` - Additional carousel functionality
 - `src/background/serviceWorker.ts` - Background script for message handling
 - `src/services/openRouter.ts` - OpenRouter API integration
 - `src/services/storage.ts` - Chrome storage API wrapper
 - `src/services/cache.ts` - Session-based response caching
 - `src/popup/popup-simple.ts` - Extension settings UI (simplified version)
+- `src/popup/popup.ts` - Full popup UI implementation
 - `src/utils/urlCleaner.ts` - Privacy-focused URL tracking parameter removal
 - `src/utils/debounce.ts` - Performance optimization utilities
-- `webpack.common.js` - Shared webpack configuration
-- `webpack.dev.js` - Development build configuration
-- `webpack.prod.js` - Production build configuration
+- `src/utils/memoryManager.ts` - Memory leak prevention and cleanup
+- `src/utils/errorHandler.ts` - Error handling and recovery
+- `src/types/index.ts` - TypeScript type definitions
+
+### Build Configuration
+- `build/webpack.common.js` - Shared webpack configuration
+- `build/webpack.dev.js` - Development build configuration  
+- `build/webpack.prod.js` - Production build configuration
 
 ## Testing Approach
 
-### Main Extension
 The TweetCraft extension currently has no automated tests. Testing is done manually:
-- Load unpacked extension in Chrome
+- Load unpacked extension in Chrome  
 - Test on both twitter.com and x.com
-- Verify all 5 tone presets generate different responses
+- Verify all 12 tone presets generate different responses
 - Test thread context extraction (up to 4 tweets)
 - Verify API key validation and model fetching
 - Check URL tracking parameter removal
-
-### Reference Projects
-- **XAI**: Mocha with c8 coverage
-- **XAI Backend**: Jest
-- **Others**: No tests or basic test setup
+- Test multiple suggestion carousel functionality
+- Verify preset template system works correctly
 
 ## Security Considerations
 
@@ -130,6 +132,9 @@ The TweetCraft extension currently has no automated tests. Testing is done manua
 7. Use the structured console logging for debugging (🔍 CONFIG, 🎯 TONE, 🧵 THREAD, etc.)
 8. Session storage is used for caching - clears on browser restart
 9. The extension uses a debounced mutation observer to reduce CPU usage
+10. **Singleton Pattern**: Content script uses singleton pattern to prevent multiple instances - look for `__smartReplyInstance` global
+11. **Hot Reloading**: Use `npm run dev` for development builds with watch mode
+12. **Memory Management**: Extension implements comprehensive cleanup with `WeakSet` for DOM references
 
 ## Console Logging Standards
 
@@ -193,7 +198,7 @@ Every new feature must include comprehensive console logging following these sta
 
 This logging standard ensures maintainability and makes the extension's behavior transparent during development and debugging.
 
-## Current Features (v1.5.0)
+## Current Features (v0.0.1 MVP)
 
 ### Core Functionality
 - OpenRouter integration for any LLM (GPT-4, Claude, Gemini, Llama, etc.)
@@ -210,7 +215,7 @@ This logging standard ensures maintainability and makes the extension's behavior
 - Dynamic model fetching from OpenRouter
 - Unlimited token output (no truncation)
 
-### New in v1.5.0
+### MVP Implementation Features
 - **Multiple Reply Suggestions**: Generate 3 variations in parallel with carousel UI
 - **Preset Reply Templates**: 12+ tone-agnostic templates (Ask Question, Add Value, Share Experience, etc.)
 - **Visual Emoji Tone Selector**: Expandable grid UI with 12 tone options
@@ -238,6 +243,7 @@ This logging standard ensures maintainability and makes the extension's behavior
 - Service worker appears "Inactive" in Chrome (normal for Manifest V3)
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
+- **Architecture Files**: Multiple `.mermaid` architecture diagrams exist representing planned future features
 
 ## Critical Implementation Notes
 
@@ -275,6 +281,35 @@ if (textarea.contentEditable === 'true') {
 
 This approach has been tested and proven to work with Twitter's current implementation (Aug 2025).
 
+## Build System Architecture
+
+The project uses Webpack with a multi-config setup located in the `build/` directory:
+
+### Webpack Configuration Structure
+- **`build/webpack.common.js`** - Shared configuration for all environments
+  - Entry points: contentScript, serviceWorker, popup
+  - TypeScript compilation with ts-loader
+  - SCSS processing with sass-loader and CSS extraction
+  - Asset copying from `public/` to `dist/`
+  - Path aliases (`@` -> `src/`)
+
+- **`build/webpack.dev.js`** - Development configuration
+  - Merges with common config
+  - Watch mode enabled by default
+  - Source maps for debugging
+
+- **`build/webpack.prod.js`** - Production configuration  
+  - Merges with common config
+  - Optimized builds with minification
+  - Code splitting for vendor dependencies
+
+### Key Build Features
+- **Clean builds**: Output directory cleared on each build
+- **Asset copying**: Static files from `public/` copied to `dist/`
+- **CSS extraction**: SCSS compiled and extracted to separate files
+- **Code splitting**: Vendor dependencies separated into chunks
+- **TypeScript compilation**: Strict type checking with source maps
+
 ## Documentation Maintenance Rules
 
 **KEEP DOCUMENTATION CURRENT**
@@ -286,3 +321,17 @@ This approach has been tested and proven to work with Twitter's current implemen
 - Before starting a new development session, review and update relevant documentation
 - Include current version number, latest features, and any known issues
 - Documentation should be the single source of truth for the project state
+
+## Current Implementation vs Future Roadmap
+
+**Current Implementation (v0.0.1 MVP)**:
+- AI reply generation with 12 tone presets
+- Thread context extraction (up to 4 tweets)
+- OpenRouter API integration with BYOK architecture
+- Chrome extension popup configuration
+- Session-based response caching
+- Memory management and cleanup
+- Visual tone selector interface
+
+**Future Roadmap**:
+Architecture diagrams in the repository represent planned features for future versions. The codebase is designed with extensible architecture to support the comprehensive feature roadmap outlined in documentation.

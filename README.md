@@ -11,30 +11,33 @@
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
 ![MVP](https://img.shields.io/badge/status-MVP-orange?style=flat-square)
-![Features](https://img.shields.io/badge/features-38+-red?style=flat-square)
+![Features](https://img.shields.io/badge/roadmap-30+%20planned-blue?style=flat-square)
 
 </div>
 
 ---
 
 <div align="center">
-  <strong>🚀 Complete AI social media suite • 🎭 Content generation & analysis • 🧵 Research assistant • 📊 Analytics dashboard • 🤖 Automation workflows</strong>
+  <strong>🚀 AI-powered Twitter/X reply assistant • 🎭 12 unique tones • 🧵 Thread context awareness • ⚙️ OpenRouter integration</strong>
 </div>
 
-## 🚀 **TweetCraft AI Suite: 38+ Features**
+## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (5 Core Features)**
+### ✅ **Currently Working (MVP v0.0.1)**
 - **🎯 AI Reply Generation** - 12 tones, thread context, OpenRouter integration
-- **✨ AI Tweet Creation** - Topic-to-tweet with style options and hashtag suggestions  
-- **🔬 Research Assistant** - Real-time research with Perplexity API and citations
-- **📊 Content Analysis** - Sentiment, engagement prediction, viral assessment
-- **⚙️ Multi-API Management** - Secure key storage, cross-device sync
+- **⚙️ Multi-API Management** - Secure key storage via OpenRouter
+- **🎨 Visual Interface** - Tone selector with emoji-based interface
+- **🧵 Context Processing** - Thread context extraction (up to 4 tweets)
+- **💾 Session Caching** - Response caching to reduce API calls
 
-### 🔧 **Backend Ready (29 Features - 95% Built)**
+### 🔮 **Future Features Roadmap (Planned)**
 - **📝 Content Creation Suite** (6 features): Thread composer, bulk generator, quote tweets
 - **🔍 Advanced Analysis** (10 features): Psychology suite, fact checker, audience insights  
 - **🤖 Automation & Workflows** (8 features): Growth analytics, engagement dashboard, command palette
 - **🧠 Advanced AI** (5 features): O3 writing, persona management, model comparison
+- **🔬 Research Assistant** - Real-time research with Perplexity API and citations
+- **📊 Content Analysis** - Sentiment, engagement prediction, viral assessment
+- **✨ AI Tweet Creation** - Topic-to-tweet with style options and hashtag suggestions
 
 ### 🎨 MVP Features
 
@@ -255,6 +258,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.1 MVP** - Craft perfect replies with AI 🚀
+**TweetCraft v0.0.1 MVP** - AI reply assistant with extensible architecture for future features 🚀
 
 Made with ❤️ by the TweetCraft team
