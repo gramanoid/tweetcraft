@@ -11,7 +11,7 @@
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
 ![MVP](https://img.shields.io/badge/status-MVP-orange?style=flat-square)
-![Features](https://img.shields.io/badge/roadmap-30+%20planned-blue?style=flat-square)
+![Features](https://img.shields.io/badge/roadmap-5%20focused%20features-blue?style=flat-square)
 
 </div>
 
@@ -31,13 +31,11 @@
 - **💾 Session Caching** - Response caching to reduce API calls
 
 ### 🔮 **Future Features Roadmap (Planned)**
-- **📝 Content Creation Suite** (6 features): Thread composer, bulk generator, quote tweets
-- **🔍 Advanced Analysis** (10 features): Psychology suite, fact checker, audience insights  
-- **🤖 Automation & Workflows** (8 features): Growth analytics, engagement dashboard, command palette
-- **🧠 Advanced AI** (5 features): O3 writing, persona management, model comparison
-- **🔬 Research Assistant** - Real-time research with Perplexity API and citations
-- **📊 Content Analysis** - Sentiment, engagement prediction, viral assessment
-- **✨ AI Tweet Creation** - Topic-to-tweet with style options and hashtag suggestions
+- **📝 Content Creation** - Thread composer, quote tweet generator, AI tweet creation
+- **🧠 Psychology Analytics** - Behavioral pattern insights, audience psychology profiling
+- **🔬 Research Assistant** - Real-time research with citations and fact checking
+- **📊 Content Analysis** - Sentiment analysis, engagement prediction, viral assessment
+- **✨ Enhanced UI** - Improved tone selector, better context modes, keyboard shortcuts
 
 ### 🎨 MVP Features
 
