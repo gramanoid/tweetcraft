@@ -1,86 +1,288 @@
-# 🗺️ TweetCraft Extension - Comprehensive Architectural Documentation
+# 🗺️ TweetCraft Extension - Comprehensive AI Social Media Suite Architecture
 
-## 📊 1. Complete Architecture & User Journey
+## 📊 1. Complete Architecture & Multi-Feature System
 
-### 🎯 User Entry Points & Flow
+### 🎯 TweetCraft Feature Universe (38+ Features)
 
-#### Initial Setup Flow
-- **Extension Installation** → Chrome Web Store → Load unpacked (Development)
-- **First Launch** → Extension icon click → Settings popup opens
-- **Configuration Required** → API key setup → Model selection → Personality customization
-- **Usage Ready** → Navigate to Twitter/X → Reply to tweets → AI assistance available
+TweetCraft is a comprehensive AI-powered social media assistant that transforms Twitter/X interaction with intelligent automation, content creation, and advanced analytics.
 
-#### Daily Usage Flow
-- **Twitter/X Visit** → Automatic content script injection
-- **Reply Intent** → Click reply on any tweet → AI Reply button appears in toolbar  
-- **Tone Selection** → Click AI Reply button → Tone selector dropdown opens
-- **Generation** → Select tone → Generate Reply → Text inserted into reply box
-- **Refinement** → Edit if needed → Post reply
+#### 🚀 **CORE FEATURE CATEGORIES**
+
+##### **AI Content Generation Suite**
+- **Reply Generation** → Context-aware replies with 12 tones
+- **Original Tweet Creation** → Topic-to-tweet with style options  
+- **Thread Composer** → Multi-tweet structured threads
+- **Quote Tweet Generator** → Intelligent commentary
+- **Bulk Generator** → Multiple tweets simultaneously
+- **Smart Enhancement** → AI-powered content optimization
+
+##### **Research & Analysis Intelligence**
+- **Research Assistant** → Real-time data with Perplexity API
+- **Content Analysis** → Sentiment, engagement prediction, viral assessment
+- **Thread Analysis** → Structure, coherence, optimization scoring
+- **Fact Checker** → Real-time verification with source validation
+- **Psychology Suite** → Emotional tone, persuasion analysis
+- **Unified AI Analysis** → Multi-dimensional content insights
+
+##### **Automation & Workflow Management**  
+- **Automated Posting** → RapidAPI TwttrAPI + Intent + DOM fallbacks
+- **Workflow Manager** → Template-based automation chains
+- **Growth Analytics** → Follower trends, engagement monitoring
+- **Engagement Dashboard** → Real-time interaction tracking
+- **Command Palette** → Keyboard-driven quick actions
+
+##### **Advanced AI & Personalization**
+- **O3 Advanced Writing** → Cutting-edge model access
+- **Persona Management** → Multiple voice consistency
+- **Audience Insights** → Demographics, behavioral patterns
+- **Psychology Analytics** → Engagement psychology metrics
+- **Model Comparison** → Side-by-side generation testing
+
+#### **Daily Usage Flows**
+
+##### **Content Creation Flow**
+- **Direct Creation** → Extension popup → Select content type → AI generates → Review → Post
+- **Reply Enhancement** → Twitter reply → AI Reply button → Tone/template selection → Generate → Auto-post (optional)
+- **Thread Building** → Thread composer → Structure planning → Multi-tweet generation → Thread optimization
+
+##### **Analysis Flow**  
+- **Content Analysis** → Select tweet → Analysis type → Comprehensive insights → Improvement suggestions
+- **Research Mode** → Topic input → Depth selection → Real-time research → Source citations
+- **Performance Tracking** → Analytics dashboard → Growth metrics → Engagement patterns
 
 ---
 
-## 🎛️ 2. Extension Settings Popup (400x500px)
+## 🎛️ 2. Multi-API Settings Interface (Comprehensive Configuration)
 
 ### Header Section (Gradient Blue Background)
 | Component | Details | Specifications |
 |-----------|---------|---------------|
 | **Logo** | TweetCraft icon | 48x48px, left aligned |
-| **Title** | "TweetCraft" | 24px, bold, centered |
-| **Subtitle** | "Craft perfect replies with AI" | 14px, opacity 0.9 |
+| **Title** | "TweetCraft AI Suite" | 24px, bold, centered |
+| **Subtitle** | "AI-powered social media automation" | 14px, opacity 0.9 |
 
-### Main Content Area (Scrollable, 20px padding)
+### 🔑 **API Key Management Section**
 
-#### 🔑 API Key Configuration
-- **Label**: "OpenRouter API Key:"
-- **Input Row** (flex layout):
-  ```
-  [Password Input Field            ] [👁️] [✓]
-  [Placeholder: Enter your key...  ] [Show] [Test]
-  ```
-- **Help Text**: "Get your key at openrouter.ai/keys"  
-- **Test Result Area**: Success/Error feedback display
+#### Multi-Provider API Configuration
+| Provider | Purpose | Storage Location |
+|----------|---------|------------------|
+| **OpenRouter** | Primary AI models (GPT-4, Claude, Gemini, Llama) | `chrome.storage.local` |
+| **RapidAPI** | Twitter posting (TwttrAPI) & context (Old Bird) | `chrome.storage.local` |
+| **Perplexity** | Real-time research & fact-checking | `chrome.storage.local` |
+| **Cohere** | Response reranking & quality filtering | `chrome.storage.local` |
+| **Jina AI** | Advanced embeddings & analysis | `chrome.storage.local` |
+| **Exa AI** | Web search & content discovery | `chrome.storage.local` |
+| **X.AI** | Alternative AI model access | `chrome.storage.local` |
 
-#### 🤖 Model Selection
-- **Label**: "Model:"
-- **Select Row** (flex layout):
-  ```
-  [Model Dropdown              ] [↻]
-  [GPT-4o (Default)           ] [Refresh]
-  ```
-- **Model Info**: Context window, pricing display
+#### API Key Interface Layout
+```
+🔑 API Keys & Providers
+├── [OpenRouter API Key     ] [👁️] [✓] Primary AI models
+├── [RapidAPI Key          ] [👁️] [✓] Posting & context  
+├── [Perplexity Key        ] [👁️] [✓] Research assistant
+├── [Cohere Key (optional) ] [👁️] [✓] Quality filtering
+├── [Jina Key (optional)   ] [👁️] [✓] Advanced analysis
+└── [Test All Connections] [🔄 Refresh Models]
+```
 
-#### 🎭 Writing Style/Personality
-- **Label**: "Your Style/Personality:"
-- **Textarea**: 
-  - Min height: 80px
-  - Placeholder: "e.g., I'm a tech entrepreneur who writes concise, helpful replies..."
-  - Resizable vertically
+### 🎯 **Content Generation Settings**
 
-#### ⚙️ Advanced Settings
-| Setting | Type | Default | Range/Options |
-|---------|------|---------|---------------|
-| **Temperature** | Range slider | 0.7 | 0.1 (Focused) ↔ 1.0 (Creative) |
-| **Context Mode** | Dropdown | "Full thread context" | None / Single tweet / Full thread |
+#### Primary Generation Controls
+| Setting | Type | Default | Purpose |
+|---------|------|---------|---------|
+| **Content Type** | Dropdown | "Reply" | Reply/Tweet/Thread/Quote/Bulk |
+| **AI Model** | Dropdown | "GPT-4o" | Primary generation model |
+| **Writing Style** | Textarea | Custom | User personality prompt |
+| **Temperature** | Slider | 0.7 | Creativity level |
+| **Context Mode** | Select | "Full thread" | Context awareness level |
 
-### Footer Section
-- **Save Settings Button**: Full-width, blue, primary style
-- **Status Message Area**: Success/error feedback
+#### Advanced AI Features
+| Feature | Control | Default | Description |
+|---------|---------|---------|-------------|
+| **N-Best Generation** | Checkbox | ✅ ON | Generate 3 variants, pick best |
+| **Style Roulette** | Checkbox | ✅ ON | Vary response styles (quip/question/take) |
+| **Quality Reranking** | Checkbox | ✅ ON | Cohere-powered quality filtering |
+| **Novelty Gate** | Slider | 0.58 | Avoid duplicate content (3-gram Jaccard) |
+| **Topic Routing** | Checkbox | ✅ ON | Auto-select models by topic |
+
+### 🤖 **AI Model Routing Configuration**
+
+#### Topic-Aware Model Selection
+```
+📊 Model Routing (Auto-select by content)
+├── 💻 Code/Tech:    [groq/llama-3.1-8b-instant ▼]
+├── 💰 Finance:      [openai/gpt-4o             ▼] 
+├── 🧠 Psychology:   [anthropic/claude-3-sonnet ▼]
+├── 📝 General:      [openai/gpt-4o             ▼]
+└── 🔬 Research:     [perplexity/sonar          ▼]
+```
+
+### 🔄 **Automation & Posting Configuration**
+
+#### Automated Posting Chain (OFF by default)
+| Provider | Method | Fallback Order | Status |
+|----------|--------|----------------|---------|
+| **TwttrAPI** | RapidAPI posting endpoint | Primary | ✅ Write support |
+| **Share Intent** | `twitter.com/intent/tweet` prefill | Fallback 1 | ✅ User action |
+| **DOM Click** | Direct button automation | Fallback 2 | ⚠️ ReadOnly mode |
+
+#### Safety Controls
+```
+🛡️ Automation Safety
+├── [❌] Enable auto-post (OFF by default)
+├── [✅] Read-only mode (prevents DOM clicks)  
+├── [✅] 3-second UNDO toast
+├── [3] Post attempt limit
+└── [✅] Desktop notifications
+```
+
+### 🧠 **Research & Analysis Configuration**
+
+#### Research Assistant Settings
+| Feature | Configuration | Default |
+|---------|---------------|---------|
+| **Research Depth** | Quick/Detailed/Comprehensive | Detailed |
+| **Source Citations** | Include/Summary only | Include |
+| **Fact-checking** | Real-time/Manual | Real-time |
+| **Research Cache** | Duration in hours | 24 hours |
+
+#### Content Analysis Options
+```
+📊 Analysis Features  
+├── [✅] Sentiment analysis
+├── [✅] Engagement prediction
+├── [✅] Viral potential scoring
+├── [✅] Psychology analysis
+├── [✅] Topic detection
+└── [✅] Improvement suggestions
+```
+
+### 🎭 **Persona & Voice Management**
+
+#### Multiple Persona System
+| Persona Slot | Purpose | Configuration |
+|--------------|---------|---------------|
+| **Personal** | Default user voice | Custom system prompt |
+| **Professional** | Business/work tweets | Formal, business-focused |
+| **Creative** | Artistic/fun content | Playful, experimental |
+| **Brand** | Company voice | Consistent brand guidelines |
+| **Custom 1-5** | User-defined personas | Fully customizable |
+
+#### Voice Consistency Controls
+```
+🎭 Persona Management
+├── [Personal ▼] Active persona
+├── [✅] Voice consistency checking
+├── [✅] Tone drift detection  
+├── [Edit Personas] Management interface
+└── [Import/Export] Persona backup
+```
+
+### 🛠️ **Workflow & Automation Settings**
+
+#### Command Palette Configuration  
+```
+⌨️ Command Palette & Shortcuts
+├── [Ctrl+Shift+T] Open TweetCraft command palette
+├── [Alt+R] Quick reply generation
+├── [Alt+T] Create new tweet  
+├── [Alt+A] Analyze current tweet
+├── [Alt+H] View generation history
+└── [Customize Shortcuts] Key binding editor
+```
+
+#### Bulk Operations Settings
+| Operation | Configuration | Batch Size |
+|-----------|---------------|------------|
+| **Bulk Tweet Generation** | Template-based | 5-50 tweets |
+| **Thread Creation** | Structure optimization | 2-25 tweets |
+| **Quote Tweet Batch** | Commentary styles | 3-20 quotes |
+| **Analysis Bulk** | Multiple metrics | 10-100 tweets |
+
+### 📊 **Analytics & Insights Configuration**
+
+#### Growth Analytics Dashboard
+```
+📈 Analytics Configuration
+├── [✅] Track follower growth trends
+├── [✅] Monitor engagement rates
+├── [✅] Performance metrics dashboard  
+├── [✅] Growth predictions
+├── [Daily] Analytics refresh frequency
+└── [30 days] Historical data retention
+```
+
+#### Psychology Analytics Settings
+| Analysis Type | Enabled | Data Source |
+|---------------|---------|-------------|
+| **Emotional Tone Detection** | ✅ | Content analysis |
+| **Persuasion Techniques** | ✅ | Writing patterns |
+| **Behavioral Impact** | ✅ | Engagement correlation |
+| **Audience Psychology** | ✅ | Interaction patterns |
 
 ---
 
-## 🐦 3. Twitter/X Integration Interface
+## 🐦 3. Comprehensive Twitter/X Integration
 
-### Reply Box Integration
+### Multi-Mode Integration Interface
+
+#### 1. **Reply Enhancement Mode** (Current Implementation)
 ```
-┌─ Original Tweet Context ────────────────────────┐
-│ @username: The tweet being replied to...        │
+┌─ Original Tweet Context + Thread Analysis ─────┐
+│ 🧵 @user1: "Original tweet..."                │
+│ 📝 @user2: "Response in thread..."            │  
+│ 📍 @user3: "Tweet being replied to..."        │
 └─────────────────────────────────────────────────┘
-┌─ Reply Textarea ────────────────────────────────┐
-│ What's happening?                               │
-│                                                 │
+┌─ AI-Enhanced Reply Textarea ───────────────────┐
+│ AI-generated contextual reply...               │
+│ [280 chars] [🔄 Regenerate] [📊 Analyze]      │
 └─────────────────────────────────────────────────┘
-┌─ Twitter Toolbar ──────────────────────────────┐
-│ 📷 🎬 📊 😊                    [✨ AI Reply] │
+┌─ Enhanced Twitter Toolbar ─────────────────────┐
+│ 📷 🎬 📊 😊 [✨ AI] [🧵 Thread] [📊 Analytics] │
+└─────────────────────────────────────────────────┘
+```
+
+#### 2. **Original Tweet Composer Mode**
+```
+┌─ AI Tweet Composer ────────────────────────────┐
+│ 📝 Topic: [Enter topic or idea...           ] │
+│ 🎨 Style: [Engaging ▼] [Educational ▼] [Funny ▼] │
+│ 🏷️ Tags: [#AI] [#tech] [+] Auto-suggest     │
+│ ⚡ [Generate Tweet] [🧵 Make Thread] [💡 Ideas] │
+└─────────────────────────────────────────────────┘
+```
+
+#### 3. **Thread Composer Interface**
+```
+┌─ Thread Builder ───────────────────────────────┐
+│ 📝 Thread Topic: [Building in public...     ] │
+│ 📊 Structure: [Hook→Points→CTA ▼]            │
+│ 🔢 Length: [3] tweets [Optimize Flow]        │
+│ ┌─ Tweet 1/3 ─────────────────────────────┐  │
+│ │ Hook: Starting a new project and...     │  │
+│ │ [280] [🔄] [👆 Move up] [👇 Move down]   │  │
+│ └─────────────────────────────────────────┘  │
+│ ┌─ Tweet 2/3 ─────────────────────────────┐  │
+│ │ Here's what I've learned so far...      │  │
+│ │ [255] [🔄] [👆 Move up] [👇 Move down]   │  │
+│ └─────────────────────────────────────────┘  │
+│ ⚡ [Generate Thread] [📊 Analyze] [🚀 Post] │
+└─────────────────────────────────────────────────┘
+```
+
+#### 4. **Research Assistant Mode** 
+```
+┌─ AI Research Assistant ────────────────────────┐
+│ 🔍 Research: [Latest AI developments       ] │
+│ 📊 Depth: [●Detailed] [Quick] [Comprehensive] │
+│ 📚 Sources: [✅ Include citations]           │
+│ ⚡ [Research Now] [📋 Generate Tweet]        │
+│ ┌─ Research Results ──────────────────────┐  │
+│ │ • Latest developments include...         │  │
+│ │ • Source: techcrunch.com                │  │
+│ │ • Fact-checked: ✅ Verified             │  │
+│ │ [📝 Tweet This] [📊 Analyze Potential]   │  │
+│ └─────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────┘
 ```
 
