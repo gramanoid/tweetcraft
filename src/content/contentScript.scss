@@ -1,0 +1,175 @@
+// Smart Reply Extension Styles
+.smart-reply-container {
+  position: relative;
+  display: inline-flex;
+  margin-left: 8px;
+  
+  .smart-reply-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid rgb(207, 217, 222);
+    border-radius: 9999px;
+    background-color: transparent;
+    color: rgb(15, 20, 25);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+    
+    &:hover {
+      background-color: rgba(15, 20, 25, 0.1);
+      border-color: rgb(156, 163, 175);
+    }
+    
+    &:active {
+      background-color: rgba(15, 20, 25, 0.2);
+    }
+    
+    &.loading {
+      opacity: 0.7;
+      cursor: not-allowed;
+      
+      svg {
+        animation: spin 1s linear infinite;
+      }
+    }
+    
+    &.error {
+      border-color: rgb(244, 63, 94);
+      color: rgb(244, 63, 94);
+      background-color: rgba(244, 63, 94, 0.1);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+  
+  
+}
+
+// Dropdown styles - at root level for better specificity
+.smart-reply-dropdown {
+  position: fixed !important;
+  background: white !important;
+  border: 1px solid rgb(207, 217, 222) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  min-width: 180px !important;
+  z-index: 10000 !important;
+  overflow: hidden !important;
+  padding: 4px 0 !important;
+  
+  // Character count container (simplified)
+  .smart-reply-char-count {
+    padding: 8px 16px !important;
+    background-color: rgb(247, 249, 250) !important;
+    border-bottom: 1px solid rgb(239, 243, 244) !important;
+    font-size: 13px !important;
+    text-align: right !important;
+    
+    .char-count {
+      color: rgb(83, 100, 113) !important;
+      font-weight: 500 !important;
+      
+      .char-current {
+        font-weight: 600 !important;
+      }
+    }
+  }
+  
+  .smart-reply-option {
+    padding: 12px 16px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    color: rgb(15, 20, 25) !important;
+    background-color: white !important;
+    transition: background-color 0.2s ease !important;
+    display: block !important;
+    text-decoration: none !important;
+    border: none !important;
+    width: 100% !important;
+    text-align: left !important;
+    
+    &:hover {
+      background-color: rgb(247, 249, 250) !important;
+    }
+    
+    &:active {
+      background-color: rgb(239, 243, 244) !important;
+    }
+    
+    &:not(:last-child) {
+      border-bottom: 1px solid rgb(239, 243, 244) !important;
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .smart-reply-container {
+    .smart-reply-btn {
+      border-color: rgb(83, 100, 113);
+      color: white;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgb(113, 118, 123);
+      }
+      
+      &:active {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+  
+  .smart-reply-dropdown {
+    background: rgb(21, 32, 43) !important;
+    border-color: rgb(83, 100, 113) !important;
+    
+    .smart-reply-char-count {
+      background-color: rgb(39, 51, 64) !important;
+      border-bottom-color: rgb(83, 100, 113) !important;
+      
+      .char-count {
+        color: rgb(139, 152, 165) !important;
+      }
+    }
+    
+    .smart-reply-option {
+      color: white !important;
+      background-color: rgb(21, 32, 43) !important;
+      
+      &:hover {
+        background-color: rgb(39, 51, 64) !important;
+      }
+      
+      &:active {
+        background-color: rgb(51, 65, 80) !important;
+      }
+      
+      &:not(:last-child) {
+        border-bottom-color: rgb(83, 100, 113) !important;
+      }
+    }
+  }
+}
+
+// Animation for loading spinner
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
