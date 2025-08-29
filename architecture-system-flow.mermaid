@@ -1,0 +1,124 @@
+graph TB
+    %% User Journey & Entry Points
+    subgraph "🎯 User Journey & Entry Points"
+        Install[("🔽 Chrome Extension<br/>Installation")]
+        ExtIcon[("🎛️ Extension Icon<br/>Click")]
+        TwitterPage[("🐦 Twitter/X<br/>Page Visit")]
+        ReplyClick[("💬 Reply Button<br/>Click")]
+    end
+
+    %% Extension Popup Interface
+    subgraph "⚙️ Extension Settings Popup (400x500px)"
+        PopupHeader[("📌 Header<br/>Logo + Title<br/>'TweetCraft'")]
+        APIKeySection[("🔑 API Key Section<br/>• OpenRouter Key Input<br/>• Show/Hide Toggle<br/>• Test Connection Button")]
+        ModelSection[("🤖 Model Selection<br/>• Model Dropdown<br/>• Refresh Models Button<br/>• Model Info Display")]
+        PersonalitySection[("🎭 Personality Settings<br/>• System Prompt Textarea<br/>• Your Writing Style")]
+        AdvancedSection[("⚙️ Advanced Settings<br/>• Temperature Slider (0.1-1.0)<br/>• Context Mode Select")]
+        SaveButton[("💾 Save Settings<br/>Button")]
+        StatusMessage[("📊 Status Messages<br/>Success/Error Display")]
+    end
+
+    %% AI Reply Interface on Twitter
+    subgraph "🐦 Twitter/X Integration"
+        AIReplyButton[("✨ AI Reply Button<br/>Injected in Reply Toolbar")]
+        
+        subgraph "🎨 Tone Selector Dropdown"
+            ToneHeader[("Select Tone Header<br/>with Expand Button ▼")]
+            ToneGrid[("🎭 12 Tone Grid<br/>💼 Professional | 😊 Casual<br/>😄 Witty | 🤗 Supportive<br/>🎉 Excited | 🎓 Academic<br/>🤔 Counter | 🤨 Skeptic<br/>😏 Sarcastic | 🔥 Spicy<br/>🙄 Dismissive | ✨ Custom")]
+            CustomPrompt[("✍️ Custom Prompt<br/>Textarea (when Custom selected)")]
+            MoodModifiers[("🎚️ Quick Modifiers<br/>Optional mood adjustments")]
+            TonePreview[("👁️ Tone Preview<br/>Emoji + Description")]
+            GenerateButton[("⚡ Generate Reply Button")]
+        end
+        
+        subgraph "📝 Preset Templates Panel"
+            TemplatesHeader[("📋 Templates Toggle")]
+            TemplateGrid[("📚 Template Categories<br/>🎯 Engagement | 💡 Value<br/>💬 Conversation | 😄 Humor")]
+            TemplateOptions[("📝 Individual Templates<br/>❓ Ask Question<br/>👍 Agree & Expand<br/>💡 Add Value<br/>🔄 Share Experience<br/>+ Create Custom")]
+            CreateDialog[("➕ Create Custom Template<br/>Name, Emoji, Category, Prompt")]
+        end
+    end
+
+    %% Processing & Generation
+    subgraph "🧠 AI Processing Pipeline"
+        ContextExtraction[("🔍 Context Extraction<br/>• Tweet Text<br/>• Author Info<br/>• Thread Context (up to 4 tweets)<br/>• Context Mode Processing")]
+        
+        RequestBuilder[("📦 Request Builder<br/>• Selected Tone<br/>• Custom Prompt<br/>• Mood Modifiers<br/>• System Prompt<br/>• Temperature")]
+        
+        CacheCheck[("💾 Cache Check<br/>Session-based caching<br/>Tweet ID + Tone key")]
+        
+        OpenRouterAPI[("🌐 OpenRouter API Call<br/>• Model Selection<br/>• Rate Limiting<br/>• Retry Logic<br/>• Error Handling")]
+        
+        ResponseProcessing[("⚡ Response Processing<br/>• Cleanup meta-text<br/>• URL tracking removal<br/>• Character validation")]
+        
+        CacheStore[("💽 Cache Storage<br/>Store for session<br/>Tweet ID + Tone key")]
+    end
+
+    %% UI States & Feedback
+    subgraph "📱 UI States & Feedback"
+        LoadingState[("⏳ Loading State<br/>Spinner animation<br/>Button disabled")]
+        
+        SuccessState[("✅ Success State<br/>Text inserted to textarea<br/>Character count updated<br/>Dropdown closes")]
+        
+        ErrorStates[("❌ Error States<br/>• No API Key<br/>• Invalid API Key<br/>• Rate Limited<br/>• Network Error<br/>• Server Error")]
+        
+        ToastNotifications[("🔔 Toast Notifications<br/>Bottom-center overlay<br/>Auto-dismiss after 5s<br/>Success/Warning/Error styles")]
+    end
+
+    %% Background Services
+    subgraph "🔧 Background Services"
+        ServiceWorker[("⚙️ Service Worker<br/>• Message handling<br/>• Storage management<br/>• API key validation<br/>• Model fetching")]
+        
+        StorageService[("💾 Storage Service<br/>• Chrome sync storage<br/>• Local storage<br/>• Session storage")]
+        
+        MemoryManager[("🧹 Memory Manager<br/>• Event listener tracking<br/>• Cleanup on navigation<br/>• Resource management")]
+        
+        ErrorHandler[("🛠️ Error Handler<br/>• Global error catching<br/>• Recovery strategies<br/>• User-friendly messages")]
+    end
+
+    %% Data Flow Connections
+    Install --> PopupHeader
+    ExtIcon --> PopupHeader
+    TwitterPage --> AIReplyButton
+    ReplyClick --> AIReplyButton
+    
+    APIKeySection --> ServiceWorker
+    ModelSection --> ServiceWorker
+    SaveButton --> StorageService
+    
+    AIReplyButton --> ToneGrid
+    ToneGrid --> GenerateButton
+    CustomPrompt --> GenerateButton
+    MoodModifiers --> GenerateButton
+    TemplateOptions --> GenerateButton
+    
+    GenerateButton --> ContextExtraction
+    ContextExtraction --> RequestBuilder
+    RequestBuilder --> CacheCheck
+    CacheCheck --> OpenRouterAPI
+    OpenRouterAPI --> ResponseProcessing
+    ResponseProcessing --> CacheStore
+    ResponseProcessing --> SuccessState
+    
+    LoadingState --> OpenRouterAPI
+    OpenRouterAPI --> ErrorStates
+    ErrorStates --> ToastNotifications
+    
+    ServiceWorker --> StorageService
+    ServiceWorker --> ErrorHandler
+    ErrorHandler --> MemoryManager
+
+    %% Styling
+    classDef userJourney fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef popup fill:#fff3e0,stroke:#f57c00,stroke-width:2px  
+    classDef twitter fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef processing fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef states fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef services fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    
+    class Install,ExtIcon,TwitterPage,ReplyClick userJourney
+    class PopupHeader,APIKeySection,ModelSection,PersonalitySection,AdvancedSection,SaveButton,StatusMessage popup
+    class AIReplyButton,ToneHeader,ToneGrid,CustomPrompt,MoodModifiers,TonePreview,GenerateButton,TemplatesHeader,TemplateGrid,TemplateOptions,CreateDialog twitter
+    class ContextExtraction,RequestBuilder,CacheCheck,OpenRouterAPI,ResponseProcessing,CacheStore processing
+    class LoadingState,SuccessState,ErrorStates,ToastNotifications states
+    class ServiceWorker,StorageService,MemoryManager,ErrorHandler services
