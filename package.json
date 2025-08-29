@@ -1,6 +1,6 @@
 {
   "name": "tweetcraft",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
   "scripts": {
     "build": "webpack --config build/webpack.prod.js",

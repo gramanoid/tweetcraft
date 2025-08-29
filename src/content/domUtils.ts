@@ -1,30 +1,95 @@
 import { TwitterContext } from '@/types';
 import { URLCleaner } from '@/utils/urlCleaner';
 
+// Centralized selector configuration with fallback chains
+interface SelectorChain {
+  primary: string;
+  fallbacks: string[];
+}
+
+const SELECTOR_CHAINS: Record<string, SelectorChain> = {
+  replyTextarea: {
+    primary: '[data-testid^="tweetTextarea_"][contenteditable="true"]',
+    fallbacks: [
+      '[contenteditable="true"][role="textbox"]',
+      '[contenteditable="true"][aria-label*="tweet"]',
+      'div[contenteditable="true"]'
+    ]
+  },
+  toolbar: {
+    primary: '[data-testid="toolBar"]',
+    fallbacks: [
+      '[role="group"]:has(button[data-testid="reply"])',
+      '[role="group"]:has(svg[data-testid="reply"])',
+      'div:has(button[aria-label*="reply"])'
+    ]
+  },
+  tweetText: {
+    primary: '[data-testid="tweetText"]',
+    fallbacks: [
+      '[data-testid="tweetText"] span',
+      'article [lang] span',
+      'article div[dir] span'
+    ]
+  },
+  originalTweet: {
+    primary: 'article[data-testid="tweet"][tabindex="-1"]',
+    fallbacks: [
+      'article[data-testid="tweet"]:first-of-type',
+      'article[role="article"]:has([data-testid="tweetText"])',
+      'main article:has([data-testid="tweetText"])'
+    ]
+  }
+};
+
 export class DOMUtils {
-  // Twitter's reply textarea selector
-  static readonly REPLY_TEXTAREA_SELECTOR = '[data-testid^="tweetTextarea_"][contenteditable="true"]';
-  
-  // Twitter's toolbar selector (where we'll inject our button)
-  static readonly TOOLBAR_SELECTOR = '[data-testid="toolBar"]';
-  
-  // Tweet content selector
-  static readonly TWEET_TEXT_SELECTOR = '[data-testid="tweetText"]';
-  
-  // Original tweet selector (for replies)
-  static readonly ORIGINAL_TWEET_SELECTOR = 'article[data-testid="tweet"][tabindex="-1"]';
+  // Legacy selectors for backward compatibility
+  static readonly REPLY_TEXTAREA_SELECTOR = SELECTOR_CHAINS.replyTextarea.primary;
+  static readonly TOOLBAR_SELECTOR = SELECTOR_CHAINS.toolbar.primary;
+  static readonly TWEET_TEXT_SELECTOR = SELECTOR_CHAINS.tweetText.primary;
+  static readonly ORIGINAL_TWEET_SELECTOR = SELECTOR_CHAINS.originalTweet.primary;
+
+  /**
+   * Resilient selector finder with automatic fallback
+   */
+  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element): Element | null {
+    const chain = SELECTOR_CHAINS[selectorType];
+    const searchRoot = parent || document;
+    
+    // Try primary selector first
+    let element = searchRoot.querySelector(chain.primary);
+    if (element) {
+      console.log(`%c🎯 DOM Selector Success: ${selectorType} (primary)`, 'color: #17BF63; font-weight: bold');
+      return element;
+    }
+    
+    // Try fallback selectors
+    for (let i = 0; i < chain.fallbacks.length; i++) {
+      element = searchRoot.querySelector(chain.fallbacks[i]);
+      if (element) {
+        console.log(`%c🎯 DOM Selector Fallback: ${selectorType} (fallback ${i + 1})`, 'color: #FFA500; font-weight: bold');
+        console.log(`%c  Used: ${chain.fallbacks[i]}`, 'color: #657786');
+        return element;
+      }
+    }
+    
+    console.warn(`%c❌ DOM Selector Failed: ${selectorType} - all selectors failed`, 'color: #DC3545; font-weight: bold');
+    console.log('%c  Primary:', 'color: #657786', chain.primary);
+    console.log('%c  Fallbacks:', 'color: #657786', chain.fallbacks);
+    return null;
+  }
 
   static findClosestTextarea(element: Element): HTMLElement | null {
-    // Look for the textarea within or near the toolbar
-    const textarea = element.querySelector(this.REPLY_TEXTAREA_SELECTOR) as HTMLElement;
+    // Use resilient selector with fallback
+    let textarea = this.findWithFallback('replyTextarea', element) as HTMLElement;
     if (textarea) {
       return textarea;
     }
 
-    // Search upward in the DOM tree
+    // Search upward in the DOM tree with fallback selectors
     let parent = element.parentElement;
     while (parent) {
-      const textarea = parent.querySelector(this.REPLY_TEXTAREA_SELECTOR) as HTMLElement;
+      textarea = this.findWithFallback('replyTextarea', parent) as HTMLElement;
       if (textarea) {
         return textarea;
       }
@@ -40,13 +105,13 @@ export class DOMUtils {
     };
 
     // Check if this is a reply by looking for the original tweet
-    const originalTweetElement = document.querySelector(this.ORIGINAL_TWEET_SELECTOR);
+    const originalTweetElement = this.findWithFallback('originalTweet');
     
     if (originalTweetElement) {
       context.isReply = true;
       
       // Extract original tweet text
-      const tweetTextElement = originalTweetElement.querySelector(this.TWEET_TEXT_SELECTOR);
+      const tweetTextElement = this.findWithFallback('tweetText', originalTweetElement);
       if (tweetTextElement) {
         const rawText = tweetTextElement.textContent || '';
         // Clean tracking parameters from any URLs in the tweet
@@ -109,8 +174,8 @@ export class DOMUtils {
         // Stop after collecting 3 tweets
         if (threadTweets.length >= 3) break;
         
-        // Extract tweet text
-        const tweetTextEl = article.querySelector('[data-testid="tweetText"]');
+        // Extract tweet text using resilient selector
+        const tweetTextEl = this.findWithFallback('tweetText', article);
         if (!tweetTextEl) continue;
         
         const tweetText = URLCleaner.cleanTextURLs(tweetTextEl.textContent || '');

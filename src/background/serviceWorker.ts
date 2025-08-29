@@ -280,23 +280,24 @@ self.addEventListener('beforeunload', () => {
   console.log('Smart Reply: Service worker terminating');
 });
 
-// Log activation
-self.addEventListener('activate', (event) => {
-  console.log('Smart Reply: Service worker activated');
+// Remove duplicate activate listener - handled below
+
+// Service Worker Lifecycle Management
+// Note: Removed deprecated keep-alive pattern for Chrome Manifest V3 compliance
+// Service workers are now event-driven and will activate when needed
+
+// Enhanced lifecycle logging for debugging
+self.addEventListener('install', (event) => {
+  console.log('%c🔧 Smart Reply: Service worker installing', 'color: #1DA1F2; font-weight: bold');
+  // Skip waiting to activate immediately
+  self.skipWaiting();
 });
 
-// Keep service worker alive
-const keepAlive = () => {
-  // Send a keep-alive ping every 20 seconds
-  setInterval(() => {
-    chrome.runtime.getPlatformInfo(() => {
-      // Just a dummy call to keep the service worker alive
-    });
-  }, 20000);
-};
-
-// Initialize keep-alive
-keepAlive();
+self.addEventListener('activate', (event) => {
+  console.log('%c✅ Smart Reply: Service worker activated', 'color: #17BF63; font-weight: bold');
+  // Claim all clients immediately
+  event.waitUntil(self.clients.claim());
+});
 
 // Log that service worker is starting
 console.log('Smart Reply: Service worker starting...');

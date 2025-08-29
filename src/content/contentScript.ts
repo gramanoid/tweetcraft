@@ -9,7 +9,7 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.1';
+  private static readonly VERSION = '0.0.2';
   private isDestroyed = false;
 
   constructor() {
@@ -32,7 +32,14 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('TweetCraft Content Script: Initializing on', window.location.href);
+    console.log('%c🚀 TweetCraft Content Script v0.0.2: Initializing', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c  URL:', 'color: #657786', window.location.href);
+    
+    // Check for previous state recovery
+    const recovered = this.attemptStateRecovery();
+    if (recovered) {
+      console.log('%c✅ State recovery completed', 'color: #17BF63');
+    }
     
     // Establish connection with service worker
     this.connectToServiceWorker();
@@ -40,20 +47,21 @@ class SmartReplyContentScript {
     // Wait for the page to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        console.log('TweetCraft Content Script: DOM ready, starting observation');
+        console.log('%c📄 TweetCraft: DOM ready, starting observation', 'color: #1DA1F2');
         if (!this.isDestroyed) this.startObserving();
       });
     } else {
-      console.log('TweetCraft Content Script: DOM already ready, starting observation');
+      console.log('%c📄 TweetCraft: DOM already ready, starting observation', 'color: #1DA1F2');
       this.startObserving();
     }
   }
 
   private setupCleanupHandlers(): void {
-    // Clean up on page navigation (SPA navigation)
+    // Enhanced cleanup with state persistence for context recovery
     const handleNavigation = () => {
       if (!this.isDestroyed) {
-        console.log('Smart Reply: Page navigation detected, cleaning up...');
+        console.log('%c🔄 Smart Reply: Page navigation detected, saving state...', 'color: #FFA500; font-weight: bold');
+        this.saveStateForRecovery();
         this.destroy();
       }
     };
@@ -86,6 +94,57 @@ class SmartReplyContentScript {
       () => { history.pushState = originalPushState; },
       () => { history.replaceState = originalReplaceState; }
     ];
+  }
+
+  /**
+   * Save critical state to sessionStorage for recovery after context invalidation
+   */
+  private saveStateForRecovery(): void {
+    try {
+      const recoveryState = {
+        timestamp: Date.now(),
+        url: window.location.href,
+        version: SmartReplyContentScript.VERSION,
+        processedCount: this.processedToolbars ? 1 : 0, // WeakSet can't be serialized
+        isDestroyed: this.isDestroyed
+      };
+      
+      sessionStorage.setItem('tweetcraft_recovery_state', JSON.stringify(recoveryState));
+      console.log('%c💾 State saved for recovery', 'color: #17BF63');
+    } catch (error) {
+      console.warn('%c⚠️ Failed to save recovery state:', 'color: #FFA500', error);
+    }
+  }
+
+  /**
+   * Attempt to restore state from sessionStorage after context recovery
+   */
+  private attemptStateRecovery(): boolean {
+    try {
+      const savedStateJson = sessionStorage.getItem('tweetcraft_recovery_state');
+      if (!savedStateJson) return false;
+      
+      const savedState = JSON.parse(savedStateJson);
+      const timeDiff = Date.now() - savedState.timestamp;
+      
+      // Only recover if state was saved within the last 2 minutes
+      if (timeDiff > 120000) {
+        sessionStorage.removeItem('tweetcraft_recovery_state');
+        return false;
+      }
+      
+      console.log('%c🔄 Smart Reply: Recovering from saved state', 'color: #1DA1F2; font-weight: bold');
+      console.log('%c  Saved:', 'color: #657786', new Date(savedState.timestamp).toLocaleTimeString());
+      console.log('%c  URL match:', 'color: #657786', savedState.url === window.location.href);
+      
+      // Clear the saved state
+      sessionStorage.removeItem('tweetcraft_recovery_state');
+      return true;
+    } catch (error) {
+      console.warn('%c⚠️ State recovery failed:', 'color: #FFA500', error);
+      sessionStorage.removeItem('tweetcraft_recovery_state');
+      return false;
+    }
   }
 
   private connectToServiceWorker(): void {

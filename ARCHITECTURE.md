@@ -1,178 +1,185 @@
-# 🗺️ TweetCraft Extension - Consumer-Focused Architecture
+# 🏗️ TweetCraft Extension - Consumer-Focused Architecture
 
-## 📊 Current State & Future Roadmap
+## 🎯 **Core Philosophy: BUILD FOR CONSUMERS, NOT ENTERPRISES**
 
-### 🎯 TweetCraft Overview
+TweetCraft is a consumer-focused AI reply assistant for Twitter/X that provides intelligent, context-aware responses. Built with TypeScript, Chrome Manifest V3, and OpenRouter integration.
 
-TweetCraft is a consumer-focused AI-powered reply assistant for Twitter/X that provides intelligent, context-aware responses. Built with TypeScript, Chrome Manifest V3, and OpenRouter integration.
-
-**Core Philosophy**: BUILD FOR CONSUMERS, NOT ENTERPRISES
-- Simple, fast, reliable functionality
-- One-click user experience  
-- Minimal configuration required
+**Design Principles:**
+- Simple, fast, reliable functionality for individual users
+- One-click user experience with minimal configuration
 - Direct implementation over complex abstractions
+- Speed and usability over feature completeness
 
 ---
 
-## ✅ **CURRENT MVP FEATURES** (v0.0.1)
+## ✅ **CURRENT MVP ARCHITECTURE** (v0.0.1)
 
-### Core Reply Generation
+### Chrome Extension Structure
+```
+TweetCraft/
+├── public/
+│   ├── manifest.json          # Chrome extension configuration
+│   └── popup.html             # Settings interface
+├── src/
+│   ├── content/               # Twitter/X page integration
+│   │   ├── contentScript.ts   # Main DOM manipulation & button injection
+│   │   ├── domUtils.ts        # Twitter DOM helpers & context extraction
+│   │   ├── toneSelector.ts    # Visual tone selection interface
+│   │   └── presetTemplates.ts # Reply template system
+│   ├── background/
+│   │   └── serviceWorker.ts   # Background script for message handling
+│   ├── services/              # Core functionality
+│   │   ├── openRouter.ts      # OpenRouter API integration
+│   │   ├── storage.ts         # Chrome storage API wrapper
+│   │   └── cache.ts           # Session-based response caching
+│   ├── popup/
+│   │   └── popup-simple.ts    # Extension settings UI
+│   └── utils/                 # Shared utilities
+│       ├── urlCleaner.ts      # Privacy-focused URL cleaning
+│       ├── debounce.ts        # Performance optimization
+│       └── memoryManager.ts   # Memory leak prevention
+└── dist/                      # Built extension output
+```
+
+### Current Features
 - **AI Reply Generation** → Context-aware replies with 12 tone presets
-- **Visual Interface** → Tone selector with emoji-based interface  
+- **Visual Interface** → Emoji-based tone selector for quick selection
 - **Thread Context** → Extract context from up to 4 tweets
 - **Session Caching** → Response caching to reduce API calls
-- **OpenRouter Integration** → Secure API key management via BYOK
+- **OpenRouter Integration** → Secure BYOK API key management
 
 ### Technical Implementation
 - TypeScript + Webpack build system
 - Chrome Manifest V3 with service worker
-- Singleton pattern prevents multiple instances
+- Singleton pattern prevents multiple content script instances
 - Memory management with proper cleanup
 - Structured console logging for debugging
 
 ---
 
-## 🔮 **PLANNED CONSUMER FEATURES**
+## 🎯 **SIMPLE DATA FLOW**
+
+```
+User clicks reply → Extension detects → Extracts thread context → 
+Calls OpenRouter API → Generates response → Inserts in composer → 
+Caches result for performance
+```
+
+### User Experience Flow
+1. **Click Reply** → User clicks reply button on any tweet
+2. **Generate Response** → Click "AI Reply" button in toolbar
+3. **Select Tone** → Choose from 12 visual tone options
+4. **Review & Post** → Edit if needed, then post manually
+
+---
+
+## 🔮 **PLANNED CONSUMER FEATURES** (Simple Additions)
 
 ### 1. **Content Creation Suite** 📝
 **Goal**: Help users create better content faster
-- **Thread Composer** → Simple multi-tweet thread creation
-- **Quote Tweet Generator** → Smart commentary suggestions
-- **AI Tweet Creation** → Generate original tweets from topics
+- **Thread Composer** → Simple multi-tweet thread creation with auto-numbering
+- **Quote Tweet Generator** → Smart commentary suggestions for quote tweets
+- **AI Tweet Creation** → Generate original tweets from topics with style options
 
-### 2. **Automated Posting** 🚀 (Approved)
-**Goal**: Optional convenience for power users
-- **Smart Posting** → Automated posting with user approval
-- **Fallback Systems** → Multiple posting methods for reliability
-- **Post Scheduling** → Basic scheduling capabilities
-- **Safety First** → Always OFF by default, user must enable
-
-### 3. **Analytics & Growth** 📊 (Approved)
-**Goal**: Help users understand what works
-- **Psychology Analytics** → Behavioral pattern insights
-- **Growth Analytics** → Follower trends, engagement monitoring  
-- **Content Analysis** → Sentiment analysis, engagement prediction
-- **Simple Dashboards** → Easy-to-understand metrics
-
-### 4. **Enhanced Experience** ✨
+### 2. **Enhanced UI/UX** ✨
 **Goal**: Smoother, more intuitive usage
-- **Research Assistant** → Quick fact checking with citations
-- **Improved UI/UX** → Better tone selector, keyboard shortcuts
+- **Improved Tone Selector** → Better visual interface for tone selection
+- **Enhanced Context Modes** → Smarter thread context understanding
+- **Keyboard Shortcuts** → Power user efficiency features (Alt+Q)
 - **Better Error Handling** → Clear feedback and recovery
-- **Performance Optimization** → Faster response times
+
+### 3. **Research Assistant** 🔬
+**Goal**: Add credible information to tweets
+- **Quick Fact Checking** → Verify claims with credible sources
+- **Real-time Research** → Get current information on topics
+- **Citation Support** → Add source links to tweets
+
+### 4. **Simple Analytics** 📊
+**Goal**: Help users understand what works (NOT enterprise dashboards)
+- **Basic Engagement Insights** → Simple metrics in popup
+- **Writing Pattern Recognition** → Learn user's effective styles
+- **Response Performance** → Track which tones work best
+
+### 5. **Optional Automation** 🚀
+**Goal**: Convenience for power users with safety first
+- **Smart Posting** → Automated posting with user approval (OFF by default)
+- **Basic Scheduling** → Simple post timing
+- **Safety Controls** → Always requires user confirmation
 
 ---
 
-## 🏗️ **SIMPLE ARCHITECTURE**
+## 🛠️ **CONSUMER-FOCUSED SETTINGS**
 
-### Chrome Extension Structure
-```
-TweetCraft/
-├── manifest.json          # Chrome extension config
-├── src/
-│   ├── content/           # Twitter page integration
-│   │   ├── contentScript.ts    # Main DOM manipulation
-│   │   ├── domUtils.ts         # Twitter helpers
-│   │   └── toneSelector.ts     # UI components
-│   ├── background/        # Extension lifecycle
-│   │   └── serviceWorker.ts    # Background tasks
-│   ├── services/          # Core functionality  
-│   │   ├── openRouter.ts       # AI integration
-│   │   ├── storage.ts          # Settings persistence
-│   │   └── cache.ts            # Response caching
-│   ├── popup/             # Settings interface
-│   └── utils/             # Shared utilities
-└── dist/                  # Built extension
-```
+### Current Settings (Simple)
+- OpenRouter API Key (secure storage)
+- AI Model Selection (dropdown)
+- System Prompt (writing style personalization)
+- Temperature Control (creativity slider)
+- Context Mode (none/single/thread)
+- Default Tone (for keyboard shortcuts)
 
-### Data Flow (Simple)
-```
-User clicks reply → Extension detects → Extracts context → 
-Calls OpenRouter → Generates response → Inserts in composer → 
-Optionally posts (if enabled) → Caches result
-```
-
-### API Integration
-- **Primary**: OpenRouter (multiple AI models)
-- **Future**: Research API (fact-checking)
-- **Future**: Posting API (automated posting)
-- **Future**: Analytics API (growth tracking)
+### Future Settings (Minimal Additions)
+- Research API Key (optional for fact-checking)
+- Auto-post Toggle (OFF by default, safety first)
+- Simple Analytics Toggle (basic insights)
+- Keyboard Shortcuts (power user features)
 
 ---
 
-## 🎛️ **SETTINGS INTERFACE** (Consumer-Focused)
+## 📊 **CONSUMER SUCCESS METRICS**
 
-### Current Settings (MVP)
-- OpenRouter API Key
-- AI Model Selection  
-- System Prompt (writing style)
-- Temperature Control
-- Context Mode
-- Default Tone
-
-### Future Settings (Simple Additions)
-- Research API Key (optional)
-- Auto-post Toggle (OFF by default)
-- Analytics Dashboard Toggle
-- Posting Method Preference
-- Growth Tracking Settings
-
----
-
-## 🚀 **CONSUMER USAGE FLOW**
-
-### Current MVP Experience
-1. **Reply to Tweet** → Click reply button on Twitter
-2. **Generate Response** → Click "AI Reply" button in toolbar
-3. **Select Tone** → Choose from visual tone selector  
-4. **Review & Post** → Edit if needed, then post manually
-
-### Future Enhanced Experience  
-1. **Content Creation** → Generate tweets, threads, quotes from popup
-2. **Smart Analytics** → View engagement insights in simple dashboard
-3. **Automated Posting** → Optional one-click posting with approval
-4. **Research Integration** → Get fact-checked information automatically
-
----
-
-## 🎯 **SUCCESS METRICS** (Consumer-Focused)
-
-### User Experience Metrics
+### User Experience Focus
 - **Simplicity** → New users productive within 2 minutes
 - **Performance** → Sub-2 second response times
-- **Reliability** → 99%+ uptime for core functionality  
+- **Reliability** → 99%+ uptime for core functionality
 - **Satisfaction** → Features are intuitive and helpful
 
-### Technical Metrics
+### Technical Quality
 - Fast build times (< 30 seconds)
 - Small bundle size (< 2MB)
 - Low memory usage
-- No JavaScript errors
+- Clean error handling
 
-**NOT measuring**: Complex enterprise metrics, power user adoption rates, or advanced analytics that don't serve individual consumers.
+**NOT measuring**: Enterprise metrics, complex analytics, or adoption rates that don't serve individual consumers.
 
 ---
 
-## 📋 **DEVELOPMENT PRINCIPLES**
+## 🚀 **DEVELOPMENT APPROACH**
 
 ### Keep It Simple
 - One clear path to success for each feature
 - Minimal configuration required
 - Fast loading and response times
-- Direct implementation over abstraction
+- Direct implementation over abstraction layers
 
-### Consumer-First Design  
+### Consumer-First Design
 - Features solve real individual user problems
 - No complex setup or learning curves
 - Works reliably with minimal maintenance
-- Always prioritize speed and simplicity
+- Always prioritize speed and simplicity over features
 
 ### Focused Scope
-- Core features directly improve reply generation
+- Core features directly improve reply generation experience
 - Each new feature must pass "consumer benefit" test
 - No feature creep into enterprise territory
-- Quality over quantity
+- Quality over quantity approach
 
 ---
 
-**TweetCraft Goal**: Be the best AI reply assistant for Twitter/X that individual users actually want to use every day.
+## 🔧 **API INTEGRATION STRATEGY**
+
+### Current Integration
+- **Primary**: OpenRouter (multiple AI models with single API)
+- **Storage**: Chrome storage APIs (local + sync)
+- **DOM**: Twitter/X page integration
+
+### Future Integrations (Simple)
+- **Research API** (optional, for fact-checking)
+- **Posting API** (optional, for automation with safety)
+- **Basic Analytics API** (optional, for simple insights)
+
+**Philosophy**: Add APIs only when they directly benefit individual users, never for enterprise complexity.
+
+---
+
+**TweetCraft Goal**: Be the best AI reply assistant for Twitter/X that individual consumers actually want to use every day - fast, simple, and helpful.
