@@ -1,11 +1,11 @@
-# Current State - v1.0.1
+# Current State - v0.0.1 MVP
 
 ## ✅ What's Working
 
 ### Core Features
 - **OpenRouter Integration** - Successfully generating replies via API
 - **DOM Injection** - Button appears correctly in Twitter reply boxes
-- **Tone Selection** - Dropdown with 5 presets working
+- **Tone Selection** - Visual interface with 12 tone presets working
 - **Text Insertion** - Using paste event method (reliable)
 - **Custom Prompts** - User can define their style in popup
 - **Context Awareness** - Analyzes original tweet for relevant replies

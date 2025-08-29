@@ -1,11 +1,24 @@
-# TweetCraft 🚀
+<div align="center">
+  <img src="./public/icons/logo48.png" alt="TweetCraft Logo" width="48" height="48" style="margin-right: 12px;" />
+  <h1 style="display: inline-block; margin: 0;">TweetCraft</h1>
+  <p><em>AI-powered Twitter/X reply assistant with multiple tones and context awareness</em></p>
+</div>
 
-An AI-powered Chrome extension for generating intelligent, context-aware replies on Twitter/X. Craft perfect responses with multiple tones, preset templates, and customizable AI models.
+<div align="center">
+  
+![Version](https://img.shields.io/badge/version-0.0.1-blue?style=flat-square)
+![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
+![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
+![MVP](https://img.shields.io/badge/status-MVP-orange?style=flat-square)
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
-![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green)
-![TypeScript](https://img.shields.io/badge/language-TypeScript-blue)
-![License](https://img.shields.io/badge/license-MIT-purple)
+</div>
+
+---
+
+<div align="center">
+  <strong>🎯 Generate perfect Twitter/X replies with AI • 🎭 12 different tones • 🧵 Thread context awareness • 🔒 Privacy-focused</strong>
+</div>
 
 ## ✨ Features
 
@@ -16,30 +29,28 @@ An AI-powered Chrome extension for generating intelligent, context-aware replies
 - **Smart Caching** - Session-based caching to reduce API calls and costs
 - **Privacy-Focused** - Automatic URL tracking parameter removal
 
-### 🎨 New in v1.5.0
+### 🎨 MVP Features
 
-#### Multiple Reply Suggestions
-- Generate 3 variations simultaneously with different creativity levels
-- Interactive carousel UI with keyboard navigation
-- Edit suggestions inline before using
-- Individual regeneration for each suggestion
+#### Intelligent Tone Selection
+- **12 unique tone options** from Professional 💼 to Witty 😄 to Counter-arguments 🤔
+- **Visual tone selector** with emoji-based interface for quick selection
+- **Custom tone support** - define your own style and personality
 
-#### Preset Reply Templates
-- 12+ built-in templates for common reply types
-- Categories: Engagement, Value, Conversation, Humor
-- Create and save custom templates
-- Quick access bar for favorite templates
+#### Advanced Context Processing  
+- **Thread context analysis** - understands conversation flow up to 4 tweets
+- **Multiple context modes** - None, Single tweet, or Full thread context
+- **Smart content extraction** - automatically parses tweet content and author info
 
-#### Visual Tone Selector
-- Emoji-based grid interface (💼 😊 😄 🤗 🤔 ✨)
-- Quick mood modifiers for fine-tuning
-- Custom tone with your own prompts
-- Visual feedback and animations
+#### Developer-Friendly Architecture
+- **TypeScript + Webpack** - Modern build system with hot reloading
+- **Modular components** - Clean separation of concerns
+- **Memory management** - Prevents leaks with proper cleanup
+- **Error handling** - Comprehensive error recovery and user feedback
 
-### ⌨️ Keyboard Shortcuts
-- **Alt+Q** - Generate AI reply with your default tone
-- Arrow keys for navigation in suggestion carousel
-- Number keys (1-3) for quick suggestion selection
+### ⚡ Quick Usage
+- **One-click generation** - Click the AI Reply button in any Twitter/X reply box
+- **Instant tone switching** - Select from 12 different tones with visual emoji interface  
+- **Context-aware responses** - Automatically analyzes thread context for relevant replies
 
 ### 🎭 Tone Presets (12 Options)
 **Positive Tones:**
@@ -66,8 +77,8 @@ An AI-powered Chrome extension for generating intelligent, context-aware replies
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/tweetcraft.git
-   cd tweetcraft/tweetcraft
+   git clone https://github.com/gramanoid/tweetcraft.git
+   cd tweetcraft
    ```
 
 2. **Install dependencies**
@@ -84,7 +95,7 @@ An AI-powered Chrome extension for generating intelligent, context-aware replies
    - Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode" (top right)
    - Click "Load unpacked"
-   - Select the `tweetcraft/dist` folder
+   - Select the `dist` folder
 
 ### From Chrome Web Store
 *Coming soon!*
@@ -114,28 +125,32 @@ An AI-powered Chrome extension for generating intelligent, context-aware replies
 ### Project Structure
 ```
 tweetcraft/
-├── src/
-│   ├── content/          # Content scripts
-│   │   ├── contentScript.ts
-│   │   ├── toneSelector.ts
-│   │   ├── suggestionCarousel.ts
-│   │   └── presetTemplates.ts
-│   ├── background/       # Service worker
-│   ├── popup/           # Extension popup UI
-│   ├── services/        # API and storage services
-│   └── utils/          # Utility functions
-├── public/             # Static assets
-├── dist/              # Built extension
-└── webpack.*.js       # Build configs
+├── build/              # 🔧 Webpack build configuration
+├── docs/               # 📚 Documentation and guides  
+├── src/                # 💻 Source code
+│   ├── content/        # Twitter/X page integration
+│   │   ├── contentScript.ts    # Main content script
+│   │   ├── domUtils.ts        # DOM manipulation utilities
+│   │   ├── toneSelector.ts    # Tone selection interface
+│   │   ├── presetTemplates.ts # Reply templates
+│   │   └── *.ts              # Additional components
+│   ├── background/     # Extension service worker
+│   ├── popup/         # Settings popup interface
+│   ├── services/      # API and storage services
+│   ├── utils/         # Shared utilities & memory management
+│   └── types/         # TypeScript definitions
+├── public/            # Static assets & manifest
+├── tools/             # Development utilities
+└── dist/              # Built extension (generated)
 ```
 
 ### Development Commands
 ```bash
 npm run dev        # Development build with watch
-npm run build      # Production build
+npm run build      # Production build 
+npm run clean      # Clean build directory
 npm run lint       # Run ESLint
 npm run type-check # TypeScript checking
-npm run clean      # Clean build directory
 ```
 
 ### Testing the Extension
@@ -227,12 +242,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/tweetcraft/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/tweetcraft/discussions)
-- **Email**: support@tweetcraft.example.com
+- **Issues**: [GitHub Issues](https://github.com/gramanoid/tweetcraft/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/gramanoid/tweetcraft/discussions) 
+- **Email**: [Open an Issue](https://github.com/gramanoid/tweetcraft/issues/new)
 
 ---
 
-**TweetCraft v1.5.0** - Craft perfect replies with AI 🚀
+**TweetCraft v0.0.1 MVP** - Craft perfect replies with AI 🚀
 
 Made with ❤️ by the TweetCraft team
