@@ -1,131 +1,63 @@
-graph TB
-    subgraph "CurrentFeatures [🎯 Current MVP Features v0.0.1]"
-        subgraph "CoreAI [🧠 AI Core Features]"
-            AIGeneration["⚡ AI Reply Generation<br/>✅ OpenRouter API integration<br/>✅ Multiple model support<br/>✅ Rate limiting<br/>✅ Error handling"]
-            
-            ToneSystem["🎭 Tone System<br/>✅ 12 predefined tones<br/>✅ Visual emoji interface<br/>✅ Custom tone support<br/>✅ Mood modifiers"]
-            
-            ContextAware["🧵 Context Processing<br/>✅ Thread context analysis<br/>✅ Up to 4 tweets<br/>✅ Multiple context modes<br/>✅ Smart content extraction"]
-        end
-        
-        subgraph "UserInterface [🎨 User Interface]"
-            ExtensionPopup["⚙️ Extension Settings<br/>✅ API key management<br/>✅ Model selection<br/>✅ Personality customization<br/>✅ Temperature control"]
-            
-            TwitterIntegration["🐦 Twitter Integration<br/>✅ Reply box injection<br/>✅ Tone selector dropdown<br/>✅ Loading states<br/>✅ Error feedback"]
-            
-            TemplateSystem["📝 Template System<br/>✅ 12+ preset templates<br/>✅ Category organization<br/>✅ Custom template creation<br/>✅ Template dialog"]
-        end
-        
-        subgraph "Technical [🔧 Technical Features]"
-            Architecture["🏗️ Architecture<br/>✅ TypeScript + Webpack<br/>✅ Manifest V3<br/>✅ Memory management<br/>✅ Clean folder structure"]
-            
-            DataManagement["💾 Data Management<br/>✅ Chrome storage APIs<br/>✅ Session caching<br/>✅ Settings persistence<br/>✅ Privacy-focused"]
-        end
+graph LR
+    %% Consumer-Focused Feature Roadmap
+    subgraph "✅ Current MVP (v0.0.1)"
+        MVP1[("🤖 AI Reply Generation<br/>12 Tones")]
+        MVP2[("🎨 Visual Interface<br/>Emoji Selector")]
+        MVP3[("🧵 Thread Context<br/>4 Tweet Limit")]
+        MVP4[("💾 Session Cache<br/>API Optimization")]
+        MVP5[("⚙️ Settings Popup<br/>API Key Management")]
     end
 
-    subgraph "Enhancement [🚀 Enhancement Opportunities]"
-        subgraph "UIUXImprovements [🎨 UI/UX Enhancements]"
-            ResponsiveDesign["📱 Mobile Responsiveness<br/>🔄 Optimize for mobile Twitter<br/>🔄 Touch-friendly interactions<br/>🔄 Adaptive layouts<br/>🔄 Gesture support"]
-            
-            AdvancedAnimations["✨ Advanced Animations<br/>🔄 Smooth transitions<br/>🔄 Loading micro-interactions<br/>🔄 Success celebrations<br/>🔄 Contextual feedback"]
-            
-            ThemeCustomization["🎨 Theme System<br/>🔄 Dark mode support<br/>🔄 Custom color schemes<br/>🔄 Accessibility themes<br/>🔄 User preferences"]
-            
-            KeyboardShortcuts["⌨️ Keyboard Shortcuts<br/>🔄 Alt+Q quick generate<br/>🔄 Tone hotkeys 1-9,0<br/>🔄 Navigation shortcuts<br/>🔄 Power user features"]
-        end
-        
-        subgraph "FeatureExpansions [⚡ Feature Expansions]"
-            MultiSuggestions["🎪 Multiple Suggestions<br/>🔄 Generate 3 variations<br/>🔄 Different creativity levels<br/>🔄 Suggestion carousel<br/>🔄 A/B testing options"]
-            
-            SmartTemplates["🧠 Smart Templates<br/>🔄 AI-generated templates<br/>🔄 Context-aware suggestions<br/>🔄 Learning from usage<br/>🔄 Popular template discovery"]
-            
-            ReplyChaining["🔗 Conversation Chaining<br/>🔄 Multi-turn conversations<br/>🔄 Context memory<br/>🔄 Follow-up suggestions<br/>🔄 Conversation threads"]
-            
-            ContentAnalysis["🔍 Content Intelligence<br/>🔄 Sentiment analysis<br/>🔄 Topic detection<br/>🔄 Engagement prediction<br/>🔄 Optimal timing suggestions"]
-        end
-        
-        subgraph "PlatformExpansion [🌐 Platform Expansion]"
-            MultiPlatform["📱 Multi-Platform Support<br/>🔄 LinkedIn integration<br/>🔄 Facebook comments<br/>🔄 Reddit replies<br/>🔄 Discord messages"]
-            
-            MobileApp["📱 Mobile App<br/>🔄 Native mobile extension<br/>🔄 iOS Safari extension<br/>🔄 Android Chrome support<br/>🔄 Cross-device sync"]
-            
-            WebApp["🌐 Standalone Web App<br/>🔄 Browser-independent<br/>🔄 Direct API integration<br/>🔄 Cross-platform compatibility<br/>🔄 PWA features"]
-        end
+    subgraph "🚀 Phase 1: Content Creation"
+        P1F1[("📝 Thread Composer<br/>Multi-tweet Creation")]
+        P1F2[("💬 Quote Tweet Generator<br/>Smart Commentary")]
+        P1F3[("✨ AI Tweet Creation<br/>Original Content")]
     end
 
-    subgraph "Advanced [🔬 Advanced Capabilities]"
-        subgraph "AIEnhancements [🤖 AI Enhancements]"
-            ModelComparison["⚖️ Model Comparison<br/>🔄 Side-by-side generation<br/>🔄 Model performance metrics<br/>🔄 Cost comparison<br/>🔄 Quality scoring"]
-            
-            PersonalizedAI["👤 Personalization<br/>🔄 Learning from user style<br/>🔄 Adaptive tone selection<br/>🔄 Personal writing patterns<br/>🔄 Engagement optimization"]
-            
-            AdvancedContext["🧠 Advanced Context<br/>🔄 Cross-tweet analysis<br/>🔄 User history awareness<br/>🔄 Trending topic integration<br/>🔄 Real-time data inclusion"]
-        end
-        
-        subgraph "Analytics [📊 Analytics & Insights]"
-            UsageAnalytics["📈 Usage Analytics<br/>🔄 Generation statistics<br/>🔄 Tone preferences<br/>🔄 Success rate tracking<br/>🔄 Performance insights"]
-            
-            EngagementTracking["📊 Engagement Tracking<br/>🔄 Reply performance<br/>🔄 Like/retweet rates<br/>🔄 Response quality metrics<br/>🔄 Improvement suggestions"]
-            
-            ABTesting["🧪 A/B Testing<br/>🔄 Reply variant testing<br/>🔄 Tone effectiveness<br/>🔄 Template performance<br/>🔄 Optimization recommendations"]
-        end
-        
-        subgraph "Collaboration [👥 Collaboration Features]"
-            TeamFeatures["👥 Team Features<br/>🔄 Shared templates<br/>🔄 Brand voice consistency<br/>🔄 Team analytics<br/>🔄 Approval workflows"]
-            
-            CommunityTemplates["🌍 Community Features<br/>🔄 Template marketplace<br/>🔄 User-generated content<br/>🔄 Voting and ratings<br/>🔄 Template sharing"]
-        end
+    subgraph "🔄 Phase 2: Automated Posting"
+        P2F1[("🚀 Smart Posting<br/>OFF by Default")]
+        P2F2[("⏰ Post Scheduling<br/>Simple Timer")]
+        P2F3[("🔄 Fallback Systems<br/>Multiple Methods")]
     end
 
-    subgraph "TechnicalImprovements [⚙️ Technical Improvements]"
-        subgraph "Performance [⚡ Performance]"
-            Optimization["🏎️ Performance Optimization<br/>🔄 Lazy loading<br/>🔄 Code splitting<br/>🔄 Memory optimization<br/>🔄 Faster API calls"]
-            
-            Caching["💾 Advanced Caching<br/>🔄 Persistent cache<br/>🔄 Smart invalidation<br/>🔄 Offline support<br/>🔄 Predictive caching"]
-            
-            BackgroundProcessing["⚙️ Background Processing<br/>🔄 Preload suggestions<br/>🔄 Background analysis<br/>🔄 Predictive generation<br/>🔄 Smart prefetching"]
-        end
-        
-        subgraph "Security [🔒 Security & Privacy]"
-            EnhancedSecurity["🛡️ Enhanced Security<br/>🔄 End-to-end encryption<br/>🔄 Local processing options<br/>🔄 Data anonymization<br/>🔄 Privacy controls"]
-            
-            ComplianceFeatures["📋 Compliance<br/>🔄 GDPR compliance<br/>🔄 Data export/import<br/>🔄 Audit logging<br/>🔄 Consent management"]
-        end
-        
-        subgraph "Architecture [🏗️ Architecture]"
-            Microservices["🔧 Microservices<br/>🔄 Modular architecture<br/>🔄 Plugin system<br/>🔄 API marketplace<br/>🔄 Third-party integrations"]
-            
-            CloudSync["☁️ Cloud Sync<br/>🔄 Cross-device settings<br/>🔄 Backup and restore<br/>🔄 Account management<br/>🔄 Subscription features"]
-        end
+    subgraph "📊 Phase 3: Analytics & Growth"
+        P3F1[("🧠 Psychology Analytics<br/>Engagement Patterns")]
+        P3F2[("📈 Growth Analytics<br/>Follower Trends")]
+        P3F3[("📊 Content Analysis<br/>Performance Prediction")]
     end
 
-    %% Priority Levels
-    subgraph "PriorityMatrix [🎯 Priority Matrix for Development]"
-        HighPriority["🔴 High Priority (Next Release)<br/>• Mobile responsiveness<br/>• Keyboard shortcuts<br/>• Multiple suggestions<br/>• Dark mode<br/>• Performance optimization"]
-        
-        MediumPriority["🟡 Medium Priority (Future Releases)<br/>• Multi-platform support<br/>• Advanced analytics<br/>• Template marketplace<br/>• Personalization AI<br/>• Team features"]
-        
-        LongTerm["🟢 Long Term (Roadmap)<br/>• Native mobile apps<br/>• Standalone web app<br/>• Advanced AI models<br/>• Enterprise features<br/>• API marketplace"]
+    subgraph "✨ Phase 4: Enhanced Experience"
+        P4F1[("🔬 Research Assistant<br/>Fact Checking")]
+        P4F2[("🎛️ Better UI/UX<br/>Improved Design")]
+        P4F3[("⚡ Performance Boost<br/>Speed Optimization")]
     end
 
-    %% Connections showing evolution paths
-    ToneSystem --> MultiSuggestions
-    TemplateSystem --> SmartTemplates
-    ContextAware --> ReplyChaining
-    TwitterIntegration --> MultiPlatform
-    ExtensionPopup --> MobileApp
-    DataManagement --> CloudSync
-    Architecture --> Microservices
+    %% Connections showing development flow
+    MVP1 --> P1F1
+    MVP2 --> P1F2
+    MVP3 --> P1F3
+    
+    P1F1 --> P2F1
+    P1F2 --> P2F2
+    P1F3 --> P2F3
+    
+    P2F1 --> P3F1
+    P2F2 --> P3F2
+    P2F3 --> P3F3
+    
+    P3F1 --> P4F1
+    P3F2 --> P4F2
+    P3F3 --> P4F3
 
     %% Styling
-    classDef current fill:#e8f5e8,stroke:#388e3c,stroke-width:3px
-    classDef enhancement fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef advanced fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-    classDef technical fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    classDef priority fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    
-    class CoreAI,UserInterface,Technical current
-    class UIUXImprovements,FeatureExpansions,PlatformExpansion enhancement
-    class AIEnhancements,Analytics,Collaboration advanced
-    class Performance,Security,Architecture technical
-    class HighPriority,MediumPriority,LongTerm priority
+    classDef mvp fill:#c8e6c9
+    classDef phase1 fill:#fff3e0
+    classDef phase2 fill:#e3f2fd
+    classDef phase3 fill:#fce4ec
+    classDef phase4 fill:#f3e5f5
+
+    class MVP1,MVP2,MVP3,MVP4,MVP5 mvp
+    class P1F1,P1F2,P1F3 phase1
+    class P2F1,P2F2,P2F3 phase2
+    class P3F1,P3F2,P3F3 phase3
+    class P4F1,P4F2,P4F3 phase4

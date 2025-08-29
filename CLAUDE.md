@@ -334,4 +334,4 @@ The project uses Webpack with a multi-config setup located in the `build/` direc
 - Visual tone selector interface
 
 **Future Roadmap**:
-Architecture diagrams in the repository represent planned features for future versions. The codebase is designed with extensible architecture to support the comprehensive feature roadmap outlined in documentation.
+Architecture diagrams represent a simplified, consumer-focused roadmap with 7 core features. The codebase is designed with simple, extensible architecture that avoids enterprise complexity while supporting focused consumer features like automated posting and basic analytics.

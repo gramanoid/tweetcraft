@@ -15,26 +15,28 @@ This roadmap focuses on features that directly benefit individual users with sim
 - **Quote Tweet Generator** - Smart commentary suggestions for quote tweets  
 - **AI Tweet Creation** - Generate original tweets from topics with style options
 
-### **2. Psychology Analytics** 🧠
-**Goal**: Help users understand engagement patterns (kept per user request)
+### **2. Automated Posting** 🚀 (Approved)
+**Goal**: Optional convenience for power users
 
-- **Behavioral Pattern Insights** - Understand what content resonates with your audience
-- **Audience Psychology Profiling** - Simple insights into follower engagement patterns
-- **Content Psychology Analysis** - Basic emotional tone and persuasion technique detection
+- **Smart Posting** - Automated posting with user approval (OFF by default)
+- **Fallback Systems** - Multiple posting methods for reliability
+- **Post Scheduling** - Basic scheduling capabilities
+- **Safety First** - Always requires user confirmation
 
-### **3. Research Assistant** 🔬
+### **3. Analytics & Growth** 📊 (Approved)
+**Goal**: Help users understand what works
+
+- **Psychology Analytics** - Behavioral pattern insights, audience psychology profiling
+- **Growth Analytics** - Follower trends, engagement monitoring  
+- **Content Analysis** - Sentiment analysis, engagement prediction, viral assessment
+- **Simple Dashboards** - Easy-to-understand metrics
+
+### **4. Research Assistant** 🔬
 **Goal**: Add credible information to tweets
 
 - **Quick Fact Checking** - Verify claims with credible sources
 - **Real-time Research** - Get current information on topics
 - **Citation Support** - Add source links to tweets
-
-### **4. Content Analysis** 📊  
-**Goal**: Improve tweet performance
-
-- **Sentiment Analysis** - Understand emotional tone of content
-- **Engagement Prediction** - Simple scoring of likely engagement
-- **Viral Assessment** - Basic indicators of shareable content
 
 ### **5. Enhanced UI/UX** ✨
 **Goal**: Smoother user experience
