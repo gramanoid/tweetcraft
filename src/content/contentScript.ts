@@ -322,34 +322,43 @@ class SmartReplyContentScript {
    * Determine if a toolbar is in a reply/compose context
    */
   private isReplyToolbar(toolbarElement: Element): boolean {
-    // Check various indicators that this is a reply/compose toolbar
+    // CRITICAL: Exclude tweet action bars (like, retweet, reply buttons)
+    // These toolbars are INSIDE tweet articles and should be ignored
+    const isInTweetArticle = toolbarElement.closest('article[data-testid="tweet"]');
+    if (isInTweetArticle) {
+      // This is a tweet's action bar, not a reply composition toolbar
+      return false;
+    }
     
     // 1. Check if we're in a reply modal or compose modal (highest priority)
-    const modal = toolbarElement.closest('[role="dialog"], [data-testid="reply"], [aria-label*="Compose"], [aria-label*="Reply"], [aria-label*="Tweet"]');
-    if (modal) return true;
+    const modal = toolbarElement.closest('[role="dialog"], [data-testid="reply"]');
+    if (modal) {
+      // Additional check: modal should have a textarea
+      const modalTextarea = modal.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
+      return !!modalTextarea;
+    }
     
     // 2. Check URL - compose/tweet paths indicate compose mode
     if (window.location.pathname.includes('/compose/')) return true;
     
-    // 3. Look for textarea in a wider search area (up and down the DOM)
-    // Go up to a reasonable container level then search down
+    // 3. Look for textarea that's a sibling or nearby element (not inside tweets)
+    // The textarea should be at the same level or nearby, not nested in tweet articles
     let searchContainer = toolbarElement.parentElement;
     let levelsUp = 0;
-    while (searchContainer && levelsUp < 5) {
-      // Check if this container or its children have a textarea
+    while (searchContainer && levelsUp < 3) {
+      // Check if this container has a textarea that's NOT inside a tweet article
       const textarea = searchContainer.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
-      if (textarea) return true;
+      if (textarea && !textarea.closest('article[data-testid="tweet"]')) {
+        return true;
+      }
       
       searchContainer = searchContainer.parentElement;
       levelsUp++;
     }
     
-    // 4. Check if toolbar has reply-specific buttons/structure
-    // Reply toolbars typically have different button configurations
-    const buttons = toolbarElement.querySelectorAll('[role="button"]');
-    if (buttons.length >= 4 && buttons.length <= 8) {
-      // Reply toolbars usually have 4-8 buttons (emoji, gif, media, location, etc.)
-      // Regular tweet toolbars have 3-4 action buttons (reply, retweet, like, share)
+    // 4. Check for "Post your reply" placeholder text nearby
+    const replyPlaceholder = toolbarElement.parentElement?.querySelector('[data-text="true"]');
+    if (replyPlaceholder?.textContent?.includes('reply')) {
       return true;
     }
     
