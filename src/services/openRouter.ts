@@ -369,17 +369,25 @@ export class OpenRouterService {
     // System prompt with user's style
     let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
     
-    // Debug logging for tones
-    console.log('%c🎨 Tone Selection', 'color: #E1AD01; font-weight: bold; font-size: 14px');
-    console.log(`%c  Selected tone: ${request.tone || 'none'}`, 'color: #657786');
+    // Debug logging for prompt building
+    console.log('%c🎨 PROMPT CONSTRUCTION', 'color: #E1AD01; font-weight: bold; font-size: 14px');
+    console.log('%c  Base System Prompt:', 'color: #657786');
+    console.log(`%c    "${config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.'}"`, 'color: #8899a6');
+    
+    // Log the tone/template instruction received
+    console.log('%c  Template + Tone Instruction:', 'color: #657786');
+    console.log(`%c    "${request.tone || 'none'}"`, 'color: #1DA1F2');
     
     // Add tone modifier if specified
     if (request.tone && config.tonePresets) {
       const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
       if (tonePreset) {
-        console.log(`%c  Tone modifier: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
+        console.log(`%c  Tone modifier from presets: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
         systemPrompt += ' ' + tonePreset.promptModifier;
       }
+    } else if (request.tone) {
+      // If tone is provided but not in presets, it's our combined template+tone prompt
+      systemPrompt += ' ' + request.tone;
     }
 
     // Add context awareness instruction
@@ -389,6 +397,11 @@ export class OpenRouterService {
 
     systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
     systemPrompt += ' IMPORTANT: Write only the reply text itself. Do not include any meta-commentary, labels, or phrases like "A reply could be:" or "Here\'s a response:". Start directly with the actual reply content.';
+
+    // Log the final system prompt
+    console.log('%c  📋 FINAL SYSTEM PROMPT:', 'color: #17BF63; font-weight: bold');
+    console.log(`%c    "${systemPrompt}"`, 'color: #17BF63');
+    console.log('%c════════════════════════════════', 'color: #2E3236');
 
     messages.push({
       role: 'system' as const,

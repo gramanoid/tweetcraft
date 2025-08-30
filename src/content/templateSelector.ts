@@ -419,6 +419,25 @@ export class TemplateSelector {
   private selectTemplate(template: PresetTemplate | CustomTemplate): void {
     this.selectedTemplate = template;
     
+    // Log template selection
+    console.log('%c📝 TEMPLATE SELECTED', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c  Name:', 'color: #657786', template.name);
+    console.log('%c  Emoji:', 'color: #657786', template.emoji);
+    console.log('%c  Category:', 'color: #657786', template.category);
+    console.log('%c  Description:', 'color: #657786', template.description);
+    console.log('%c  Prompt:', 'color: #17BF63', template.prompt);
+    if ('pattern' in template && template.pattern) {
+      console.log('%c  Pattern:', 'color: #9146FF', template.pattern);
+      console.log('%c  Variables:', 'color: #9146FF', template.variables);
+    }
+    if ('isCustom' in template) {
+      console.log('%c  Type:', 'color: #657786', 'Custom Template');
+      console.log('%c  Usage Count:', 'color: #657786', template.usageCount);
+    } else {
+      console.log('%c  Type:', 'color: #657786', 'Preset Template');
+    }
+    console.log('%c────────────────────────────────', 'color: #E1E8ED');
+    
     // Show tone selector instead of immediately closing
     this.showToneSelector();
   }
@@ -541,6 +560,15 @@ export class TemplateSelector {
       
       toneBtn.onclick = () => {
         this.selectedTone = tone;
+        
+        // Log tone selection
+        console.log('%c🎯 TONE SELECTED', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+        console.log('%c  Label:', 'color: #657786', tone.label);
+        console.log('%c  Emoji:', 'color: #657786', tone.emoji);
+        console.log('%c  Description:', 'color: #657786', tone.description);
+        console.log('%c  System Prompt:', 'color: #17BF63', tone.systemPrompt);
+        console.log('%c────────────────────────────────', 'color: #E1E8ED');
+        
         this.finalizeSelection();
       };
       
@@ -556,9 +584,16 @@ export class TemplateSelector {
   private finalizeSelection(): void {
     if (!this.selectedTemplate || !this.selectedTone) return;
     
+    // Log final combination
+    console.log('%c✅ FINAL SELECTION SUMMARY', 'color: #17BF63; font-weight: bold; font-size: 14px');
+    console.log('%c  Template + Tone Combination:', 'color: #657786');
+    console.log(`%c    ${this.selectedTemplate.emoji} ${this.selectedTemplate.name} + ${this.selectedTone.emoji} ${this.selectedTone.label}`, 'color: #1DA1F2; font-weight: bold');
+    console.log('%c════════════════════════════════', 'color: #2E3236');
+    
     // Track usage for custom templates
     if ('isCustom' in this.selectedTemplate && this.selectedTemplate.isCustom) {
       CustomTemplateManager.trackUsage(this.selectedTemplate.id);
+      console.log('%c  📊 Usage tracked for custom template', 'color: #9146FF');
     }
     
     // Call the callback with both template and tone

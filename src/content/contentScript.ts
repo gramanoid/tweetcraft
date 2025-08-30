@@ -467,12 +467,20 @@ class SmartReplyContentScript {
         // Show template selector
         templateSelector.show(button, (template, tone) => {
           // When both template and tone are selected, generate reply
-          console.log('%c📝 Template & Tone Selected:', 'color: #1DA1F2; font-weight: bold');
-          console.log('%c  Template:', 'color: #657786', template.name);
-          console.log('%c  Tone:', 'color: #657786', tone.label);
+          console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
+          console.log('%c  Template Selected:', 'color: #657786');
+          console.log(`%c    ${template.emoji} ${template.name}`, 'color: #1DA1F2');
+          console.log('%c    Prompt:', 'color: #8899a6', template.prompt);
+          console.log('%c  Tone Selected:', 'color: #657786');
+          console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
+          console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
           
           // Combine template prompt with tone system prompt
           const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+          
+          console.log('%c  ✨ COMBINED PROMPT:', 'color: #17BF63; font-weight: bold');
+          console.log(`%c    "${combinedPrompt}"`, 'color: #17BF63');
+          console.log('%c════════════════════════════════', 'color: #2E3236');
           
           // Generate reply using the combined instruction
           this.generateReply(textarea, context, combinedPrompt, bypassCache);
