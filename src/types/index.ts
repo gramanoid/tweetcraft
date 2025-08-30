@@ -5,6 +5,7 @@ export interface AppConfig {
   contextMode?: 'none' | 'single' | 'thread';
   tonePresets: TonePreset[];
   temperature?: number;
+  defaultTone?: string;
 }
 
 export interface TonePreset {

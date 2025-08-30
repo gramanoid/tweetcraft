@@ -173,3 +173,122 @@
     transform: rotate(360deg);
   }
 }
+
+// Enhanced Loading States
+.loading-enhanced {
+  position: relative !important;
+  overflow: hidden !important;
+  
+  .loading-container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+    padding: 4px 8px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 9999px !important;
+  }
+  
+  .loading-content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    font-size: 13px !important;
+    
+    .loading-icon {
+      font-size: 14px !important;
+      animation: pulse 1.5s ease-in-out infinite !important;
+    }
+    
+    .loading-message {
+      color: rgb(83, 100, 113) !important;
+      font-weight: 500 !important;
+      transition: opacity 0.3s ease !important;
+    }
+  }
+  
+  .loading-progress-bar {
+    height: 2px !important;
+    background: rgba(29, 161, 242, 0.1) !important;
+    border-radius: 2px !important;
+    margin: 4px 0 !important;
+    overflow: hidden !important;
+    
+    .loading-progress-fill {
+      height: 100% !important;
+      background: linear-gradient(90deg, 
+        rgb(29, 161, 242) 0%, 
+        rgb(29, 161, 242) 50%,
+        rgb(91, 191, 255) 100%) !important;
+      border-radius: 2px !important;
+      transition: width 0.3s ease-out !important;
+      animation: shimmer 1.5s ease-in-out infinite !important;
+    }
+  }
+  
+  .loading-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 11px !important;
+    color: rgb(83, 100, 113) !important;
+    margin-top: 2px !important;
+    
+    .loading-cancel {
+      cursor: pointer !important;
+      color: rgb(239, 68, 68) !important;
+      font-weight: 500 !important;
+      opacity: 0.7 !important;
+      transition: opacity 0.2s ease !important;
+      
+      &:hover {
+        opacity: 1 !important;
+      }
+    }
+  }
+  
+  .loading-success,
+  .loading-error,
+  .loading-cancelled {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    animation: fadeIn 0.3s ease !important;
+  }
+  
+  .loading-success {
+    color: rgb(34, 197, 94) !important;
+  }
+  
+  .loading-error {
+    color: rgb(239, 68, 68) !important;
+  }
+  
+  .loading-cancelled {
+    color: rgb(107, 114, 128) !important;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

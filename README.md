@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.6-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.8-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.6)**
+### ✅ **Currently Working (v0.0.8)**
 - **🎯 AI Reply Generation** - 12 tones, thread context, OpenRouter integration
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
 - **🎨 Visual Interface** - Tone selector with emoji-based interface
@@ -32,6 +32,9 @@
 - **🌐 Network Resilience** - Offline queuing, adaptive timeouts (3G/4G/5G aware)
 - **🎯 Clean Console** - Intelligent toolbar detection eliminates DOM selector spam
 - **💾 Session Caching** - Response caching to reduce API calls
+- **⚡ Keyboard Shortcuts** - Alt+1-9 for tones, Alt+Q for quick generate, Alt+R/T/C/E for actions
+- **📊 Enhanced Loading States** - Multi-stage progress indicators with cancel functionality
+- **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
 
 ### 🔮 **Future Features Roadmap (Planned)**
 - **📝 Content Creation** - Thread composer, quote tweet generator, AI tweet creation
@@ -259,6 +262,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.1 MVP** - AI reply assistant with extensible architecture for future features 🚀
+**TweetCraft v0.0.8** - AI reply assistant with keyboard shortcuts, enhanced loading states, and instant UI response 🚀
 
 Made with ❤️ by the TweetCraft team

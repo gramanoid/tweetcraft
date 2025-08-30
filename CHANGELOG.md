@@ -5,6 +5,33 @@ All notable changes to TweetCraft will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2025-08-30
+
+### Added
+- **Keyboard Shortcuts System**: Comprehensive keyboard shortcut management
+  - Alt+1-9 for quick tone selection (Professional to Dismissive)
+  - Alt+Q for quick generate with default tone
+  - Alt+R to regenerate last reply
+  - Alt+T to toggle through tone presets
+  - Alt+C to clear reply box
+  - Alt+E to expand/collapse tone selector
+- **Enhanced Loading States**: Multi-stage progress indicators with animations
+  - Five distinct stages: Preparing, Validating, Building, Generating, Finalizing
+  - Real-time progress bar with shimmer animation
+  - Time elapsed display with color-coded warnings
+  - Cancel button for aborting long-running operations
+- **Instant UI Response**: AI Reply button appears immediately (100ms debounce)
+
+### Changed
+- Tone dropdown now auto-closes after selection for better UX
+- Loading text shortened from "Generating AI Reply..." to "Generating..." to prevent line wrapping
+- Reduced DOM mutation observer debounce from 1500ms to 100ms for instant button appearance
+
+### Fixed
+- Tone dropdown staying open after selection
+- Loading text wrapping to two lines on narrow reply boxes
+- Delayed appearance of AI Reply button
+
 ## [0.0.6] - 2025-08-30
 
 ### Added

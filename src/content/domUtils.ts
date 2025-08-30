@@ -462,8 +462,10 @@ export class DOMUtils {
         }
         
         onToneSelect(tone.id);
-        // Don't close dropdown immediately - let it show progress
-        // dropdown.style.display = 'none';
+        // Close dropdown after selection
+        setTimeout(() => {
+          dropdown.style.display = 'none';
+        }, 100); // Small delay for visual feedback
       }, true);
       dropdown.appendChild(option);
     });

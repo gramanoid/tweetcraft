@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.6 Stability & Performance Release
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.8 Enhanced UX Release
 
 ## Project Structure
 
@@ -198,7 +198,7 @@ Every new feature must include comprehensive console logging following these sta
 
 This logging standard ensures maintainability and makes the extension's behavior transparent during development and debugging.
 
-## Current Features (v0.0.6)
+## Current Features (v0.0.8)
 
 ### Core Functionality
 - OpenRouter integration for any LLM (GPT-4, Claude, Gemini, Llama, etc.)
@@ -237,13 +237,14 @@ This logging standard ensures maintainability and makes the extension's behavior
 - Memory leak prevention with cleanup
 - Beautiful structured console logging
 
-### Latest Enhancements (v0.0.6)
-- **Race Condition Elimination**: AsyncOperationManager with AbortController coordination prevents duplicate requests
-- **Enhanced Network Resilience**: Offline queuing, adaptive timeouts based on connection quality (3G/4G/5G)
-- **Simplified Error Handler**: Reduced from 412 to 87 lines while maintaining consumer-friendly messaging
-- **Console Spam Fix**: Intelligent toolbar detection only processes reply contexts, eliminating DOM selector noise
-- **Request Deduplication**: Prevents duplicate API calls when users click multiple times
-- **Connection-Aware Timeouts**: Automatically adjusts timeouts based on network conditions (10s for 5G, 60s for slow-3g)
+### Latest Enhancements (v0.0.8)
+- **Enhanced Loading States**: Multi-stage progress indicators with animations, time estimates, and cancel button
+- **Expanded Keyboard Shortcuts**: Alt+1-9 for tones, Alt+Q for quick generate, Alt+R to regenerate, Alt+C to copy
+- **Instant Button Appearance**: Reduced delay from 1.5s to 0.1s for immediate UI response
+- **Auto-Close Dropdown**: Tone selector automatically closes after selection
+- **Cleaner Loading Text**: Shortened "Generating AI Reply..." to "Generating..." for single-line display
+- **DOM Cache Utility**: Performance optimization for frequently accessed DOM elements
+- **Memory Leak Prevention**: Proper event listener cleanup and management
 
 ## Known Issues
 
@@ -332,7 +333,7 @@ The project uses Webpack with a multi-config setup located in the `build/` direc
 
 ## Current Implementation vs Future Roadmap
 
-**Current Implementation (v0.0.6)**:
+**Current Implementation (v0.0.8)**:
 - AI reply generation with 12 tone presets
 - Thread context extraction (up to 4 tweets)
 - OpenRouter API integration with BYOK architecture

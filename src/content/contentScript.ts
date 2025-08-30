@@ -5,13 +5,15 @@ import { ReplyGenerationRequest } from '@/types';
 import { debounce, throttle } from '@/utils/debounce';
 import { ErrorHandler } from '@/utils/errorHandler';
 import { globalAsyncManager } from '@/utils/asyncOperationManager';
+import { LoadingStateManager } from '@/utils/loadingStateManager';
+import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.7';
+  private static readonly VERSION = '0.0.8';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
@@ -33,11 +35,14 @@ class SmartReplyContentScript {
     this.init();
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft v0.0.6', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft v0.0.7', 'color: #1DA1F2; font-weight: bold');
+    
+    // Initialize keyboard shortcuts
+    await KeyboardShortcutManager.init();
     
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
@@ -223,7 +228,7 @@ class SmartReplyContentScript {
       toolbarsToProcess.forEach(toolbar => {
         this.handleToolbarAdded(toolbar);
       });
-    }, 1500); // Increased debounce to 1500ms to reduce frequency even more
+    }, 100); // Reduced to 100ms for instant button appearance
 
     // Set up mutation observer to detect new toolbars
     this.observer = new MutationObserver((mutations) => {
@@ -484,6 +489,9 @@ class SmartReplyContentScript {
     tone: string | undefined,
     signal: AbortSignal
   ): Promise<void> {
+    // Generate operation key for tracking
+    const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
+    
     // Find the button to show loading state
     const container = textarea.closest('[role="dialog"], [role="main"]')?.querySelector('.smart-reply-container');
     const button = container?.querySelector('.smart-reply-btn') as HTMLElement;
@@ -542,7 +550,7 @@ class SmartReplyContentScript {
       if (signal.aborted) throw new Error('Operation cancelled');
 
       // Generate the reply with final loading state and pass the signal
-      DOMUtils.showLoadingState(button, 'Generating AI Reply');
+      DOMUtils.showLoadingState(button, 'Generating');
       const response = await OpenRouterService.generateReply(request, context, signal);
 
       // Check for cancellation after API call
@@ -556,6 +564,9 @@ class SmartReplyContentScript {
         DOMUtils.updateCharCount(response.reply.length);
         
         console.log('Smart Reply: Reply generated successfully:', response.reply);
+        
+        // Complete loading with success animation
+        LoadingStateManager.completeLoading(button, operationKey, 'Reply generated!');
         
         // Close dropdown after successful generation
         const dropdown = document.querySelector('.smart-reply-dropdown') as HTMLElement;
@@ -618,8 +629,7 @@ class SmartReplyContentScript {
       // Log the recovery actions for debugging
       console.log('%c🔧 Recovery actions available:', 'color: #FFA500', recoveryActions);
     } finally {
-      // Hide loading state
-      DOMUtils.hideLoadingState(button);
+      // Loading states are handled by LoadingStateManager
     }
   }
 
@@ -640,6 +650,9 @@ class SmartReplyContentScript {
       this.observer.disconnect();
       this.observer = null;
     }
+    
+    // Cleanup keyboard shortcuts
+    KeyboardShortcutManager.destroy();
     
     // Disconnect port
     if (this.port) {
