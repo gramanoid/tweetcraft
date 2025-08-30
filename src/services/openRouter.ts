@@ -379,15 +379,23 @@ export class OpenRouterService {
     console.log(`%c    "${request.tone || 'none'}"`, 'color: #1DA1F2');
     
     // Add tone modifier if specified
-    if (request.tone && config.tonePresets) {
-      const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
-      if (tonePreset) {
-        console.log(`%c  Tone modifier from presets: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
-        systemPrompt += ' ' + tonePreset.promptModifier;
+    if (request.tone) {
+      // First check if it's a preset tone
+      if (config.tonePresets) {
+        const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
+        if (tonePreset) {
+          console.log(`%c  Tone modifier from presets: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
+          systemPrompt += ' ' + tonePreset.promptModifier;
+        } else {
+          // If not in presets, it's our combined template+tone prompt
+          console.log(`%c  Combined Template+Tone added to prompt`, 'color: #9146FF; font-style: italic');
+          systemPrompt += ' ' + request.tone;
+        }
+      } else {
+        // No presets configured, just use the tone as-is
+        console.log(`%c  Template+Tone instruction added to prompt`, 'color: #9146FF; font-style: italic');
+        systemPrompt += ' ' + request.tone;
       }
-    } else if (request.tone) {
-      // If tone is provided but not in presets, it's our combined template+tone prompt
-      systemPrompt += ' ' + request.tone;
     }
 
     // Add context awareness instruction

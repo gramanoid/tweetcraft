@@ -13,7 +13,7 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.8';
+  private static readonly VERSION = '0.0.9';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
