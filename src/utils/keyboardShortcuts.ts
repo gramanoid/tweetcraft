@@ -176,68 +176,50 @@ export class KeyboardShortcutManager {
    * Trigger quick generation with default tone
    */
   private static async triggerQuickGenerate(): Promise<void> {
-    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
-    if (!button) return;
-    
-    // Clear existing text to force new generation
-    const textarea = document.querySelector('[data-testid^="tweetTextarea_"]') as HTMLElement;
-    if (textarea && textarea.textContent) {
-      textarea.textContent = '';
-      // Dispatch input event to update React state
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-    
     // Get default tone from storage
     const config = await StorageService.getConfig();
     const defaultTone = config.defaultTone || 'professional';
     
-    // Add flag to bypass cache
-    button.setAttribute('data-bypass-cache', 'true');
-    button.setAttribute('data-tone', defaultTone);
-    button.click();
+    // Dispatch custom event to trigger generation
+    const event = new CustomEvent('tweetcraft:generate-reply', {
+      detail: {
+        tone: defaultTone,
+        bypassCache: true
+      }
+    });
+    document.dispatchEvent(event);
   }
   
   /**
    * Regenerate with the last used tone
    */
   private static async triggerRegenerate(): Promise<void> {
-    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
-    if (!button) return;
+    // Get last tone from session storage or default
+    const lastTone = sessionStorage.getItem('tweetcraft_last_tone') || 'professional';
     
-    // Get last tone from storage or button
-    const lastTone = button.getAttribute('data-last-tone') || 'professional';
-    
-    // Clear cache to force regeneration
-    const textarea = document.querySelector('[data-testid^="tweetTextarea_"]');
-    if (textarea) {
-      textarea.setAttribute('data-force-regenerate', 'true');
-    }
-    
-    // Trigger generation
-    button.setAttribute('data-tone', lastTone);
-    button.click();
+    // Dispatch custom event to trigger generation
+    const event = new CustomEvent('tweetcraft:generate-reply', {
+      detail: {
+        tone: lastTone,
+        bypassCache: true,
+        regenerate: true
+      }
+    });
+    document.dispatchEvent(event);
   }
   
   /**
    * Trigger generation with specific tone
    */
   private static triggerToneGeneration(tone: string): void {
-    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
-    if (!button) return;
-    
-    // Clear existing text to force new generation
-    const textarea = document.querySelector('[data-testid^="tweetTextarea_"]') as HTMLElement;
-    if (textarea && textarea.textContent) {
-      textarea.textContent = '';
-      // Dispatch input event to update React state
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-    
-    button.setAttribute('data-bypass-cache', 'true');
-    button.setAttribute('data-tone', tone);
-    button.click();
+    // Dispatch custom event to trigger generation
+    const event = new CustomEvent('tweetcraft:generate-reply', {
+      detail: {
+        tone: tone,
+        bypassCache: true
+      }
+    });
+    document.dispatchEvent(event);
   }
   
   /**

@@ -46,6 +46,9 @@ class SmartReplyContentScript {
     // Initialize keyboard shortcuts
     await KeyboardShortcutManager.init();
     
+    // Set up listener for keyboard shortcut events
+    this.setupKeyboardShortcutListener();
+    
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
     if (recovered) {
@@ -63,6 +66,37 @@ class SmartReplyContentScript {
     } else {
       this.startObserving();
     }
+  }
+
+  private setupKeyboardShortcutListener(): void {
+    // Listen for custom events from keyboard shortcuts
+    document.addEventListener('tweetcraft:generate-reply', ((event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { tone, bypassCache, regenerate } = customEvent.detail;
+      
+      // Find the reply textarea
+      const textarea = DOMUtils.findWithFallback('replyTextarea');
+      if (!textarea) {
+        console.warn('Smart Reply: No reply textarea found for keyboard shortcut');
+        return;
+      }
+      
+      // Find the AI Reply button
+      const button = document.querySelector('.smart-reply-btn') as HTMLElement;
+      if (!button) {
+        console.warn('Smart Reply: AI Reply button not found for keyboard shortcut');
+        return;
+      }
+      
+      // Extract context
+      const context = DOMUtils.extractTwitterContext(textarea);
+      
+      // Save the tone for future use
+      sessionStorage.setItem('tweetcraft_last_tone', tone);
+      
+      // Trigger generation with HTMLElement cast
+      this.generateReply(textarea as HTMLElement, context, tone, bypassCache || regenerate);
+    }) as EventListener);
   }
 
   private setupCleanupHandlers(): void {
