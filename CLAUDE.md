@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.8 Enhanced UX Release
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, template+tone system, custom templates with variables, and thread context awareness. Current version: 0.0.9 Enhanced Template System
 
 ## Project Structure
 
@@ -333,14 +333,17 @@ The project uses Webpack with a multi-config setup located in the `build/` direc
 
 ## Current Implementation vs Future Roadmap
 
-**Current Implementation (v0.0.8)**:
-- AI reply generation with 12 tone presets
+**Current Implementation (v0.0.9)**:
+- Template + Tone system - separate selection of structure and personality
+- 12+ preset reply templates (Ask Question, Add Value, Share Experience, etc.)
+- 11 personality tones (Professional, Witty, Sarcastic, Academic, Spicy, etc.)
+- Custom template creation with {variable} placeholders
+- Dark mode UI matching Twitter/X interface
 - Thread context extraction (up to 4 tweets)
 - OpenRouter API integration with BYOK architecture
-- Chrome extension popup configuration
 - Session-based response caching
-- Memory management and cleanup
-- Visual tone selector interface
+- Comprehensive console logging for debugging
+- Seamless template → tone selection flow
 
 **Future Roadmap**:
 Architecture diagrams represent a simplified, consumer-focused roadmap with 7 core features. The codebase is designed with simple, extensible architecture that avoids enterprise complexity while supporting focused consumer features like automated posting and basic analytics.

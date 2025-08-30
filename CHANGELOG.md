@@ -5,6 +5,42 @@ All notable changes to TweetCraft will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2025-08-30
+
+### Added
+- **Template + Tone System**: Revolutionary two-step selection process
+  - Choose reply structure (templates) separately from personality (tones)
+  - 12+ preset templates: Ask Question, Add Value, Share Experience, Challenge Politely, etc.
+  - 11 personality tones: Professional, Witty, Sarcastic, Academic, Spicy, Dismissive, etc.
+  - Combined prompts merge template structure with tone personality
+- **Custom Template Creation**: Build your own reply templates
+  - Support for {variable} placeholders in patterns
+  - Usage tracking to see most-used templates
+  - Edit and delete custom templates
+  - Import/export functionality for sharing
+- **Dark Mode UI**: Beautiful interface matching Twitter/X
+  - Dark theme (#15202b background) throughout
+  - Compact design with improved space utilization
+  - Larger popup (480px height) for better visibility
+  - Seamless template → tone selection without closing
+- **Comprehensive Console Logging**: Full debugging visibility
+  - Template selection logging with all properties
+  - Tone selection with system prompts
+  - Combined prompt construction tracking
+  - Final system prompt display
+
+### Changed
+- Replaced simple tone dropdown with full Template Selector UI
+- Increased popup dimensions (380x480px) for better browsing
+- Improved UX flow - popup stays open during selection process
+- Enhanced prompt system to combine template + tone instructions
+
+### Fixed
+- System prompt now properly includes combined template+tone instructions
+- Version number updated to v0.0.9
+- Event propagation issues preventing smooth transitions
+- Create Custom Template button always visible without scrolling
+
 ## [0.0.8] - 2025-08-30
 
 ### Added

@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.8-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.9-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,18 +23,20 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.8)**
-- **🎯 AI Reply Generation** - 12 tones, thread context, OpenRouter integration
+### ✅ **Currently Working (v0.0.9)**
+- **📝 Template + Tone System** - Choose reply structure (templates) AND personality (tones) separately
+- **🎯 AI Reply Generation** - 12+ preset templates, 11 tones, custom templates with variables
+- **🎨 Dark Mode UI** - Beautiful dark theme matching Twitter/X's interface
+- **📊 Custom Templates** - Create your own templates with {variable} placeholders
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
-- **🎨 Visual Interface** - Tone selector with emoji-based interface
 - **🧵 Context Processing** - Thread context extraction (up to 4 tweets)
 - **🚫 Race Condition Prevention** - AsyncOperationManager with AbortController coordination
 - **🌐 Network Resilience** - Offline queuing, adaptive timeouts (3G/4G/5G aware)
-- **🎯 Clean Console** - Intelligent toolbar detection eliminates DOM selector spam
 - **💾 Session Caching** - Response caching to reduce API calls
 - **⚡ Keyboard Shortcuts** - Alt+1-9 for tones, Alt+Q for quick generate, Alt+R/T/C/E for actions
 - **📊 Enhanced Loading States** - Multi-stage progress indicators with cancel functionality
 - **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
+- **🔍 Comprehensive Logging** - Full prompt construction tracking in console
 
 ### 🔮 **Future Features Roadmap (Planned)**
 - **📝 Content Creation** - Thread composer, quote tweet generator, AI tweet creation
@@ -43,12 +45,20 @@
 - **📊 Content Analysis** - Sentiment analysis, engagement prediction, viral assessment
 - **✨ Enhanced UI** - Improved tone selector, better context modes, keyboard shortcuts
 
-### 🎨 MVP Features
+### 🎨 MVP Features (v0.0.9)
 
-#### Intelligent Tone Selection
-- **12 unique tone options** from Professional 💼 to Witty 😄 to Counter-arguments 🤔
-- **Visual tone selector** with emoji-based interface for quick selection
-- **Custom tone support** - define your own style and personality
+#### 📝 Template + Tone System (NEW!)
+- **Two-step selection process** - Choose what to say (template) and how to say it (tone)
+- **12+ preset templates** - Ask Question, Add Value, Share Experience, Challenge Politely, etc.
+- **11 personality tones** - Professional, Witty, Sarcastic, Academic, Spicy, and more
+- **Custom templates** - Create your own with {variable} placeholders
+- **Dark mode UI** - Beautiful interface matching Twitter/X's dark theme
+- **Seamless flow** - Template → Tone selection without closing popup
+
+#### Intelligent Reply Generation
+- **Combined prompts** - Template structure + Tone personality for perfect replies
+- **Visual selection** - Emoji-based interface for quick recognition
+- **Usage tracking** - See which templates you use most
 
 #### Advanced Context Processing  
 - **Thread context analysis** - understands conversation flow up to 4 tweets
