@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.4-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.5-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.4)**
+### ✅ **Currently Working (v0.0.5)**
 - **🎯 AI Reply Generation** - 12 tones, thread context, OpenRouter integration
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
 - **🎨 Visual Interface** - Tone selector with emoji-based interface

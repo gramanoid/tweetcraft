@@ -307,13 +307,13 @@ self.addEventListener('beforeunload', () => {
 self.addEventListener('install', (event) => {
   console.log('%c🔧 Smart Reply: Service worker installing', 'color: #1DA1F2; font-weight: bold');
   // Skip waiting to activate immediately
-  self.skipWaiting();
+  (self as any).skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', (event: any) => {
   console.log('%c✅ Smart Reply: Service worker activated', 'color: #17BF63; font-weight: bold');
   // Claim all clients immediately
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((self as any).clients.claim());
 });
 
 // Log that service worker is starting

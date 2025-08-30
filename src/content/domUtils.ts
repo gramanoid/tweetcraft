@@ -107,9 +107,9 @@ export class DOMUtils {
   static readonly ORIGINAL_TWEET_SELECTOR = SELECTOR_CHAINS.originalTweet.primary;
 
   /**
-   * Resilient selector finder with automatic fallback
+   * Resilient selector finder with automatic fallback and context-aware logging
    */
-  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element): Element | null {
+  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element, silent = false): Element | null {
     const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
     
@@ -122,7 +122,9 @@ export class DOMUtils {
     }
     
     if (element) {
-      console.log(`%c🎯 DOM Selector Success: ${selectorType} (primary)`, 'color: #17BF63; font-weight: bold');
+      if (!silent) {
+        console.log(`%c🎯 DOM Selector Success: ${selectorType} (primary)`, 'color: #17BF63; font-weight: bold');
+      }
       return element;
     }
     
@@ -135,21 +137,51 @@ export class DOMUtils {
       }
       
       if (element) {
-        console.log(`%c🎯 DOM Selector Fallback: ${selectorType} (fallback ${i + 1})`, 'color: #FFA500; font-weight: bold');
-        console.log(`%c  Used: ${chain.fallbacks[i]}`, 'color: #657786');
+        if (!silent) {
+          console.log(`%c🎯 DOM Selector Fallback: ${selectorType} (fallback ${i + 1})`, 'color: #FFA500; font-weight: bold');
+          console.log(`%c  Used: ${chain.fallbacks[i]}`, 'color: #657786');
+        }
         return element;
       }
     }
     
-    console.warn(`%c❌ DOM Selector Failed: ${selectorType} - all selectors failed`, 'color: #DC3545; font-weight: bold');
-    console.log('%c  Primary:', 'color: #657786', chain.primary);
-    console.log('%c  Fallbacks:', 'color: #657786', chain.fallbacks);
+    // Only log failures when not in silent mode and when we actually expect the element
+    if (!silent && this.shouldExpectElement(selectorType)) {
+      console.warn(`%c❌ DOM Selector Failed: ${selectorType} - all selectors failed`, 'color: #DC3545; font-weight: bold');
+      console.log('%c  Primary:', 'color: #657786', chain.primary);
+      console.log('%c  Fallbacks:', 'color: #657786', chain.fallbacks);
+    }
     return null;
   }
 
+  /**
+   * Determine if we should expect an element to exist based on current context
+   */
+  private static shouldExpectElement(selectorType: keyof typeof SELECTOR_CHAINS): boolean {
+    switch (selectorType) {
+      case 'replyTextarea':
+        // Only expect reply textarea when we're actually composing a reply
+        return !!document.querySelector('[data-testid="toolBar"]') || !!document.querySelector('[aria-label*="reply"]');
+      case 'toolbar':
+        // Always expect toolbar in tweet contexts
+        return true;
+      case 'tweetText':
+        // Only expect tweet text when we're on a tweet page
+        return window.location.pathname.includes('/status/') || !!document.querySelector('article[data-testid="tweet"]');
+      case 'originalTweet':
+        // Only expect original tweet when replying
+        return window.location.pathname.includes('/status/');
+      default:
+        return true;
+    }
+  }
+
   static findClosestTextarea(element: Element): HTMLElement | null {
+    // Determine if we should be silent based on context
+    const silent = !this.shouldExpectElement('replyTextarea');
+    
     // Use resilient selector with fallback
-    let textarea = this.findWithFallback('replyTextarea', element) as HTMLElement;
+    let textarea = this.findWithFallback('replyTextarea', element, silent) as HTMLElement;
     if (textarea) {
       return textarea;
     }
@@ -157,7 +189,7 @@ export class DOMUtils {
     // Search upward in the DOM tree with fallback selectors
     let parent = element.parentElement;
     while (parent) {
-      textarea = this.findWithFallback('replyTextarea', parent) as HTMLElement;
+      textarea = this.findWithFallback('replyTextarea', parent, silent) as HTMLElement;
       if (textarea) {
         return textarea;
       }

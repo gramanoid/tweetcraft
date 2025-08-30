@@ -4,13 +4,14 @@ import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
 import { debounce, throttle } from '@/utils/debounce';
 import { ErrorHandler } from '@/utils/errorHandler';
+import { globalAsyncManager } from '@/utils/asyncOperationManager';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.5';
+  private static readonly VERSION = '0.0.6';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
@@ -46,7 +47,7 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft Content Script v0.0.5: Initializing', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft Content Script v0.0.6: Initializing', 'color: #1DA1F2; font-weight: bold');
     console.log('%c  URL:', 'color: #657786', window.location.href);
     
     // Progressive Enhancement: Detect available features
@@ -432,6 +433,29 @@ class SmartReplyContentScript {
     context: any, 
     tone?: string
   ): Promise<void> {
+    // Use AsyncOperationManager to prevent race conditions
+    const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
+    
+    try {
+      await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
+        return this.performReplyGeneration(textarea, context, tone, signal);
+      });
+    } catch (error) {
+      if ((error as Error).message.includes('cancelled')) {
+        console.log('%c⏹️ Reply generation cancelled due to new request', 'color: #FFA500; font-weight: bold');
+        return;
+      }
+      // Re-throw other errors to be handled by the UI
+      throw error;
+    }
+  }
+
+  private async performReplyGeneration(
+    textarea: HTMLElement, 
+    context: any, 
+    tone: string | undefined,
+    signal: AbortSignal
+  ): Promise<void> {
     // Find the button to show loading state
     const container = textarea.closest('[role="dialog"], [role="main"]')?.querySelector('.smart-reply-container');
     const button = container?.querySelector('.smart-reply-btn') as HTMLElement;
@@ -442,14 +466,30 @@ class SmartReplyContentScript {
     }
 
     try {
+      // Check for cancellation before starting
+      if (signal.aborted) {
+        throw new Error('Operation was cancelled before starting');
+      }
+
       // Enhanced loading states with progress
       DOMUtils.showLoadingState(button, 'Preparing');
       console.log('%c🚀 Smart Reply: Starting generation with tone:', 'color: #1DA1F2; font-weight: bold', tone);
 
-      // Brief delay to show first stage
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Brief delay to show first stage (with cancellation check)
+      await new Promise((resolve, reject) => {
+        if (signal.aborted) reject(new Error('Operation cancelled'));
+        const timeout = setTimeout(() => {
+          if (signal.aborted) reject(new Error('Operation cancelled'));
+          resolve(undefined);
+        }, 300);
+        signal.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          reject(new Error('Operation cancelled'));
+        });
+      });
       
-      // Check if API key is configured
+      // Check if API key is configured (with cancellation check)
+      if (signal.aborted) throw new Error('Operation cancelled');
       DOMUtils.showLoadingState(button, 'Validating API');
       const apiKey = await StorageService.getApiKey();
       if (!apiKey) {
@@ -458,6 +498,9 @@ class SmartReplyContentScript {
         return;
       }
 
+      // Check for cancellation before preparing request
+      if (signal.aborted) throw new Error('Operation cancelled');
+      
       // Prepare the request
       DOMUtils.showLoadingState(button, 'Building Request');
       const request: ReplyGenerationRequest = {
@@ -467,9 +510,15 @@ class SmartReplyContentScript {
 
       console.log('%c📦 Smart Reply: Request prepared:', 'color: #9146FF', request);
 
-      // Generate the reply with final loading state
+      // Check for cancellation before API call
+      if (signal.aborted) throw new Error('Operation cancelled');
+
+      // Generate the reply with final loading state and pass the signal
       DOMUtils.showLoadingState(button, 'Generating AI Reply');
-      const response = await OpenRouterService.generateReply(request, context);
+      const response = await OpenRouterService.generateReply(request, context, signal);
+
+      // Check for cancellation after API call
+      if (signal.aborted) throw new Error('Operation cancelled');
 
       if (response.success && response.reply) {
         // Set the generated text in the textarea
@@ -516,6 +565,12 @@ class SmartReplyContentScript {
       }
 
     } catch (error) {
+      // Handle cancellation gracefully
+      if ((error as Error).message.includes('cancelled')) {
+        console.log('%c⏹️ Operation cancelled during generation', 'color: #657786');
+        return; // Don't show error UI for cancellations
+      }
+      
       // Use enhanced error handling with recovery actions
       const recoveryActions = ErrorHandler.handleUserFriendlyError(
         error as Error,

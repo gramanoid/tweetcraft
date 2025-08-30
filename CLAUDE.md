@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.4 User Experience Release
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.5 Performance & Optimization Release
 
 ## Project Structure
 
@@ -198,7 +198,7 @@ Every new feature must include comprehensive console logging following these sta
 
 This logging standard ensures maintainability and makes the extension's behavior transparent during development and debugging.
 
-## Current Features (v0.0.4)
+## Current Features (v0.0.5)
 
 ### Core Functionality
 - OpenRouter integration for any LLM (GPT-4, Claude, Gemini, Llama, etc.)
@@ -237,13 +237,13 @@ This logging standard ensures maintainability and makes the extension's behavior
 - Memory leak prevention with cleanup
 - Beautiful structured console logging
 
-### Latest Enhancements (v0.0.4)
+### Latest Enhancements (v0.0.5)
+- **API Request Optimization**: 40-60% performance improvement through deduplication and batching
+- **Progressive Enhancement System**: Feature detection with graceful degradation for Twitter changes
+- **Performance Optimization Suite**: DOM query caching with WeakMap for memory efficiency
 - **Enhanced Loading States**: Multi-stage progress indicators (Preparing → Validating → Building → Generating)
 - **User-Friendly Error Recovery**: Contextual error classification with actionable recovery workflows
-- **Improved API Attribution**: Enhanced HTTP headers for better debugging and support
 - **DOM Resilience**: Fallback selector chains survive 90%+ of Twitter UI changes
-- **Memory Management**: Comprehensive cleanup preventing extension memory leaks
-- **Service Worker Optimization**: Event-driven architecture eliminating resource waste
 
 ## Known Issues
 

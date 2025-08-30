@@ -14,7 +14,7 @@ export class OpenRouterService {
   private static readonly HEADERS = {
     'Content-Type': 'application/json',
     'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.5'
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.6'
   };
   
   // Enhanced rate limiting and optimization
@@ -36,6 +36,7 @@ export class OpenRouterService {
     resolve: (value: ReplyGenerationResponse) => void;
     reject: (reason: any) => void;
     timestamp: number;
+    signal?: AbortSignal;
   }> = [];
   private static batchTimer: NodeJS.Timeout | null = null;
   private static readonly BATCH_WINDOW = 200; // 200ms batching window
@@ -48,13 +49,48 @@ export class OpenRouterService {
     totalRequests: 0
   };
 
+  // Network resilience - offline capability and connection monitoring
+  private static isOnline = navigator.onLine;
+  private static connectionType: string = 'unknown';
+  private static queuedRequests: Array<{
+    request: ReplyGenerationRequest;
+    context: TwitterContext;
+    signal?: AbortSignal;
+    resolve: (value: ReplyGenerationResponse) => void;
+    reject: (reason: any) => void;
+    timestamp: number;
+  }> = [];
+  private static readonly OFFLINE_QUEUE_MAX_AGE = 300000; // 5 minutes
+  private static readonly OFFLINE_QUEUE_MAX_SIZE = 50;
+
+  // Connection quality detection
+  private static connectionMetrics = {
+    rtt: 0, // Round-trip time
+    downlink: 0, // Connection speed
+    effectiveType: '4g' as '4g' | '3g' | '2g' | 'slow-2g'
+  };
+
+  // Initialize network monitoring (call once at startup)
+  static {
+    this.initializeNetworkMonitoring();
+  }
+
   static async generateReply(
     request: ReplyGenerationRequest, 
-    context: TwitterContext
+    context: TwitterContext,
+    signal?: AbortSignal
   ): Promise<ReplyGenerationResponse> {
-    console.log('%c🚀 API REQUEST OPTIMIZATION', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c🚀 ENHANCED NETWORK RESILIENCE', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c  Connection Status:', 'color: #657786', this.isOnline ? 'Online' : 'Offline');
+    console.log('%c  Connection Type:', 'color: #657786', this.connectionMetrics.effectiveType);
     
     this.metrics.totalRequests++;
+    
+    // Check if offline and queue request if needed
+    if (!this.isOnline) {
+      console.log('%c📴 Offline mode: Queuing request', 'color: #FFA500; font-weight: bold');
+      return this.queueOfflineRequest(request, context, signal);
+    }
     
     try {
       // Enhanced cache check first
@@ -82,7 +118,7 @@ export class OpenRouterService {
       }
 
       // Create promise for this request
-      const requestPromise = this.executeBatchedRequest(request, context);
+      const requestPromise = this.executeBatchedRequest(request, context, signal);
       
       // Cache the promise to prevent duplicate requests
       this.requestCache.set(requestKey, requestPromise);
@@ -110,7 +146,7 @@ export class OpenRouterService {
       originalTweet: request.originalTweet,
       tone: request.tone,
       tweetId: context.tweetId,
-      tweetText: context.tweetText.substring(0, 100) // First 100 chars for context
+      tweetText: context.tweetText?.substring(0, 100) || '' // First 100 chars for context
     };
     return JSON.stringify(keyData);
   }
@@ -120,7 +156,8 @@ export class OpenRouterService {
    */
   private static async executeBatchedRequest(
     request: ReplyGenerationRequest, 
-    context: TwitterContext
+    context: TwitterContext,
+    signal?: AbortSignal
   ): Promise<ReplyGenerationResponse> {
     return new Promise((resolve, reject) => {
       // Add to batch queue
@@ -129,7 +166,8 @@ export class OpenRouterService {
         context,
         resolve,
         reject,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        signal
       });
 
       console.log('%c📦 Request queued for batching:', 'color: #9146FF; font-weight: bold', 
@@ -147,7 +185,7 @@ export class OpenRouterService {
   /**
    * Process batched requests
    */
-  private static async processBatch(): void {
+  private static async processBatch(): Promise<void> {
     if (this.batchQueue.length === 0) {
       this.batchTimer = null;
       return;
@@ -169,7 +207,13 @@ export class OpenRouterService {
     // Process each request in the batch
     for (const batchItem of currentBatch) {
       try {
-        const result = await this.executeActualRequest(batchItem.request, batchItem.context);
+        // Check if request was cancelled
+        if (batchItem.signal?.aborted) {
+          batchItem.reject(new Error('Request was cancelled'));
+          continue;
+        }
+        
+        const result = await this.executeActualRequest(batchItem.request, batchItem.context, batchItem.signal);
         batchItem.resolve(result);
       } catch (error) {
         batchItem.reject(error);
@@ -182,14 +226,25 @@ export class OpenRouterService {
    */
   private static async executeActualRequest(
     request: ReplyGenerationRequest, 
-    context: TwitterContext
+    context: TwitterContext,
+    signal?: AbortSignal
   ): Promise<ReplyGenerationResponse> {
     try {
+      // Check if request was cancelled before starting
+      if (signal?.aborted) {
+        throw new Error('Request was cancelled');
+      }
+      
       // Rate limiting
       const now = Date.now();
       const timeSinceLastRequest = now - this.lastRequestTime;
       if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
         await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+        
+        // Check cancellation after rate limit delay
+        if (signal?.aborted) {
+          throw new Error('Request was cancelled');
+        }
       }
       this.lastRequestTime = Date.now();
 
@@ -206,10 +261,14 @@ export class OpenRouterService {
       const messages = await this.buildMessages(request, context, config);
       const temperature = config.temperature || 0.7;
       
-      // Log temperature setting
-      console.log('%c⚙️ TweetCraft Settings', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+      // Adaptive timeout based on connection quality
+      const adaptiveTimeout = this.getAdaptiveTimeout();
+      
+      // Log temperature setting and connection adaptation
+      console.log('%c⚙️ TweetCraft Settings & Connection Adaptation', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
       console.log(`%c  Temperature: ${temperature}`, 'color: #657786');
       console.log(`%c  Model: ${request.model || config.model || 'openai/gpt-4o'}`, 'color: #657786');
+      console.log(`%c  Adaptive Timeout: ${adaptiveTimeout}ms (based on ${this.connectionMetrics.effectiveType})`, 'color: #657786');
       
       const openRouterRequest: OpenRouterRequest = {
         model: request.model || config.model || 'openai/gpt-4o',
@@ -219,133 +278,51 @@ export class OpenRouterService {
         top_p: 0.9
       };
 
-      const response = await this.fetchWithRetry(
-        `${this.BASE_URL}/chat/completions`,
-        {
-          method: 'POST',
-          headers: {
-            ...this.HEADERS,
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(openRouterRequest)
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenRouter API error:', response.status, errorText);
-        
-        if (response.status === 401) {
-          return {
-            success: false,
-            error: 'Invalid API key. Get your key at openrouter.ai/keys'
-          };
-        }
-        
-        if (response.status === 429) {
-          // Try to parse rate limit info from response
-          let retryAfter = '';
-          try {
-            const errorData = JSON.parse(errorText);
-            if (errorData.error?.metadata?.ratelimit_reset) {
-              const resetTime = new Date(errorData.error.metadata.ratelimit_reset * 1000);
-              const waitSeconds = Math.ceil((resetTime.getTime() - Date.now()) / 1000);
-              retryAfter = ` Try again in ${waitSeconds} seconds`;
-            }
-          } catch {}
-          
-          return {
-            success: false,
-            error: `Rate limited.${retryAfter || ' Try again in a few seconds'}`
-          };
-        }
-        
-        if (response.status === 402) {
-          return {
-            success: false,
-            error: 'Insufficient credits. Add credits at openrouter.ai/account'
-          };
-        }
-        
-        if (response.status >= 500) {
-          return {
-            success: false,
-            error: 'OpenRouter service error. Try again in a moment'
-          };
-        }
-
-        return {
-          success: false,
-          error: `Request failed (${response.status}). Check your connection and try again`
-        };
-      }
-
-      const result: OpenRouterResponse = await response.json();
+      // Create combined AbortController for timeout and cancellation
+      const timeoutController = new AbortController();
+      const combinedController = new AbortController();
       
-      if (!result.choices || result.choices.length === 0) {
-        console.error('TweetCraft: No choices in API response:', result);
-        return {
-          success: false,
-          error: 'No response generated. Please try again.'
-        };
-      }
-
-      const reply = result.choices[0]?.message?.content?.trim();
+      // Set up timeout based on connection quality
+      const timeoutId = setTimeout(() => {
+        timeoutController.abort();
+      }, adaptiveTimeout);
       
-      if (!reply) {
-        // Check if it was cut off due to max_tokens
-        if (result.choices[0]?.finish_reason === 'length' || (result.choices[0] as any)?.native_finish_reason === 'MAX_TOKENS') {
-          console.warn('%c⚠️ Response hit token limit', 'color: #FFAD1F; font-weight: bold; font-size: 14px');
-          console.warn('%c  Response may be incomplete', 'color: #657786');
-          // Even if empty, there might be partial content we can use
-          const partialReply = result.choices[0]?.message?.content || '';
-          if (partialReply.length > 0) {
-            return {
-              success: true,
-              reply: partialReply.trim()
-            };
+      // Combine signals - abort if either the original signal or timeout triggers
+      const abortHandler = () => combinedController.abort();
+      signal?.addEventListener('abort', abortHandler);
+      timeoutController.signal.addEventListener('abort', abortHandler);
+
+      try {
+        const response = await this.fetchWithRetry(
+          `${this.BASE_URL}/chat/completions`,
+          {
+            method: 'POST',
+            headers: {
+              ...this.HEADERS,
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(openRouterRequest),
+            signal: combinedController.signal
           }
+        );
+        
+        clearTimeout(timeoutId);
+        return await this.processSuccessfulResponse(response, request, context);
+        
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        
+        // Handle timeout specifically
+        if (error.name === 'AbortError' && timeoutController.signal.aborted && !signal?.aborted) {
+          console.log('%c⏱️ Request timeout due to poor connection', 'color: #FFA500; font-weight: bold');
+          return {
+            success: false,
+            error: `Request timed out after ${adaptiveTimeout}ms due to poor connection quality. Please check your internet connection and try again.`
+          };
         }
-        console.error('%c❌ Empty API Response', 'color: #E0245E; font-weight: bold; font-size: 14px');
-        console.error('%c  Details:', 'color: #657786', result.choices[0]);
-        return {
-          success: false,
-          error: 'Empty response generated. Please try again.'
-        };
+        
+        throw error; // Re-throw other errors to be handled normally
       }
-
-      console.log('%c✅ API Response Received', 'color: #17BF63; font-weight: bold; font-size: 14px');
-      console.log(`%c  Raw length: ${reply.length} chars`, 'color: #657786');
-      const cleanedReply = this.cleanupReply(reply);
-      console.log(`%c  Cleaned length: ${cleanedReply.length} chars`, 'color: #657786');
-      if (reply !== cleanedReply) {
-        console.log('%c  ⚠️ Meta-text removed during cleanup', 'color: #FFAD1F');
-      }
-      
-      if (!cleanedReply) {
-        console.error('TweetCraft: Reply became empty after cleanup. Original:', reply);
-        // If cleanup removed everything, return the original trimmed reply
-        return {
-          success: true,
-          reply: reply
-        };
-      }
-      
-      // Use cleanedReply if it exists, otherwise use original reply
-      const replyToUse = cleanedReply || reply;
-      
-      // Cache the successful response if we have a tweet ID and tone
-      if (context.tweetId && request.tone) {
-        CacheService.set(context.tweetId, request.tone, replyToUse);
-      }
-
-      // Clean any tracking parameters from URLs in the reply
-      const finalReply = URLCleaner.cleanTextURLs(replyToUse);
-      
-      return {
-        success: true,
-        reply: finalReply
-      };
 
     } catch (error: any) {
       console.error('OpenRouter service error:', error);
@@ -661,5 +638,336 @@ export class OpenRouterService {
       this.batchTimer = null;
     }
     console.log('%c🔄 API optimization metrics reset', 'color: #1DA1F2; font-weight: bold');
+  }
+
+  /**
+   * Initialize network monitoring
+   */
+  private static initializeNetworkMonitoring(): void {
+    console.log('%c🌐 NETWORK RESILIENCE: Initializing monitoring', 'color: #9146FF; font-weight: bold; font-size: 14px');
+    
+    // Monitor online/offline status
+    window.addEventListener('online', () => {
+      console.log('%c🟢 Connection restored - processing queued requests', 'color: #17BF63; font-weight: bold');
+      this.isOnline = true;
+      this.processQueuedRequests();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('%c🔴 Connection lost - entering offline mode', 'color: #DC3545; font-weight: bold');
+      this.isOnline = false;
+    });
+
+    // Monitor connection changes using Network Information API (if available)
+    if ('connection' in navigator) {
+      const connection = (navigator as any).connection;
+      if (connection) {
+        this.updateConnectionMetrics(connection);
+        
+        connection.addEventListener('change', () => {
+          this.updateConnectionMetrics(connection);
+          console.log('%c📊 Connection quality updated:', 'color: #1DA1F2; font-weight: bold', {
+            effectiveType: this.connectionMetrics.effectiveType,
+            downlink: this.connectionMetrics.downlink,
+            rtt: this.connectionMetrics.rtt
+          });
+        });
+      }
+    }
+    
+    // Clean up old queued requests periodically
+    setInterval(() => this.cleanupQueuedRequests(), 60000); // Every minute
+    
+    console.log('%c  ✅ Network monitoring initialized', 'color: #17BF63; font-weight: bold');
+    console.log('%c  Initial status:', 'color: #657786', {
+      online: this.isOnline,
+      effectiveType: this.connectionMetrics.effectiveType
+    });
+  }
+
+  /**
+   * Update connection quality metrics
+   */
+  private static updateConnectionMetrics(connection: any): void {
+    this.connectionMetrics = {
+      rtt: connection.rtt || 0,
+      downlink: connection.downlink || 0,
+      effectiveType: connection.effectiveType || '4g'
+    };
+  }
+
+  /**
+   * Get adaptive timeout based on connection quality
+   */
+  private static getAdaptiveTimeout(): number {
+    const baseTimeout = 30000; // 30 seconds base
+    
+    switch (this.connectionMetrics.effectiveType) {
+      case 'slow-2g':
+        return baseTimeout * 3; // 90 seconds
+      case '2g':
+        return baseTimeout * 2; // 60 seconds
+      case '3g':
+        return baseTimeout * 1.5; // 45 seconds
+      case '4g':
+      default:
+        return baseTimeout; // 30 seconds
+    }
+  }
+
+  /**
+   * Queue request for when connection is restored
+   */
+  private static queueOfflineRequest(
+    request: ReplyGenerationRequest, 
+    context: TwitterContext, 
+    signal?: AbortSignal
+  ): Promise<ReplyGenerationResponse> {
+    return new Promise((resolve, reject) => {
+      // Clean up old requests first
+      this.cleanupQueuedRequests();
+      
+      // Check queue size limit
+      if (this.queuedRequests.length >= this.OFFLINE_QUEUE_MAX_SIZE) {
+        console.log('%c⚠️ Offline queue full - rejecting request', 'color: #FFA500; font-weight: bold');
+        reject(new Error('Too many requests queued. Please wait for connection to restore.'));
+        return;
+      }
+      
+      // Add to queue
+      this.queuedRequests.push({
+        request,
+        context,
+        signal,
+        resolve,
+        reject,
+        timestamp: Date.now()
+      });
+      
+      console.log('%c📴 Request queued for offline processing', 'color: #FFA500; font-weight: bold', 
+                 `Queue size: ${this.queuedRequests.length}`);
+      
+      // If user cancels, remove from queue
+      signal?.addEventListener('abort', () => {
+        const index = this.queuedRequests.findIndex(item => 
+          item.request === request && item.context === context
+        );
+        if (index >= 0) {
+          this.queuedRequests.splice(index, 1);
+          reject(new Error('Request was cancelled'));
+        }
+      });
+    });
+  }
+
+  /**
+   * Process queued requests when connection is restored
+   */
+  private static async processQueuedRequests(): Promise<void> {
+    if (this.queuedRequests.length === 0) return;
+    
+    console.log('%c🔄 Processing queued requests:', 'color: #1DA1F2; font-weight: bold', 
+               `${this.queuedRequests.length} requests`);
+    
+    // Process all queued requests
+    const requestsToProcess = [...this.queuedRequests];
+    this.queuedRequests = [];
+    
+    for (const queuedItem of requestsToProcess) {
+      try {
+        // Check if request is still valid (not cancelled and not too old)
+        if (queuedItem.signal?.aborted) {
+          queuedItem.reject(new Error('Request was cancelled'));
+          continue;
+        }
+        
+        const age = Date.now() - queuedItem.timestamp;
+        if (age > this.OFFLINE_QUEUE_MAX_AGE) {
+          queuedItem.reject(new Error('Request expired while offline'));
+          continue;
+        }
+        
+        // Process the request
+        const result = await this.executeActualRequest(
+          queuedItem.request, 
+          queuedItem.context, 
+          queuedItem.signal
+        );
+        queuedItem.resolve(result);
+        
+      } catch (error) {
+        queuedItem.reject(error);
+      }
+    }
+    
+    console.log('%c✅ All queued requests processed', 'color: #17BF63; font-weight: bold');
+  }
+
+  /**
+   * Clean up expired requests from queue
+   */
+  private static cleanupQueuedRequests(): void {
+    const now = Date.now();
+    const initialSize = this.queuedRequests.length;
+    
+    this.queuedRequests = this.queuedRequests.filter(item => {
+      const age = now - item.timestamp;
+      const isExpired = age > this.OFFLINE_QUEUE_MAX_AGE;
+      const isCancelled = item.signal?.aborted;
+      
+      if (isExpired || isCancelled) {
+        if (isExpired) {
+          item.reject(new Error('Request expired while offline'));
+        } else {
+          item.reject(new Error('Request was cancelled'));
+        }
+        return false;
+      }
+      
+      return true;
+    });
+    
+    const removed = initialSize - this.queuedRequests.length;
+    if (removed > 0) {
+      console.log('%c🧹 Cleaned up offline queue:', 'color: #657786', 
+                 `Removed ${removed} expired/cancelled requests`);
+    }
+  }
+
+  /**
+   * Process successful API response (extracted for reuse)
+   */
+  private static async processSuccessfulResponse(
+    response: Response, 
+    request: ReplyGenerationRequest, 
+    context: TwitterContext
+  ): Promise<ReplyGenerationResponse> {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter API error:', response.status, errorText);
+      
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: 'Invalid API key. Get your key at openrouter.ai/keys'
+        };
+      }
+      
+      if (response.status === 429) {
+        // Try to parse rate limit info from response
+        let retryAfter = '';
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.metadata?.ratelimit_reset) {
+            const resetTime = new Date(errorData.error.metadata.ratelimit_reset * 1000);
+            const waitSeconds = Math.ceil((resetTime.getTime() - Date.now()) / 1000);
+            retryAfter = ` Try again in ${waitSeconds} seconds`;
+          }
+        } catch {}
+        
+        return {
+          success: false,
+          error: `Rate limited.${retryAfter || ' Try again in a few seconds'}`
+        };
+      }
+      
+      if (response.status === 402) {
+        return {
+          success: false,
+          error: 'Insufficient credits. Add credits at openrouter.ai/account'
+        };
+      }
+      
+      if (response.status >= 500) {
+        return {
+          success: false,
+          error: 'OpenRouter service error. Try again in a moment'
+        };
+      }
+
+      return {
+        success: false,
+        error: `Request failed (${response.status}). Check your connection and try again`
+      };
+    }
+
+    const result: OpenRouterResponse = await response.json();
+    
+    if (!result.choices || result.choices.length === 0) {
+      console.error('TweetCraft: No choices in API response:', result);
+      return {
+        success: false,
+        error: 'No response generated. Please try again.'
+      };
+    }
+
+    const reply = result.choices[0]?.message?.content?.trim();
+    
+    if (!reply) {
+      // Check if it was cut off due to max_tokens
+      if (result.choices[0]?.finish_reason === 'length' || (result.choices[0] as any)?.native_finish_reason === 'MAX_TOKENS') {
+        console.warn('%c⚠️ Response hit token limit', 'color: #FFAD1F; font-weight: bold; font-size: 14px');
+        console.warn('%c  Response may be incomplete', 'color: #657786');
+        // Even if empty, there might be partial content we can use
+        const partialReply = result.choices[0]?.message?.content || '';
+        if (partialReply.length > 0) {
+          return {
+            success: true,
+            reply: partialReply.trim()
+          };
+        }
+      }
+      console.error('%c❌ Empty API Response', 'color: #E0245E; font-weight: bold; font-size: 14px');
+      console.error('%c  Details:', 'color: #657786', result.choices[0]);
+      return {
+        success: false,
+        error: 'Empty response generated. Please try again.'
+      };
+    }
+
+    console.log('%c✅ API Response Received', 'color: #17BF63; font-weight: bold; font-size: 14px');
+    console.log(`%c  Raw length: ${reply.length} chars`, 'color: #657786');
+    const cleanedReply = this.cleanupReply(reply);
+    console.log(`%c  Cleaned length: ${cleanedReply.length} chars`, 'color: #657786');
+    if (reply !== cleanedReply) {
+      console.log('%c  ⚠️ Meta-text removed during cleanup', 'color: #FFAD1F');
+    }
+    
+    if (!cleanedReply) {
+      console.error('TweetCraft: Reply became empty after cleanup. Original:', reply);
+      // If cleanup removed everything, return the original trimmed reply
+      return {
+        success: true,
+        reply: reply
+      };
+    }
+    
+    // Use cleanedReply if it exists, otherwise use original reply
+    const replyToUse = cleanedReply || reply;
+    
+    // Cache the successful response if we have a tweet ID and tone
+    if (context.tweetId && request.tone) {
+      CacheService.set(context.tweetId, request.tone, replyToUse);
+    }
+
+    // Clean any tracking parameters from URLs in the reply
+    const finalReply = URLCleaner.cleanTextURLs(replyToUse);
+    
+    return {
+      success: true,
+      reply: finalReply
+    };
+  }
+
+  /**
+   * Get network resilience status and metrics
+   */
+  static getNetworkStatus() {
+    return {
+      isOnline: this.isOnline,
+      connectionMetrics: { ...this.connectionMetrics },
+      queuedRequestsCount: this.queuedRequests.length,
+      adaptiveTimeout: this.getAdaptiveTimeout()
+    };
   }
 }
