@@ -5,7 +5,6 @@
 
 import { PresetTemplate, PresetTemplates } from './presetTemplates';
 import { CustomTemplate, CustomTemplateManager } from './customTemplates';
-import { memoryManager } from '@/utils/memoryManager';
 
 export class TemplateSelector {
   private container: HTMLElement | null = null;
@@ -171,11 +170,12 @@ export class TemplateSelector {
   private showPresetTemplates(container: HTMLElement): void {
     container.innerHTML = '';
     
-    const templates = PresetTemplates.getPresets();
+    // Access the DEFAULT_PRESETS directly (we'll need to make it public)
+    const templates = (PresetTemplates as any).DEFAULT_PRESETS || [];
     const categories = ['engagement', 'value', 'conversation', 'humor'];
     
     categories.forEach(category => {
-      const categoryTemplates = templates.filter(t => t.category === category);
+      const categoryTemplates = templates.filter((t: PresetTemplate) => t.category === category);
       if (categoryTemplates.length === 0) return;
       
       // Add category header
@@ -191,7 +191,7 @@ export class TemplateSelector {
       container.appendChild(categoryHeader);
       
       // Add templates
-      categoryTemplates.forEach(template => {
+      categoryTemplates.forEach((template: PresetTemplate) => {
         container.appendChild(this.createTemplateItem(template));
       });
     });
@@ -390,14 +390,14 @@ export class TemplateSelector {
   private openTemplateCreator(template?: CustomTemplate): void {
     // This would open a modal to create/edit templates
     // For now, we'll use a simple prompt
-    const name = prompt('Template name:', template?.name || '');
+    const name = prompt('Template name:', template?.name || '') || '';
     if (!name) return;
     
     const pattern = prompt('Template pattern (use {variable} for placeholders):', 
-      template?.pattern || CustomTemplateManager.TEMPLATE_PATTERNS.THANKS_SHARE);
+      template?.pattern || CustomTemplateManager.TEMPLATE_PATTERNS.THANKS_SHARE) || '';
     if (!pattern) return;
     
-    const description = prompt('Description:', template?.description || '');
+    const description = prompt('Description:', template?.description || '') || '';
     
     if (template) {
       CustomTemplateManager.updateTemplate(template.id, {
@@ -446,7 +446,7 @@ export class TemplateSelector {
     if (!this.container) {
       this.container = this.createUI();
       document.body.appendChild(this.container);
-      memoryManager.track(this.container);
+      // Container will be cleaned up when closed
     }
     
     this.onSelectCallback = onSelect;
