@@ -70,7 +70,13 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
     fallbacks: [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"][aria-label*="tweet"]',
-      'div[contenteditable="true"]'
+      '[contenteditable="true"][aria-label*="Tweet"]',
+      '[contenteditable="true"][aria-label*="Post"]',
+      '[contenteditable="true"][aria-label*="Reply"]',
+      '[contenteditable="true"][aria-multiline="true"]',
+      '[contenteditable="true"][spellcheck="true"]',
+      'div[contenteditable="true"][dir="auto"]',
+      'div[contenteditable="true"]:not([aria-label*="Search"])'
     ]
   },
   toolbar: {
@@ -78,23 +84,69 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
     fallbacks: [
       '[role="group"]:has(button[data-testid="reply"])',
       '[role="group"]:has(svg[data-testid="reply"])',
-      'div:has(button[aria-label*="reply"])'
+      '[role="group"]:has(button[aria-label*="reply" i])',
+      '[role="group"]:has(button[aria-label*="Reply" i])',
+      '[role="group"][aria-label*="toolbar" i]',
+      'div[role="group"]:has(button[role="button"])',
+      'div:has(> button[aria-label*="emoji" i])',
+      'div:has(> button[aria-label*="gif" i])',
+      // Structure-based fallback for reply contexts
+      '[contenteditable="true"] ~ div[role="group"]',
+      '[contenteditable="true"] ~ * div[role="group"]'
     ]
   },
   tweetText: {
     primary: '[data-testid="tweetText"]',
     fallbacks: [
       '[data-testid="tweetText"] span',
-      'article [lang] span',
-      'article div[dir] span'
+      'article [lang][dir="auto"]:not([contenteditable])',
+      'article div[lang]:not([contenteditable])',
+      'article div[dir="auto"] span',
+      'article div[lang] span',
+      // Structure fallback for tweet content
+      'article > div > div > div > div > div[lang]',
+      'article div[style*="color"] span',
+      'article div[class*="css-"] span[class*="css-"]'
     ]
   },
   originalTweet: {
     primary: 'article[data-testid="tweet"][tabindex="-1"]',
     fallbacks: [
       'article[data-testid="tweet"]:first-of-type',
+      'article[data-testid="tweet"]',
       'article[role="article"]:has([data-testid="tweetText"])',
-      'main article:has([data-testid="tweetText"])'
+      'article[role="article"]:has(time)',
+      'article:has(a[href*="/status/"])',
+      'div[data-testid="cellInnerDiv"] article',
+      'main article:has([data-testid="tweetText"])',
+      'main article:has(div[lang])',
+      // Last resort: any article with tweet-like structure
+      'article:has(time):has(div[lang])'
+    ]
+  },
+  authorHandle: {
+    primary: '[data-testid="User-Name"] a[href^="/"]',
+    fallbacks: [
+      '[data-testid="User-Name"] a',
+      'a[href^="/"][dir="ltr"]:has(span)',
+      'a[href^="/"]:has(div > span[dir])',
+      'article a[href^="/"]:has(@)',
+      'article a[tabindex="-1"][href^="/"]',
+      // Username pattern matching
+      'a[href^="/"]:not([href*="/status/"]):not([href="/home"])',
+      'div[dir="ltr"] a[href^="/"]'
+    ]
+  },
+  replyButton: {
+    primary: 'button[data-testid="reply"]',
+    fallbacks: [
+      'button[aria-label*="Reply" i]',
+      'div[role="button"][aria-label*="Reply" i]',
+      'button[role="button"]:has(svg path[d*="M1.751"])',
+      'button:has(svg path[d*="M12 3.786"])',
+      // Icon-based detection
+      'button:has(svg[viewBox="0 0 24 24"])',
+      '[role="group"] > div:first-child button[role="button"]'
     ]
   }
 };
@@ -105,13 +157,23 @@ export class DOMUtils {
   static readonly TOOLBAR_SELECTOR = SELECTOR_CHAINS.toolbar.primary;
   static readonly TWEET_TEXT_SELECTOR = SELECTOR_CHAINS.tweetText.primary;
   static readonly ORIGINAL_TWEET_SELECTOR = SELECTOR_CHAINS.originalTweet.primary;
+  
+  // Track selector performance
+  private static selectorStats = new Map<string, { primary: number; fallback: number; failed: number }>();
+  private static lastReportTime = Date.now();
 
   /**
-   * Resilient selector finder with automatic fallback - SILENT MODE
+   * Resilient selector finder with automatic fallback
    */
   static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element, silent = true): Element | null {
     const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
+    
+    // Initialize stats if needed
+    if (!this.selectorStats.has(selectorType)) {
+      this.selectorStats.set(selectorType, { primary: 0, fallback: 0, failed: 0 });
+    }
+    const stats = this.selectorStats.get(selectorType)!;
     
     // Try primary selector first (with caching for Element parents)
     let element: Element | null;
@@ -122,7 +184,7 @@ export class DOMUtils {
     }
     
     if (element) {
-      // Success - no logging needed
+      stats.primary++;
       return element;
     }
     
@@ -135,13 +197,96 @@ export class DOMUtils {
       }
       
       if (element) {
-        // Found with fallback - no logging needed
+        stats.fallback++;
+        // Log when fallback is used (only first time or every 10 uses)
+        if (stats.fallback === 1 || stats.fallback % 10 === 0) {
+          console.log(`%c⚠️ DOM Resilience: Using fallback #${i + 1} for ${selectorType}`, 'color: #FFA500');
+          console.log(`%c  Fallback selector: ${chain.fallbacks[i]}`, 'color: #657786');
+        }
         return element;
       }
     }
     
-    // Failed to find element - this is normal for non-reply contexts
+    // Failed to find element
+    stats.failed++;
+    
+    // Report stats periodically (every 5 minutes)
+    const now = Date.now();
+    if (now - this.lastReportTime > 300000) {
+      this.reportSelectorStats();
+      this.lastReportTime = now;
+    }
+    
     return null;
+  }
+  
+  /**
+   * Report selector performance statistics
+   */
+  private static reportSelectorStats(): void {
+    console.log('%c📊 DOM Selector Resilience Report', 'color: #1DA1F2; font-weight: bold');
+    
+    this.selectorStats.forEach((stats, type) => {
+      const total = stats.primary + stats.fallback + stats.failed;
+      if (total > 0) {
+        const primaryRate = Math.round((stats.primary / total) * 100);
+        const fallbackRate = Math.round((stats.fallback / total) * 100);
+        const failRate = Math.round((stats.failed / total) * 100);
+        
+        console.log(`%c  ${type}:`, 'color: #657786', 
+          `Primary: ${primaryRate}%`, 
+          `Fallback: ${fallbackRate}%`,
+          `Failed: ${failRate}%`
+        );
+      }
+    });
+  }
+  
+  /**
+   * Test selector health on startup
+   */
+  static testSelectorHealth(): void {
+    console.log('%c🔍 Testing DOM Selector Health', 'color: #1DA1F2; font-weight: bold');
+    
+    const results: { [key: string]: string } = {};
+    
+    // Test each selector chain
+    Object.keys(SELECTOR_CHAINS).forEach(selectorType => {
+      const chain = SELECTOR_CHAINS[selectorType as keyof typeof SELECTOR_CHAINS];
+      
+      // Test primary
+      let element = document.querySelector(chain.primary);
+      if (element) {
+        results[selectorType] = '✅ Primary';
+      } else {
+        // Test fallbacks
+        let fallbackIndex = -1;
+        for (let i = 0; i < chain.fallbacks.length; i++) {
+          try {
+            element = document.querySelector(chain.fallbacks[i]);
+            if (element) {
+              fallbackIndex = i;
+              break;
+            }
+          } catch (e) {
+            // Selector might be invalid (e.g., :has() not supported)
+          }
+        }
+        
+        if (fallbackIndex >= 0) {
+          results[selectorType] = `⚠️ Fallback #${fallbackIndex + 1}`;
+        } else {
+          results[selectorType] = '❌ Not found';
+        }
+      }
+    });
+    
+    // Log results
+    Object.entries(results).forEach(([type, status]) => {
+      const color = status.includes('✅') ? '#17BF63' : 
+                    status.includes('⚠️') ? '#FFA500' : '#DC3545';
+      console.log(`%c  ${type}: ${status}`, `color: ${color}`);
+    });
   }
 
   /**

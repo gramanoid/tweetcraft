@@ -40,6 +40,9 @@ class SmartReplyContentScript {
     
     console.log('%c🚀 TweetCraft v0.0.8', 'color: #1DA1F2; font-weight: bold');
     
+    // Test DOM selector health
+    DOMUtils.testSelectorHealth();
+    
     // Initialize keyboard shortcuts
     await KeyboardShortcutManager.init();
     
@@ -217,7 +220,19 @@ class SmartReplyContentScript {
       const toolbarsToProcess = new Set<Element>();
       
       // Find all unprocessed toolbars
+      // Use resilient selector to find all toolbars
+      const toolbars: Element[] = [];
+      // First try primary selector for all
       document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
+        toolbars.push(toolbar);
+      });
+      // If none found, try fallbacks
+      if (toolbars.length === 0) {
+        const toolbar = DOMUtils.findWithFallback('toolbar');
+        if (toolbar) toolbars.push(toolbar);
+      }
+      
+      toolbars.forEach(toolbar => {
         if (!this.processedToolbars.has(toolbar)) {
           toolbarsToProcess.add(toolbar);
         }
