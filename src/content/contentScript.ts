@@ -10,11 +10,21 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.4';
+  private static readonly VERSION = '0.0.5';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
   private eventListeners = new Map<string, () => void>();
+  
+  // Progressive Enhancement System - Feature detection and graceful degradation
+  private features = new Map<string, boolean>();
+  private readonly CORE_FEATURES = [
+    'dom_injection',
+    'reply_detection', 
+    'context_extraction',
+    'api_communication',
+    'storage_access'
+  ];
 
   constructor() {
     // Check if another instance already exists
@@ -36,8 +46,11 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft Content Script v0.0.4: Initializing', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft Content Script v0.0.5: Initializing', 'color: #1DA1F2; font-weight: bold');
     console.log('%c  URL:', 'color: #657786', window.location.href);
+    
+    // Progressive Enhancement: Detect available features
+    this.detectFeatures();
     
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
@@ -268,6 +281,26 @@ class SmartReplyContentScript {
   }
 
   private async injectSmartReplyButton(
+    toolbarElement: Element, 
+    textarea: HTMLElement, 
+    context: any
+  ): Promise<void> {
+    // Use progressive enhancement for DOM injection
+    const result = this.withGracefulDegradation(
+      'dom_injection',
+      () => this.performSmartReplyInjection(toolbarElement, textarea, context),
+      () => {
+        console.log('%c⚠️ DOM injection unavailable - Smart Reply button cannot be added', 'color: #FFA500; font-weight: bold');
+        return Promise.resolve();
+      }
+    );
+    
+    if (result instanceof Promise) {
+      await result;
+    }
+  }
+
+  private async performSmartReplyInjection(
     toolbarElement: Element, 
     textarea: HTMLElement, 
     context: any
@@ -553,6 +586,181 @@ class SmartReplyContentScript {
     if ((window as any).__smartReplyInstance === this) {
       delete (window as any).__smartReplyInstance;
     }
+  }
+
+  /**
+   * Progressive Enhancement: Detect available features
+   */
+  private detectFeatures(): void {
+    console.log('%c🔍 PROGRESSIVE ENHANCEMENT: Feature Detection', 'color: #9146FF; font-weight: bold; font-size: 14px');
+    
+    // Test DOM injection capability
+    const domInjection = this.testDOMInjection();
+    this.features.set('dom_injection', domInjection);
+    
+    // Test reply detection capability
+    const replyDetection = this.testReplyDetection();
+    this.features.set('reply_detection', replyDetection);
+    
+    // Test context extraction
+    const contextExtraction = this.testContextExtraction();
+    this.features.set('context_extraction', contextExtraction);
+    
+    // Test API communication
+    const apiCommunication = this.testAPICommunication();
+    this.features.set('api_communication', apiCommunication);
+    
+    // Test storage access
+    const storageAccess = this.testStorageAccess();
+    this.features.set('storage_access', storageAccess);
+    
+    // Log feature availability
+    const availableFeatures = Array.from(this.features.entries())
+      .filter(([_, available]) => available)
+      .map(([feature, _]) => feature);
+    
+    const unavailableFeatures = Array.from(this.features.entries())
+      .filter(([_, available]) => !available)
+      .map(([feature, _]) => feature);
+    
+    console.log('%c  ✅ Available Features:', 'color: #17BF63; font-weight: bold', availableFeatures);
+    if (unavailableFeatures.length > 0) {
+      console.log('%c  ❌ Unavailable Features:', 'color: #DC3545; font-weight: bold', unavailableFeatures);
+      console.log('%c  🎯 Graceful degradation will be applied', 'color: #FFA500; font-weight: bold');
+    }
+    
+    // Determine operational mode
+    const coreAvailable = this.CORE_FEATURES.every(feature => this.features.get(feature));
+    if (coreAvailable) {
+      console.log('%c  🚀 Full functionality available', 'color: #1DA1F2; font-weight: bold');
+    } else {
+      console.log('%c  ⚡ Partial functionality mode', 'color: #FFA500; font-weight: bold');
+    }
+  }
+
+  /**
+   * Test DOM injection capability
+   */
+  private testDOMInjection(): boolean {
+    try {
+      // Test if we can create and inject elements
+      const testElement = document.createElement('div');
+      testElement.style.display = 'none';
+      testElement.dataset.testElement = 'tweetcraft-test';
+      
+      document.body?.appendChild(testElement);
+      const found = document.querySelector('[data-test-element="tweetcraft-test"]');
+      
+      if (found) {
+        found.remove();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('%c  DOM injection test failed:', 'color: #FFA500', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test reply detection capability
+   */
+  private testReplyDetection(): boolean {
+    try {
+      // Test if we can find Twitter reply elements
+      const replyButtons = document.querySelectorAll('[data-testid="reply"]');
+      const toolbars = document.querySelectorAll('[data-testid="toolBar"], [role="group"]:has(button)');
+      
+      return replyButtons.length > 0 || toolbars.length > 0;
+    } catch (error) {
+      console.warn('%c  Reply detection test failed:', 'color: #FFA500', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test context extraction capability
+   */
+  private testContextExtraction(): boolean {
+    try {
+      // Test if we can extract tweet context
+      const tweets = document.querySelectorAll('[data-testid="tweet"], [data-testid="tweetText"], article[role="article"]');
+      const tweetTexts = document.querySelectorAll('[data-testid="tweetText"], [lang]');
+      
+      return tweets.length > 0 && tweetTexts.length > 0;
+    } catch (error) {
+      console.warn('%c  Context extraction test failed:', 'color: #FFA500', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test API communication capability
+   */
+  private testAPICommunication(): boolean {
+    try {
+      // Test if chrome runtime is available
+      return !!(chrome?.runtime?.id);
+    } catch (error) {
+      console.warn('%c  API communication test failed:', 'color: #FFA500', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test storage access capability
+   */
+  private testStorageAccess(): boolean {
+    try {
+      // Test if chrome storage API is available
+      return !!(chrome?.storage?.local);
+    } catch (error) {
+      console.warn('%c  Storage access test failed:', 'color: #FFA500', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a specific feature is available
+   */
+  private isFeatureAvailable(featureName: string): boolean {
+    return this.features.get(featureName) ?? false;
+  }
+
+  /**
+   * Execute function with graceful degradation
+   */
+  private withGracefulDegradation<T>(
+    featureName: string,
+    primaryFunction: () => T,
+    fallbackFunction?: () => T,
+    fallbackValue?: T
+  ): T | undefined {
+    if (this.isFeatureAvailable(featureName)) {
+      try {
+        return primaryFunction();
+      } catch (error) {
+        console.warn(`%c  Feature ${featureName} failed, attempting fallback:`, 'color: #FFA500', error);
+        if (fallbackFunction) {
+          try {
+            return fallbackFunction();
+          } catch (fallbackError) {
+            console.warn(`%c  Fallback for ${featureName} also failed:`, 'color: #DC3545', fallbackError);
+          }
+        }
+      }
+    } else {
+      console.log(`%c  Feature ${featureName} not available, using fallback`, 'color: #657786');
+      if (fallbackFunction) {
+        try {
+          return fallbackFunction();
+        } catch (error) {
+          console.warn(`%c  Fallback for ${featureName} failed:`, 'color: #DC3545', error);
+        }
+      }
+    }
+    
+    return fallbackValue;
   }
 }
 

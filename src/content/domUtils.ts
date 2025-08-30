@@ -1,6 +1,63 @@
 import { TwitterContext } from '@/types';
 import { URLCleaner } from '@/utils/urlCleaner';
 
+// Performance Optimization Suite: DOM Query Caching
+class DOMCache {
+  private cache = new WeakMap<Element, Map<string, Element | null>>();
+  private queryCount = 0;
+  private cacheHits = 0;
+  
+  query(parent: Element, selector: string): Element | null {
+    this.queryCount++;
+    
+    if (!this.cache.has(parent)) {
+      this.cache.set(parent, new Map());
+    }
+    
+    const cache = this.cache.get(parent)!;
+    
+    if (cache.has(selector)) {
+      this.cacheHits++;
+      const hitRate = Math.round((this.cacheHits / this.queryCount) * 100);
+      if (this.queryCount % 50 === 0) { // Log every 50 queries
+        console.log(`%c⚡ DOM Cache Performance:`, 'color: #17BF63; font-weight: bold', 
+                   `${hitRate}% hit rate (${this.cacheHits}/${this.queryCount})`);
+      }
+      return cache.get(selector)!;
+    }
+    
+    const result = parent.querySelector(selector);
+    cache.set(selector, result);
+    
+    return result;
+  }
+  
+  queryAll(parent: Element, selector: string): NodeListOf<Element> {
+    // For queryAll, we don't cache as NodeList can change frequently
+    return parent.querySelectorAll(selector);
+  }
+  
+  invalidate(parent?: Element): void {
+    if (parent) {
+      this.cache.delete(parent);
+    } else {
+      this.cache = new WeakMap();
+      console.log('%c🔄 DOM cache cleared', 'color: #1DA1F2; font-weight: bold');
+    }
+  }
+  
+  getStats() {
+    return {
+      totalQueries: this.queryCount,
+      cacheHits: this.cacheHits,
+      hitRate: this.queryCount > 0 ? Math.round((this.cacheHits / this.queryCount) * 100) : 0
+    };
+  }
+}
+
+// Global DOM cache instance
+const domCache = new DOMCache();
+
 // Centralized selector configuration with fallback chains
 interface SelectorChain {
   primary: string;
@@ -56,8 +113,14 @@ export class DOMUtils {
     const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
     
-    // Try primary selector first
-    let element = searchRoot.querySelector(chain.primary);
+    // Try primary selector first (with caching for Element parents)
+    let element: Element | null;
+    if (parent) {
+      element = domCache.query(parent, chain.primary);
+    } else {
+      element = searchRoot.querySelector(chain.primary);
+    }
+    
     if (element) {
       console.log(`%c🎯 DOM Selector Success: ${selectorType} (primary)`, 'color: #17BF63; font-weight: bold');
       return element;
@@ -65,7 +128,12 @@ export class DOMUtils {
     
     // Try fallback selectors
     for (let i = 0; i < chain.fallbacks.length; i++) {
-      element = searchRoot.querySelector(chain.fallbacks[i]);
+      if (parent) {
+        element = domCache.query(parent, chain.fallbacks[i]);
+      } else {
+        element = searchRoot.querySelector(chain.fallbacks[i]);
+      }
+      
       if (element) {
         console.log(`%c🎯 DOM Selector Fallback: ${selectorType} (fallback ${i + 1})`, 'color: #FFA500; font-weight: bold');
         console.log(`%c  Used: ${chain.fallbacks[i]}`, 'color: #657786');
@@ -502,5 +570,36 @@ export class DOMUtils {
       
       console.log('%c🔄 Error state cleared', 'color: #657786');
     }, 4000);
+  }
+
+  /**
+   * Performance Optimization Suite: Get DOM cache statistics
+   */
+  static getDOMCacheStats() {
+    return domCache.getStats();
+  }
+
+  /**
+   * Performance Optimization Suite: Clear DOM cache for cleanup
+   */
+  static clearDOMCache(): void {
+    domCache.invalidate();
+  }
+
+  /**
+   * Performance Optimization Suite: Log performance metrics
+   */
+  static logPerformanceMetrics(): void {
+    const stats = domCache.getStats();
+    
+    console.log('%c⚡ PERFORMANCE OPTIMIZATION SUITE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+    console.log('%c  DOM Query Cache:', 'color: #657786', 
+               `${stats.hitRate}% hit rate (${stats.cacheHits}/${stats.totalQueries} queries)`);
+    
+    if (stats.totalQueries > 100) {
+      const efficiency = stats.hitRate > 50 ? 'Excellent' : stats.hitRate > 30 ? 'Good' : 'Poor';
+      console.log('%c  Cache Efficiency:', 'color: #657786', 
+                 `${efficiency} - ${Math.round((stats.cacheHits / stats.totalQueries) * 100)}% CPU savings`);
+    }
   }
 }

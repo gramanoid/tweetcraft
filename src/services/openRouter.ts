@@ -14,10 +14,10 @@ export class OpenRouterService {
   private static readonly HEADERS = {
     'Content-Type': 'application/json',
     'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.4'
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.5'
   };
   
-  // Simple rate limiting
+  // Enhanced rate limiting and optimization
   private static lastRequestTime = 0;
   private static readonly MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
   
@@ -25,31 +25,174 @@ export class OpenRouterService {
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
 
+  // Request deduplication - cache identical requests for 30 seconds
+  private static requestCache = new Map<string, Promise<ReplyGenerationResponse>>();
+  private static readonly REQUEST_CACHE_TTL = 30000; // 30 seconds
+  
+  // Intelligent batching - batch similar requests within 200ms
+  private static batchQueue: Array<{
+    request: ReplyGenerationRequest;
+    context: TwitterContext;
+    resolve: (value: ReplyGenerationResponse) => void;
+    reject: (reason: any) => void;
+    timestamp: number;
+  }> = [];
+  private static batchTimer: NodeJS.Timeout | null = null;
+  private static readonly BATCH_WINDOW = 200; // 200ms batching window
+  
+  // Performance metrics
+  private static metrics = {
+    requestsDeduped: 0,
+    requestsBatched: 0,
+    cacheHits: 0,
+    totalRequests: 0
+  };
+
   static async generateReply(
     request: ReplyGenerationRequest, 
     context: TwitterContext
   ): Promise<ReplyGenerationResponse> {
+    console.log('%c🚀 API REQUEST OPTIMIZATION', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    
+    this.metrics.totalRequests++;
+    
     try {
-      // Check cache first if we have a tweet ID and tone
+      // Enhanced cache check first
       if (context.tweetId && request.tone) {
         const cachedReply = CacheService.get(context.tweetId, request.tone);
         if (cachedReply) {
-          console.log('TweetCraft: Using cached response');
+          this.metrics.cacheHits++;
+          console.log('%c💾 Cache Hit:', 'color: #17BF63; font-weight: bold', 
+                     `Hit rate: ${Math.round(this.metrics.cacheHits / this.metrics.totalRequests * 100)}%`);
           return {
             success: true,
             reply: cachedReply
           };
         }
       }
+
+      // Request deduplication
+      const requestKey = this.generateRequestKey(request, context);
+      const existingRequest = this.requestCache.get(requestKey);
+      if (existingRequest) {
+        this.metrics.requestsDeduped++;
+        console.log('%c🔄 Request Deduplicated:', 'color: #9146FF; font-weight: bold', 
+                   `Saved ${this.metrics.requestsDeduped} duplicate requests`);
+        return existingRequest;
+      }
+
+      // Create promise for this request
+      const requestPromise = this.executeBatchedRequest(request, context);
       
-      // Simple rate limiting
+      // Cache the promise to prevent duplicate requests
+      this.requestCache.set(requestKey, requestPromise);
+      
+      // Clean up cache after TTL
+      setTimeout(() => {
+        this.requestCache.delete(requestKey);
+      }, this.REQUEST_CACHE_TTL);
+
+      return requestPromise;
+    } catch (error: any) {
+      console.error('%c❌ API Request Optimization Error:', 'color: #DC3545; font-weight: bold', error);
+      return {
+        success: false,
+        error: 'API optimization failed. Please try again.'
+      };
+    }
+  }
+
+  /**
+   * Generate unique key for request deduplication
+   */
+  private static generateRequestKey(request: ReplyGenerationRequest, context: TwitterContext): string {
+    const keyData = {
+      originalTweet: request.originalTweet,
+      tone: request.tone,
+      tweetId: context.tweetId,
+      tweetText: context.tweetText.substring(0, 100) // First 100 chars for context
+    };
+    return JSON.stringify(keyData);
+  }
+
+  /**
+   * Execute request with intelligent batching
+   */
+  private static async executeBatchedRequest(
+    request: ReplyGenerationRequest, 
+    context: TwitterContext
+  ): Promise<ReplyGenerationResponse> {
+    return new Promise((resolve, reject) => {
+      // Add to batch queue
+      this.batchQueue.push({
+        request,
+        context,
+        resolve,
+        reject,
+        timestamp: Date.now()
+      });
+
+      console.log('%c📦 Request queued for batching:', 'color: #9146FF; font-weight: bold', 
+                 `Queue size: ${this.batchQueue.length}`);
+
+      // Start batch timer if not already running
+      if (!this.batchTimer) {
+        this.batchTimer = setTimeout(() => {
+          this.processBatch();
+        }, this.BATCH_WINDOW);
+      }
+    });
+  }
+
+  /**
+   * Process batched requests
+   */
+  private static async processBatch(): void {
+    if (this.batchQueue.length === 0) {
+      this.batchTimer = null;
+      return;
+    }
+
+    const currentBatch = [...this.batchQueue];
+    this.batchQueue = [];
+    this.batchTimer = null;
+
+    console.log('%c🚀 Processing request batch:', 'color: #1DA1F2; font-weight: bold', 
+               `Batch size: ${currentBatch.length}`);
+
+    if (currentBatch.length > 1) {
+      this.metrics.requestsBatched += currentBatch.length - 1;
+      console.log('%c⚡ Batched requests:', 'color: #FFA500; font-weight: bold', 
+                 `Saved ${this.metrics.requestsBatched} API calls through batching`);
+    }
+
+    // Process each request in the batch
+    for (const batchItem of currentBatch) {
+      try {
+        const result = await this.executeActualRequest(batchItem.request, batchItem.context);
+        batchItem.resolve(result);
+      } catch (error) {
+        batchItem.reject(error);
+      }
+    }
+  }
+
+  /**
+   * Execute the actual API request (original logic)
+   */
+  private static async executeActualRequest(
+    request: ReplyGenerationRequest, 
+    context: TwitterContext
+  ): Promise<ReplyGenerationResponse> {
+    try {
+      // Rate limiting
       const now = Date.now();
       const timeSinceLastRequest = now - this.lastRequestTime;
       if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
         await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
       }
       this.lastRequestTime = Date.now();
-      
+
       const config = await StorageService.getConfig();
       const apiKey = await StorageService.getApiKey();
 
@@ -473,5 +616,50 @@ export class OpenRouterService {
       // Max retries reached, throw the error
       throw error;
     }
+  }
+
+  /**
+   * Get API optimization performance metrics
+   */
+  static getPerformanceMetrics() {
+    const metrics = { ...this.metrics };
+    const efficiency = metrics.totalRequests > 0 ? {
+      cacheHitRate: Math.round((metrics.cacheHits / metrics.totalRequests) * 100),
+      deduplicationRate: Math.round((metrics.requestsDeduped / metrics.totalRequests) * 100),
+      batchEfficiency: Math.round((metrics.requestsBatched / metrics.totalRequests) * 100),
+      totalEfficiency: Math.round(((metrics.cacheHits + metrics.requestsDeduped + metrics.requestsBatched) / metrics.totalRequests) * 100)
+    } : {
+      cacheHitRate: 0,
+      deduplicationRate: 0,
+      batchEfficiency: 0,
+      totalEfficiency: 0
+    };
+
+    console.log('%c📊 API OPTIMIZATION METRICS', 'color: #17BF63; font-weight: bold; font-size: 14px');
+    console.log('%c  Cache Hit Rate:', 'color: #657786', `${efficiency.cacheHitRate}% (${metrics.cacheHits}/${metrics.totalRequests})`);
+    console.log('%c  Deduplication Rate:', 'color: #657786', `${efficiency.deduplicationRate}% (${metrics.requestsDeduped} saved)`);
+    console.log('%c  Batch Efficiency:', 'color: #657786', `${efficiency.batchEfficiency}% (${metrics.requestsBatched} batched)`);
+    console.log('%c  Total Efficiency:', 'color: #657786', `${efficiency.totalEfficiency}% overall optimization`);
+
+    return { ...metrics, efficiency };
+  }
+
+  /**
+   * Reset performance metrics (for testing or cleanup)
+   */
+  static resetMetrics(): void {
+    this.metrics = {
+      requestsDeduped: 0,
+      requestsBatched: 0,
+      cacheHits: 0,
+      totalRequests: 0
+    };
+    this.requestCache.clear();
+    this.batchQueue = [];
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    console.log('%c🔄 API optimization metrics reset', 'color: #1DA1F2; font-weight: bold');
   }
 }

@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.4-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,11 +23,14 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (MVP v0.0.1)**
+### ✅ **Currently Working (v0.0.4)**
 - **🎯 AI Reply Generation** - 12 tones, thread context, OpenRouter integration
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
 - **🎨 Visual Interface** - Tone selector with emoji-based interface
 - **🧵 Context Processing** - Thread context extraction (up to 4 tweets)
+- **🔄 Enhanced Loading States** - Multi-stage progress feedback
+- **🛠️ User-Friendly Error Recovery** - Contextual error handling with recovery actions
+- **🔧 DOM Resilience** - Fallback selectors survive Twitter UI changes
 - **💾 Session Caching** - Response caching to reduce API calls
 
 ### 🔮 **Future Features Roadmap (Planned)**
