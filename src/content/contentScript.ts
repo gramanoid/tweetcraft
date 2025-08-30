@@ -69,9 +69,20 @@ class SmartReplyContentScript {
     // Enhanced cleanup with state persistence for context recovery
     const handleNavigation = () => {
       if (!this.isDestroyed) {
-        console.log('%c🔄 Smart Reply: Page navigation detected, saving state...', 'color: #FFA500; font-weight: bold');
-        this.saveStateForRecovery();
-        this.destroy();
+        console.log('%c🔄 Smart Reply: Page navigation detected, refreshing...', 'color: #FFA500; font-weight: bold');
+        
+        // Clear processed toolbars for the new page
+        this.processedToolbars = new WeakSet<Element>();
+        
+        // Reset retry count and attempt injection after navigation
+        this.initialRetryCount = 0;
+        
+        // Give the new page time to load
+        setTimeout(() => {
+          if (!this.isDestroyed) {
+            this.attemptInitialInjection();
+          }
+        }, 500);
       }
     };
     
@@ -197,6 +208,10 @@ class SmartReplyContentScript {
     }
   }
 
+  private initialRetryCount = 0;
+  private maxInitialRetries = 10;
+  private initialRetryDelay = 500;
+
   private startObserving(): void {
     // Find the React root element
     const reactRoot = document.querySelector('#react-root');
@@ -207,6 +222,9 @@ class SmartReplyContentScript {
       }, 1000);
       return;
     }
+
+    // Attempt initial injection with retries
+    this.attemptInitialInjection();
 
     // Create debounced handler for processing mutations with reduced frequency
     const debouncedMutationHandler = debounce(() => {
@@ -714,6 +732,62 @@ class SmartReplyContentScript {
   private detectFeatures(): void {
     // All features are assumed to be available on Twitter/X
     // No longer doing progressive enhancement
+  }
+
+  /**
+   * Attempt initial injection with retries for hard refresh scenarios
+   */
+  private attemptInitialInjection(): void {
+    // Check if we're on a reply-capable page
+    const isReplyPage = window.location.pathname.includes('/status/') || 
+                       document.querySelector('article[data-testid="tweet"]');
+    
+    if (!isReplyPage) {
+      // Not on a reply page, reset retry count for next time
+      this.initialRetryCount = 0;
+      return;
+    }
+
+    // Try to find and inject buttons
+    const toolbars: Element[] = [];
+    
+    // Try primary selector
+    document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
+      toolbars.push(toolbar);
+    });
+    
+    // If none found, try fallbacks
+    if (toolbars.length === 0) {
+      const toolbar = DOMUtils.findWithFallback('toolbar');
+      if (toolbar) toolbars.push(toolbar);
+    }
+
+    // Process any found toolbars
+    if (toolbars.length > 0) {
+      console.log(`%c🎯 Initial injection: Found ${toolbars.length} toolbar(s) on attempt ${this.initialRetryCount + 1}`, 'color: #17BF63');
+      toolbars.forEach(toolbar => {
+        if (!this.processedToolbars.has(toolbar)) {
+          this.handleToolbarAdded(toolbar);
+        }
+      });
+      // Reset retry count on success
+      this.initialRetryCount = 0;
+    } else if (this.initialRetryCount < this.maxInitialRetries) {
+      // Retry with exponential backoff
+      this.initialRetryCount++;
+      const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
+      console.log(`%c⏳ Initial injection: No toolbars found, retrying in ${delay}ms (attempt ${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
+      
+      setTimeout(() => {
+        if (!this.isDestroyed) {
+          this.attemptInitialInjection();
+        }
+      }, delay);
+    } else {
+      // Max retries reached
+      console.log('%c⚠️ Initial injection: Max retries reached, relying on mutation observer', 'color: #FFA500');
+      this.initialRetryCount = 0;
+    }
   }
 
   /**
