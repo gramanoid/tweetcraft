@@ -25,12 +25,12 @@ export class TemplateSelector {
     container.className = 'template-selector-container';
     container.style.cssText = `
       position: absolute;
-      background: white;
-      border: 1px solid #e1e8ed;
+      background: #15202b;
+      border: 1px solid #38444d;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      max-width: 400px;
-      max-height: 400px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      width: 360px;
+      max-height: 320px;
       overflow-y: auto;
       z-index: 10000;
       display: none;
@@ -40,20 +40,21 @@ export class TemplateSelector {
     const header = document.createElement('div');
     header.className = 'template-selector-header';
     header.style.cssText = `
-      padding: 12px 16px;
-      border-bottom: 1px solid #e1e8ed;
+      padding: 10px 14px;
+      border-bottom: 1px solid #38444d;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: #192734;
     `;
     
     const title = document.createElement('h3');
     title.textContent = 'Reply Templates';
     title.style.cssText = `
       margin: 0;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
-      color: #14171a;
+      color: #ffffff;
     `;
     
     const closeBtn = document.createElement('button');
@@ -61,13 +62,16 @@ export class TemplateSelector {
     closeBtn.style.cssText = `
       background: none;
       border: none;
-      font-size: 20px;
-      color: #657786;
+      font-size: 18px;
+      color: #8899a6;
       cursor: pointer;
       padding: 0;
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
+      transition: color 0.2s;
     `;
+    closeBtn.onmouseover = () => closeBtn.style.color = '#ffffff';
+    closeBtn.onmouseout = () => closeBtn.style.color = '#8899a6';
     closeBtn.onclick = () => this.close();
     
     header.appendChild(title);
@@ -79,8 +83,8 @@ export class TemplateSelector {
     tabs.className = 'template-tabs';
     tabs.style.cssText = `
       display: flex;
-      border-bottom: 1px solid #e1e8ed;
-      background: #f7f9fa;
+      border-bottom: 1px solid #38444d;
+      background: #192734;
     `;
     
     const presetTab = this.createTab('Presets', true);
@@ -106,7 +110,9 @@ export class TemplateSelector {
     const content = document.createElement('div');
     content.className = 'template-content';
     content.style.cssText = `
-      padding: 8px;
+      padding: 4px;
+      max-height: 200px;
+      overflow-y: auto;
     `;
     container.appendChild(content);
     
@@ -117,24 +123,27 @@ export class TemplateSelector {
     const footer = document.createElement('div');
     footer.className = 'template-footer';
     footer.style.cssText = `
-      padding: 12px 16px;
-      border-top: 1px solid #e1e8ed;
-      background: #f7f9fa;
+      padding: 10px 14px;
+      border-top: 1px solid #38444d;
+      background: #192734;
     `;
     
     const createBtn = document.createElement('button');
     createBtn.textContent = '+ Create Custom Template';
     createBtn.style.cssText = `
       width: 100%;
-      padding: 8px 16px;
+      padding: 6px 12px;
       background: #1da1f2;
       color: white;
       border: none;
-      border-radius: 20px;
-      font-size: 14px;
+      border-radius: 16px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.2s;
     `;
+    createBtn.onmouseover = () => createBtn.style.background = '#1a8cd8';
+    createBtn.onmouseout = () => createBtn.style.background = '#1da1f2';
     createBtn.onclick = () => this.openTemplateCreator();
     
     footer.appendChild(createBtn);
@@ -152,14 +161,15 @@ export class TemplateSelector {
     tab.textContent = label;
     tab.style.cssText = `
       flex: 1;
-      padding: 12px;
-      background: ${isActive ? 'white' : 'transparent'};
+      padding: 8px;
+      background: ${isActive ? '#15202b' : 'transparent'};
       border: none;
       border-bottom: ${isActive ? '2px solid #1da1f2' : 'none'};
-      color: ${isActive ? '#1da1f2' : '#657786'};
-      font-size: 14px;
+      color: ${isActive ? '#1da1f2' : '#8899a6'};
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: all 0.2s;
     `;
     return tab;
   }
@@ -181,11 +191,12 @@ export class TemplateSelector {
       // Add category header
       const categoryHeader = document.createElement('div');
       categoryHeader.style.cssText = `
-        padding: 8px 12px 4px;
-        font-size: 12px;
+        padding: 6px 10px 2px;
+        font-size: 11px;
         font-weight: 600;
-        color: #657786;
+        color: #8899a6;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
       `;
       categoryHeader.textContent = category;
       container.appendChild(categoryHeader);
@@ -208,14 +219,14 @@ export class TemplateSelector {
     if (templates.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.style.cssText = `
-        padding: 32px;
+        padding: 24px;
         text-align: center;
-        color: #657786;
+        color: #8899a6;
       `;
       emptyState.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
-        <div style="font-size: 16px; margin-bottom: 8px;">No custom templates yet</div>
-        <div style="font-size: 14px;">Create your own templates for frequently used reply patterns</div>
+        <div style="font-size: 36px; margin-bottom: 12px;">📝</div>
+        <div style="font-size: 14px; margin-bottom: 6px; color: #ffffff;">No custom templates yet</div>
+        <div style="font-size: 12px; color: #8899a6;">Create your own templates for frequently used reply patterns</div>
       `;
       container.appendChild(emptyState);
       return;
@@ -228,20 +239,30 @@ export class TemplateSelector {
       const actions = document.createElement('div');
       actions.style.cssText = `
         display: flex;
-        gap: 8px;
-        margin-top: 8px;
+        gap: 6px;
+        margin-top: 4px;
       `;
       
       const editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
       editBtn.style.cssText = `
-        padding: 4px 12px;
-        background: #f7f9fa;
-        border: 1px solid #e1e8ed;
-        border-radius: 12px;
-        font-size: 12px;
+        padding: 3px 10px;
+        background: #253341;
+        border: 1px solid #38444d;
+        border-radius: 10px;
+        font-size: 11px;
+        color: #8899a6;
         cursor: pointer;
+        transition: all 0.2s;
       `;
+      editBtn.onmouseover = () => {
+        editBtn.style.background = '#1da1f2';
+        editBtn.style.color = '#ffffff';
+      };
+      editBtn.onmouseout = () => {
+        editBtn.style.background = '#253341';
+        editBtn.style.color = '#8899a6';
+      };
       editBtn.onclick = (e) => {
         e.stopPropagation();
         this.editTemplate(template);
@@ -250,14 +271,23 @@ export class TemplateSelector {
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.style.cssText = `
-        padding: 4px 12px;
-        background: #fee;
-        border: 1px solid #fcc;
-        border-radius: 12px;
-        font-size: 12px;
-        color: #c33;
+        padding: 3px 10px;
+        background: #3d2222;
+        border: 1px solid #5c2b2b;
+        border-radius: 10px;
+        font-size: 11px;
+        color: #e0697a;
         cursor: pointer;
+        transition: all 0.2s;
       `;
+      deleteBtn.onmouseover = () => {
+        deleteBtn.style.background = '#5c2b2b';
+        deleteBtn.style.color = '#ff6b6b';
+      };
+      deleteBtn.onmouseout = () => {
+        deleteBtn.style.background = '#3d2222';
+        deleteBtn.style.color = '#e0697a';
+      };
       deleteBtn.onclick = async (e) => {
         e.stopPropagation();
         if (confirm(`Delete template "${template.name}"?`)) {
@@ -281,23 +311,23 @@ export class TemplateSelector {
     const item = document.createElement('div');
     item.className = 'template-item';
     item.style.cssText = `
-      padding: 12px;
-      margin: 4px 8px;
-      background: white;
-      border: 1px solid #e1e8ed;
-      border-radius: 8px;
+      padding: 8px 10px;
+      margin: 2px 4px;
+      background: #192734;
+      border: 1px solid #38444d;
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
     `;
     
     item.onmouseover = () => {
-      item.style.background = '#f7f9fa';
+      item.style.background = '#1e2732';
       item.style.borderColor = '#1da1f2';
     };
     
     item.onmouseout = () => {
-      item.style.background = 'white';
-      item.style.borderColor = '#e1e8ed';
+      item.style.background = '#192734';
+      item.style.borderColor = '#38444d';
     };
     
     item.onclick = () => {
@@ -308,20 +338,20 @@ export class TemplateSelector {
     header.style.cssText = `
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 2px;
     `;
     
     const emoji = document.createElement('span');
     emoji.textContent = template.emoji;
-    emoji.style.fontSize = '18px';
+    emoji.style.fontSize = '16px';
     
     const name = document.createElement('span');
     name.textContent = template.name;
     name.style.cssText = `
       font-weight: 600;
-      color: #14171a;
-      font-size: 14px;
+      color: #ffffff;
+      font-size: 13px;
     `;
     
     header.appendChild(emoji);
@@ -331,9 +361,10 @@ export class TemplateSelector {
     const description = document.createElement('div');
     description.textContent = template.description;
     description.style.cssText = `
-      font-size: 13px;
-      color: #657786;
-      margin-bottom: 4px;
+      font-size: 12px;
+      color: #8899a6;
+      margin-bottom: 2px;
+      line-height: 1.3;
     `;
     item.appendChild(description);
     
@@ -342,10 +373,10 @@ export class TemplateSelector {
       const pattern = document.createElement('div');
       pattern.textContent = `Pattern: ${template.pattern}`;
       pattern.style.cssText = `
-        font-size: 12px;
-        color: #8899a6;
+        font-size: 11px;
+        color: #657786;
         font-style: italic;
-        margin-top: 4px;
+        margin-top: 2px;
       `;
       item.appendChild(pattern);
     }
@@ -355,9 +386,9 @@ export class TemplateSelector {
       const usage = document.createElement('div');
       usage.textContent = `Used ${template.usageCount} times`;
       usage.style.cssText = `
-        font-size: 11px;
-        color: #aab8c2;
-        margin-top: 4px;
+        font-size: 10px;
+        color: #657786;
+        margin-top: 2px;
       `;
       item.appendChild(usage);
     }
