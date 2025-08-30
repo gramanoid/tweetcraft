@@ -508,7 +508,7 @@ class SmartReplyContentScript {
       }
 
       // Enhanced loading states with progress
-      DOMUtils.showLoadingState(button, 'Preparing');
+      LoadingStateManager.startLoading(button, operationKey, LoadingStateManager.STAGES.PREPARING);
       console.log('%c🚀 Smart Reply: Starting generation with tone:', 'color: #1DA1F2; font-weight: bold', tone);
 
       // Brief delay to show first stage (with cancellation check)
@@ -526,9 +526,10 @@ class SmartReplyContentScript {
       
       // Check if API key is configured (with cancellation check)
       if (signal.aborted) throw new Error('Operation cancelled');
-      DOMUtils.showLoadingState(button, 'Validating API');
+      LoadingStateManager.updateStage(button, operationKey, LoadingStateManager.STAGES.VALIDATING, 20);
       const apiKey = await StorageService.getApiKey();
       if (!apiKey) {
+        LoadingStateManager.errorLoading(button, operationKey, 'API key not configured');
         DOMUtils.showError(button, 'Please configure your API key in the extension popup', 'api');
         console.error('%c❌ Smart Reply: No API key configured', 'color: #DC3545; font-weight: bold');
         return;
@@ -538,7 +539,7 @@ class SmartReplyContentScript {
       if (signal.aborted) throw new Error('Operation cancelled');
       
       // Prepare the request
-      DOMUtils.showLoadingState(button, 'Building Request');
+      LoadingStateManager.updateStage(button, operationKey, LoadingStateManager.STAGES.BUILDING, 40);
       const request: ReplyGenerationRequest = {
         originalTweet: context.tweetText,
         tone: tone
@@ -550,13 +551,16 @@ class SmartReplyContentScript {
       if (signal.aborted) throw new Error('Operation cancelled');
 
       // Generate the reply with final loading state and pass the signal
-      DOMUtils.showLoadingState(button, 'Generating');
+      LoadingStateManager.updateStage(button, operationKey, LoadingStateManager.STAGES.GENERATING, 60);
       const response = await OpenRouterService.generateReply(request, context, signal);
 
       // Check for cancellation after API call
       if (signal.aborted) throw new Error('Operation cancelled');
 
       if (response.success && response.reply) {
+        // Finalize the response
+        LoadingStateManager.updateStage(button, operationKey, LoadingStateManager.STAGES.FINALIZING, 90);
+        
         // Set the generated text in the textarea
         DOMUtils.setTextareaValue(textarea, response.reply);
         
@@ -592,6 +596,9 @@ class SmartReplyContentScript {
         // Store the listener for cleanup
         textarea.setAttribute('data-smart-reply-listener', 'true');
       } else {
+        // Clear loading state on API failure
+        LoadingStateManager.errorLoading(button, operationKey, response.error || 'Failed to generate reply');
+        
         // Use enhanced error handling for API failures
         const apiError = new Error(response.error || 'Failed to generate reply');
         ErrorHandler.handleUserFriendlyError(
@@ -611,8 +618,12 @@ class SmartReplyContentScript {
       // Handle cancellation gracefully
       if ((error as Error).message.includes('cancelled')) {
         console.log('%c⏹️ Operation cancelled during generation', 'color: #657786');
+        LoadingStateManager.cancelLoading(button, operationKey);
         return; // Don't show error UI for cancellations
       }
+      
+      // Clear loading state on error
+      LoadingStateManager.errorLoading(button, operationKey, (error as Error).message || 'Generation failed');
       
       // Use enhanced error handling with recovery actions
       const recoveryActions = ErrorHandler.handleUserFriendlyError(

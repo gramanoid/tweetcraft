@@ -176,7 +176,7 @@ export class KeyboardShortcutManager {
    * Trigger quick generation with default tone
    */
   private static async triggerQuickGenerate(): Promise<void> {
-    const button = document.querySelector('.smart-reply-button') as HTMLElement;
+    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) return;
     
     // Get default tone from storage
@@ -192,7 +192,7 @@ export class KeyboardShortcutManager {
    * Regenerate with the last used tone
    */
   private static async triggerRegenerate(): Promise<void> {
-    const button = document.querySelector('.smart-reply-button') as HTMLElement;
+    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) return;
     
     // Get last tone from storage or button
@@ -213,7 +213,7 @@ export class KeyboardShortcutManager {
    * Trigger generation with specific tone
    */
   private static triggerToneGeneration(tone: string): void {
-    const button = document.querySelector('.smart-reply-button') as HTMLElement;
+    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) return;
     
     button.setAttribute('data-tone', tone);
@@ -233,7 +233,7 @@ export class KeyboardShortcutManager {
    * Open tone dropdown
    */
   private static openToneDropdown(): void {
-    const button = document.querySelector('.smart-reply-button') as HTMLElement;
+    const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) {
       return;
     }
