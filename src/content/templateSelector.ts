@@ -128,7 +128,7 @@ export class TemplateSelector {
     content.className = 'template-content';
     content.style.cssText = `
       padding: 4px;
-      max-height: 200px;
+      height: 180px;
       overflow-y: auto;
     `;
     container.appendChild(content);
@@ -347,7 +347,9 @@ export class TemplateSelector {
       item.style.borderColor = '#38444d';
     };
     
-    item.onclick = () => {
+    item.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
       this.selectTemplate(template);
     };
     
@@ -503,8 +505,10 @@ export class TemplateSelector {
     toneGrid.style.cssText = `
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
+      gap: 3px;
       padding: 4px;
+      max-height: calc(180px - 40px);
+      overflow-y: auto;
     `;
     
     TemplateSelector.TONE_OPTIONS.forEach(tone => {
@@ -513,7 +517,7 @@ export class TemplateSelector {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 8px 4px;
+        padding: 6px 2px;
         background: #192734;
         border: 1px solid #38444d;
         border-radius: 6px;
@@ -524,14 +528,14 @@ export class TemplateSelector {
       const emoji = document.createElement('div');
       emoji.textContent = tone.emoji;
       emoji.style.cssText = `
-        font-size: 20px;
-        margin-bottom: 2px;
+        font-size: 18px;
+        margin-bottom: 1px;
       `;
       
       const label = document.createElement('div');
       label.textContent = tone.label;
       label.style.cssText = `
-        font-size: 11px;
+        font-size: 10px;
         color: #ffffff;
         font-weight: 600;
       `;
@@ -539,9 +543,9 @@ export class TemplateSelector {
       const desc = document.createElement('div');
       desc.textContent = tone.description;
       desc.style.cssText = `
-        font-size: 9px;
+        font-size: 8px;
         color: #8899a6;
-        margin-top: 1px;
+        margin-top: 0px;
       `;
       
       toneBtn.appendChild(emoji);
