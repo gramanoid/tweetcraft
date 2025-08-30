@@ -15,7 +15,7 @@ export interface PresetTemplate {
 }
 
 export class PresetTemplates {
-  private static readonly DEFAULT_PRESETS: PresetTemplate[] = [
+  public static readonly DEFAULT_PRESETS: PresetTemplate[] = [
     // Engagement presets
     {
       id: 'ask_question',

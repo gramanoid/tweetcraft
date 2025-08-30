@@ -170,8 +170,8 @@ export class TemplateSelector {
   private showPresetTemplates(container: HTMLElement): void {
     container.innerHTML = '';
     
-    // Access the DEFAULT_PRESETS directly (we'll need to make it public)
-    const templates = (PresetTemplates as any).DEFAULT_PRESETS || [];
+    // Access the DEFAULT_PRESETS directly (now public)
+    const templates = PresetTemplates.DEFAULT_PRESETS || [];
     const categories = ['engagement', 'value', 'conversation', 'humor'];
     
     categories.forEach(category => {

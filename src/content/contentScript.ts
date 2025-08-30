@@ -6,6 +6,7 @@ import { debounce, throttle } from '@/utils/debounce';
 import { ErrorHandler } from '@/utils/errorHandler';
 import { globalAsyncManager } from '@/utils/asyncOperationManager';
 import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
+import { TemplateSelector } from './templateSelector';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -441,20 +442,8 @@ class SmartReplyContentScript {
       // Create the main button
       const button = DOMUtils.createSmartReplyButton();
       
-      // Create the dropdown for tone selection
-      const dropdown = await DOMUtils.createToneDropdown((tone: string) => {
-        this.generateReply(textarea, context, tone);
-      });
-
-      // Function to update dropdown position
-      const updateDropdownPosition = () => {
-        if (dropdown.style.display === 'block') {
-          const rect = button.getBoundingClientRect();
-          dropdown.style.position = 'fixed';
-          dropdown.style.top = `${rect.bottom + 5}px`;
-          dropdown.style.left = `${rect.left}px`;
-        }
-      };
+      // Create template selector instance
+      const templateSelector = new TemplateSelector();
 
       // Add click handler for the main button
       button.addEventListener('click', (e) => {
@@ -475,81 +464,20 @@ class SmartReplyContentScript {
           return;
         }
         
-        // Toggle dropdown visibility
-        const isVisible = dropdown.style.display === 'block';
-        dropdown.style.display = isVisible ? 'none' : 'block';
-        
-        if (!isVisible) {
-          // Position dropdown relative to button
-          updateDropdownPosition();
-          dropdown.style.zIndex = '10000'; // Higher z-index
+        // Show template selector
+        templateSelector.show(button, (template) => {
+          // When a template is selected, generate reply with it
+          console.log('%c📝 Template Selected:', 'color: #1DA1F2; font-weight: bold', template.name);
           
-          // Add scroll listener to update position
-          window.addEventListener('scroll', updateDropdownPosition, true);
-          
-          // Focus first option for keyboard nav
-          const firstOption = dropdown.querySelector('.smart-reply-option') as HTMLElement;
-          if (firstOption) {
-            firstOption.focus();
-            firstOption.setAttribute('tabindex', '0');
-          }
-        } else {
-          // Remove scroll listener when closing
-          window.removeEventListener('scroll', updateDropdownPosition, true);
-        }
+          // Generate reply using the template's prompt as the tone/instruction
+          this.generateReply(textarea, context, template.prompt || template.name, bypassCache);
+        });
         
         return false; // Prevent any default action
       }, true); // Use capture phase
 
-      // Close dropdown when clicking outside or pressing Escape
-      document.addEventListener('click', (e) => {
-        if (!buttonContainer.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
-          dropdown.style.display = 'none';
-          // Remove scroll listener
-          window.removeEventListener('scroll', updateDropdownPosition, true);
-        }
-      });
-      
-      // Keyboard navigation
-      document.addEventListener('keydown', (e) => {
-        if (dropdown.style.display === 'block') {
-          const options = Array.from(dropdown.querySelectorAll('.smart-reply-option')) as HTMLElement[];
-          const focusedIndex = options.findIndex(opt => opt === document.activeElement);
-          
-          switch(e.key) {
-            case 'Escape':
-              dropdown.style.display = 'none';
-              window.removeEventListener('scroll', updateDropdownPosition, true);
-              button.focus();
-              e.preventDefault();
-              break;
-            case 'ArrowDown':
-              e.preventDefault();
-              const nextIndex = focusedIndex < options.length - 1 ? focusedIndex + 1 : 0;
-              options[nextIndex]?.focus();
-              options[nextIndex]?.setAttribute('tabindex', '0');
-              break;
-            case 'ArrowUp':
-              e.preventDefault();
-              const prevIndex = focusedIndex > 0 ? focusedIndex - 1 : options.length - 1;
-              options[prevIndex]?.focus();
-              options[prevIndex]?.setAttribute('tabindex', '0');
-              break;
-            case 'Enter':
-              if (focusedIndex >= 0) {
-                e.preventDefault();
-                options[focusedIndex]?.click();
-              }
-              break;
-          }
-        }
-      });
-
       // Assemble the components
       buttonContainer.appendChild(button);
-      
-      // Append dropdown to body to avoid Twitter's event handlers
-      document.body.appendChild(dropdown);
 
       // Find the right place to inject the button
       const toolbarContainer = toolbarElement.querySelector('div');
