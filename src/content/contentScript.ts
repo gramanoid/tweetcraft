@@ -219,11 +219,17 @@ class SmartReplyContentScript {
     
     console.log('Smart Reply: React root found, setting up observer');
 
-    // Create debounced handler for processing mutations
+    // Create debounced handler for processing mutations with reduced frequency
     const debouncedMutationHandler = debounce(() => {
+      // Only process if we're on a page that likely has toolbars
+      if (!window.location.pathname.includes('/status/') && 
+          !document.querySelector('article[data-testid="tweet"]')) {
+        return; // Skip processing on non-tweet pages
+      }
+      
       const toolbarsToProcess = new Set<Element>();
       
-      // Find all unprocessed toolbars
+      // Find all unprocessed toolbars using silent mode to reduce console noise
       document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
         if (!this.processedToolbars.has(toolbar)) {
           toolbarsToProcess.add(toolbar);
@@ -234,7 +240,7 @@ class SmartReplyContentScript {
       toolbarsToProcess.forEach(toolbar => {
         this.handleToolbarAdded(toolbar);
       });
-    }, 500); // Debounce for 500ms to batch rapid DOM changes
+    }, 1000); // Increased debounce to 1000ms to reduce frequency
 
     // Set up mutation observer to detect new toolbars
     this.observer = new MutationObserver((mutations) => {
@@ -647,49 +653,26 @@ class SmartReplyContentScript {
    * Progressive Enhancement: Detect available features
    */
   private detectFeatures(): void {
-    console.log('%c🔍 PROGRESSIVE ENHANCEMENT: Feature Detection', 'color: #9146FF; font-weight: bold; font-size: 14px');
+    // Silently test features without excessive logging
+    this.features.set('dom_injection', this.testDOMInjection());
+    this.features.set('reply_detection', this.testReplyDetection());
+    this.features.set('context_extraction', this.testContextExtraction());
+    this.features.set('api_communication', this.testAPICommunication());
+    this.features.set('storage_access', this.testStorageAccess());
     
-    // Test DOM injection capability
-    const domInjection = this.testDOMInjection();
-    this.features.set('dom_injection', domInjection);
-    
-    // Test reply detection capability
-    const replyDetection = this.testReplyDetection();
-    this.features.set('reply_detection', replyDetection);
-    
-    // Test context extraction
-    const contextExtraction = this.testContextExtraction();
-    this.features.set('context_extraction', contextExtraction);
-    
-    // Test API communication
-    const apiCommunication = this.testAPICommunication();
-    this.features.set('api_communication', apiCommunication);
-    
-    // Test storage access
-    const storageAccess = this.testStorageAccess();
-    this.features.set('storage_access', storageAccess);
-    
-    // Log feature availability
-    const availableFeatures = Array.from(this.features.entries())
-      .filter(([_, available]) => available)
-      .map(([feature, _]) => feature);
-    
+    // Only log if there are actual issues
     const unavailableFeatures = Array.from(this.features.entries())
       .filter(([_, available]) => !available)
       .map(([feature, _]) => feature);
     
-    console.log('%c  ✅ Available Features:', 'color: #17BF63; font-weight: bold', availableFeatures);
     if (unavailableFeatures.length > 0) {
-      console.log('%c  ❌ Unavailable Features:', 'color: #DC3545; font-weight: bold', unavailableFeatures);
-      console.log('%c  🎯 Graceful degradation will be applied', 'color: #FFA500; font-weight: bold');
+      console.log('%c⚠️ TweetCraft: Some features unavailable:', 'color: #FFA500; font-weight: bold', unavailableFeatures);
     }
     
-    // Determine operational mode
+    // Only warn about reduced functionality if core features are missing
     const coreAvailable = this.CORE_FEATURES.every(feature => this.features.get(feature));
-    if (coreAvailable) {
-      console.log('%c  🚀 Full functionality available', 'color: #1DA1F2; font-weight: bold');
-    } else {
-      console.log('%c  ⚡ Partial functionality mode', 'color: #FFA500; font-weight: bold');
+    if (!coreAvailable) {
+      console.log('%c⚡ TweetCraft: Running in reduced functionality mode', 'color: #FFA500');
     }
   }
 

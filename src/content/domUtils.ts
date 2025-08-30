@@ -160,16 +160,22 @@ export class DOMUtils {
   private static shouldExpectElement(selectorType: keyof typeof SELECTOR_CHAINS): boolean {
     switch (selectorType) {
       case 'replyTextarea':
-        // Only expect reply textarea when we're actually composing a reply
-        return !!document.querySelector('[data-testid="toolBar"]') || !!document.querySelector('[aria-label*="reply"]');
+        // Only expect reply textarea when we're in compose/reply mode
+        // Check for compose tweet modal, reply modal, or inline reply
+        const hasComposeModal = !!document.querySelector('[data-testid="tweetTextarea_0"]');
+        const hasReplyModal = !!document.querySelector('[data-testid="tweetTextarea_1"]');
+        const isReplyPage = window.location.pathname.includes('/compose/tweet') || 
+                           window.location.href.includes('reply');
+        return hasComposeModal || hasReplyModal || isReplyPage;
       case 'toolbar':
-        // Always expect toolbar in tweet contexts
-        return true;
+        // Only expect toolbar in tweet contexts, not on profile pages or other pages
+        return !!document.querySelector('article[data-testid="tweet"]') || 
+               window.location.pathname.includes('/status/');
       case 'tweetText':
-        // Only expect tweet text when we're on a tweet page
-        return window.location.pathname.includes('/status/') || !!document.querySelector('article[data-testid="tweet"]');
+        // Only expect tweet text when we're on a tweet page with actual tweets
+        return !!document.querySelector('article[data-testid="tweet"]');
       case 'originalTweet':
-        // Only expect original tweet when replying
+        // Only expect original tweet when we're on a specific tweet page
         return window.location.pathname.includes('/status/');
       default:
         return true;
