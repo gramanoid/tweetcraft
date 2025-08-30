@@ -46,8 +46,8 @@ export class TemplateSelector {
       border: 1px solid #38444d;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      width: 360px;
-      max-height: 320px;
+      width: 380px;
+      max-height: 480px;
       overflow-y: auto;
       z-index: 10000;
       display: none;
@@ -128,7 +128,7 @@ export class TemplateSelector {
     content.className = 'template-content';
     content.style.cssText = `
       padding: 4px;
-      height: 180px;
+      height: 340px;
       overflow-y: auto;
     `;
     container.appendChild(content);
@@ -507,7 +507,7 @@ export class TemplateSelector {
       grid-template-columns: repeat(3, 1fr);
       gap: 3px;
       padding: 4px;
-      max-height: calc(180px - 40px);
+      max-height: calc(340px - 40px);
       overflow-y: auto;
     `;
     
