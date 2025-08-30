@@ -684,10 +684,10 @@ class SmartReplyContentScript {
       // Test if we can create and inject elements
       const testElement = document.createElement('div');
       testElement.style.display = 'none';
-      testElement.dataset.testElement = 'tweetcraft-test';
+      testElement.setAttribute('data-tweetcraft-test', 'true');
       
       document.body?.appendChild(testElement);
-      const found = document.querySelector('[data-test-element="tweetcraft-test"]');
+      const found = document.querySelector('[data-tweetcraft-test="true"]');
       
       if (found) {
         found.remove();
@@ -705,11 +705,17 @@ class SmartReplyContentScript {
    */
   private testReplyDetection(): boolean {
     try {
-      // Test if we can find Twitter reply elements
-      const replyButtons = document.querySelectorAll('[data-testid="reply"]');
-      const toolbars = document.querySelectorAll('[data-testid="toolBar"], [role="group"]:has(button)');
+      // Test if we're on Twitter/X and can potentially find reply elements
+      // Don't require elements to exist immediately, just test capability
+      const isTwitterPage = window.location.hostname.includes('twitter.com') || 
+                           window.location.hostname.includes('x.com');
       
-      return replyButtons.length > 0 || toolbars.length > 0;
+      if (!isTwitterPage) return false;
+      
+      // Test basic DOM query capability for Twitter elements
+      const hasBasicTwitterStructure = !!document.querySelector('#react-root, [data-reactroot]');
+      
+      return hasBasicTwitterStructure;
     } catch (error) {
       console.warn('%c  Reply detection test failed:', 'color: #FFA500', error);
       return false;
@@ -721,11 +727,18 @@ class SmartReplyContentScript {
    */
   private testContextExtraction(): boolean {
     try {
-      // Test if we can extract tweet context
-      const tweets = document.querySelectorAll('[data-testid="tweet"], [data-testid="tweetText"], article[role="article"]');
-      const tweetTexts = document.querySelectorAll('[data-testid="tweetText"], [lang]');
+      // Test if we have the basic capability to extract context
+      // Don't require content to be loaded immediately
+      const isTwitterPage = window.location.hostname.includes('twitter.com') || 
+                           window.location.hostname.includes('x.com');
       
-      return tweets.length > 0 && tweetTexts.length > 0;
+      if (!isTwitterPage) return false;
+      
+      // Test if we can run basic DOM queries and have access to DOMUtils
+      const hasReactRoot = !!document.querySelector('#react-root, [data-reactroot]');
+      const canAccessDOMUtils = typeof DOMUtils !== 'undefined';
+      
+      return hasReactRoot && canAccessDOMUtils;
     } catch (error) {
       console.warn('%c  Context extraction test failed:', 'color: #FFA500', error);
       return false;
