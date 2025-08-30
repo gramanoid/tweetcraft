@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.5 Performance & Optimization Release
+This repository contains TweetCraft - an AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, custom prompt support, and thread context awareness. Current version: 0.0.6 Stability & Performance Release
 
 ## Project Structure
 
@@ -198,7 +198,7 @@ Every new feature must include comprehensive console logging following these sta
 
 This logging standard ensures maintainability and makes the extension's behavior transparent during development and debugging.
 
-## Current Features (v0.0.5)
+## Current Features (v0.0.6)
 
 ### Core Functionality
 - OpenRouter integration for any LLM (GPT-4, Claude, Gemini, Llama, etc.)
@@ -237,13 +237,13 @@ This logging standard ensures maintainability and makes the extension's behavior
 - Memory leak prevention with cleanup
 - Beautiful structured console logging
 
-### Latest Enhancements (v0.0.5)
-- **API Request Optimization**: 40-60% performance improvement through deduplication and batching
-- **Progressive Enhancement System**: Feature detection with graceful degradation for Twitter changes
-- **Performance Optimization Suite**: DOM query caching with WeakMap for memory efficiency
-- **Enhanced Loading States**: Multi-stage progress indicators (Preparing → Validating → Building → Generating)
-- **User-Friendly Error Recovery**: Contextual error classification with actionable recovery workflows
-- **DOM Resilience**: Fallback selector chains survive 90%+ of Twitter UI changes
+### Latest Enhancements (v0.0.6)
+- **Race Condition Elimination**: AsyncOperationManager with AbortController coordination prevents duplicate requests
+- **Enhanced Network Resilience**: Offline queuing, adaptive timeouts based on connection quality (3G/4G/5G)
+- **Simplified Error Handler**: Reduced from 412 to 87 lines while maintaining consumer-friendly messaging
+- **Console Spam Fix**: Intelligent toolbar detection only processes reply contexts, eliminating DOM selector noise
+- **Request Deduplication**: Prevents duplicate API calls when users click multiple times
+- **Connection-Aware Timeouts**: Automatically adjusts timeouts based on network conditions (10s for 5G, 60s for slow-3g)
 
 ## Known Issues
 
@@ -332,7 +332,7 @@ The project uses Webpack with a multi-config setup located in the `build/` direc
 
 ## Current Implementation vs Future Roadmap
 
-**Current Implementation (v0.0.1 MVP)**:
+**Current Implementation (v0.0.6)**:
 - AI reply generation with 12 tone presets
 - Thread context extraction (up to 4 tweets)
 - OpenRouter API integration with BYOK architecture

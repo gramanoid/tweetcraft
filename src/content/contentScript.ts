@@ -11,21 +11,11 @@ class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.6';
+  private static readonly VERSION = '0.0.7';
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
-  private eventListeners = new Map<string, () => void>();
-  
-  // Progressive Enhancement System - Feature detection and graceful degradation
-  private features = new Map<string, boolean>();
-  private readonly CORE_FEATURES = [
-    'dom_injection',
-    'reply_detection', 
-    'context_extraction',
-    'api_communication',
-    'storage_access'
-  ];
+  private eventListeners: Array<() => void> = [];
 
   constructor() {
     // Check if another instance already exists
@@ -47,16 +37,12 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft Content Script v0.0.6: Initializing', 'color: #1DA1F2; font-weight: bold');
-    console.log('%c  URL:', 'color: #657786', window.location.href);
-    
-    // Progressive Enhancement: Detect available features
-    this.detectFeatures();
+    console.log('%c🚀 TweetCraft v0.0.6', 'color: #1DA1F2; font-weight: bold');
     
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
     if (recovered) {
-      console.log('%c✅ State recovery completed', 'color: #17BF63');
+      console.log('%c✅ State recovered', 'color: #17BF63');
     }
     
     // Establish connection with service worker
@@ -65,11 +51,9 @@ class SmartReplyContentScript {
     // Wait for the page to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        console.log('%c📄 TweetCraft: DOM ready, starting observation', 'color: #1DA1F2');
         if (!this.isDestroyed) this.startObserving();
       });
     } else {
-      console.log('%c📄 TweetCraft: DOM already ready, starting observation', 'color: #1DA1F2');
       this.startObserving();
     }
   }
@@ -210,26 +194,25 @@ class SmartReplyContentScript {
     // Find the React root element
     const reactRoot = document.querySelector('#react-root');
     if (!reactRoot) {
-      console.warn('Smart Reply: React root not found, retrying in 1 second...');
+      // Silently retry
       setTimeout(() => {
         if (!this.isDestroyed) this.startObserving();
       }, 1000);
       return;
     }
-    
-    console.log('Smart Reply: React root found, setting up observer');
 
     // Create debounced handler for processing mutations with reduced frequency
     const debouncedMutationHandler = debounce(() => {
       // Only process if we're on a page that likely has toolbars
       if (!window.location.pathname.includes('/status/') && 
-          !document.querySelector('article[data-testid="tweet"]')) {
+          !document.querySelector('article[data-testid="tweet"]') &&
+          !window.location.pathname.includes('/compose/tweet')) {
         return; // Skip processing on non-tweet pages
       }
       
       const toolbarsToProcess = new Set<Element>();
       
-      // Find all unprocessed toolbars using silent mode to reduce console noise
+      // Find all unprocessed toolbars
       document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
         if (!this.processedToolbars.has(toolbar)) {
           toolbarsToProcess.add(toolbar);
@@ -240,7 +223,7 @@ class SmartReplyContentScript {
       toolbarsToProcess.forEach(toolbar => {
         this.handleToolbarAdded(toolbar);
       });
-    }, 1000); // Increased debounce to 1000ms to reduce frequency
+    }, 1500); // Increased debounce to 1500ms to reduce frequency even more
 
     // Set up mutation observer to detect new toolbars
     this.observer = new MutationObserver((mutations) => {
@@ -255,7 +238,6 @@ class SmartReplyContentScript {
 
     // Process existing toolbars
     const existingToolbars = document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
-    console.log(`Smart Reply: Found ${existingToolbars.length} existing toolbars`);
     existingToolbars.forEach(toolbar => this.handleToolbarAdded(toolbar));
   }
 
@@ -271,12 +253,23 @@ class SmartReplyContentScript {
       return;
     }
 
+    // CRITICAL: Only process toolbars that are in reply/compose contexts
+    // Check if this toolbar is associated with a reply or compose action
+    const isReplyContext = this.isReplyToolbar(toolbarElement);
+    if (!isReplyContext) {
+      // This is a regular tweet toolbar (like, retweet, etc.) - ignore it
+      this.processedToolbars.add(toolbarElement);
+      return;
+    }
+
+    console.log('%c🎯 Reply toolbar detected', 'color: #17BF63; font-weight: bold');
     this.processedToolbars.add(toolbarElement);
 
-    // Find the associated textarea
+    // Now we know this is a reply context, so a textarea SHOULD exist
     const textarea = DOMUtils.findClosestTextarea(toolbarElement);
     if (!textarea) {
-      // Silent return - this happens often during Twitter's DOM updates
+      // This is unexpected in a reply context, but handle gracefully
+      console.warn('TweetCraft: Reply toolbar found but no textarea available yet');
       return;
     }
 
@@ -284,7 +277,47 @@ class SmartReplyContentScript {
     const context = DOMUtils.extractTwitterContext(toolbarElement);
     
     // Create and inject the Smart Reply button
+    console.log('%c➕ Injecting AI Reply button', 'color: #1DA1F2');
     await this.injectSmartReplyButton(toolbarElement, textarea, context);
+  }
+
+  /**
+   * Determine if a toolbar is in a reply/compose context
+   */
+  private isReplyToolbar(toolbarElement: Element): boolean {
+    // Check various indicators that this is a reply/compose toolbar
+    
+    // 1. Check if we're in a reply modal or compose modal (highest priority)
+    const modal = toolbarElement.closest('[role="dialog"], [data-testid="reply"], [aria-label*="Compose"], [aria-label*="Reply"], [aria-label*="Tweet"]');
+    if (modal) return true;
+    
+    // 2. Check URL - compose/tweet paths indicate compose mode
+    if (window.location.pathname.includes('/compose/')) return true;
+    
+    // 3. Look for textarea in a wider search area (up and down the DOM)
+    // Go up to a reasonable container level then search down
+    let searchContainer = toolbarElement.parentElement;
+    let levelsUp = 0;
+    while (searchContainer && levelsUp < 5) {
+      // Check if this container or its children have a textarea
+      const textarea = searchContainer.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
+      if (textarea) return true;
+      
+      searchContainer = searchContainer.parentElement;
+      levelsUp++;
+    }
+    
+    // 4. Check if toolbar has reply-specific buttons/structure
+    // Reply toolbars typically have different button configurations
+    const buttons = toolbarElement.querySelectorAll('[role="button"]');
+    if (buttons.length >= 4 && buttons.length <= 8) {
+      // Reply toolbars usually have 4-8 buttons (emoji, gif, media, location, etc.)
+      // Regular tweet toolbars have 3-4 action buttons (reply, retweet, like, share)
+      return true;
+    }
+    
+    // This is likely a regular tweet action toolbar, not a reply toolbar
+    return false;
   }
 
   private async injectSmartReplyButton(
@@ -292,19 +325,8 @@ class SmartReplyContentScript {
     textarea: HTMLElement, 
     context: any
   ): Promise<void> {
-    // Use progressive enhancement for DOM injection
-    const result = this.withGracefulDegradation(
-      'dom_injection',
-      () => this.performSmartReplyInjection(toolbarElement, textarea, context),
-      () => {
-        console.log('%c⚠️ DOM injection unavailable - Smart Reply button cannot be added', 'color: #FFA500; font-weight: bold');
-        return Promise.resolve();
-      }
-    );
-    
-    if (result instanceof Promise) {
-      await result;
-    }
+    // Directly perform the injection
+    await this.performSmartReplyInjection(toolbarElement, textarea, context);
   }
 
   private async performSmartReplyInjection(
@@ -540,8 +562,7 @@ class SmartReplyContentScript {
         if (dropdown) {
           setTimeout(() => {
             dropdown.style.display = 'none';
-            // Remove scroll listener
-            window.removeEventListener('scroll', () => {}, true);
+            // Note: Scroll listener is already properly managed by updateDropdownPosition
           }, 500); // Small delay to show the completion
         }
         
@@ -551,6 +572,11 @@ class SmartReplyContentScript {
           DOMUtils.updateCharCount(currentText.length);
         };
         textarea.addEventListener('input', updateCount);
+        
+        // Store for cleanup
+        this.eventListeners.push(
+          () => textarea.removeEventListener('input', updateCount)
+        );
         
         // Store the listener for cleanup
         textarea.setAttribute('data-smart-reply-listener', 'true');
@@ -605,8 +631,9 @@ class SmartReplyContentScript {
     console.log('%c🗑️ Smart Reply: Content script destroyed', 'color: #DC3545; font-weight: bold');
     
     // Clean up all stored event listeners
-    console.log(`%c  Cleaning up ${this.eventListeners.size} stored event listeners`, 'color: #657786');
-    this.eventListeners.clear();
+    console.log(`%c  Cleaning up ${this.eventListeners.length} stored event listeners`, 'color: #657786');
+    this.eventListeners.forEach(cleanup => cleanup());
+    this.eventListeners = [];
     
     // Disconnect observer
     if (this.observer) {
@@ -649,31 +676,10 @@ class SmartReplyContentScript {
     }
   }
 
-  /**
-   * Progressive Enhancement: Detect available features
-   */
+  // Feature detection removed - no longer needed
   private detectFeatures(): void {
-    // Silently test features without excessive logging
-    this.features.set('dom_injection', this.testDOMInjection());
-    this.features.set('reply_detection', this.testReplyDetection());
-    this.features.set('context_extraction', this.testContextExtraction());
-    this.features.set('api_communication', this.testAPICommunication());
-    this.features.set('storage_access', this.testStorageAccess());
-    
-    // Only log if there are actual issues
-    const unavailableFeatures = Array.from(this.features.entries())
-      .filter(([_, available]) => !available)
-      .map(([feature, _]) => feature);
-    
-    if (unavailableFeatures.length > 0) {
-      console.log('%c⚠️ TweetCraft: Some features unavailable:', 'color: #FFA500; font-weight: bold', unavailableFeatures);
-    }
-    
-    // Only warn about reduced functionality if core features are missing
-    const coreAvailable = this.CORE_FEATURES.every(feature => this.features.get(feature));
-    if (!coreAvailable) {
-      console.log('%c⚡ TweetCraft: Running in reduced functionality mode', 'color: #FFA500');
-    }
+    // All features are assumed to be available on Twitter/X
+    // No longer doing progressive enhancement
   }
 
   /**
@@ -775,7 +781,8 @@ class SmartReplyContentScript {
    * Check if a specific feature is available
    */
   private isFeatureAvailable(featureName: string): boolean {
-    return this.features.get(featureName) ?? false;
+    // Always return true since we removed progressive enhancement
+    return true;
   }
 
   /**

@@ -107,9 +107,9 @@ export class DOMUtils {
   static readonly ORIGINAL_TWEET_SELECTOR = SELECTOR_CHAINS.originalTweet.primary;
 
   /**
-   * Resilient selector finder with automatic fallback and context-aware logging
+   * Resilient selector finder with automatic fallback - SILENT MODE
    */
-  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element, silent = false): Element | null {
+  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element, silent = true): Element | null {
     const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
     
@@ -122,9 +122,7 @@ export class DOMUtils {
     }
     
     if (element) {
-      if (!silent) {
-        console.log(`%c🎯 DOM Selector Success: ${selectorType} (primary)`, 'color: #17BF63; font-weight: bold');
-      }
+      // Success - no logging needed
       return element;
     }
     
@@ -137,20 +135,12 @@ export class DOMUtils {
       }
       
       if (element) {
-        if (!silent) {
-          console.log(`%c🎯 DOM Selector Fallback: ${selectorType} (fallback ${i + 1})`, 'color: #FFA500; font-weight: bold');
-          console.log(`%c  Used: ${chain.fallbacks[i]}`, 'color: #657786');
-        }
+        // Found with fallback - no logging needed
         return element;
       }
     }
     
-    // Only log failures when not in silent mode and when we actually expect the element
-    if (!silent && this.shouldExpectElement(selectorType)) {
-      console.warn(`%c❌ DOM Selector Failed: ${selectorType} - all selectors failed`, 'color: #DC3545; font-weight: bold');
-      console.log('%c  Primary:', 'color: #657786', chain.primary);
-      console.log('%c  Fallbacks:', 'color: #657786', chain.fallbacks);
-    }
+    // Failed to find element - this is normal for non-reply contexts
     return null;
   }
 
