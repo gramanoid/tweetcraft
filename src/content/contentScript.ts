@@ -38,7 +38,7 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    console.log('%c🚀 TweetCraft v0.0.7', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c🚀 TweetCraft v0.0.8', 'color: #1DA1F2; font-weight: bold');
     
     // Initialize keyboard shortcuts
     await KeyboardShortcutManager.init();
@@ -369,11 +369,14 @@ class SmartReplyContentScript {
         
         // Check if a tone was set (e.g., from keyboard shortcut)
         const presetTone = button.getAttribute('data-tone');
+        const bypassCache = button.getAttribute('data-bypass-cache') === 'true';
+        
         if (presetTone) {
-          // Remove the attribute so next click shows dropdown
+          // Remove the attributes so next click shows dropdown
           button.removeAttribute('data-tone');
+          button.removeAttribute('data-bypass-cache');
           // Generate directly with the preset tone
-          this.generateReply(textarea, context, presetTone);
+          this.generateReply(textarea, context, presetTone, bypassCache);
           return;
         }
         
@@ -473,14 +476,15 @@ class SmartReplyContentScript {
   private async generateReply(
     textarea: HTMLElement, 
     context: any, 
-    tone?: string
+    tone?: string,
+    bypassCache: boolean = false
   ): Promise<void> {
     // Use AsyncOperationManager to prevent race conditions
     const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
     
     try {
       await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal);
+        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache);
       });
     } catch (error) {
       if ((error as Error).message.includes('cancelled')) {
@@ -496,7 +500,8 @@ class SmartReplyContentScript {
     textarea: HTMLElement, 
     context: any, 
     tone: string | undefined,
-    signal: AbortSignal
+    signal: AbortSignal,
+    bypassCache: boolean = false
   ): Promise<void> {
     // Generate operation key for tracking
     const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
@@ -543,8 +548,8 @@ class SmartReplyContentScript {
       // Check for cancellation before API call
       if (signal.aborted) throw new Error('Operation cancelled');
 
-      // Generate the reply with the signal
-      const response = await OpenRouterService.generateReply(request, context, signal);
+      // Generate the reply with the signal and bypass cache if requested
+      const response = await OpenRouterService.generateReply(request, context, signal, bypassCache);
 
       // Check for cancellation after API call
       if (signal.aborted) throw new Error('Operation cancelled');

@@ -179,11 +179,21 @@ export class KeyboardShortcutManager {
     const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) return;
     
+    // Clear existing text to force new generation
+    const textarea = document.querySelector('[data-testid^="tweetTextarea_"]') as HTMLElement;
+    if (textarea && textarea.textContent) {
+      textarea.textContent = '';
+      // Dispatch input event to update React state
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+    
     // Get default tone from storage
     const config = await StorageService.getConfig();
     const defaultTone = config.defaultTone || 'professional';
     
-    // Trigger generation
+    // Add flag to bypass cache
+    button.setAttribute('data-bypass-cache', 'true');
     button.setAttribute('data-tone', defaultTone);
     button.click();
   }
@@ -216,6 +226,16 @@ export class KeyboardShortcutManager {
     const button = document.querySelector('.smart-reply-btn') as HTMLElement;
     if (!button) return;
     
+    // Clear existing text to force new generation
+    const textarea = document.querySelector('[data-testid^="tweetTextarea_"]') as HTMLElement;
+    if (textarea && textarea.textContent) {
+      textarea.textContent = '';
+      // Dispatch input event to update React state
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+    
+    button.setAttribute('data-bypass-cache', 'true');
     button.setAttribute('data-tone', tone);
     button.click();
   }

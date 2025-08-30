@@ -78,7 +78,8 @@ export class OpenRouterService {
   static async generateReply(
     request: ReplyGenerationRequest, 
     context: TwitterContext,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    bypassCache: boolean = false
   ): Promise<ReplyGenerationResponse> {
     console.log('%c🚀 ENHANCED NETWORK RESILIENCE', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
     console.log('%c  Connection Status:', 'color: #657786', this.isOnline ? 'Online' : 'Offline');
@@ -93,8 +94,8 @@ export class OpenRouterService {
     }
     
     try {
-      // Enhanced cache check first
-      if (context.tweetId && request.tone) {
+      // Enhanced cache check first (skip if bypassCache is true)
+      if (!bypassCache && context.tweetId && request.tone) {
         const cachedReply = CacheService.get(context.tweetId, request.tone);
         if (cachedReply) {
           this.metrics.cacheHits++;
@@ -106,27 +107,36 @@ export class OpenRouterService {
           };
         }
       }
+      
+      if (bypassCache) {
+        console.log('%c🔄 Cache Bypassed:', 'color: #FFA500', 'Generating fresh response');
+      }
 
-      // Request deduplication
+      // Request deduplication (skip if bypassCache is true)
       const requestKey = this.generateRequestKey(request, context);
-      const existingRequest = this.requestCache.get(requestKey);
-      if (existingRequest) {
-        this.metrics.requestsDeduped++;
-        console.log('%c🔄 Request Deduplicated:', 'color: #9146FF; font-weight: bold', 
-                   `Saved ${this.metrics.requestsDeduped} duplicate requests`);
-        return existingRequest;
+      
+      if (!bypassCache) {
+        const existingRequest = this.requestCache.get(requestKey);
+        if (existingRequest) {
+          this.metrics.requestsDeduped++;
+          console.log('%c🔄 Request Deduplicated:', 'color: #9146FF; font-weight: bold', 
+                     `Saved ${this.metrics.requestsDeduped} duplicate requests`);
+          return existingRequest;
+        }
       }
 
       // Create promise for this request
       const requestPromise = this.executeBatchedRequest(request, context, signal);
       
-      // Cache the promise to prevent duplicate requests
-      this.requestCache.set(requestKey, requestPromise);
-      
-      // Clean up cache after TTL
-      setTimeout(() => {
-        this.requestCache.delete(requestKey);
-      }, this.REQUEST_CACHE_TTL);
+      // Cache the promise to prevent duplicate requests (unless bypassing cache)
+      if (!bypassCache) {
+        this.requestCache.set(requestKey, requestPromise);
+        
+        // Clean up cache after TTL
+        setTimeout(() => {
+          this.requestCache.delete(requestKey);
+        }, this.REQUEST_CACHE_TTL);
+      }
 
       return requestPromise;
     } catch (error: any) {
