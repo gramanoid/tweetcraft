@@ -322,15 +322,18 @@ class SmartReplyContentScript {
    * Determine if a toolbar is in a reply/compose context
    */
   private isReplyToolbar(toolbarElement: Element): boolean {
-    // CRITICAL: Exclude tweet action bars (like, retweet, reply buttons)
-    // These toolbars are INSIDE tweet articles and should be ignored
-    const isInTweetArticle = toolbarElement.closest('article[data-testid="tweet"]');
-    if (isInTweetArticle) {
-      // This is a tweet's action bar, not a reply composition toolbar
-      return false;
+    // Strategy: Look for specific indicators of a reply composition toolbar
+    // vs a tweet's action bar (reply, retweet, like buttons)
+    
+    // 1. Check if toolbar contains a "Reply" button (submit button for replies)
+    // This is different from the reply action button in tweets
+    const hasReplySubmitButton = toolbarElement.querySelector('div[data-testid="tweetButton"], div[data-testid="tweetButtonInline"], button[data-testid="tweetButton"], button[data-testid="tweetButtonInline"]');
+    if (hasReplySubmitButton) {
+      // This is definitely a reply composition toolbar
+      return true;
     }
     
-    // 1. Check if we're in a reply modal or compose modal (highest priority)
+    // 2. Check if we're in a reply modal or compose modal
     const modal = toolbarElement.closest('[role="dialog"], [data-testid="reply"]');
     if (modal) {
       // Additional check: modal should have a textarea
@@ -338,31 +341,47 @@ class SmartReplyContentScript {
       return !!modalTextarea;
     }
     
-    // 2. Check URL - compose/tweet paths indicate compose mode
+    // 3. Check URL - compose/tweet paths indicate compose mode
     if (window.location.pathname.includes('/compose/')) return true;
     
-    // 3. Look for textarea that's a sibling or nearby element (not inside tweets)
-    // The textarea should be at the same level or nearby, not nested in tweet articles
-    let searchContainer = toolbarElement.parentElement;
-    let levelsUp = 0;
-    while (searchContainer && levelsUp < 3) {
-      // Check if this container has a textarea that's NOT inside a tweet article
-      const textarea = searchContainer.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
-      if (textarea && !textarea.closest('article[data-testid="tweet"]')) {
-        return true;
+    // 4. Check if toolbar is adjacent to a textarea (reply composition pattern)
+    // In reply composition, the toolbar and textarea are siblings or close relatives
+    const parent = toolbarElement.parentElement;
+    if (parent) {
+      // Look for textarea as a sibling
+      const textarea = parent.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
+      if (textarea) {
+        // Make sure this textarea is for composing, not displaying
+        const isEditable = textarea.getAttribute('contenteditable') === 'true';
+        if (isEditable) {
+          return true;
+        }
       }
-      
-      searchContainer = searchContainer.parentElement;
-      levelsUp++;
     }
     
-    // 4. Check for "Post your reply" placeholder text nearby
-    const replyPlaceholder = toolbarElement.parentElement?.querySelector('[data-text="true"]');
-    if (replyPlaceholder?.textContent?.includes('reply')) {
+    // 5. Check for reply composition container patterns
+    // Reply areas often have specific container structures
+    const replyContainer = toolbarElement.closest('[data-testid="inline-reply"], [data-testid="reply-composer"], div[aria-label*="reply" i], div[aria-label*="compose" i]');
+    if (replyContainer) {
       return true;
     }
     
-    // This is likely a regular tweet action toolbar, not a reply toolbar
+    // 6. Check if toolbar has the specific action buttons of a tweet (negative indicator)
+    // Tweet action bars have reply, retweet, like buttons with specific data-testids
+    const hasLikeButton = toolbarElement.querySelector('[data-testid="like"], [data-testid="unlike"]');
+    const hasRetweetButton = toolbarElement.querySelector('[data-testid="retweet"], [data-testid="unretweet"]');
+    if (hasLikeButton || hasRetweetButton) {
+      // This is a tweet's action bar, not a reply toolbar
+      return false;
+    }
+    
+    // 7. Final check: Look for "Post your reply" or similar placeholder text
+    const placeholderText = parent?.querySelector('[data-text="true"], [data-placeholder="true"]');
+    if (placeholderText?.textContent?.toLowerCase().includes('reply')) {
+      return true;
+    }
+    
+    // Default: not a reply toolbar
     return false;
   }
 
