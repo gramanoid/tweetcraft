@@ -5,12 +5,29 @@
 
 import { PresetTemplate, PresetTemplates } from './presetTemplates';
 import { CustomTemplate, CustomTemplateManager } from './customTemplates';
+import { ToneOption } from './toneSelector';
 
 export class TemplateSelector {
   private container: HTMLElement | null = null;
   private isOpen = false;
   private selectedTemplate: PresetTemplate | CustomTemplate | null = null;
-  private onSelectCallback: ((template: PresetTemplate | CustomTemplate) => void) | null = null;
+  private selectedTone: ToneOption | null = null;
+  private onSelectCallback: ((template: PresetTemplate | CustomTemplate, tone: ToneOption) => void) | null = null;
+  
+  // Define tones inline to avoid circular dependencies
+  private static readonly TONE_OPTIONS: ToneOption[] = [
+    { id: 'professional', emoji: '💼', label: 'Pro', description: 'Professional', systemPrompt: 'Professional tone - be formal, respectful, and business-appropriate' },
+    { id: 'casual', emoji: '😊', label: 'Casual', description: 'Friendly', systemPrompt: 'Casual tone - be friendly, approachable, and conversational' },
+    { id: 'witty', emoji: '😄', label: 'Witty', description: 'Humorous', systemPrompt: 'Witty tone - be clever, humorous, and entertaining while staying respectful' },
+    { id: 'supportive', emoji: '🤗', label: 'Support', description: 'Encouraging', systemPrompt: 'Supportive tone - be encouraging, empathetic, and helpful' },
+    { id: 'enthusiastic', emoji: '🎉', label: 'Excited', description: 'Energetic', systemPrompt: 'Enthusiastic tone - be energetic, passionate, and excited about the topic' },
+    { id: 'academic', emoji: '🎓', label: 'Academic', description: 'Scholarly', systemPrompt: 'Academic tone - be analytical, evidence-based, and intellectually rigorous' },
+    { id: 'contrarian', emoji: '🤔', label: 'Counter', description: 'Challenging', systemPrompt: 'Contrarian tone - respectfully challenge or provide alternative perspectives' },
+    { id: 'skeptical', emoji: '🤨', label: 'Skeptic', description: 'Questioning', systemPrompt: 'Skeptical tone - question claims, ask for evidence, express healthy doubt' },
+    { id: 'sarcastic', emoji: '😏', label: 'Sarcastic', description: 'Ironic', systemPrompt: 'Sarcastic tone - use irony and sarcasm, but avoid being mean-spirited' },
+    { id: 'provocative', emoji: '🔥', label: 'Spicy', description: 'Bold', systemPrompt: 'Provocative tone - be bold, controversial, and thought-provoking while staying within bounds' },
+    { id: 'dismissive', emoji: '🙄', label: 'Dismissive', description: 'Critical', systemPrompt: 'Dismissive tone - express that you find the point unimpressive or obvious' }
+  ];
   
   constructor() {
     // Initialize custom templates
@@ -397,19 +414,156 @@ export class TemplateSelector {
   }
   
   /**
-   * Select a template
+   * Select a template and show tone selection
    */
   private selectTemplate(template: PresetTemplate | CustomTemplate): void {
     this.selectedTemplate = template;
     
-    // Track usage for custom templates
-    if ('isCustom' in template && template.isCustom) {
-      CustomTemplateManager.trackUsage(template.id);
+    // Show tone selector instead of immediately closing
+    this.showToneSelector();
+  }
+  
+  /**
+   * Show tone selector after template selection
+   */
+  private showToneSelector(): void {
+    if (!this.container) return;
+    
+    // Update header
+    const header = this.container.querySelector('.template-selector-header h3');
+    if (header && this.selectedTemplate) {
+      header.textContent = `${this.selectedTemplate.emoji} ${this.selectedTemplate.name} - Choose Tone`;
     }
     
-    // Call the callback
+    // Clear content and show tones
+    const content = this.container.querySelector('.template-content') as HTMLElement;
+    if (!content) return;
+    
+    content.innerHTML = '';
+    
+    // Add back button
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Back to Templates';
+    backBtn.style.cssText = `
+      width: calc(100% - 8px);
+      margin: 4px;
+      padding: 6px 12px;
+      background: #253341;
+      color: #8899a6;
+      border: 1px solid #38444d;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    `;
+    backBtn.onmouseover = () => {
+      backBtn.style.background = '#1e2732';
+      backBtn.style.color = '#ffffff';
+    };
+    backBtn.onmouseout = () => {
+      backBtn.style.background = '#253341';
+      backBtn.style.color = '#8899a6';
+    };
+    backBtn.onclick = () => {
+      // Go back to template selection
+      const tabs = this.container?.querySelector('.template-tabs .tab.active') as HTMLElement;
+      if (tabs?.textContent === 'Custom') {
+        this.showCustomTemplates(content);
+      } else {
+        this.showPresetTemplates(content);
+      }
+      // Reset header
+      if (header) {
+        header.textContent = 'Reply Templates';
+      }
+    };
+    content.appendChild(backBtn);
+    
+    // Add tone grid
+    const toneGrid = document.createElement('div');
+    toneGrid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+    `;
+    
+    TemplateSelector.TONE_OPTIONS.forEach(tone => {
+      const toneBtn = document.createElement('button');
+      toneBtn.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 4px;
+        background: #192734;
+        border: 1px solid #38444d;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+      `;
+      
+      const emoji = document.createElement('div');
+      emoji.textContent = tone.emoji;
+      emoji.style.cssText = `
+        font-size: 20px;
+        margin-bottom: 2px;
+      `;
+      
+      const label = document.createElement('div');
+      label.textContent = tone.label;
+      label.style.cssText = `
+        font-size: 11px;
+        color: #ffffff;
+        font-weight: 600;
+      `;
+      
+      const desc = document.createElement('div');
+      desc.textContent = tone.description;
+      desc.style.cssText = `
+        font-size: 9px;
+        color: #8899a6;
+        margin-top: 1px;
+      `;
+      
+      toneBtn.appendChild(emoji);
+      toneBtn.appendChild(label);
+      toneBtn.appendChild(desc);
+      
+      toneBtn.onmouseover = () => {
+        toneBtn.style.background = '#1e2732';
+        toneBtn.style.borderColor = '#1da1f2';
+      };
+      
+      toneBtn.onmouseout = () => {
+        toneBtn.style.background = '#192734';
+        toneBtn.style.borderColor = '#38444d';
+      };
+      
+      toneBtn.onclick = () => {
+        this.selectedTone = tone;
+        this.finalizeSelection();
+      };
+      
+      toneGrid.appendChild(toneBtn);
+    });
+    
+    content.appendChild(toneGrid);
+  }
+  
+  /**
+   * Finalize selection with both template and tone
+   */
+  private finalizeSelection(): void {
+    if (!this.selectedTemplate || !this.selectedTone) return;
+    
+    // Track usage for custom templates
+    if ('isCustom' in this.selectedTemplate && this.selectedTemplate.isCustom) {
+      CustomTemplateManager.trackUsage(this.selectedTemplate.id);
+    }
+    
+    // Call the callback with both template and tone
     if (this.onSelectCallback) {
-      this.onSelectCallback(template);
+      this.onSelectCallback(this.selectedTemplate, this.selectedTone);
     }
     
     this.close();
@@ -473,7 +627,7 @@ export class TemplateSelector {
   /**
    * Show the template selector
    */
-  public show(anchor: HTMLElement, onSelect: (template: PresetTemplate | CustomTemplate) => void): void {
+  public show(anchor: HTMLElement, onSelect: (template: PresetTemplate | CustomTemplate, tone: ToneOption) => void): void {
     if (!this.container) {
       this.container = this.createUI();
       document.body.appendChild(this.container);

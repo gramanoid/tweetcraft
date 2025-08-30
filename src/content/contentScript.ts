@@ -465,12 +465,17 @@ class SmartReplyContentScript {
         }
         
         // Show template selector
-        templateSelector.show(button, (template) => {
-          // When a template is selected, generate reply with it
-          console.log('%c📝 Template Selected:', 'color: #1DA1F2; font-weight: bold', template.name);
+        templateSelector.show(button, (template, tone) => {
+          // When both template and tone are selected, generate reply
+          console.log('%c📝 Template & Tone Selected:', 'color: #1DA1F2; font-weight: bold');
+          console.log('%c  Template:', 'color: #657786', template.name);
+          console.log('%c  Tone:', 'color: #657786', tone.label);
           
-          // Generate reply using the template's prompt as the tone/instruction
-          this.generateReply(textarea, context, template.prompt || template.name, bypassCache);
+          // Combine template prompt with tone system prompt
+          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+          
+          // Generate reply using the combined instruction
+          this.generateReply(textarea, context, combinedPrompt, bypassCache);
         });
         
         return false; // Prevent any default action
