@@ -4,6 +4,7 @@
  */
 
 import { memoryManager } from '@/utils/memoryManager';
+import { TEMPLATES, Template } from '@/config/templatesAndTones';
 
 export interface PresetTemplate {
   id: string;
@@ -11,115 +12,19 @@ export interface PresetTemplate {
   emoji: string;
   prompt: string;
   description: string;
-  category: 'engagement' | 'value' | 'conversation' | 'humor';
+  category: 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral';
 }
 
 export class PresetTemplates {
-  public static readonly DEFAULT_PRESETS: PresetTemplate[] = [
-    // Engagement presets
-    {
-      id: 'ask_question',
-      name: 'Ask Question',
-      emoji: '❓',
-      prompt: 'End with a question.',
-      description: 'Ask a relevant follow-up question',
-      category: 'engagement'
-    },
-    {
-      id: 'agree_expand',
-      name: 'Agree & Expand',
-      emoji: '👍',
-      prompt: 'Acknowledge and build on their point.',
-      description: 'Build on the idea',
-      category: 'engagement'
-    },
-    {
-      id: 'polite_challenge',
-      name: 'Challenge Politely',
-      emoji: '🤝',
-      prompt: 'Offer a different perspective.',
-      description: 'Offer different perspective',
-      category: 'engagement'
-    },
-    
-    // Value presets
-    {
-      id: 'add_value',
-      name: 'Add Value',
-      emoji: '💡',
-      prompt: 'Add relevant information.',
-      description: 'Share helpful information',
-      category: 'value'
-    },
-    {
-      id: 'share_experience',
-      name: 'Share Experience',
-      emoji: '📖',
-      prompt: 'Include a personal anecdote.',
-      description: 'Add personal perspective',
-      category: 'value'
-    },
-    {
-      id: 'provide_resource',
-      name: 'Share Resource',
-      emoji: '🔗',
-      prompt: 'Mention a relevant resource.',
-      description: 'Recommend useful resource',
-      category: 'value'
-    },
-    
-    // Conversation presets
-    {
-      id: 'show_support',
-      name: 'Support',
-      emoji: '🤗',
-      prompt: 'Express support for their point or situation.',
-      description: 'Express support',
-      category: 'conversation'
-    },
-    {
-      id: 'congratulate',
-      name: 'Congratulate',
-      emoji: '🎉',
-      prompt: 'Acknowledge their achievement or milestone.',
-      description: 'Acknowledge achievement',
-      category: 'conversation'
-    },
-    {
-      id: 'empathize',
-      name: 'Relate',
-      emoji: '💚',
-      prompt: 'Relate to their experience or situation.',
-      description: 'Relate to them',
-      category: 'conversation'
-    },
-    
-    // Humor presets
-    {
-      id: 'add_humor',
-      name: 'Joke',
-      emoji: '😂',
-      prompt: 'Include a joke or humorous take.',
-      description: 'Add humor',
-      category: 'humor'
-    },
-    {
-      id: 'witty_observation',
-      name: 'Observation',
-      emoji: '🎯',
-      prompt: 'Make an observation about the topic.',
-      description: 'Share insight',
-      category: 'humor'
-    },
-    {
-      id: 'playful_tease',
-      name: 'Banter',
-      emoji: '😄',
-      prompt: 'Engage in light banter.',
-      description: 'Light banter',
-      category: 'humor'
-    }
-  ];
+  // Use templates from centralized configuration
+  public static readonly DEFAULT_PRESETS: PresetTemplate[] = TEMPLATES.map(t => ({
+    id: t.id,
+    name: t.name,
+    emoji: t.emoji,
+    prompt: t.prompt,
+    description: t.description,
+    category: t.category
+  }));
 
   private container: HTMLElement | null = null;
   private selectedPreset: PresetTemplate | null = null;

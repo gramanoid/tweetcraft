@@ -6,27 +6,30 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('popup-simple.ts: DOM loaded');
   
   // Load saved settings
-  const apiKeyInput = document.getElementById('api-key') as HTMLInputElement;
   const systemPromptInput = document.getElementById('system-prompt') as HTMLTextAreaElement;
+  const customStylePromptInput = document.getElementById('custom-style-prompt') as HTMLTextAreaElement;
   const contextModeSelect = document.getElementById('context-mode') as HTMLSelectElement;
   const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
   const temperatureInput = document.getElementById('temperature') as HTMLInputElement;
   const temperatureValue = document.getElementById('temperature-value');
   const refreshModelsBtn = document.getElementById('refresh-models') as HTMLButtonElement;
+  const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement;
   
-  // Load all settings - use the correct storage keys
-  chrome.storage.local.get(['smartReply_apiKey'], (result) => {
-    if (result.smartReply_apiKey && apiKeyInput) {
-      apiKeyInput.value = result.smartReply_apiKey;
-      console.log('Loaded API key');
-    }
-  });
+  // Custom tone elements
+  const customToneNameInput = document.getElementById('custom-tone-name') as HTMLInputElement;
+  const customToneEmojiInput = document.getElementById('custom-tone-emoji') as HTMLInputElement;
+  const customTonePromptInput = document.getElementById('custom-tone-prompt') as HTMLTextAreaElement;
+  const addCustomToneBtn = document.getElementById('add-custom-tone') as HTMLButtonElement;
+  const customTonesList = document.getElementById('custom-tones-list') as HTMLDivElement;
   
   chrome.storage.sync.get(['smartReply_config'], (result) => {
     if (result.smartReply_config) {
       const config = result.smartReply_config;
       if (config.systemPrompt && systemPromptInput) {
         systemPromptInput.value = config.systemPrompt;
+      }
+      if (config.customStylePrompt && customStylePromptInput) {
+        customStylePromptInput.value = config.customStylePrompt;
       }
       if (config.model && modelSelect) {
         modelSelect.value = config.model;
@@ -43,6 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (contextModeSelect) {
         // Default to thread mode if not set
         contextModeSelect.value = 'thread';
+      }
+      // Load reply length setting
+      if (config.replyLengthDefault && replyLengthSelect) {
+        replyLengthSelect.value = config.replyLengthDefault;
+      }
+      // Load custom tones
+      if (config.customTones && customTonesList) {
+        displayCustomTones(config.customTones);
       }
       console.log('Loaded config:', config);
     }
@@ -63,22 +74,30 @@ document.addEventListener('DOMContentLoaded', () => {
     saveBtn.addEventListener('click', async () => {
       console.log('popup-simple.ts: Save button clicked!');
       
-      const apiKey = apiKeyInput?.value?.trim();
       const systemPrompt = (document.getElementById('system-prompt') as HTMLTextAreaElement)?.value?.trim();
+      const customStylePrompt = (document.getElementById('custom-style-prompt') as HTMLTextAreaElement)?.value?.trim();
       const contextMode = (document.getElementById('context-mode') as HTMLSelectElement)?.value || 'thread';
       const model = (document.getElementById('model-select') as HTMLSelectElement)?.value;
       const temperature = parseFloat((document.getElementById('temperature') as HTMLInputElement)?.value || '0.7');
-      
-      if (apiKey) {
-        // Save API key with correct storage key
-        await chrome.storage.local.set({ smartReply_apiKey: apiKey });
+      const replyLengthDefault = (document.getElementById('reply-length') as HTMLSelectElement)?.value || '';
+        
+        // Get existing config to preserve custom tones
+        const existingConfig = await new Promise<any>(resolve => {
+          chrome.storage.sync.get(['smartReply_config'], (result) => {
+            resolve(result.smartReply_config || {});
+          });
+        });
         
         // Save config with correct storage key
         const config = {
+          ...existingConfig,
           model: model || 'openai/gpt-4o',
           systemPrompt: systemPrompt || 'I am a helpful assistant',
+          customStylePrompt: customStylePrompt || '',
           contextMode: contextMode,
-          temperature
+          temperature,
+          replyLengthDefault: replyLengthDefault || undefined,
+          customTones: existingConfig.customTones || []
         };
         await chrome.storage.sync.set({ smartReply_config: config });
         
@@ -93,86 +112,19 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 3000);
         }
         
-        console.log('Settings saved:', { apiKey: apiKey.substring(0, 10) + '...', config });
-      } else {
-        alert('Please enter an API key');
-      }
+        console.log('Settings saved:', config);
     });
   } else {
     console.error('popup-simple.ts: Save button not found');
   }
   
-  const testBtn = document.getElementById('test-api-key') as HTMLButtonElement;
-  const testResult = document.getElementById('api-test-result') as HTMLDivElement;
-  
-  if (testBtn) {
-    console.log('popup-simple.ts: Test button found');
-    testBtn.addEventListener('click', async () => {
-      console.log('popup-simple.ts: Test button clicked!');
-      
-      const apiKey = apiKeyInput?.value?.trim();
-      if (!apiKey) {
-        if (testResult) {
-          testResult.className = 'test-result error';
-          testResult.textContent = 'Please enter an API key first';
-          testResult.style.display = 'block';
-        }
-        return;
-      }
-      
-      // Disable button during test
-      testBtn.disabled = true;
-      testBtn.textContent = 'Testing...';
-      
-      if (testResult) {
-        testResult.className = 'test-result testing';
-        testResult.textContent = 'Validating API key with OpenRouter...';
-        testResult.style.display = 'block';
-      }
-      
-      try {
-        // Test the API key through the service worker to avoid CORS issues
-        const response = await chrome.runtime.sendMessage({
-          type: 'TEST_API_KEY',
-          apiKey: apiKey
-        });
-        
-        if (response?.success) {
-          if (testResult) {
-            testResult.className = 'test-result success';
-            testResult.textContent = '✓ API key is valid and working!';
-          }
-        } else {
-          if (testResult) {
-            testResult.className = 'test-result error';
-            if (response?.error?.includes('401')) {
-              testResult.textContent = '✗ Invalid API key. Get your key at openrouter.ai/keys';
-            } else {
-              testResult.textContent = response?.error || '✗ Test failed. Check your connection and try again';
-            }
-          }
-        }
-      } catch (error) {
-        console.error('API test failed:', error);
-        if (testResult) {
-          testResult.className = 'test-result error';
-          testResult.textContent = '✗ Connection failed. Check extension permissions';
-        }
-      } finally {
-        // Re-enable button
-        testBtn.disabled = false;
-        testBtn.textContent = 'Test';
-        
-        // Hide result after 5 seconds
-        setTimeout(() => {
-          if (testResult) {
-            testResult.style.display = 'none';
-          }
-        }, 5000);
-      }
+  // Handle Configure API link
+  const configureLink = document.getElementById('configure-api');
+  if (configureLink) {
+    configureLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
     });
-  } else {
-    console.error('popup-simple.ts: Test button not found');
   }
   
   // Handle refresh models button
@@ -180,9 +132,15 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshModelsBtn.addEventListener('click', async () => {
       console.log('Fetching models from OpenRouter...');
       
-      const apiKey = apiKeyInput?.value?.trim();
+      // Get API key from storage
+      const result = await new Promise<any>(resolve => {
+        chrome.storage.local.get(['smartReply_apiKey'], resolve);
+      });
+      
+      const apiKey = result.smartReply_apiKey;
       if (!apiKey) {
-        alert('Please enter an API key first');
+        alert('Please configure your API key first');
+        chrome.runtime.openOptionsPage();
         return;
       }
       
@@ -229,14 +187,116 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+  
+  // Handle custom tone addition
+  if (addCustomToneBtn) {
+    addCustomToneBtn.addEventListener('click', async () => {
+      const name = customToneNameInput?.value?.trim();
+      const emoji = customToneEmojiInput?.value?.trim() || '✨';
+      const prompt = customTonePromptInput?.value?.trim();
+      
+      if (!name || !prompt) {
+        alert('Please enter both a tone name and prompt modifier');
+        return;
+      }
+      
+      // Get existing config
+      const result = await new Promise<any>(resolve => {
+        chrome.storage.sync.get(['smartReply_config'], (result) => {
+          resolve(result);
+        });
+      });
+      
+      const config = result.smartReply_config || {};
+      const customTones = config.customTones || [];
+      
+      // Check for duplicate
+      if (customTones.some((tone: any) => tone.name === name)) {
+        alert('A tone with this name already exists');
+        return;
+      }
+      
+      // Add new custom tone
+      const newTone = {
+        id: `custom_${Date.now()}`,
+        name,
+        description: `Custom: ${name}`,
+        promptModifier: prompt,
+        emoji,
+        isCustom: true
+      };
+      
+      customTones.push(newTone);
+      config.customTones = customTones;
+      
+      // Save updated config
+      await chrome.storage.sync.set({ smartReply_config: config });
+      
+      // Clear inputs
+      if (customToneNameInput) customToneNameInput.value = '';
+      if (customToneEmojiInput) customToneEmojiInput.value = '';
+      if (customTonePromptInput) customTonePromptInput.value = '';
+      
+      // Update display
+      displayCustomTones(customTones);
+      
+      // Show success message
+      const statusDiv = document.getElementById('status-message');
+      if (statusDiv) {
+        statusDiv.textContent = `Custom tone "${name}" added!`;
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = 'green';
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 3000);
+      }
+    });
+  }
+  
+  // Function to display custom tones
+  function displayCustomTones(customTones: any[]) {
+    if (!customTonesList) return;
+    
+    if (customTones.length === 0) {
+      customTonesList.innerHTML = '<small style="color: #888;">No custom tones added yet</small>';
+      return;
+    }
+    
+    customTonesList.innerHTML = '<strong>Your Custom Tones:</strong><br>';
+    customTones.forEach((tone: any) => {
+      const toneDiv = document.createElement('div');
+      toneDiv.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 5px; margin: 5px 0; background: #f0f0f0; border-radius: 4px;';
+      toneDiv.innerHTML = `
+        <span>${tone.emoji} ${tone.name}</span>
+        <button class="remove-tone" data-tone-id="${tone.id}" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
+      `;
+      customTonesList.appendChild(toneDiv);
+    });
+    
+    // Add remove handlers
+    document.querySelectorAll('.remove-tone').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const toneId = (e.target as HTMLElement).getAttribute('data-tone-id');
+        await removeCustomTone(toneId);
+      });
+    });
+  }
+  
+  // Function to remove custom tone
+  async function removeCustomTone(toneId: string | null) {
+    if (!toneId) return;
+    
+    const result = await new Promise<any>(resolve => {
+      chrome.storage.sync.get(['smartReply_config'], (result) => {
+        resolve(result);
+      });
+    });
+    
+    const config = result.smartReply_config || {};
+    config.customTones = (config.customTones || []).filter((tone: any) => tone.id !== toneId);
+    
+    await chrome.storage.sync.set({ smartReply_config: config });
+    displayCustomTones(config.customTones);
+  }
 });
 
-// Also add a visible indicator that the script ran
-setTimeout(() => {
-  const statusDiv = document.getElementById('status-message');
-  if (statusDiv) {
-    statusDiv.textContent = 'Script loaded successfully';
-    statusDiv.style.display = 'block';
-    statusDiv.style.color = 'green';
-  }
-}, 500);

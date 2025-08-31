@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TweetCraft Configuration</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="popup-root">
+    <div class="popup-container" style="width: 420px; min-height: 400px;">
+      <header class="popup-header">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <img src="icons/icon_48.png" alt="TweetCraft" style="width: 32px; height: 32px;">
+          <h1>TweetCraft Configuration</h1>
+        </div>
+        <p>One-time setup for API access</p>
+      </header>
+      
+      <main class="popup-content">
+        <div class="setting-group">
+          <label for="api-key">OpenRouter API Key:</label>
+          <div class="api-key-row">
+            <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
+            <button id="toggle-api-key" class="btn-icon" title="Show/Hide API Key">👁️</button>
+          </div>
+          <small>Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+          <div id="api-test-result" class="test-result"></div>
+        </div>
+        
+        <div class="setting-group">
+          <h3>API Status</h3>
+          <div id="api-status" style="padding: 10px; background: #f0f0f0; border-radius: 6px;">
+            <div id="status-text">Checking API key...</div>
+            <div id="model-count" style="margin-top: 5px;"></div>
+            <div id="last-check" style="margin-top: 5px; font-size: 11px; color: #888;"></div>
+          </div>
+        </div>
+      </main>
+      
+      <footer class="popup-footer">
+        <button id="save-api-key" class="btn-primary">Save API Key</button>
+        <button id="back-to-settings" class="btn-secondary" style="margin-top: 10px;">Back to Settings</button>
+        <div id="status-message"></div>
+      </footer>
+    </div>
+  </div>
+  
+  <script src="config.js"></script>
+</body>
+</html>

@@ -2,10 +2,13 @@ export interface AppConfig {
   apiKey: string;
   model: string;
   systemPrompt: string;
+  customStylePrompt?: string; // New: Custom style prompt for how tweets should be written
   contextMode?: 'none' | 'single' | 'thread';
   tonePresets: TonePreset[];
+  customTones?: TonePreset[]; // New: User-created custom tones
   temperature?: number;
   defaultTone?: string;
+  replyLengthDefault?: 'short' | 'medium' | 'long'; // New: Default reply length
 }
 
 export interface TonePreset {
@@ -21,6 +24,9 @@ export interface ReplyGenerationRequest {
   tone?: string;
   customPrompt?: string;
   model?: string;
+  replyLength?: 'short' | 'medium' | 'long'; // New: Reply length preset
+  isRewriteMode?: boolean; // New: Whether to rewrite existing text
+  existingText?: string; // New: The text to rewrite
 }
 
 export interface ReplyGenerationResponse {

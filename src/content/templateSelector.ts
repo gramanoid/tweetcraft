@@ -6,6 +6,7 @@
 import { PresetTemplate, PresetTemplates } from './presetTemplates';
 import { CustomTemplate, CustomTemplateManager } from './customTemplates';
 import { ToneOption } from './toneSelector';
+import { TEMPLATES, TONES } from '@/config/templatesAndTones';
 
 export class TemplateSelector {
   private container: HTMLElement | null = null;
@@ -14,20 +15,14 @@ export class TemplateSelector {
   private selectedTone: ToneOption | null = null;
   private onSelectCallback: ((template: PresetTemplate | CustomTemplate, tone: ToneOption) => void) | null = null;
   
-  // Define tones inline to avoid circular dependencies
-  private static readonly TONE_OPTIONS: ToneOption[] = [
-    { id: 'professional', emoji: '💼', label: 'Pro', description: 'Professional', systemPrompt: 'Professional tone - be formal, respectful, and business-appropriate' },
-    { id: 'casual', emoji: '😊', label: 'Casual', description: 'Friendly', systemPrompt: 'Casual tone - be friendly, approachable, and conversational' },
-    { id: 'witty', emoji: '😄', label: 'Witty', description: 'Humorous', systemPrompt: 'Witty tone - be clever, humorous, and entertaining while staying respectful' },
-    { id: 'supportive', emoji: '🤗', label: 'Support', description: 'Encouraging', systemPrompt: 'Supportive tone - be encouraging, empathetic, and helpful' },
-    { id: 'enthusiastic', emoji: '🎉', label: 'Excited', description: 'Energetic', systemPrompt: 'Enthusiastic tone - be energetic, passionate, and excited about the topic' },
-    { id: 'academic', emoji: '🎓', label: 'Academic', description: 'Scholarly', systemPrompt: 'Academic tone - be analytical, evidence-based, and intellectually rigorous' },
-    { id: 'contrarian', emoji: '🤔', label: 'Counter', description: 'Challenging', systemPrompt: 'Contrarian tone - respectfully challenge or provide alternative perspectives' },
-    { id: 'skeptical', emoji: '🤨', label: 'Skeptic', description: 'Questioning', systemPrompt: 'Skeptical tone - question claims, ask for evidence, express healthy doubt' },
-    { id: 'sarcastic', emoji: '😏', label: 'Sarcastic', description: 'Ironic', systemPrompt: 'Sarcastic tone - use irony and sarcasm, but avoid being mean-spirited' },
-    { id: 'provocative', emoji: '🔥', label: 'Spicy', description: 'Bold', systemPrompt: 'Provocative tone - be bold, controversial, and thought-provoking while staying within bounds' },
-    { id: 'dismissive', emoji: '🙄', label: 'Dismissive', description: 'Critical', systemPrompt: 'Dismissive tone - express that you find the point unimpressive or obvious' }
-  ];
+  // Use tones from centralized configuration
+  private static readonly TONE_OPTIONS: ToneOption[] = TONES.map(tone => ({
+    id: tone.id,
+    emoji: tone.emoji,
+    label: tone.label,
+    description: tone.description,
+    systemPrompt: tone.systemPrompt
+  }));
   
   constructor() {
     // Initialize custom templates
@@ -41,7 +36,7 @@ export class TemplateSelector {
     const container = document.createElement('div');
     container.className = 'template-selector-container';
     container.style.cssText = `
-      position: absolute;
+      position: fixed;
       background: #15202b;
       border: 1px solid #38444d;
       border-radius: 12px;
@@ -675,11 +670,46 @@ export class TemplateSelector {
     
     this.onSelectCallback = onSelect;
     
-    // Position relative to anchor
+    // Position relative to anchor with viewport awareness
     const rect = anchor.getBoundingClientRect();
-    this.container.style.top = `${rect.bottom + 5}px`;
-    this.container.style.left = `${rect.left}px`;
+    
+    // Since we're using position: fixed, we use viewport coordinates directly
+    // Always try to show below the button first
+    const preferredTop = rect.bottom + 8; // 8px gap below button
+    const preferredLeft = rect.left;
+    
+    // Set initial position
+    this.container.style.top = `${preferredTop}px`;
+    this.container.style.left = `${preferredLeft}px`;
     this.container.style.display = 'block';
+    
+    // Check if popup would go off-screen and adjust if needed
+    setTimeout(() => {
+      const popupRect = this.container!.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      // Only move above if there's not enough space below AND there's more space above
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      if (popupRect.bottom > viewportHeight - 20 && spaceAbove > spaceBelow) {
+        // Position above the button
+        const alternateTop = rect.top - popupRect.height - 8;
+        this.container!.style.top = `${alternateTop}px`;
+      }
+      
+      // If popup goes off right edge, align to right edge of button
+      if (popupRect.right > viewportWidth - 20) {
+        const alternateLeft = rect.right - popupRect.width;
+        this.container!.style.left = `${Math.max(20, alternateLeft)}px`;
+      }
+      
+      // If popup goes off left edge, align to left edge of viewport
+      if (popupRect.left < 20) {
+        this.container!.style.left = '20px';
+      }
+    }, 0);
     
     this.isOpen = true;
     

@@ -3,6 +3,9 @@
   position: relative;
   display: inline-flex;
   margin-left: 8px;
+  margin-right: 8px;
+  align-self: center;
+  flex-shrink: 0;
   
   .smart-reply-btn {
     display: flex;
@@ -17,6 +20,8 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 1;
     
     svg {
       width: 16px;

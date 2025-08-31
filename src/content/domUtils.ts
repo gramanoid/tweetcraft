@@ -511,20 +511,59 @@ export class DOMUtils {
     }
   }
 
-  static createSmartReplyButton(): HTMLElement {
+  static createSmartReplyButton(isRewriteMode: boolean = false): HTMLElement {
     const button = document.createElement('button');
     button.className = 'smart-reply-btn';
-    button.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-      </svg>
-      <span>AI Reply</span>
-    `;
     
-    button.setAttribute('title', 'Generate AI reply');
+    if (isRewriteMode) {
+      button.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+          <path d="M13 17.5v2h5v-2h-5zm0-12v2h7v-2h-7zm0 6v2h7v-2h-7z" opacity="0.7"/>
+        </svg>
+        <span>AI Rewrite ✨</span>
+      `;
+      button.setAttribute('title', 'Rewrite your draft with AI');
+      button.setAttribute('data-mode', 'rewrite');
+    } else {
+      button.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        <span>AI Reply</span>
+      `;
+      button.setAttribute('title', 'Generate AI reply');
+      button.setAttribute('data-mode', 'generate');
+    }
+    
     button.type = 'button';
     
     return button;
+  }
+
+  /**
+   * Get the text content from a textarea (contentEditable div)
+   */
+  static getTextFromTextarea(textarea: HTMLElement): string {
+    // For Twitter's contentEditable divs, we need to get innerText
+    // Remove any zero-width spaces and trim
+    const text = (textarea.innerText || textarea.textContent || '')
+      .replace(/\u200B/g, '') // Remove zero-width spaces
+      .replace(/\u00A0/g, ' ') // Replace non-breaking spaces with regular spaces
+      .trim();
+    
+    return text;
+  }
+
+  /**
+   * Check if a textarea has user-entered text
+   */
+  static hasUserText(textarea: HTMLElement): boolean {
+    const text = DOMUtils.getTextFromTextarea(textarea);
+    // Check if there's meaningful text (not just placeholder or empty)
+    return text.length > 0 && 
+           !text.toLowerCase().includes('post your reply') && 
+           !text.toLowerCase().includes('add another tweet');
   }
 
   static async createToneDropdown(onToneSelect: (tone: string) => void): Promise<HTMLElement> {

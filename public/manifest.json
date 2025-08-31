@@ -1,7 +1,7 @@
 {
   "name": "TweetCraft",
   "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "manifest_version": 3,
   "background": {
     "service_worker": "serviceWorker.js"
@@ -25,6 +25,7 @@
   "host_permissions": [
     "https://openrouter.ai/*"
   ],
+  "options_page": "config.html",
   "action": {
     "default_title": "Smart Reply Settings",
     "default_popup": "popup.html",

@@ -15,7 +15,7 @@ export interface ToneOption {
 }
 
 export class ToneSelector {
-  private static readonly TONE_OPTIONS: ToneOption[] = [
+  private static TONE_OPTIONS: ToneOption[] = [
     // Positive tones
     {
       id: 'professional',
@@ -121,6 +121,82 @@ export class ToneSelector {
   constructor() {
     // Load last used tone from storage
     this.loadLastTone();
+    // Load custom tones from storage
+    this.loadCustomTones();
+  }
+
+  /**
+   * Load tone buttons into the UI
+   */
+  private async loadToneButtons(): Promise<void> {
+    if (!this.container) return;
+    
+    const toneGrid = this.container.querySelector('.tone-grid');
+    if (!toneGrid) return;
+    
+    // Load custom tones first
+    await this.loadCustomTones();
+    
+    // Render the tone buttons
+    const buttonsHtml = await this.renderToneButtons();
+    toneGrid.innerHTML = buttonsHtml;
+    
+    // Re-attach event listeners for the new buttons
+    this.attachToneButtonListeners();
+  }
+  
+  /**
+   * Attach event listeners to tone buttons only
+   */
+  private attachToneButtonListeners(): void {
+    if (!this.container) return;
+    
+    // Tone button clicks
+    this.container.querySelectorAll('.tone-btn').forEach(btn => {
+      memoryManager.addEventListener(btn as HTMLElement, 'click', (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const toneId = (btn as HTMLElement).dataset.toneId;
+        if (toneId) {
+          this.selectTone(toneId);
+        }
+      });
+    });
+  }
+
+  /**
+   * Load custom tones from storage
+   */
+  private async loadCustomTones(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get(['smartReply_config']);
+      const config = result.smartReply_config || {};
+      
+      if (config.customTones && Array.isArray(config.customTones)) {
+        // Remove existing custom tones (except the 'custom' option)
+        ToneSelector.TONE_OPTIONS = ToneSelector.TONE_OPTIONS.filter(tone => 
+          tone.id === 'custom' || !tone.id.startsWith('custom_')
+        );
+        
+        // Add user's custom tones before the 'custom' option
+        const customIndex = ToneSelector.TONE_OPTIONS.findIndex(t => t.id === 'custom');
+        const customTones = config.customTones.map((tone: any) => ({
+          id: tone.id,
+          emoji: tone.emoji,
+          label: tone.name,
+          description: tone.description || `Custom: ${tone.name}`,
+          systemPrompt: tone.promptModifier
+        }));
+        
+        // Insert custom tones before the 'custom' option
+        ToneSelector.TONE_OPTIONS.splice(customIndex, 0, ...customTones);
+        
+        console.log('%c🎨 Loaded custom tones:', 'color: #9146FF; font-weight: bold', customTones);
+      }
+    } catch (error) {
+      console.error('Failed to load custom tones:', error);
+    }
   }
 
   /**
@@ -141,7 +217,7 @@ export class ToneSelector {
       </div>
       
       <div class="tone-grid ${this.isExpanded ? 'expanded' : ''}">
-        ${this.renderToneButtons()}
+        <!-- Tones will be loaded here -->
       </div>
       
       <div class="custom-prompt-container" style="display: ${this.selectedTone === 'custom' ? 'block' : 'none'};">
@@ -164,6 +240,15 @@ export class ToneSelector {
       
       <div class="preset-templates-container"></div>
       
+      <div class="reply-length-section">
+        <div class="length-label">Reply Length:</div>
+        <div class="length-buttons">
+          <button class="length-btn" data-length="short" title="Under 50 characters">Short</button>
+          <button class="length-btn active" data-length="medium" title="50-150 characters">Medium</button>
+          <button class="length-btn" data-length="long" title="150-280 characters">Long</button>
+        </div>
+      </div>
+      
       <button class="generate-reply-btn">
         <span class="btn-icon">✨</span>
         <span class="btn-text">Generate Reply</span>
@@ -172,6 +257,9 @@ export class ToneSelector {
 
     this.attachEventListeners();
     this.applyStyles();
+    
+    // Load tone buttons asynchronously
+    this.loadToneButtons();
     
     // Add preset templates
     const templatesContainer = this.container.querySelector('.preset-templates-container');
@@ -205,7 +293,9 @@ export class ToneSelector {
   /**
    * Render tone buttons HTML
    */
-  private renderToneButtons(): string {
+  private async renderToneButtons(): Promise<string> {
+    // Ensure custom tones are loaded
+    await this.loadCustomTones();
     const tones = ToneSelector.TONE_OPTIONS;
     
     return tones.map((tone, index) => `
@@ -240,6 +330,25 @@ export class ToneSelector {
    */
   private attachEventListeners(): void {
     if (!this.container) return;
+
+    // Reply length button clicks
+    this.container.querySelectorAll('.length-btn').forEach(btn => {
+      memoryManager.addEventListener(btn as HTMLElement, 'click', (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove active class from all length buttons
+        this.container?.querySelectorAll('.length-btn').forEach(b => {
+          b.classList.remove('active');
+        });
+        
+        // Add active class to clicked button
+        (btn as HTMLElement).classList.add('active');
+        
+        console.log('%c📏 Reply length selected:', 'color: #9146FF; font-weight: bold', 
+                   (btn as HTMLElement).dataset.length);
+      });
+    });
 
     // Tone button clicks
     this.container.querySelectorAll('.tone-btn').forEach(btn => {
@@ -298,6 +407,15 @@ export class ToneSelector {
           const modifiers = Array.from(this.selectedModifiers)
             .map(id => ToneSelector.MOOD_MODIFIERS.find(m => m.id === id)?.modifier)
             .filter(Boolean) as string[];
+          
+          // Get selected reply length
+          const activeLengthBtn = this.container?.querySelector('.length-btn.active') as HTMLElement;
+          const replyLength = activeLengthBtn?.dataset.length as 'short' | 'medium' | 'long' | undefined;
+          
+          // Add reply length to modifiers if selected
+          if (replyLength) {
+            modifiers.push(`replyLength:${replyLength}`);
+          }
           
           // Get custom prompt if custom tone is selected
           let customPrompt: string | undefined;
@@ -671,6 +789,49 @@ export class ToneSelector {
           margin: 8px 0;
           max-width: 100%;
           overflow: hidden;
+        }
+        
+        .reply-length-section {
+          margin: 8px 0;
+          padding: 8px;
+          background: rgba(29, 161, 242, 0.05);
+          border-radius: 8px;
+        }
+        
+        .length-label {
+          font-size: 11px;
+          color: #8b98a5;
+          margin-bottom: 6px;
+          font-weight: 500;
+        }
+        
+        .length-buttons {
+          display: flex;
+          gap: 4px;
+        }
+        
+        .length-btn {
+          flex: 1;
+          padding: 6px 8px;
+          background: transparent;
+          border: 1px solid #2f3336;
+          border-radius: 6px;
+          color: #8b98a5;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .length-btn:hover {
+          background: rgba(29, 161, 242, 0.1);
+          border-color: #1da1f2;
+          color: #1da1f2;
+        }
+        
+        .length-btn.active {
+          background: #1da1f2;
+          border-color: #1da1f2;
+          color: white;
         }
         
         .preview-emoji {

@@ -1,5 +1,5 @@
 import { DOMUtils } from './domUtils';
-import { OpenRouterService } from '@/services/openRouter';
+// OpenRouter service now handled by service worker
 import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
 import { debounce, throttle } from '@/utils/debounce';
@@ -104,7 +104,9 @@ class SmartReplyContentScript {
     // Enhanced cleanup with state persistence for context recovery
     const handleNavigation = () => {
       if (!this.isDestroyed) {
-        console.log('%c🔄 Smart Reply: Page navigation detected, refreshing...', 'color: #FFA500; font-weight: bold');
+        console.log('%c🔄 NAVIGATION DETECTED', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+        console.log('%c  URL:', 'color: #657786', window.location.href);
+        console.log('%c  Clearing processed toolbars...', 'color: #657786');
         
         // Clear processed toolbars for the new page
         this.processedToolbars = new WeakSet<Element>();
@@ -112,12 +114,20 @@ class SmartReplyContentScript {
         // Reset retry count and attempt injection after navigation
         this.initialRetryCount = 0;
         
-        // Give the new page time to load
+        // Give the new page time to load - increased delay for Twitter's dynamic loading
         setTimeout(() => {
           if (!this.isDestroyed) {
+            console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
             this.attemptInitialInjection();
+            
+            // Also trigger a manual scan after a bit more delay
+            setTimeout(() => {
+              if (!this.isDestroyed) {
+                this.manualToolbarScan();
+              }
+            }, 1000);
           }
-        }, 500);
+        }, 800);
       }
     };
     
@@ -439,8 +449,74 @@ class SmartReplyContentScript {
       const buttonContainer = document.createElement('div');
       buttonContainer.className = 'smart-reply-container';
 
-      // Create the main button
-      const button = DOMUtils.createSmartReplyButton();
+      // Check if there's existing text to determine initial mode
+      const hasText = DOMUtils.hasUserText(textarea);
+      
+      // Create the main button with appropriate mode
+      const button = DOMUtils.createSmartReplyButton(hasText);
+      
+      console.log('%c🔧 BUTTON INJECTION', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+      console.log('%c  Has existing text:', 'color: #657786', hasText);
+      console.log('%c  Initial mode:', 'color: #657786', hasText ? 'REWRITE' : 'GENERATE');
+      console.log('%c  Toolbar found:', 'color: #657786', !!toolbarElement);
+      console.log('%c  Textarea found:', 'color: #657786', !!textarea);
+      
+      // Monitor textarea for changes to update button mode
+      const updateButtonMode = () => {
+        const currentHasText = DOMUtils.hasUserText(textarea);
+        const currentMode = button.getAttribute('data-mode');
+        const shouldBeRewrite = currentHasText;
+        const isRewrite = currentMode === 'rewrite';
+        
+        if (shouldBeRewrite !== isRewrite) {
+          // Mode needs to change
+          console.log('%c🔄 Button mode change:', 'color: #9146FF', shouldBeRewrite ? 'REWRITE' : 'GENERATE');
+          
+          if (shouldBeRewrite) {
+            button.innerHTML = `
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+                <path d="M13 17.5v2h5v-2h-5zm0-12v2h7v-2h-7zm0 6v2h7v-2h-7z" opacity="0.7"/>
+              </svg>
+              <span>AI Rewrite ✨</span>
+            `;
+            button.setAttribute('title', 'Rewrite your draft with AI');
+            button.setAttribute('data-mode', 'rewrite');
+          } else {
+            button.innerHTML = `
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <span>AI Reply</span>
+            `;
+            button.setAttribute('title', 'Generate AI reply');
+            button.setAttribute('data-mode', 'generate');
+          }
+        }
+      };
+      
+      // Set up observer for textarea changes
+      const textObserver = new MutationObserver(() => {
+        updateButtonMode();
+      });
+      
+      textObserver.observe(textarea, {
+        childList: true,
+        characterData: true,
+        subtree: true
+      });
+      
+      // Also listen for input events
+      textarea.addEventListener('input', updateButtonMode);
+      textarea.addEventListener('paste', () => {
+        setTimeout(updateButtonMode, 100);
+      });
+      
+      // Store cleanup function
+      this.eventListeners.push(() => {
+        textObserver.disconnect();
+        textarea.removeEventListener('input', updateButtonMode);
+      });
       
       // Create template selector instance
       const templateSelector = new TemplateSelector();
@@ -459,15 +535,27 @@ class SmartReplyContentScript {
           // Remove the attributes so next click shows dropdown
           button.removeAttribute('data-tone');
           button.removeAttribute('data-bypass-cache');
+          // Check if we're in rewrite mode
+          const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
           // Generate directly with the preset tone
-          this.generateReply(textarea, context, presetTone, bypassCache);
+          this.generateReply(textarea, context, presetTone, bypassCache, isRewriteMode);
           return;
         }
         
+        // Check if we're in rewrite mode
+        const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
+        
         // Show template selector
         templateSelector.show(button, (template, tone) => {
-          // When both template and tone are selected, generate reply
+          // When both template and tone are selected, generate/rewrite
           console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
+          console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
+          
+          if (isRewriteMode) {
+            const existingText = DOMUtils.getTextFromTextarea(textarea);
+            console.log('%c  Existing Text:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));
+          }
+          
           console.log('%c  Template Selected:', 'color: #657786');
           console.log(`%c    ${template.emoji} ${template.name}`, 'color: #1DA1F2');
           console.log('%c    Prompt:', 'color: #8899a6', template.prompt);
@@ -482,8 +570,8 @@ class SmartReplyContentScript {
           console.log(`%c    "${combinedPrompt}"`, 'color: #17BF63');
           console.log('%c════════════════════════════════', 'color: #2E3236');
           
-          // Generate reply using the combined instruction
-          this.generateReply(textarea, context, combinedPrompt, bypassCache);
+          // Generate or rewrite using the combined instruction
+          this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode);
         });
         
         return false; // Prevent any default action
@@ -493,15 +581,48 @@ class SmartReplyContentScript {
       buttonContainer.appendChild(button);
 
       // Find the right place to inject the button
-      const toolbarContainer = toolbarElement.querySelector('div');
-      if (toolbarContainer) {
-        toolbarContainer.appendChild(buttonContainer);
+      // Look for the container that has the tweet button and other toolbar items
+      const tweetButton = toolbarElement.querySelector('[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
+      
+      if (tweetButton && tweetButton.parentElement) {
+        // Insert before the tweet/reply button for better positioning
+        const toolbarItemsContainer = tweetButton.parentElement;
+        
+        // Find if there are other toolbar items (emoji, gif buttons etc)
+        const toolbarItems = toolbarItemsContainer.querySelector('div[role="group"], div[aria-label]');
+        
+        console.log('%c✅ AI BUTTON POSITIONING', 'color: #17BF63; font-weight: bold; font-size: 14px');
+        console.log('%c  Tweet button found:', 'color: #657786', !!tweetButton);
+        console.log('%c  Other toolbar items:', 'color: #657786', !!toolbarItems);
+        console.log('%c  Inserting before tweet button', 'color: #657786');
+        
+        if (toolbarItems) {
+          // Insert after the toolbar items but before the tweet button
+          toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
+        } else {
+          // Just insert before the tweet button
+          toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
+        }
+        
         // Only log on first injection
         if (!document.querySelector('.smart-reply-container:nth-of-type(2)')) {
           console.log('Smart Reply: Ready');
         }
       } else {
-        console.warn('Smart Reply: Could not find toolbar container');
+        // Fallback: try to find a suitable container
+        const toolbarContainer = toolbarElement.querySelector('div > div');
+        if (toolbarContainer) {
+          // Look for existing items to insert before
+          const existingItems = toolbarContainer.children;
+          if (existingItems.length > 0) {
+            // Insert before the last item (usually the tweet button)
+            toolbarContainer.insertBefore(buttonContainer, existingItems[existingItems.length - 1]);
+          } else {
+            toolbarContainer.appendChild(buttonContainer);
+          }
+        } else {
+          console.warn('Smart Reply: Could not find suitable toolbar container');
+        }
       }
 
     } catch (error) {
@@ -513,14 +634,15 @@ class SmartReplyContentScript {
     textarea: HTMLElement, 
     context: any, 
     tone?: string,
-    bypassCache: boolean = false
+    bypassCache: boolean = false,
+    isRewriteMode: boolean = false
   ): Promise<void> {
     // Use AsyncOperationManager to prevent race conditions
-    const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
+    const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}_${isRewriteMode ? 'rewrite' : 'generate'}`;
     
     try {
       await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache);
+        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode);
       });
     } catch (error) {
       if ((error as Error).message.includes('cancelled')) {
@@ -537,7 +659,8 @@ class SmartReplyContentScript {
     context: any, 
     tone: string | undefined,
     signal: AbortSignal,
-    bypassCache: boolean = false
+    bypassCache: boolean = false,
+    isRewriteMode: boolean = false
   ): Promise<void> {
     // Generate operation key for tracking
     const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}`;
@@ -558,8 +681,9 @@ class SmartReplyContentScript {
       }
 
       // Simple loading state
-      DOMUtils.showLoadingState(button, 'Generating');
-      console.log('%c🚀 Smart Reply: Starting generation with tone:', 'color: #1DA1F2; font-weight: bold', tone);
+      const loadingText = isRewriteMode ? 'Rewriting' : 'Generating';
+      DOMUtils.showLoadingState(button, loadingText);
+      console.log(`%c🚀 Smart Reply: Starting ${isRewriteMode ? 'rewrite' : 'generation'} with tone:`, 'color: #1DA1F2; font-weight: bold', tone);
       
       // Check if API key is configured (with cancellation check)
       if (signal.aborted) throw new Error('Operation cancelled');
@@ -573,19 +697,78 @@ class SmartReplyContentScript {
       // Check for cancellation before preparing request
       if (signal.aborted) throw new Error('Operation cancelled');
       
+      // Parse reply length from tone if it contains the modifier
+      let actualTone = tone;
+      let replyLength: 'short' | 'medium' | 'long' | undefined;
+      
+      if (tone && tone.includes('replyLength:')) {
+        const match = tone.match(/replyLength:(short|medium|long)/);
+        if (match) {
+          replyLength = match[1] as 'short' | 'medium' | 'long';
+          // Remove the replyLength modifier from the tone string
+          actualTone = tone.replace(/replyLength:(short|medium|long)/, '').trim();
+        }
+      }
+      
+      // Get existing text if in rewrite mode
+      let existingText: string | undefined;
+      if (isRewriteMode) {
+        existingText = DOMUtils.getTextFromTextarea(textarea);
+        if (!existingText) {
+          DOMUtils.showError(button, 'No text to rewrite', 'api');
+          console.error('%c❌ No text to rewrite', 'color: #DC3545; font-weight: bold');
+          return;
+        }
+      }
+      
       // Prepare the request
       const request: ReplyGenerationRequest = {
         originalTweet: context.tweetText,
-        tone: tone
+        tone: actualTone,
+        isRewriteMode,
+        existingText
       };
 
-      console.log('%c📦 Smart Reply: Request prepared:', 'color: #9146FF', request);
+      // Add reply length if specified in tone or use default from config
+      if (replyLength) {
+        request.replyLength = replyLength;
+      } else {
+        // Get reply length preference from config
+        const config = await StorageService.getConfig();
+        if (config.replyLengthDefault) {
+          request.replyLength = config.replyLengthDefault;
+        }
+      }
+
+      console.log('%c📦 CONTENT SCRIPT: REQUEST PREPARED', 'color: #9146FF; font-weight: bold; font-size: 14px');
+      console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
+      if (isRewriteMode && existingText) {
+        console.log('%c  Text to Rewrite:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));
+      }
+      console.log('%c  Original Tweet:', 'color: #657786', request.originalTweet?.substring(0, 100) + '...');
+      console.log('%c  Tone/Template:', 'color: #657786', request.tone?.substring(0, 100) + '...');
+      console.log('%c  Reply Length:', 'color: #657786', request.replyLength || 'auto');
+      console.log('%c  Full Request:', 'color: #9146FF', request);
+      console.log('%c  Full Context:', 'color: #9146FF', context);
 
       // Check for cancellation before API call
       if (signal.aborted) throw new Error('Operation cancelled');
-
-      // Generate the reply with the signal and bypass cache if requested
-      const response = await OpenRouterService.generateReply(request, context, signal, bypassCache);
+      
+      console.log('%c📡 SENDING TO SERVICE WORKER...', 'color: #E1AD01; font-weight: bold');
+      
+      // Generate the reply through service worker
+      const response = await chrome.runtime.sendMessage({
+        type: 'GENERATE_REPLY',
+        request,
+        context
+      });
+      
+      console.log('%c📨 SERVICE WORKER RESPONSE', 'color: #17BF63; font-weight: bold');
+      console.log('%c  Success:', 'color: #657786', response.success);
+      console.log('%c  Reply Length:', 'color: #657786', response.reply?.length || 0);
+      if (response.error) {
+        console.error('%c  Error:', 'color: #DC3545', response.error);
+      }
 
       // Check for cancellation after API call
       if (signal.aborted) throw new Error('Operation cancelled');
@@ -742,12 +925,25 @@ class SmartReplyContentScript {
    */
   private attemptInitialInjection(): void {
     // Check if we're on a reply-capable page
-    const isReplyPage = window.location.pathname.includes('/status/') || 
-                       document.querySelector('article[data-testid="tweet"]');
+    const isStatusPage = window.location.pathname.includes('/status/');
+    const hasTweets = document.querySelector('article[data-testid="tweet"]') !== null;
+    const isComposePage = window.location.pathname.includes('/compose/');
+    const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+    const isReplyPage = isStatusPage || hasTweets || isComposePage || isHomePage;
+    
+    console.log('%c🎯 ATTEMPT INITIAL INJECTION', 'color: #17BF63; font-weight: bold');
+    console.log('%c  Page type:', 'color: #657786', {
+      status: isStatusPage,
+      tweets: hasTweets,
+      compose: isComposePage,
+      home: isHomePage
+    });
+    console.log('%c  Retry:', 'color: #657786', `${this.initialRetryCount}/${this.maxInitialRetries}`);
     
     if (!isReplyPage) {
       // Not on a reply page, reset retry count for next time
       this.initialRetryCount = 0;
+      console.log('%c  Not a reply-capable page, skipping', 'color: #FFA500');
       return;
     }
 
@@ -765,21 +961,28 @@ class SmartReplyContentScript {
       if (toolbar) toolbars.push(toolbar);
     }
 
+    console.log('%c  Found toolbars:', 'color: #657786', toolbars.length);
+
     // Process any found toolbars
     if (toolbars.length > 0) {
-      console.log(`%c🎯 Initial injection: Found ${toolbars.length} toolbar(s) on attempt ${this.initialRetryCount + 1}`, 'color: #17BF63');
+      let injectedCount = 0;
       toolbars.forEach(toolbar => {
         if (!this.processedToolbars.has(toolbar)) {
+          console.log('%c  Processing toolbar...', 'color: #657786');
           this.handleToolbarAdded(toolbar);
+          injectedCount++;
+        } else {
+          console.log('%c  Toolbar already processed', 'color: #FFA500');
         }
       });
+      console.log('%c  ✅ Injected buttons:', 'color: #17BF63', injectedCount);
       // Reset retry count on success
       this.initialRetryCount = 0;
     } else if (this.initialRetryCount < this.maxInitialRetries) {
       // Retry with exponential backoff
       this.initialRetryCount++;
       const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
-      console.log(`%c⏳ Initial injection: No toolbars found, retrying in ${delay}ms (attempt ${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
+      console.log(`%c⏳ No toolbars found, retrying in ${delay}ms (${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
       
       setTimeout(() => {
         if (!this.isDestroyed) {
@@ -788,8 +991,57 @@ class SmartReplyContentScript {
       }, delay);
     } else {
       // Max retries reached
-      console.log('%c⚠️ Initial injection: Max retries reached, relying on mutation observer', 'color: #FFA500');
+      console.log('%c⚠️ Max retries reached, relying on mutation observer', 'color: #DC3545');
       this.initialRetryCount = 0;
+    }
+  }
+
+  /**
+   * Manual toolbar scan for navigation scenarios
+   */
+  private manualToolbarScan(): void {
+    console.log('%c🔍 MANUAL TOOLBAR SCAN', 'color: #9146FF; font-weight: bold');
+    
+    // Find all toolbars including those that might have been missed
+    const allToolbars: Element[] = [];
+    
+    // Try multiple selectors
+    const selectors = [
+      DOMUtils.TOOLBAR_SELECTOR,
+      '[role="group"][aria-label]',
+      'div[data-testid="toolBar"]',
+      'div[class*="toolbar"]',
+      'div[class*="ToolBar"]'
+    ];
+    
+    selectors.forEach(selector => {
+      try {
+        document.querySelectorAll(selector).forEach(element => {
+          // Check if it looks like a toolbar
+          if (element.querySelector('button') && !allToolbars.includes(element)) {
+            allToolbars.push(element);
+          }
+        });
+      } catch (e) {
+        // Ignore selector errors
+      }
+    });
+    
+    console.log('%c  Found potential toolbars:', 'color: #657786', allToolbars.length);
+    
+    let injectedCount = 0;
+    allToolbars.forEach(toolbar => {
+      if (!this.processedToolbars.has(toolbar) && this.isReplyToolbar(toolbar)) {
+        console.log('%c  Injecting into unprocessed toolbar', 'color: #17BF63');
+        this.handleToolbarAdded(toolbar);
+        injectedCount++;
+      }
+    });
+    
+    if (injectedCount > 0) {
+      console.log('%c  ✅ Manual scan injected:', 'color: #17BF63', injectedCount);
+    } else {
+      console.log('%c  No new toolbars to process', 'color: #657786');
     }
   }
 

@@ -19,17 +19,6 @@
       
       <main class="popup-content">
         <div class="setting-group">
-          <label for="api-key">OpenRouter API Key:</label>
-          <div class="api-key-row">
-            <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
-            <button id="toggle-api-key" class="btn-icon" title="Show/Hide API Key">👁️</button>
-            <button id="test-api-key" class="btn-secondary" title="Test API Key">Test</button>
-          </div>
-          <small>Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
-          <div id="api-test-result" class="test-result"></div>
-        </div>
-        
-        <div class="setting-group">
           <label for="model-select">Model:</label>
           <div class="model-select-row">
             <select id="model-select">
@@ -41,8 +30,37 @@
         </div>
         
         <div class="setting-group">
-          <label for="system-prompt">Your Style/Personality:</label>
-          <textarea id="system-prompt" placeholder="e.g., I'm a tech entrepreneur who writes concise, helpful replies with occasional humor. I focus on practical advice and avoid corporate speak."></textarea>
+          <label for="system-prompt">System Prompt (Your Identity):</label>
+          <textarea id="system-prompt" placeholder="e.g., I'm a tech entrepreneur who writes concise, helpful replies with occasional humor. I focus on practical advice and avoid corporate speak." rows="4" style="resize: vertical;"></textarea>
+          <small>Define who you are and your general personality (no length limit)</small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="custom-style-prompt">Custom Style Prompt (Writing Style):</label>
+          <textarea id="custom-style-prompt" placeholder="e.g., Use short sentences. Be direct. Include relevant examples. Never use corporate jargon or buzzwords." rows="4" style="resize: vertical;"></textarea>
+          <small>Specific instructions for how to write your tweets (no length limit)</small>
+        </div>
+        
+        <div class="setting-group">
+          <label for="custom-tone">Add Custom Tone:</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="custom-tone-name" placeholder="Tone name (e.g., Philosophical)" style="flex: 1;">
+            <input type="text" id="custom-tone-emoji" placeholder="Emoji" style="width: 60px; text-align: center;">
+          </div>
+          <textarea id="custom-tone-prompt" placeholder="e.g., Write in a thoughtful, philosophical manner. Ask deep questions and explore underlying meanings. Reference classical ideas when relevant." rows="3" style="resize: vertical;"></textarea>
+          <button id="add-custom-tone" class="btn-primary" style="margin-top: 10px; width: 100%;">Add Custom Tone</button>
+          <div id="custom-tones-list" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="setting-group">
+          <label for="reply-length">Default Reply Length:</label>
+          <select id="reply-length">
+            <option value="">Auto (based on context)</option>
+            <option value="short">Short (&lt; 50 characters)</option>
+            <option value="medium">Medium (50-150 characters)</option>
+            <option value="long">Long (150-280 characters)</option>
+          </select>
+          <small>Set preferred reply length for all generations</small>
         </div>
         
         <div class="setting-group">
@@ -59,7 +77,7 @@
           <select id="context-mode">
             <option value="none">No context (generic reply)</option>
             <option value="single">Single tweet only</option>
-            <option value="thread" selected>Full thread context (up to 3 tweets)</option>
+            <option value="thread" selected>Full thread context (up to 4 tweets)</option>
           </select>
           <small>Choose how much conversation context to include when generating replies</small>
         </div>
@@ -67,6 +85,9 @@
       
       <footer class="popup-footer">
         <button id="save-settings" class="btn-primary">Save Settings</button>
+        <div style="margin-top: 10px; text-align: center;">
+          <a href="#" id="configure-api" style="color: #1DA1F2; text-decoration: none; font-size: 12px;">Configure API Key</a>
+        </div>
         <div id="status-message"></div>
       </footer>
     </div>

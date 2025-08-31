@@ -1,4 +1,5 @@
 import { StorageService } from '@/services/storage';
+import { TEMPLATES, TONES, getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -190,6 +191,11 @@ class SmartReplyServiceWorker {
             });
           break;
 
+        case 'GENERATE_REPLY':
+          // Handle reply generation in service worker
+          this.handleGenerateReply(message, sendResponse);
+          break;
+
         case 'FETCH_MODELS':
           // Fetch available models using shared utility
           const fetchApiKey = message.apiKey;
@@ -272,6 +278,324 @@ class SmartReplyServiceWorker {
       console.error('Smart Reply: Error checking configuration:', error);
       return false;
     }
+  }
+
+  // Handle reply generation with OpenRouter API
+  private async handleGenerateReply(
+    message: any,
+    sendResponse: (response?: any) => void
+  ): Promise<void> {
+    console.log('%c🚀 SERVICE WORKER: GENERATE REPLY', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c════════════════════════════════', 'color: #2E3236');
+    
+    try {
+      const { request, context } = message;
+      
+      console.log('%c📥 INCOMING REQUEST', 'color: #9146FF; font-weight: bold');
+      console.log('%c  Mode:', 'color: #657786', request?.isRewriteMode ? 'REWRITE' : 'GENERATE');
+      console.log('%c  Request:', 'color: #657786', request);
+      console.log('%c  Context:', 'color: #657786', context);
+      if (request?.isRewriteMode && request?.existingText) {
+        console.log('%c  Text to Rewrite:', 'color: #FF6B6B', request.existingText.substring(0, 100) + (request.existingText.length > 100 ? '...' : ''));
+      }
+      
+      const apiKey = await StorageService.getApiKey();
+      const config = await StorageService.getConfig();
+      
+      console.log('%c⚙️ CONFIG LOADED', 'color: #17BF63; font-weight: bold');
+      console.log('%c  Model:', 'color: #657786', config.model || 'openai/gpt-4o');
+      console.log('%c  Temperature:', 'color: #657786', config.temperature || 0.7);
+      console.log('%c  Has Custom Style:', 'color: #657786', !!config.customStylePrompt);
+      console.log('%c  Custom Tones Count:', 'color: #657786', config.customTones?.length || 0);
+
+      if (!apiKey) {
+        sendResponse({
+          success: false,
+          error: 'No API key found. Please configure in extension settings.'
+        });
+        return;
+      }
+
+      // Build messages for OpenRouter
+      const messages = await this.buildMessages(request, context, config);
+      const temperature = config.temperature || 0.7;
+      
+      console.log('%c📝 MESSAGES BUILT', 'color: #FF6B6B; font-weight: bold');
+      console.log('%c  System Prompt Length:', 'color: #657786', messages[0].content.length);
+      console.log('%c  User Prompt Length:', 'color: #657786', messages[1].content.length);
+      console.log('%c  Total Characters:', 'color: #657786', messages[0].content.length + messages[1].content.length);
+
+      // Add reply length modifier if specified
+      let systemPrompt = messages[0].content;
+      if (request.replyLength) {
+        const lengthModifiers = {
+          short: ' Keep the reply very brief, under 50 characters.',
+          medium: ' Keep the reply concise, between 50-150 characters.',
+          long: ' Write a detailed reply, 150-280 characters.'
+        };
+        systemPrompt += lengthModifiers[request.replyLength as keyof typeof lengthModifiers] || '';
+        messages[0].content = systemPrompt;
+      }
+
+      const openRouterRequest = {
+        model: request.model || config.model || 'openai/gpt-4o',
+        messages,
+        temperature,
+        top_p: 0.9
+      };
+
+      console.log('%c📤 SENDING TO OPENROUTER API', 'color: #E1AD01; font-weight: bold');
+      console.log('%c  Full Request:', 'color: #657786', openRouterRequest);
+      console.log('%c  Headers:', 'color: #657786', {
+        'Authorization': 'Bearer [REDACTED]',
+        'HTTP-Referer': 'https://tweetcraft.ai/extension',
+        'X-Title': 'TweetCraft - AI Reply Assistant'
+      });
+      console.log('%c  Reply Length Preset:', 'color: #657786', request.replyLength || 'auto');
+
+      const startTime = Date.now();
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://tweetcraft.ai/extension',
+          'X-Title': 'TweetCraft - AI Reply Assistant'
+        },
+        body: JSON.stringify(openRouterRequest)
+      });
+
+      const responseTime = Date.now() - startTime;
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('%c❌ API ERROR', 'color: #DC3545; font-weight: bold; font-size: 14px');
+        console.error('%c  Status:', 'color: #DC3545', response.status);
+        console.error('%c  Status Text:', 'color: #DC3545', response.statusText);
+        console.error('%c  Response Time:', 'color: #DC3545', `${responseTime}ms`);
+        console.error('%c  Error Body:', 'color: #DC3545', errorText);
+        
+        if (response.status === 401) {
+          sendResponse({
+            success: false,
+            error: 'Invalid API key. Get your key at openrouter.ai/keys'
+          });
+        } else if (response.status === 429) {
+          sendResponse({
+            success: false,
+            error: 'Rate limited. Try again in a few seconds'
+          });
+        } else {
+          sendResponse({
+            success: false,
+            error: `API error (${response.status}). Try again`
+          });
+        }
+        return;
+      }
+
+      const result = await response.json();
+      
+      console.log('%c✅ API RESPONSE RECEIVED', 'color: #17BF63; font-weight: bold; font-size: 14px');
+      console.log('%c  Response Time:', 'color: #657786', `${responseTime}ms`);
+      console.log('%c  Model Used:', 'color: #657786', result.model);
+      console.log('%c  Tokens Used:', 'color: #657786', result.usage);
+      console.log('%c  Finish Reason:', 'color: #657786', result.choices?.[0]?.finish_reason);
+      
+      const reply = result.choices?.[0]?.message?.content?.trim();
+
+      if (!reply) {
+        sendResponse({
+          success: false,
+          error: 'No response generated. Please try again.'
+        });
+        return;
+      }
+
+      const cleanedReply = this.cleanupReply(reply);
+      
+      console.log('%c🎯 FINAL REPLY', 'color: #17BF63; font-weight: bold');
+      console.log('%c  Original Length:', 'color: #657786', reply.length);
+      console.log('%c  Cleaned Length:', 'color: #657786', cleanedReply.length);
+      console.log('%c  Reply:', 'color: #17BF63', cleanedReply);
+      console.log('%c════════════════════════════════', 'color: #2E3236');
+      
+      sendResponse({
+        success: true,
+        reply: cleanedReply
+      });
+
+    } catch (error: any) {
+      console.error('%c💥 EXCEPTION IN SERVICE WORKER', 'color: #DC3545; font-weight: bold; font-size: 14px');
+      console.error('%c  Error Type:', 'color: #DC3545', error?.constructor?.name || 'Unknown');
+      console.error('%c  Error Message:', 'color: #DC3545', error?.message || 'Unknown error');
+      console.error('%c  Stack Trace:', 'color: #DC3545', error?.stack || 'No stack trace');
+      console.error('%c════════════════════════════════', 'color: #2E3236');
+      
+      sendResponse({
+        success: false,
+        error: 'Failed to generate reply. Please try again.'
+      });
+    }
+  }
+
+  private async buildMessages(
+    request: any,
+    context: any,
+    config: any
+  ) {
+    console.log('%c🔨 BUILDING MESSAGES', 'color: #9146FF; font-weight: bold');
+    console.log('%c────────────────────────────────', 'color: #E1E8ED');
+    
+    const messages = [];
+
+    // Build system prompt with custom prompts
+    let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
+    
+    console.log('%c📝 BASE SYSTEM PROMPT', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c  Content:', 'color: #657786', systemPrompt);
+    
+    // Add custom style prompt if configured
+    if (config.customStylePrompt) {
+      console.log('%c🎨 CUSTOM STYLE PROMPT', 'color: #FF6B6B; font-weight: bold');
+      console.log('%c  Content:', 'color: #657786', config.customStylePrompt);
+      systemPrompt += ' ' + config.customStylePrompt;
+    }
+
+    // Add tone modifier
+    if (request.tone) {
+      console.log('%c🎭 TONE MODIFIER', 'color: #E1AD01; font-weight: bold');
+      console.log('%c  Requested Tone:', 'color: #657786', request.tone);
+      
+      // First check if it's one of our backend-configured tones
+      const configuredTone = getTone(request.tone);
+      if (configuredTone) {
+        console.log('%c  Type: Configured Tone', 'color: #9146FF');
+        console.log('%c  Tone:', 'color: #657786', configuredTone.label);
+        console.log('%c  System Prompt:', 'color: #657786', configuredTone.systemPrompt);
+        systemPrompt += ' ' + configuredTone.systemPrompt;
+      }
+      // Check if it's a custom tone from user settings
+      else if (config.customTones?.find((tone: any) => tone.id === request.tone)) {
+        const customTone = config.customTones.find((tone: any) => tone.id === request.tone);
+        console.log('%c  Type: User Custom Tone', 'color: #9146FF');
+        console.log('%c  Modifier:', 'color: #657786', customTone.promptModifier);
+        systemPrompt += ' ' + customTone.promptModifier;
+      }
+      // Otherwise treat it as a combined template+tone instruction
+      else {
+        console.log('%c  Type: Combined Template+Tone', 'color: #9146FF');
+        console.log('%c  Content:', 'color: #657786', request.tone);
+        systemPrompt += ' ' + request.tone;
+      }
+    }
+
+    // Add context awareness
+    if (config.contextAware && context.isReply) {
+      systemPrompt += ' Analyze the original tweet and write a contextually relevant reply.';
+    }
+
+    systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
+    systemPrompt += ' IMPORTANT: Write only the reply text itself. Do not include any meta-commentary.';
+
+    console.log('%c📋 FINAL SYSTEM PROMPT', 'color: #17BF63; font-weight: bold');
+    console.log('%c  Length:', 'color: #657786', systemPrompt.length + ' characters');
+    console.log('%c  Full Content:', 'color: #17BF63');
+    console.log('%c  ', 'color: #17BF63', systemPrompt);
+    
+    messages.push({
+      role: 'system' as const,
+      content: systemPrompt
+    });
+
+    // Build user message
+    console.log('%c💬 USER MESSAGE', 'color: #794BC4; font-weight: bold');
+    
+    let userPrompt = '';
+    
+    // Handle rewrite mode - pass the user's existing text to the LLM
+    if (request.isRewriteMode && request.existingText) {
+      console.log('%c  Type: REWRITE MODE', 'color: #FF6B6B; font-weight: bold');
+      console.log('%c  Existing Text:', 'color: #657786', request.existingText);
+      
+      // For rewrite mode, we want the LLM to improve the user's draft
+      userPrompt = `Please rewrite and improve this tweet reply while maintaining its core message:\n\n"${request.existingText}"\n\n`;
+      
+      // Add context about what they're replying to if available
+      if (context.tweetText) {
+        userPrompt += `Context - this is a reply to: "${context.tweetText}"\n\n`;
+      }
+      
+      userPrompt += 'Improve the clarity, impact, and engagement while keeping the same general intent. Make it more compelling and Twitter-appropriate.';
+      
+    } else if (request.customPrompt) {
+      console.log('%c  Type: Custom Prompt', 'color: #657786');
+      userPrompt = request.customPrompt;
+    } else if (context.isReply && context.tweetText) {
+      console.log('%c  Type: Reply to Tweet', 'color: #657786');
+      const contextMode = config.contextMode || 'thread';
+      
+      if (contextMode === 'thread' && context.threadContext?.length > 0) {
+        console.log('%c  Context Mode: Thread', 'color: #657786');
+        console.log('%c  Thread Length:', 'color: #657786', context.threadContext.length + ' additional tweets');
+        
+        userPrompt = 'Here is a Twitter conversation thread:\n\n';
+        context.threadContext.forEach((tweet: any, index: number) => {
+          console.log(`%c  Tweet ${index + 1}:`, 'color: #657786', tweet.text.substring(0, 50) + '...');
+          userPrompt += `${tweet.author}: ${tweet.text}\n`;
+        });
+        if (context.authorHandle) {
+          userPrompt += `@${context.authorHandle}: ${context.tweetText}\n\n`;
+        } else {
+          userPrompt += `Latest tweet: ${context.tweetText}\n\n`;
+        }
+        userPrompt += 'Write a contextually relevant reply that continues this conversation naturally.';
+      } else if (contextMode === 'single' || (contextMode === 'thread' && !context.threadContext)) {
+        console.log('%c  Context Mode: Single Tweet', 'color: #657786');
+        console.log('%c  Tweet:', 'color: #657786', context.tweetText?.substring(0, 100) + '...');
+        userPrompt = `Write a reply to this tweet: "${context.tweetText}"`;
+      } else {
+        console.log('%c  Context Mode: None', 'color: #657786');
+        userPrompt = 'Write an engaging tweet reply.';
+      }
+    } else {
+      console.log('%c  Type: Generic Tweet', 'color: #657786');
+      userPrompt = 'Write an engaging tweet.';
+    }
+
+    console.log('%c  User Prompt Length:', 'color: #657786', userPrompt.length + ' characters');
+    console.log('%c  User Prompt:', 'color: #794BC4', userPrompt);
+    console.log('%c────────────────────────────────', 'color: #E1E8ED');
+    
+    messages.push({
+      role: 'user' as const,
+      content: userPrompt
+    });
+
+    return messages;
+  }
+
+  private cleanupReply(reply: string): string {
+    // Remove common artifacts and meta text
+    let cleaned = reply
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .trim();
+    
+    // Remove common meta-text patterns
+    const metaPatterns = [
+      /^(A |An )?(balanced |measured |witty |professional |casual |supportive |contrarian |thoughtful )?(reply|response)( could be| might be)?:?\s*/i,
+      /^Here(\'s| is) (a |an )?(reply|response)?:?\s*/i,
+      /^(Reply|Response):?\s*/i,
+      /^You could (say|reply|respond with):?\s*/i,
+    ];
+    
+    for (const pattern of metaPatterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+    
+    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+    return cleaned || reply;
   }
 
   // Method to handle cleanup on extension disable/uninstall

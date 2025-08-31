@@ -5,9 +5,35 @@ All notable changes to TweetCraft will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2025-08-31
+
+### Fixed
+- **AI Rewrite Button Positioning**: Fixed incorrect placement when text is generated
+  - Button now properly appears before the tweet/reply button using insertBefore()
+  - Added proper CSS alignment with margin-right and flex-shrink properties
+  - Added z-index to prevent overlapping with compose area
+  - Enhanced debugging logs for button injection troubleshooting
+
 ## [0.0.9] - 2025-08-30
 
 ### Added
+- **AI Rewrite Feature**: Transform your drafts with AI
+  - Adaptive button changes from "AI Reply" to "AI Rewrite ✨" when text is present
+  - Rewrites your draft while maintaining core message
+  - Applies selected tone and style to improve clarity and impact
+  - Works with both replies and standalone tweets
+  - Real-time detection of text in reply box
+- **Backend API Integration**: Improved security and architecture
+  - Moved OpenRouter API calls from frontend to service worker
+  - Removed API key input from main popup
+  - Separate secure config page for API management
+  - Automatic API key validation
+- **Custom Prompts & Tones**: Enhanced personalization
+  - System Prompt field for defining your identity
+  - Custom Style Prompt for writing instructions
+  - Custom Tone creation with emoji support
+  - Unlimited prompt length (removed character limits)
+  - Reply Length presets (Short/Medium/Long)
 - **Template + Tone System**: Revolutionary two-step selection process
   - Choose reply structure (templates) separately from personality (tones)
   - 12+ preset templates: Ask Question, Add Value, Share Experience, Challenge Politely, etc.
@@ -28,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tone selection with system prompts
   - Combined prompt construction tracking
   - Final system prompt display
+  - Rewrite mode detection and tracking
 
 ### Changed
 - Replaced simple tone dropdown with full Template Selector UI
@@ -36,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced prompt system to combine template + tone instructions
 
 ### Fixed
+- **Navigation Issue**: AI Reply button now appears properly when navigating between posts
+  - Enhanced navigation detection with comprehensive logging
+  - Manual toolbar scanning as fallback after navigation
+  - Improved retry mechanism with exponential backoff
+  - Support for home page, status pages, and compose pages
 - System prompt now properly includes combined template+tone instructions
 - Version number updated to v0.0.9
 - Event propagation issues preventing smooth transitions
