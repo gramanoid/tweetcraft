@@ -14,8 +14,8 @@ export interface ToneOption {
   systemPrompt: string;
 }
 
-export class ToneSelector {
-  private static TONE_OPTIONS: ToneOption[] = [
+// Export TONES array for use by other modules  
+export const TONES: ToneOption[] = [
     // Positive tones
     {
       id: 'professional',
@@ -104,6 +104,10 @@ export class ToneSelector {
     }
   ];
 
+export class ToneSelector {
+  // Use the exported TONES constant
+  private static TONE_OPTIONS: ToneOption[] = TONES;
+  
   private static readonly MOOD_MODIFIERS = [
     { id: 'multiple', emoji: '🎯', label: '3 Options', modifier: 'multiple' },
     { id: 'add-question', emoji: '❓', label: 'Question', modifier: 'End with a relevant question' },

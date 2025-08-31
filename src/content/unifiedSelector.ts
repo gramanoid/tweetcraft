@@ -3,9 +3,8 @@
  * Matrix-based selection UI for combining templates and tones
  */
 
-import { Template, Tone } from '@/config/templatesAndTones';
-import { configManager } from '@/config/configurationManager';
-import { memoryManager } from '@/utils/memoryManager';
+import { Template, Tone, TEMPLATES, TONES } from '@/config/templatesAndTones';
+import { visualFeedback } from '@/ui/visualFeedback';
 
 export interface SelectionResult {
   template: Template;
@@ -22,16 +21,116 @@ export class UnifiedSelector {
   private favoriteTemplates: Set<string> = new Set();
   private favoriteTones: Set<string> = new Set();
   private view: 'grid' | 'favorites' | 'custom' = 'grid';
+  private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor() {
     this.loadFavorites();
   }
 
   /**
+   * Show the unified selector
+   */
+  show(button: HTMLElement, onSelect: (result: SelectionResult) => void): void {
+    this.onSelectCallback = onSelect;
+    
+    // Remove any existing selector
+    this.hide();
+    
+    // Create and show new selector
+    this.container = this.createUI();
+    document.body.appendChild(this.container);
+    
+    // Position near button
+    this.positionNearButton(button);
+    
+    // Show with animation
+    requestAnimationFrame(() => {
+      if (this.container) {
+        this.container.style.display = 'block';
+        this.container.style.opacity = '0';
+        this.container.style.transform = 'translateY(10px)';
+        
+        requestAnimationFrame(() => {
+          if (this.container) {
+            this.container.style.transition = 'opacity 0.2s, transform 0.2s';
+            this.container.style.opacity = '1';
+            this.container.style.transform = 'translateY(0)';
+          }
+        });
+      }
+    });
+    
+    // Add click outside handler
+    this.setupClickOutsideHandler();
+  }
+  
+  /**
+   * Hide the selector
+   */
+  hide(): void {
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
+    
+    // Remove click outside handler
+    if (this.clickOutsideHandler) {
+      document.removeEventListener('click', this.clickOutsideHandler);
+      this.clickOutsideHandler = null;
+    }
+  }
+  
+  /**
+   * Position selector near button
+   */
+  private positionNearButton(button: HTMLElement): void {
+    if (!this.container) return;
+    
+    const rect = button.getBoundingClientRect();
+    const selectorHeight = 500; // Approximate height
+    const selectorWidth = 600; // Width from styles
+    
+    // Calculate position
+    let top = rect.bottom + 10;
+    let left = rect.left;
+    
+    // Adjust if would go off screen
+    if (top + selectorHeight > window.innerHeight) {
+      top = rect.top - selectorHeight - 10;
+    }
+    
+    if (left + selectorWidth > window.innerWidth) {
+      left = window.innerWidth - selectorWidth - 20;
+    }
+    
+    this.container.style.position = 'fixed';
+    this.container.style.top = `${top}px`;
+    this.container.style.left = `${left}px`;
+  }
+  
+  /**
+   * Setup click outside handler
+   */
+  private setupClickOutsideHandler(): void {
+    this.clickOutsideHandler = (e: MouseEvent) => {
+      if (this.container && !this.container.contains(e.target as Node)) {
+        this.hide();
+      }
+    };
+    
+    // Delay to avoid immediate trigger
+    setTimeout(() => {
+      if (this.clickOutsideHandler) {
+        document.addEventListener('click', this.clickOutsideHandler);
+      }
+    }, 100);
+  }
+
+  /**
    * Create the unified selector UI
    */
-  create(onSelect: (result: SelectionResult) => void): HTMLElement {
-    this.onSelectCallback = onSelect;
+  private createUI(): HTMLElement {
+    this.onSelectCallback = this.onSelectCallback;
     
     this.container = document.createElement('div');
     this.container.className = 'tweetcraft-unified-selector';
@@ -47,8 +146,8 @@ export class UnifiedSelector {
   private render(): void {
     if (!this.container) return;
 
-    const templates = configManager.getAllTemplates();
-    const tones = configManager.getAllTones();
+    const templates = TEMPLATES;
+    const tones = TONES;
     
     this.container.innerHTML = `
       <div class="selector-header">
@@ -268,7 +367,7 @@ export class UnifiedSelector {
 
     // Tab switching
     this.container.querySelectorAll('.tab-btn').forEach(btn => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
         const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'favorites' | 'custom';
         this.view = view;
         this.render();
@@ -277,14 +376,14 @@ export class UnifiedSelector {
 
     // Template selection
     this.container.querySelectorAll('.template-btn').forEach(btn => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
         this.selectTemplate(templateId);
       });
 
       // Double-click to favorite
-      memoryManager.addEventListener(btn as HTMLElement, 'dblclick', async (e) => {
+      (btn as HTMLElement).addEventListener('dblclick', async (e) => {
         e.stopPropagation();
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
         await this.toggleFavoriteTemplate(templateId);
@@ -293,14 +392,14 @@ export class UnifiedSelector {
 
     // Tone selection
     this.container.querySelectorAll('.tone-btn').forEach(btn => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
         this.selectTone(toneId);
       });
 
       // Double-click to favorite
-      memoryManager.addEventListener(btn as HTMLElement, 'dblclick', async (e) => {
+      (btn as HTMLElement).addEventListener('dblclick', async (e) => {
         e.stopPropagation();
         const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
         await this.toggleFavoriteTone(toneId);
@@ -310,7 +409,7 @@ export class UnifiedSelector {
     // Generate button
     const generateBtn = this.container.querySelector('.generate-btn');
     if (generateBtn) {
-      memoryManager.addEventListener(generateBtn as HTMLElement, 'click', () => {
+      generateBtn.addEventListener('click', () => {
         this.handleGenerate();
       });
     }
@@ -318,16 +417,17 @@ export class UnifiedSelector {
     // Close button
     const closeBtn = this.container.querySelector('.close-btn');
     if (closeBtn) {
-      memoryManager.addEventListener(closeBtn as HTMLElement, 'click', () => {
-        this.destroy();
+      closeBtn.addEventListener('click', () => {
+        this.hide();
       });
     }
 
     // Create custom button
     const createBtn = this.container.querySelector('.create-custom-btn');
     if (createBtn) {
-      memoryManager.addEventListener(createBtn as HTMLElement, 'click', () => {
-        this.showCreateDialog();
+      createBtn.addEventListener('click', () => {
+        // Show create dialog (not implemented yet)
+        visualFeedback.showToast('Custom template creation coming soon!', { type: 'info' });
       });
     }
   }
@@ -336,7 +436,7 @@ export class UnifiedSelector {
    * Select a template
    */
   private selectTemplate(templateId: string): void {
-    const template = configManager.getTemplate(templateId);
+    const template = TEMPLATES.find(t => t.id === templateId) || null;
     if (template) {
       this.selectedTemplate = template;
       console.log('%c📋 Template selected:', 'color: #1DA1F2', template.name);
@@ -349,7 +449,7 @@ export class UnifiedSelector {
    * Select a tone
    */
   private selectTone(toneId: string): void {
-    const tone = configManager.getTone(toneId);
+    const tone = TONES.find(t => t.id === toneId) || null;
     if (tone) {
       this.selectedTone = tone;
       console.log('%c🎭 Tone selected:', 'color: #9146FF', tone.label);
@@ -413,12 +513,11 @@ export class UnifiedSelector {
   private handleGenerate(): void {
     if (!this.selectedTemplate || !this.selectedTone || !this.onSelectCallback) return;
 
-    const combinedPrompt = configManager.getCombinedPrompt(
-      this.selectedTemplate.id,
-      this.selectedTone.id
-    );
+    // Combine template and tone prompts
+    const combinedPrompt = `${this.selectedTemplate.prompt} ${this.selectedTone.systemPrompt}`;
 
-    const temperature = configManager.getTemperatureForTone(this.selectedTone.id);
+    // Get temperature for tone (default 0.7)
+    const temperature = 0.7;
 
     const result: SelectionResult = {
       template: this.selectedTemplate,
@@ -440,11 +539,15 @@ export class UnifiedSelector {
   private async toggleFavoriteTemplate(templateId: string): Promise<void> {
     if (this.favoriteTemplates.has(templateId)) {
       this.favoriteTemplates.delete(templateId);
-      await configManager.removeFavoriteTemplate(templateId);
+      // Remove from favorites
+      this.favoriteTemplates.delete(templateId);
+      this.saveFavorites();
       console.log('%c⭐ Removed from favorites:', 'color: #FFA500', templateId);
     } else {
       this.favoriteTemplates.add(templateId);
-      await configManager.addFavoriteTemplate(templateId);
+      // Add to favorites
+      this.favoriteTemplates.add(templateId);
+      this.saveFavorites();
       console.log('%c⭐ Added to favorites:', 'color: #FFA500', templateId);
     }
     this.render();
@@ -456,14 +559,29 @@ export class UnifiedSelector {
   private async toggleFavoriteTone(toneId: string): Promise<void> {
     if (this.favoriteTones.has(toneId)) {
       this.favoriteTones.delete(toneId);
-      await configManager.removeFavoriteTone(toneId);
+      // Remove from favorites
+      this.favoriteTones.delete(toneId);
+      this.saveFavorites();
       console.log('%c⭐ Removed from favorites:', 'color: #FFA500', toneId);
     } else {
       this.favoriteTones.add(toneId);
-      await configManager.addFavoriteTone(toneId);
+      // Add to favorites
+      this.favoriteTones.add(toneId);
+      this.saveFavorites();
       console.log('%c⭐ Added to favorites:', 'color: #FFA500', toneId);
     }
     this.render();
+  }
+
+  /**
+   * Save favorites to storage
+   */
+  private saveFavorites(): void {
+    const favorites = {
+      favoriteTemplates: Array.from(this.favoriteTemplates),
+      favoriteTones: Array.from(this.favoriteTones)
+    };
+    localStorage.setItem('tweetcraft_favorites', JSON.stringify(favorites));
   }
 
   /**
@@ -471,9 +589,13 @@ export class UnifiedSelector {
    */
   private async loadFavorites(): Promise<void> {
     try {
-      const prefs = await configManager.getUserPreferences();
-      this.favoriteTemplates = new Set(prefs.favoriteTemplates);
-      this.favoriteTones = new Set(prefs.favoriteTones);
+      // Load favorites from localStorage
+      const stored = localStorage.getItem('tweetcraft_favorites');
+      const prefs = stored ? JSON.parse(stored) : null;
+      if (prefs) {
+        this.favoriteTemplates = new Set(prefs.favoriteTemplates || []);
+        this.favoriteTones = new Set(prefs.favoriteTones || []);
+      }
     } catch (error) {
       console.error('Failed to load favorites:', error);
     }

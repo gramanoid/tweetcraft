@@ -3,8 +3,10 @@
  * Pre-generate and store ready-to-use replies
  */
 
-import { Template, Tone } from '@/config/templatesAndTones';
-import { configManager } from '@/config/configurationManager';
+import { TEMPLATES } from '@/content/presetTemplates';
+import { TONES } from '@/content/toneSelector';
+import type { PresetTemplate } from '@/content/presetTemplates';
+import type { ToneOption } from '@/content/toneSelector';
 
 interface ArsenalReply {
   id: string;
@@ -109,18 +111,18 @@ export class ArsenalService {
     
     const generated: ArsenalReply[] = [];
     const templates = options.templates 
-      ? options.templates.map(id => configManager.getTemplate(id)).filter(Boolean) as Template[]
-      : configManager.getAllTemplates();
+      ? options.templates.map(id => TEMPLATES.find((t: PresetTemplate) => t.id === id)).filter(Boolean) as PresetTemplate[]
+      : TEMPLATES;
     
     const tones = options.tones
-      ? options.tones.map(id => configManager.getTone(id)).filter(Boolean) as Tone[]
-      : configManager.getAllTones();
+      ? options.tones.map(id => TONES.find((t: ToneOption) => t.id === id)).filter(Boolean) as ToneOption[]
+      : TONES;
 
     // Generate combinations
-    const combinations: Array<{ template: Template, tone: Tone }> = [];
+    const combinations: Array<{ template: PresetTemplate, tone: ToneOption }> = [];
     
-    templates.forEach(template => {
-      tones.forEach(tone => {
+    templates.forEach((template: PresetTemplate) => {
+      tones.forEach((tone: ToneOption) => {
         // Filter by category if specified
         if (options.categories && !options.categories.includes(template.category)) {
           return;
@@ -147,7 +149,7 @@ export class ArsenalService {
   /**
    * Create a mock reply (placeholder for actual API generation)
    */
-  private createMockReply(template: Template, tone: Tone): ArsenalReply {
+  private createMockReply(template: PresetTemplate, tone: ToneOption): ArsenalReply {
     const id = `arsenal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Mock text generation based on template and tone
@@ -173,7 +175,7 @@ export class ArsenalService {
       tags: [template.category, tone.id, 'pre-generated'],
       usageCount: 0,
       createdAt: new Date(),
-      temperature: configManager.getTemperatureForTone(tone.id),
+      temperature: this.getTemperatureForTone(tone.id),
       isFavorite: false
     };
   }
@@ -397,6 +399,28 @@ export class ArsenalService {
       mostUsed,
       averageUsage
     };
+  }
+
+  /**
+   * Get temperature for tone
+   */
+  private getTemperatureForTone(toneId: string): number {
+    const temperatureMap: Record<string, number> = {
+      'professional': 0.3,
+      'witty': 0.7,
+      'enthusiastic': 0.6,
+      'casual': 0.5,
+      'academic': 0.2,
+      'sarcastic': 0.8,
+      'motivational': 0.6,
+      'contrarian': 0.7,
+      'gen_z': 0.9,
+      'philosophical': 0.5,
+      'minimalist': 0.1,
+      'savage': 0.9,
+      'dismissive': 0.4
+    };
+    return temperatureMap[toneId] || 0.5;
   }
 
   /**

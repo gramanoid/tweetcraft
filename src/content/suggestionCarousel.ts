@@ -3,7 +3,6 @@
  * Generates and displays 3 reply suggestions in parallel with navigation
  */
 
-import { memoryManager } from '@/utils/memoryManager';
 import { ToneOption } from './toneSelector';
 
 export interface Suggestion {
@@ -144,14 +143,14 @@ export class SuggestionCarousel {
     // Regenerate all button
     const regenerateAllBtn = this.container.querySelector('.regenerate-all-btn');
     if (regenerateAllBtn) {
-      memoryManager.addEventListener(regenerateAllBtn as HTMLElement, 'click', () => {
+      (regenerateAllBtn as HTMLElement).addEventListener('click', () => {
         this.regenerateAll();
       });
     }
 
     // Action buttons for each suggestion
     this.container.querySelectorAll('.use-suggestion-btn').forEach((btn) => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e: Event) => {
         const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
         this.currentIndex = index;
         this.useCurrent();
@@ -159,7 +158,7 @@ export class SuggestionCarousel {
     });
 
     this.container.querySelectorAll('.regenerate-single-btn').forEach((btn) => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e: Event) => {
         const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
         this.currentIndex = index;
         this.regenerateCurrent();
@@ -167,7 +166,7 @@ export class SuggestionCarousel {
     });
 
     this.container.querySelectorAll('.edit-suggestion-btn').forEach((btn) => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e: Event) => {
         const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
         this.currentIndex = index;
         this.editCurrent();
@@ -175,7 +174,7 @@ export class SuggestionCarousel {
     });
 
     this.container.querySelectorAll('.copy-suggestion-btn').forEach((btn) => {
-      memoryManager.addEventListener(btn as HTMLElement, 'click', (e) => {
+      (btn as HTMLElement).addEventListener('click', (e: Event) => {
         const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
         this.currentIndex = index;
         this.copyCurrent();
@@ -184,7 +183,7 @@ export class SuggestionCarousel {
 
     // Click on suggestion item to select it
     this.container.querySelectorAll('.suggestion-item').forEach((item) => {
-      memoryManager.addEventListener(item as HTMLElement, 'click', (e) => {
+      (item as HTMLElement).addEventListener('click', (e: Event) => {
         // Don't select if clicking on action buttons
         if ((e.target as HTMLElement).closest('.suggestion-actions')) return;
         
@@ -195,7 +194,7 @@ export class SuggestionCarousel {
     });
 
     // Keyboard navigation (for selecting with number keys)
-    memoryManager.addEventListener(this.container, 'keydown', (e) => {
+    this.container.addEventListener('keydown', (e: Event) => {
       const keyEvent = e as KeyboardEvent;
       switch (keyEvent.key) {
         case '1':
@@ -320,8 +319,8 @@ export class SuggestionCarousel {
       this.render();
     };
     
-    memoryManager.addEventListener(suggestionText, 'blur', saveEdit);
-    memoryManager.addEventListener(suggestionText, 'keydown', (e) => {
+    suggestionText.addEventListener('blur', saveEdit);
+    suggestionText.addEventListener('keydown', (e: Event) => {
       const keyEvent = e as KeyboardEvent;
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         keyEvent.preventDefault();

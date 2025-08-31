@@ -7,7 +7,13 @@ import { ErrorHandler } from '@/utils/errorHandler';
 import { globalAsyncManager } from '@/utils/asyncOperationManager';
 import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
 import { TemplateSelector } from './templateSelector';
+import { selectorAdapter } from './selectorAdapter';
 import { visualFeedback } from '@/ui/visualFeedback';
+import { templateSuggester } from '@/services/templateSuggester';
+import { arsenalService } from '@/services/arsenalService';
+import { suggestionCarousel } from './suggestionCarousel';
+import { TEMPLATES } from './presetTemplates';
+import { TONES } from './toneSelector';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -526,8 +532,8 @@ class SmartReplyContentScript {
         textarea.removeEventListener('input', updateButtonMode);
       });
       
-      // Create template selector instance
-      const templateSelector = new TemplateSelector();
+      // Use selector adapter instead of direct template selector
+      // const templateSelector = new TemplateSelector(); // Removed - using adapter
 
       // Add click handler for the main button
       button.addEventListener('click', (e) => {
@@ -556,8 +562,8 @@ class SmartReplyContentScript {
         // Check if we're in rewrite mode
         const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
         
-        // Show template selector
-        templateSelector.show(button, (template, tone) => {
+        // Show selector (unified or traditional based on feature flag)
+        selectorAdapter.show(button, (template, tone) => {
           // When both template and tone are selected, generate/rewrite
           console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
           console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
@@ -594,8 +600,14 @@ class SmartReplyContentScript {
         return false; // Prevent any default action
       }, true); // Use capture phase
 
+      // Create smart suggestions button
+      const suggestButton = this.createSmartSuggestButton(textarea, context);
+      
       // Assemble the components
       buttonContainer.appendChild(button);
+      if (suggestButton) {
+        buttonContainer.appendChild(suggestButton);
+      }
 
       // Find the right place to inject the button
       // Look for the container that has the tweet button and other toolbar items
@@ -645,6 +657,218 @@ class SmartReplyContentScript {
     } catch (error) {
       console.error('Smart Reply: Failed to inject button:', error);
     }
+  }
+
+  /**
+   * Create smart suggestions button
+   */
+  private createSmartSuggestButton(textarea: HTMLElement, context: any): HTMLButtonElement | null {
+    const suggestButton = document.createElement('button');
+    suggestButton.className = 'tweetcraft-suggest-button';
+    suggestButton.innerHTML = '💡';
+    suggestButton.setAttribute('title', 'Smart Suggestions (Context-aware)');
+    suggestButton.style.cssText = `
+      background: transparent;
+      border: 1px solid #536471;
+      border-radius: 9999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: #536471;
+      margin-left: 8px;
+      transition: all 0.2s;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    // Add hover effect
+    suggestButton.addEventListener('mouseenter', () => {
+      suggestButton.style.borderColor = '#ffa500';
+      suggestButton.style.color = '#ffa500';
+      suggestButton.style.background = 'rgba(255, 165, 0, 0.1)';
+    });
+    suggestButton.addEventListener('mouseleave', () => {
+      suggestButton.style.borderColor = '#536471';
+      suggestButton.style.color = '#536471';
+      suggestButton.style.background = 'transparent';
+    });
+
+    // Smart suggestions click handler
+    suggestButton.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Visual feedback
+      visualFeedback.pulse(suggestButton, '#ffa500');
+      
+      // Get tweet context
+      const tweetText = context.tweetText || '';
+      const threadContext = context.threadContext || [];
+      
+      console.log('%c💡 SMART SUGGESTIONS', 'color: #FFA500; font-weight: bold; font-size: 14px');
+      console.log('%c  Analyzing context...', 'color: #657786');
+      
+      try {
+        // Get smart suggestions based on context
+        const suggestions = await templateSuggester.getSuggestions({
+          tweetText,
+          isReply: true,
+          threadContext,
+          timeOfDay: new Date().getHours(),
+          dayOfWeek: new Date().getDay()
+        });
+        
+        if (suggestions.length > 0) {
+          this.showSuggestionsPopup(suggestButton, suggestions, textarea, context);
+        } else {
+          visualFeedback.showToast('No suggestions available for this context', {
+            type: 'info',
+            duration: 2000
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get suggestions:', error);
+        visualFeedback.showToast('Failed to get suggestions', {
+          type: 'error',
+          duration: 2000
+        });
+      }
+    });
+
+    return suggestButton;
+  }
+
+  /**
+   * Show suggestions popup
+   */
+  private showSuggestionsPopup(button: HTMLElement, suggestions: any[], textarea: HTMLElement, context: any): void {
+    // Remove any existing popup
+    const existingPopup = document.querySelector('.tweetcraft-suggest-popup');
+    if (existingPopup) {
+      existingPopup.remove();
+    }
+
+    const suggestPopup = document.createElement('div');
+    suggestPopup.className = 'tweetcraft-suggest-popup';
+    suggestPopup.style.cssText = `
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      background: white;
+      border: 1px solid #e1e8ed;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 280px;
+      max-width: 380px;
+      z-index: 10000;
+      margin-bottom: 8px;
+    `;
+    
+    // Add dark mode support
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      suggestPopup.style.background = '#000';
+      suggestPopup.style.borderColor = '#2f3336';
+    }
+    
+    suggestPopup.innerHTML = `
+      <div style="font-size: 13px; font-weight: 600; color: #536471; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <span>💡 Smart Suggestions</span>
+        <button class="close-suggest-popup" style="background: transparent; border: none; cursor: pointer; color: #536471; font-size: 18px; padding: 0; margin: 0;">×</button>
+      </div>
+    `;
+    
+    // Add top 3 suggestions
+    suggestions.slice(0, 3).forEach((suggestion) => {
+      const template = TEMPLATES.find(t => t.id === suggestion.templateId);
+      const tone = TONES.find(t => t.id === suggestion.toneId);
+      
+      if (template && tone) {
+        const suggestionItem = document.createElement('div');
+        suggestionItem.className = 'suggestion-item';
+        suggestionItem.style.cssText = `
+          padding: 10px;
+          margin: 6px 0;
+          border: 1px solid #e1e8ed;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 13px;
+        `;
+        
+        suggestionItem.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-weight: 500;">${template.emoji} ${template.name}</span>
+            <span style="color: #536471; font-size: 12px;">${tone.emoji} ${tone.label}</span>
+          </div>
+          <div style="font-size: 11px; color: #536471;">
+            Score: ${suggestion.score.toFixed(1)} • ${suggestion.reasons[0] || 'Contextual match'}
+          </div>
+        `;
+        
+        // Hover effect
+        suggestionItem.addEventListener('mouseenter', () => {
+          suggestionItem.style.borderColor = '#1d9bf0';
+          suggestionItem.style.background = 'rgba(29, 155, 240, 0.05)';
+        });
+        suggestionItem.addEventListener('mouseleave', () => {
+          suggestionItem.style.borderColor = '#e1e8ed';
+          suggestionItem.style.background = 'transparent';
+        });
+        
+        // Click to use suggestion
+        suggestionItem.addEventListener('click', () => {
+          // Record usage
+          templateSuggester.recordUsage(template.id, tone.id);
+          
+          // Close popup
+          suggestPopup.remove();
+          
+          // Generate with this combination
+          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+          this.generateReply(textarea, context, combinedPrompt, false, false);
+          
+          // Show toast
+          visualFeedback.showToast(`Using: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
+            type: 'success',
+            duration: 2000
+          });
+        });
+        
+        suggestPopup.appendChild(suggestionItem);
+      }
+    });
+    
+    // Add close button handler
+    const closeBtn = suggestPopup.querySelector('.close-suggest-popup') as HTMLElement;
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => suggestPopup.remove());
+    }
+    
+    // Position relative to button
+    const buttonContainer = button.parentElement;
+    if (buttonContainer) {
+      buttonContainer.style.position = 'relative';
+      buttonContainer.appendChild(suggestPopup);
+    }
+    
+    // Auto-remove after 15 seconds
+    setTimeout(() => {
+      if (suggestPopup.parentElement) {
+        suggestPopup.remove();
+      }
+    }, 15000);
+
+    // Close on click outside
+    setTimeout(() => {
+      document.addEventListener('click', function closePopup(e) {
+        if (!suggestPopup.contains(e.target as Node) && e.target !== button) {
+          suggestPopup.remove();
+          document.removeEventListener('click', closePopup);
+        }
+      });
+    }, 100);
   }
 
   private async generateReply(

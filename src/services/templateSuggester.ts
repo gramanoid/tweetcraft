@@ -3,8 +3,10 @@
  * ML-like pattern matching for context-aware suggestions
  */
 
-import { Template, Tone } from '@/config/templatesAndTones';
-import { configManager } from '@/config/configurationManager';
+import { TEMPLATES } from '@/content/presetTemplates';
+import { TONES } from '@/content/toneSelector';
+import type { PresetTemplate } from '@/content/presetTemplates';
+import type { ToneOption } from '@/content/toneSelector';
 
 interface SuggestionContext {
   tweetText: string;
@@ -117,15 +119,15 @@ export class TemplateSuggester {
     // Analyze text patterns
     const patternScores = this.analyzePatterns(context.tweetText);
     
-    // Get user preferences
-    const preferences = await configManager.getUserPreferences();
+    // Get user preferences from localStorage
+    const preferences = await this.getUserPreferences();
     
     // Calculate scores for each template-tone combination
-    const templates = configManager.getAllTemplates();
-    const tones = configManager.getAllTones();
+    const templates = TEMPLATES;
+    const tones = TONES;
     
-    templates.forEach(template => {
-      tones.forEach(tone => {
+    templates.forEach((template: PresetTemplate) => {
+      tones.forEach((tone: ToneOption) => {
         const key = `${template.id}:${tone.id}`;
         const score = this.calculateScore(
           template,
@@ -181,8 +183,8 @@ export class TemplateSuggester {
    * Calculate score for a template-tone combination
    */
   private calculateScore(
-    template: Template,
-    tone: Tone,
+    template: PresetTemplate,
+    tone: ToneOption,
     context: SuggestionContext,
     patternScores: Map<string, number>,
     preferences: any
@@ -302,12 +304,12 @@ export class TemplateSuggester {
   /**
    * Get quick suggestions (no context analysis)
    */
-  async getQuickSuggestions(): Promise<{ templates: Template[], tones: Tone[] }> {
-    const preferences = await configManager.getUserPreferences();
+  async getQuickSuggestions(): Promise<{ templates: PresetTemplate[], tones: ToneOption[] }> {
+    const preferences = await this.getUserPreferences();
     
-    // Get favorites first
-    const favoriteTemplates = await configManager.getFavoriteTemplates();
-    const favoriteTones = await configManager.getFavoriteTones();
+    // Get favorites from localStorage
+    const favoriteTemplates = await this.getFavoriteTemplates();
+    const favoriteTones = await this.getFavoriteTones();
     
     // Get most used
     const mostUsedTemplates = this.getMostUsedTemplates(3);
@@ -325,12 +327,12 @@ export class TemplateSuggester {
     ]);
     
     const templates = Array.from(templateIds)
-      .map(id => configManager.getTemplate(id))
-      .filter(Boolean) as Template[];
+      .map(id => TEMPLATES.find((t: PresetTemplate) => t.id === id))
+      .filter(Boolean) as PresetTemplate[];
     
     const tones = Array.from(toneIds)
-      .map(id => configManager.getTone(id))
-      .filter(Boolean) as Tone[];
+      .map(id => TONES.find((t: ToneOption) => t.id === id))
+      .filter(Boolean) as ToneOption[];
     
     return { templates, tones };
   }
@@ -433,6 +435,44 @@ export class TemplateSuggester {
       uniqueCombinations,
       averageSuccessRate
     };
+  }
+
+  /**
+   * Get user preferences from localStorage
+   */
+  private async getUserPreferences(): Promise<any> {
+    try {
+      const stored = await chrome.storage.local.get(['userPreferences']);
+      return stored.userPreferences || {
+        favoriteTemplates: [],
+        favoriteTones: []
+      };
+    } catch {
+      return {
+        favoriteTemplates: [],
+        favoriteTones: []
+      };
+    }
+  }
+
+  /**
+   * Get favorite templates
+   */
+  private async getFavoriteTemplates(): Promise<PresetTemplate[]> {
+    const preferences = await this.getUserPreferences();
+    return preferences.favoriteTemplates
+      ?.map((id: string) => TEMPLATES.find((t: PresetTemplate) => t.id === id))
+      .filter(Boolean) || [];
+  }
+
+  /**
+   * Get favorite tones
+   */
+  private async getFavoriteTones(): Promise<ToneOption[]> {
+    const preferences = await this.getUserPreferences();
+    return preferences.favoriteTones
+      ?.map((id: string) => TONES.find((t: ToneOption) => t.id === id))
+      .filter(Boolean) || [];
   }
 }
 

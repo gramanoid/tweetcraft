@@ -4,7 +4,6 @@
  */
 
 import { memoryManager } from '@/utils/memoryManager';
-import { TEMPLATES, Template } from '@/config/templatesAndTones';
 
 export interface PresetTemplate {
   id: string;
@@ -15,16 +14,110 @@ export interface PresetTemplate {
   category: 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral';
 }
 
+// Export TEMPLATES array for use by other modules
+export const TEMPLATES: PresetTemplate[] = [
+  // Engagement templates
+  {
+    id: 'ask_question',
+    name: 'Ask Question',
+    emoji: '❓',
+    prompt: 'Ask a thoughtful follow-up question that shows interest and encourages further discussion',
+    description: 'Ask engaging questions',
+    category: 'engagement'
+  },
+  {
+    id: 'agree_expand',
+    name: 'Agree & Expand',
+    emoji: '✅',
+    prompt: 'Agree with the tweet and add your own valuable perspective or experience',
+    description: 'Agree and add value',
+    category: 'engagement'
+  },
+  {
+    id: 'challenge',
+    name: 'Challenge Politely',
+    emoji: '🤔',
+    prompt: 'Respectfully challenge or provide a different perspective',
+    description: 'Offer counterpoint',
+    category: 'debate'
+  },
+  {
+    id: 'add_insight',
+    name: 'Add Insight',
+    emoji: '💡',
+    prompt: 'Share a relevant insight, data point, or expert knowledge',
+    description: 'Share expertise',
+    category: 'value'
+  },
+  {
+    id: 'share_experience',
+    name: 'Share Experience',
+    emoji: '📖',
+    prompt: 'Share a relevant personal experience or story',
+    description: 'Tell your story',
+    category: 'conversation'
+  },
+  {
+    id: 'provide_data',
+    name: 'Provide Data',
+    emoji: '📊',
+    prompt: 'Support or challenge with relevant statistics or data',
+    description: 'Back with facts',
+    category: 'value'
+  },
+  {
+    id: 'relate',
+    name: 'Relate & Connect',
+    emoji: '🤝',
+    prompt: 'Find common ground and build connection',
+    description: 'Build rapport',
+    category: 'conversation'
+  },
+  {
+    id: 'hot_take',
+    name: 'Hot Take',
+    emoji: '🔥',
+    prompt: 'Share a bold, controversial opinion that sparks discussion',
+    description: 'Be provocative',
+    category: 'viral'
+  },
+  {
+    id: 'meme_response',
+    name: 'Meme Energy',
+    emoji: '😂',
+    prompt: 'Respond with humor, meme references, or internet culture',
+    description: 'Keep it fun',
+    category: 'humor'
+  },
+  {
+    id: 'devils_advocate',
+    name: "Devil's Advocate",
+    emoji: '😈',
+    prompt: "Play devil's advocate to explore the opposite viewpoint",
+    description: 'Argue the opposite',
+    category: 'debate'
+  },
+  {
+    id: 'steel_man',
+    name: 'Steel Man',
+    emoji: '🛡️',
+    prompt: 'Strengthen their argument before offering your perspective',
+    description: 'Improve then respond',
+    category: 'debate'
+  },
+  {
+    id: 'show_support',
+    name: 'Show Support',
+    emoji: '💪',
+    prompt: 'Offer encouragement, validation, or emotional support',
+    description: 'Be supportive',
+    category: 'conversation'
+  }
+];
+
 export class PresetTemplates {
-  // Use templates from centralized configuration
-  public static readonly DEFAULT_PRESETS: PresetTemplate[] = TEMPLATES.map(t => ({
-    id: t.id,
-    name: t.name,
-    emoji: t.emoji,
-    prompt: t.prompt,
-    description: t.description,
-    category: t.category
-  }));
+  // Use our exported TEMPLATES constant
+  public static readonly DEFAULT_PRESETS: PresetTemplate[] = TEMPLATES;
 
   private container: HTMLElement | null = null;
   private selectedPreset: PresetTemplate | null = null;
