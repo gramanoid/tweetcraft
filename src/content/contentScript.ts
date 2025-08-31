@@ -7,6 +7,7 @@ import { ErrorHandler } from '@/utils/errorHandler';
 import { globalAsyncManager } from '@/utils/asyncOperationManager';
 import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
 import { TemplateSelector } from './templateSelector';
+import { visualFeedback } from '@/ui/visualFeedback';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -40,6 +41,13 @@ class SmartReplyContentScript {
     if (this.isDestroyed) return;
     
     console.log('%c🚀 TweetCraft v0.0.8', 'color: #1DA1F2; font-weight: bold');
+    
+    // Show initialization toast
+    visualFeedback.showToast('TweetCraft ready! Click AI Reply button on any tweet.', {
+      type: 'success',
+      duration: 3000,
+      position: 'bottom'
+    });
     
     // Test DOM selector health
     DOMUtils.testSelectorHealth();
@@ -527,6 +535,9 @@ class SmartReplyContentScript {
         e.stopPropagation();
         e.stopImmediatePropagation(); // Stop all other handlers
         
+        // Visual feedback for button click
+        visualFeedback.pulse(button, '#1d9bf0');
+        
         // Check if a tone was set (e.g., from keyboard shortcut)
         const presetTone = button.getAttribute('data-tone');
         const bypassCache = button.getAttribute('data-bypass-cache') === 'true';
@@ -562,6 +573,12 @@ class SmartReplyContentScript {
           console.log('%c  Tone Selected:', 'color: #657786');
           console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
           console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
+          
+          // Show toast for selection
+          visualFeedback.showToast(`Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
+            type: 'info',
+            duration: 2000
+          });
           
           // Combine template prompt with tone system prompt
           const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
@@ -680,15 +697,18 @@ class SmartReplyContentScript {
         throw new Error('Operation was cancelled before starting');
       }
 
-      // Simple loading state
-      const loadingText = isRewriteMode ? 'Rewriting' : 'Generating';
-      DOMUtils.showLoadingState(button, loadingText);
+      // Show visual loading state
+      const loadingText = isRewriteMode ? 'Rewriting your draft...' : 'Generating AI reply...';
+      visualFeedback.showLoading(loadingText);
+      DOMUtils.showLoadingState(button, isRewriteMode ? 'Rewriting' : 'Generating');
       console.log(`%c🚀 Smart Reply: Starting ${isRewriteMode ? 'rewrite' : 'generation'} with tone:`, 'color: #1DA1F2; font-weight: bold', tone);
       
       // Check if API key is configured (with cancellation check)
       if (signal.aborted) throw new Error('Operation cancelled');
       const apiKey = await StorageService.getApiKey();
       if (!apiKey) {
+        visualFeedback.hideLoading();
+        visualFeedback.showError(button, 'Please configure your API key in the extension popup');
         DOMUtils.showError(button, 'Please configure your API key in the extension popup', 'api');
         console.error('%c❌ Smart Reply: No API key configured', 'color: #DC3545; font-weight: bold');
         return;
@@ -715,6 +735,8 @@ class SmartReplyContentScript {
       if (isRewriteMode) {
         existingText = DOMUtils.getTextFromTextarea(textarea);
         if (!existingText) {
+          visualFeedback.hideLoading();
+          visualFeedback.showError(button, 'No text to rewrite');
           DOMUtils.showError(button, 'No text to rewrite', 'api');
           console.error('%c❌ No text to rewrite', 'color: #DC3545; font-weight: bold');
           return;
@@ -783,6 +805,11 @@ class SmartReplyContentScript {
         
         console.log('Smart Reply: Reply generated successfully:', response.reply);
         
+        // Hide loading and show success
+        visualFeedback.hideLoading();
+        visualFeedback.showSuccess(button, isRewriteMode ? 'Draft rewritten!' : 'Reply generated!');
+        visualFeedback.pulse(button, '#17BF63');
+        
         // Reset button to normal state
         DOMUtils.hideLoadingState(button);
         
@@ -810,6 +837,10 @@ class SmartReplyContentScript {
         // Store the listener for cleanup
         textarea.setAttribute('data-smart-reply-listener', 'true');
       } else {
+        // Hide loading and show error
+        visualFeedback.hideLoading();
+        visualFeedback.showError(button, response.error || 'Failed to generate reply');
+        
         // Reset button and show error
         DOMUtils.hideLoadingState(button);
         
@@ -832,9 +863,14 @@ class SmartReplyContentScript {
       // Handle cancellation gracefully
       if ((error as Error).message.includes('cancelled')) {
         console.log('%c⏹️ Operation cancelled during generation', 'color: #657786');
+        visualFeedback.hideLoading();
         DOMUtils.hideLoadingState(button);
         return; // Don't show error UI for cancellations
       }
+      
+      // Hide loading and show error
+      visualFeedback.hideLoading();
+      visualFeedback.showError(button, (error as Error).message || 'An error occurred');
       
       // Reset button on error
       DOMUtils.hideLoadingState(button);

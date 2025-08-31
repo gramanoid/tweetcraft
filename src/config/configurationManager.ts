@@ -154,13 +154,15 @@ export class ConfigurationManager {
       };
 
       // Add custom templates/tones to cache
-      this.userPreferences.customTemplates?.forEach(template => {
-        this.templateCache.set(template.id, template);
-      });
+      if (this.userPreferences) {
+        this.userPreferences.customTemplates?.forEach(template => {
+          this.templateCache.set(template.id, template);
+        });
 
-      this.userPreferences.customTones?.forEach(tone => {
-        this.toneCache.set(tone.id, tone);
-      });
+        this.userPreferences.customTones?.forEach(tone => {
+          this.toneCache.set(tone.id, tone);
+        });
+      }
 
     } catch (error) {
       console.error('Failed to load user preferences:', error);
@@ -228,7 +230,9 @@ export class ConfigurationManager {
     // Cache the result (with LRU eviction)
     if (this.combinedPromptCache.size >= this.MAX_CACHE_SIZE) {
       const firstKey = this.combinedPromptCache.keys().next().value;
-      this.combinedPromptCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.combinedPromptCache.delete(firstKey);
+      }
     }
     this.combinedPromptCache.set(cacheKey, combined);
 

@@ -265,14 +265,14 @@ export class UsageTracker {
   /**
    * Get performance metrics
    */
-  getPerformanceMetrics(): {
+  getPerformanceMetrics = (): {
     averageApiCall: number;
     averageCacheRetrieval: number;
     averageRenderTime: number;
     memoryUsage: number;
     p95ApiCall: number;
     p95CacheRetrieval: number;
-  } {
+  } => {
     const calculateAverage = (arr: number[]) => 
       arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
@@ -344,13 +344,20 @@ export class UsageTracker {
   /**
    * Export data for analysis
    */
-  exportData(): {
+  exportData = (): {
     events: UsageEvent[];
     stats: UsageStats;
-    performance: ReturnType<typeof this.getPerformanceMetrics>;
+    performance: {
+      averageApiCall: number;
+      averageCacheRetrieval: number;
+      averageRenderTime: number;
+      memoryUsage: number;
+      p95ApiCall: number;
+      p95CacheRetrieval: number;
+    };
     insights: string[];
     exportedAt: string;
-  } {
+  } => {
     return {
       events: this.events,
       stats: this.getStats(),

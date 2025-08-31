@@ -320,13 +320,14 @@ export class PromptCache {
         let loadedCount = 0;
         
         for (const [key, data] of Object.entries(entries as any)) {
+          const entry = data as any;
           // Only load if not expired
-          if (Date.now() - data.timestamp < this.MAX_AGE_MS) {
-            const size = this.calculateSize(data.value);
+          if (Date.now() - entry.timestamp < this.MAX_AGE_MS) {
+            const size = this.calculateSize(entry.value);
             this.cache.set(key, {
               key,
-              value: data.value,
-              timestamp: data.timestamp,
+              value: entry.value,
+              timestamp: entry.timestamp,
               accessCount: 0,
               size
             });

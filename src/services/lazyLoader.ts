@@ -78,7 +78,7 @@ export class LazyLoader {
     this.loadingState.totalChunks = Math.ceil(templates.length / this.config.chunkSize);
 
     // Sort by priority
-    const sortedTemplates = this.sortByPriority(templates);
+    const sortedTemplates = this.sortByPriority(templates) as Template[];
 
     // Load first chunk immediately
     const firstChunk = sortedTemplates.slice(0, this.config.chunkSize);
