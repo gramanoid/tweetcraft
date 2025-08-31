@@ -26,9 +26,15 @@ export interface ImageSearchOptions {
   limit?: number;
 }
 
+interface CachedKeywords {
+  keywords: string[];
+  timestamp: number;
+}
+
 export class ImageService {
   private readonly UNSPLASH_ACCESS_KEY = ''; // User needs to add their key
-  private keywordsCache = new Map<string, string[]>();
+  private keywordsCache = new Map<string, CachedKeywords>();
+  private readonly CACHE_TTL = 3600000; // 1 hour TTL for keyword cache
   private readonly PEXELS_API_KEY = ''; // User needs to add their key
   private imageCache = new Map<string, ImageResult[]>();
   
@@ -52,10 +58,13 @@ export class ImageService {
   }
 
   /**
-   * Generate image using AI
+   * Generate image using AI with retry logic
    */
-  async generateImage(options: ImageGenerationOptions): Promise<ImageResult> {
+  async generateImage(options: ImageGenerationOptions, retries: number = 3): Promise<ImageResult> {
     console.log('%c🎨 Generating image', 'color: #9146FF', options);
+    if (retries < 3) {
+      console.log('%c🔄 Retry attempt', 'color: #FFA500', `${4 - retries}/3`);
+    }
     
     // Check if we have OpenRouter API key
     const apiKey = await this.getOpenRouterApiKey();
@@ -163,9 +172,19 @@ export class ImageService {
       
       console.log('%c✅ Image generated', 'color: #17BF63', result);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate image:', error);
-      // Fallback to mock image
+      
+      // Retry with exponential backoff for non-auth errors
+      if (retries > 0 && !error.message?.includes('401') && !error.message?.includes('API key')) {
+        const delay = (4 - retries) * 1000; // 1s, 2s, 3s
+        console.log(`%c⏱️ Retrying in ${delay}ms...`, 'color: #FFA500');
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.generateImage(options, retries - 1);
+      }
+      
+      // Fallback to mock image after all retries exhausted
+      console.log('%c📸 Falling back to placeholder image', 'color: #657786');
       const mockUrl = await this.generateMockImage(options.prompt);
       return {
         url: mockUrl,
@@ -286,8 +305,8 @@ export class ImageService {
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
     try {
-      const stored = await chrome.storage.local.get(['openRouterApiKey']);
-      return stored.openRouterApiKey || null;
+      const stored = await chrome.storage.local.get(['smartReply_apiKey']);
+      return stored.smartReply_apiKey || null;
     } catch {
       return null;
     }
@@ -381,12 +400,31 @@ export class ImageService {
   }
 
   /**
+   * Clean expired cache entries
+   */
+  private cleanExpiredCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.keywordsCache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.keywordsCache.delete(key);
+      }
+    }
+  }
+
+  /**
    * Extract keywords from text
    */
   private extractKeywords(text: string): string[] {
-    // Check cache first
-    if (this.keywordsCache.has(text)) {
-      return this.keywordsCache.get(text)!;
+    // Check cache first with TTL validation
+    const cached = this.keywordsCache.get(text);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+      console.log('%c💾 Keywords cache hit', 'color: #657786');
+      return cached.keywords;
+    }
+    
+    // Clean expired entries periodically (every 10 calls)
+    if (Math.random() < 0.1) {
+      this.cleanExpiredCache();
     }
     // Remove URLs, mentions, and extract hashtags separately
     let cleanText = text
@@ -448,9 +486,12 @@ export class ImageService {
     if (this.keywordsCache.size >= 100) {
       // Simple LRU: remove oldest entry
       const firstKey = this.keywordsCache.keys().next().value;
-      this.keywordsCache.delete(firstKey);
+      if (firstKey) {
+        this.keywordsCache.delete(firstKey);
+      }
     }
-    this.keywordsCache.set(text, keywords);
+    this.keywordsCache.set(text, { keywords, timestamp: Date.now() });
+    console.log('%c🔍 Keywords extracted and cached', 'color: #657786', keywords);
     
     return keywords;
   }

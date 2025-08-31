@@ -165,17 +165,20 @@ console.log('%c  Property:', 'color: #657786', value);
 
 ### Image Integration (Phase D - Enhanced in v0.0.11)
 - **AI Image Generation**: Uses OpenRouter API with Google Gemini Flash model
+  - Retry logic with exponential backoff (3 retries, 1s/2s/3s delays)
   - Improved error handling with detailed validation of API responses
   - Better alt text generation from AI descriptions
   - Comprehensive error messages for debugging
+  - Graceful fallback to placeholder images after retries
 - **Web Image Search**: Integration with Unsplash/Pexels APIs (fallback to placeholders)
 - **Smart Suggestions**: Context-aware image suggestions based on tweet content
 - **Enhanced Keyword Extraction**: 
+  - TTL-based cache with 1-hour expiration
   - LRU cache implementation (100 entries max) for performance
+  - Automatic cache cleanup for expired entries
   - Improved algorithm with hashtag support and better stop words
-  - Caching system for repeated keyword extraction
 - **Three-tab Interface**: Search Web, AI Generate, and Smart Suggest modes
-- **API Key Fix**: Corrected to use 'openRouterApiKey' storage key
+- **API Key Consistency**: Uses 'smartReply_apiKey' throughout the extension
 
 ### Template + Tone System (Revamped in v0.0.10)
 - **Centralized Configuration**: Templates and tones now defined in `src/config/templatesAndTones.ts`
@@ -269,22 +272,31 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Debounced operations** to reduce CPU usage
 - **LRU Cache** for keyword extraction (100 entries max)
 
-## Code Quality Improvements (CodeRabbit Analysis - v0.0.11)
+## Code Quality Improvements (v0.0.11 - Post-CodeRabbit)
 
 ### Enhanced Error Handling
 - **API Response Validation**: Comprehensive validation of OpenRouter API responses
 - **Detailed Error Messages**: Specific error messages for different failure scenarios
-- **Graceful Fallbacks**: Better fallback mechanisms for API failures
+- **Retry Logic**: Exponential backoff with 3 retries for transient failures
+- **Graceful Fallbacks**: Automatic fallback to placeholder images after retries
 
 ### Performance Optimizations
-- **Keyword Caching**: LRU cache implementation for keyword extraction
-- **Cache Management**: Automatic cache size limiting with oldest entry removal
+- **TTL-Based Caching**: Keywords cache with 1-hour expiration
+- **LRU Cache**: Automatic removal of oldest entries when cache limit reached (100 entries)
+- **Periodic Cleanup**: Probabilistic cleanup of expired cache entries
+- **Cache Hit Logging**: Debug logging for cache performance monitoring
 - **Response Validation**: Early validation to prevent unnecessary processing
 
 ### UI/UX Improvements
 - **Responsive Design**: Media queries for mobile compatibility
-- **Dynamic Sizing**: Min/max constraints for better content adaptation
+- **Dynamic Sizing**: Min/max constraints for better content adaptation (560x420px default)
 - **Mobile-First Approach**: Single column layout on small screens
+- **Consistent Padding**: Proper spacing adjustments for different screen sizes
+
+### API Integration
+- **Consistent Key Storage**: Uses 'smartReply_apiKey' throughout the extension
+- **Better Error Recovery**: Retry logic skips auth errors (401) automatically
+- **Improved Logging**: Detailed console logging for debugging API issues
 
 ## Documentation Maintenance
 
