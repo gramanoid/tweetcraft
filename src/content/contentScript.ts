@@ -14,6 +14,7 @@ import { arsenalService } from '@/services/arsenalService';
 import { suggestionCarousel } from './suggestionCarousel';
 import { TEMPLATES } from './presetTemplates';
 import { TONES } from './toneSelector';
+import { imageAttachment } from './imageAttachment';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -603,10 +604,40 @@ class SmartReplyContentScript {
       // Create smart suggestions button
       const suggestButton = this.createSmartSuggestButton(textarea, context);
       
+      // Create image attachment button
+      const imageButton = imageAttachment.createButton(textarea, '');
+      
+      // Set callback for when image is selected
+      imageAttachment.onSelect((image) => {
+        if (image) {
+          console.log('%c🖼️ IMAGE SELECTED', 'color: #9146FF; font-weight: bold; font-size: 14px');
+          console.log('%c  URL:', 'color: #657786', image.url);
+          console.log('%c  Alt:', 'color: #657786', image.alt);
+          console.log('%c  Source:', 'color: #657786', image.source);
+          
+          // Store the image URL for later use
+          button.setAttribute('data-image-url', image.url);
+          button.setAttribute('data-image-alt', image.alt);
+          
+          // Update button to show image is attached
+          const imgIndicator = button.querySelector('.image-indicator');
+          if (!imgIndicator) {
+            const indicator = document.createElement('span');
+            indicator.className = 'image-indicator';
+            indicator.style.cssText = 'margin-left: 4px; color: #9146FF;';
+            indicator.textContent = '🖼️';
+            button.appendChild(indicator);
+          }
+        }
+      });
+      
       // Assemble the components
       buttonContainer.appendChild(button);
       if (suggestButton) {
         buttonContainer.appendChild(suggestButton);
+      }
+      if (imageButton) {
+        buttonContainer.appendChild(imageButton);
       }
 
       // Find the right place to inject the button
