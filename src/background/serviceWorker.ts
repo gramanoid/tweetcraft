@@ -280,6 +280,67 @@ class SmartReplyServiceWorker {
     }
   }
 
+  /**
+   * Get temperature based on tone or template
+   */
+  private getTemperatureForRequest(request: any, config: any): number {
+    // Check if a specific temperature was requested
+    if (request.temperature !== undefined) {
+      return request.temperature;
+    }
+
+    // If tone is provided, use tone-specific temperature
+    if (request.tone) {
+      const toneId = request.tone;
+      
+      // Check configured tones from templatesAndTones.ts
+      const configuredTone = getTone(toneId);
+      if (configuredTone) {
+        // Use temperature from REPLY_CONFIG
+        const toneTemp = REPLY_CONFIG.temperatureByTone[toneId as keyof typeof REPLY_CONFIG.temperatureByTone];
+        if (toneTemp !== undefined) {
+          console.log(`%c🌡️ Using tone-specific temperature for ${configuredTone.label}:`, 'color: #FF6B6B', toneTemp);
+          return toneTemp;
+        }
+      }
+      
+      // Check custom tones
+      const customTone = config.customTones?.find((tone: any) => tone.id === toneId);
+      if (customTone?.temperature !== undefined) {
+        console.log(`%c🌡️ Using custom tone temperature:`, 'color: #FF6B6B', customTone.temperature);
+        return customTone.temperature;
+      }
+    }
+
+    // If template is provided without tone, use a moderate temperature
+    if (request.template) {
+      const template = getTemplate(request.template);
+      if (template) {
+        // Different templates might need different temperatures
+        const templateTemperatures: Record<string, number> = {
+          'fact_check': 0.3,      // Low creativity for facts
+          'provide_data': 0.4,    // Low for data/stats
+          'hot_take': 0.9,        // High for controversial
+          'ratio_bait': 0.9,      // High for provocative
+          'meme_response': 0.8,   // High for humor
+          'ask_question': 0.6,    // Moderate for questions
+          'share_experience': 0.7 // Moderate-high for stories
+        };
+        
+        const templateTemp = templateTemperatures[template.id];
+        if (templateTemp !== undefined) {
+          console.log(`%c🌡️ Using template-specific temperature for ${template.name}:`, 'color: #FF6B6B', templateTemp);
+          return templateTemp;
+        }
+      }
+    }
+
+    // Fall back to config temperature or default
+    const defaultTemp = config.temperature || REPLY_CONFIG.temperatureByTone.default || 0.7;
+    console.log(`%c🌡️ Using default temperature:`, 'color: #657786', defaultTemp);
+    return defaultTemp;
+  }
+
   // Handle reply generation with OpenRouter API
   private async handleGenerateReply(
     message: any,
@@ -304,7 +365,7 @@ class SmartReplyServiceWorker {
       
       console.log('%c⚙️ CONFIG LOADED', 'color: #17BF63; font-weight: bold');
       console.log('%c  Model:', 'color: #657786', config.model || 'openai/gpt-4o');
-      console.log('%c  Temperature:', 'color: #657786', config.temperature || 0.7);
+      console.log('%c  Base Temperature:', 'color: #657786', config.temperature || 0.7);
       console.log('%c  Has Custom Style:', 'color: #657786', !!config.customStylePrompt);
       console.log('%c  Custom Tones Count:', 'color: #657786', config.customTones?.length || 0);
 
@@ -318,7 +379,9 @@ class SmartReplyServiceWorker {
 
       // Build messages for OpenRouter
       const messages = await this.buildMessages(request, context, config);
-      const temperature = config.temperature || 0.7;
+      
+      // Get temperature based on tone (if provided) or use config/default
+      const temperature = this.getTemperatureForRequest(request, config);
       
       console.log('%c📝 MESSAGES BUILT', 'color: #FF6B6B; font-weight: bold');
       console.log('%c  System Prompt Length:', 'color: #657786', messages[0].content.length);
@@ -343,6 +406,10 @@ class SmartReplyServiceWorker {
         temperature,
         top_p: 0.9
       };
+      
+      console.log('%c🌡️ TEMPERATURE SETTINGS', 'color: #FF6B6B; font-weight: bold');
+      console.log('%c  Final Temperature:', 'color: #657786', temperature);
+      console.log('%c  Top P:', 'color: #657786', 0.9);
 
       console.log('%c📤 SENDING TO OPENROUTER API', 'color: #E1AD01; font-weight: bold');
       console.log('%c  Full Request:', 'color: #657786', openRouterRequest);
