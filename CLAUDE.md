@@ -155,19 +155,27 @@ console.log('%c  Property:', 'color: #657786', value);
 
 ## Current Features (v0.0.11)
 
-### Unified Selector (New in v0.0.11)
-- **Compact Matrix UI**: Combined template & tone selection in single 480x360px popup
-- **Smart Organization**: Templates grouped by category with 2-column grid layout
+### Unified Selector (Enhanced in v0.0.11)
+- **Responsive Design**: Adaptive layout from 560px (desktop) to 95vw (mobile) with media queries
+- **Smart Organization**: Templates grouped by category with 2-column grid (1-column on mobile)
+- **Improved Dimensions**: 560x420px default with min/max constraints for better content fit
 - **Feature Toggle**: Can switch between unified and traditional two-popup flow via localStorage flag
 - **Auto-close on Generation**: Popup automatically dismisses after successful reply generation
 - **Dark Mode Native**: Optimized for Twitter/X dark theme
 
-### Image Integration (Phase D - v0.0.11)
+### Image Integration (Phase D - Enhanced in v0.0.11)
 - **AI Image Generation**: Uses OpenRouter API with Google Gemini Flash model
+  - Improved error handling with detailed validation of API responses
+  - Better alt text generation from AI descriptions
+  - Comprehensive error messages for debugging
 - **Web Image Search**: Integration with Unsplash/Pexels APIs (fallback to placeholders)
 - **Smart Suggestions**: Context-aware image suggestions based on tweet content
-- **Enhanced Keyword Extraction**: Improved algorithm with hashtag support and better stop words
+- **Enhanced Keyword Extraction**: 
+  - LRU cache implementation (100 entries max) for performance
+  - Improved algorithm with hashtag support and better stop words
+  - Caching system for repeated keyword extraction
 - **Three-tab Interface**: Search Web, AI Generate, and Smart Suggest modes
+- **API Key Fix**: Corrected to use 'openRouterApiKey' storage key
 
 ### Template + Tone System (Revamped in v0.0.10)
 - **Centralized Configuration**: Templates and tones now defined in `src/config/templatesAndTones.ts`
@@ -259,6 +267,24 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **WeakSet** for DOM reference tracking
 - **Automatic cleanup** on page navigation
 - **Debounced operations** to reduce CPU usage
+- **LRU Cache** for keyword extraction (100 entries max)
+
+## Code Quality Improvements (CodeRabbit Analysis - v0.0.11)
+
+### Enhanced Error Handling
+- **API Response Validation**: Comprehensive validation of OpenRouter API responses
+- **Detailed Error Messages**: Specific error messages for different failure scenarios
+- **Graceful Fallbacks**: Better fallback mechanisms for API failures
+
+### Performance Optimizations
+- **Keyword Caching**: LRU cache implementation for keyword extraction
+- **Cache Management**: Automatic cache size limiting with oldest entry removal
+- **Response Validation**: Early validation to prevent unnecessary processing
+
+### UI/UX Improvements
+- **Responsive Design**: Media queries for mobile compatibility
+- **Dynamic Sizing**: Min/max constraints for better content adaptation
+- **Mobile-First Approach**: Single column layout on small screens
 
 ## Documentation Maintenance
 

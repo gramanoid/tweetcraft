@@ -630,9 +630,11 @@ export class UnifiedSelector {
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
-          width: 480px;
-          max-width: 90vw;
-          max-height: 360px;
+          width: 560px;
+          max-width: 95vw;
+          min-width: 480px;
+          max-height: 420px;
+          min-height: 300px;
           display: flex;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -641,11 +643,37 @@ export class UnifiedSelector {
           overflow: hidden;
         }
         
+        /* Responsive design for smaller screens */
+        @media (max-width: 600px) {
+          .tweetcraft-unified-selector {
+            width: 95vw;
+            min-width: 320px;
+            max-height: 80vh;
+          }
+          
+          .grid-view {
+            grid-template-columns: 1fr !important;
+            gap: 6px;
+          }
+          
+          .selector-header {
+            padding: 6px 8px;
+          }
+          
+          .selector-content {
+            padding: 6px;
+          }
+          
+          .selector-footer {
+            padding: 6px 8px;
+          }
+        }
+        
         .selector-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 6px 10px;
+          padding: 8px 12px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
         }
@@ -699,7 +727,7 @@ export class UnifiedSelector {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 6px;
+          padding: 8px;
           background: #15202b;
         }
         
@@ -792,7 +820,7 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 6px 10px;
+          padding: 8px 12px;
           border-top: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
           margin-top: auto;

@@ -28,6 +28,7 @@ export interface ImageSearchOptions {
 
 export class ImageService {
   private readonly UNSPLASH_ACCESS_KEY = ''; // User needs to add their key
+  private keywordsCache = new Map<string, string[]>();
   private readonly PEXELS_API_KEY = ''; // User needs to add their key
   private imageCache = new Map<string, ImageResult[]>();
   
@@ -80,10 +81,15 @@ export class ImageService {
               content: [
                 {
                   type: 'text',
-                  text: `Generate a detailed description for an image with the following prompt: "${options.prompt}". 
+                  text: `Create a vivid, detailed textual description for an image based on this prompt: "${options.prompt}". 
                          Style: ${options.style || 'realistic'}. 
-                         The description should be vivid and specific enough to visualize the image clearly.
-                         Then provide a direct URL to an appropriate stock photo or placeholder image that matches this description.`
+                         Provide ONLY a descriptive text that includes:
+                         - Visual details and composition
+                         - Colors, lighting, and mood
+                         - Key objects or subjects
+                         - Suggested keywords for image searching
+                         
+                         Do NOT provide URLs or links. Focus on creating a rich description that could help someone visualize or search for a matching image.`
                 }
               ]
             }
@@ -93,32 +99,63 @@ export class ImageService {
         })
       });
 
+      // Check HTTP response status
       if (!response.ok) {
-        const error = await response.text();
-        console.error('OpenRouter API error:', error);
-        // Fallback to mock image
-        const mockUrl = await this.generateMockImage(options.prompt);
-        return {
-          url: mockUrl,
-          alt: options.prompt,
-          source: 'generated',
-          width: 512,
-          height: 512
-        };
+        const errorBody = await response.text();
+        console.error(`OpenRouter API HTTP error ${response.status}:`, errorBody);
+        throw new Error(`OpenRouter API request failed with status ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content || '';
+      // Parse and validate JSON response
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse OpenRouter API response as JSON:', parseError);
+        throw new Error('OpenRouter API returned invalid JSON response');
+      }
+
+      // Validate response structure
+      if (!data || typeof data !== 'object') {
+        console.error('OpenRouter API response is not an object:', data);
+        throw new Error('OpenRouter API returned invalid response format');
+      }
+
+      if (!Array.isArray(data.choices) || data.choices.length === 0) {
+        console.error('OpenRouter API response missing choices:', data);
+        throw new Error('OpenRouter API response missing or empty choices array');
+      }
+
+      const choice = data.choices[0];
+      if (!choice || typeof choice !== 'object' || !choice.message) {
+        console.error('OpenRouter API choice missing message:', choice);
+        throw new Error('OpenRouter API choice missing message object');
+      }
+
+      const message = choice.message;
+      if (!message.content || (typeof message.content !== 'string' && !Array.isArray(message.content))) {
+        console.error('OpenRouter API message missing content:', message);
+        throw new Error('OpenRouter API message missing or invalid content');
+      }
+
+      // Extract content (handle both string and array formats)
+      const content = typeof message.content === 'string' 
+        ? message.content 
+        : Array.isArray(message.content) 
+          ? message.content.join(' ') 
+          : '';
+      
+      // Use AI-generated description as alt text, with prompt as fallback
+      const altText = content && content.trim().length > 0 ? content.trim() : options.prompt;
       
       // For now, use a high-quality placeholder that matches the prompt
-      // In a full implementation, we'd parse the response for actual image URLs
       const seed = options.prompt.split(' ').join('-').toLowerCase();
       const size = options.size || '512x512';
       const [width, height] = size.split('x').map(Number);
       
       const result: ImageResult = {
         url: `https://picsum.photos/seed/${seed}/${width}/${height}`,
-        alt: options.prompt,
+        alt: altText,
         source: 'generated',
         width,
         height
@@ -249,8 +286,8 @@ export class ImageService {
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
     try {
-      const stored = await chrome.storage.local.get(['smartReply_apiKey']);
-      return stored.smartReply_apiKey || null;
+      const stored = await chrome.storage.local.get(['openRouterApiKey']);
+      return stored.openRouterApiKey || null;
     } catch {
       return null;
     }
@@ -337,9 +374,20 @@ export class ImageService {
   }
 
   /**
+   * Clear the keywords cache
+   */
+  public clearKeywordsCache(): void {
+    this.keywordsCache.clear();
+  }
+
+  /**
    * Extract keywords from text
    */
   private extractKeywords(text: string): string[] {
+    // Check cache first
+    if (this.keywordsCache.has(text)) {
+      return this.keywordsCache.get(text)!;
+    }
     // Remove URLs, mentions, and extract hashtags separately
     let cleanText = text
       .replace(/https?:\/\/\S+/g, '')
@@ -395,6 +443,14 @@ export class ImageService {
       .sort((a, b) => b[1] - a[1])
       .map(([word]) => word)
       .slice(0, 5);
+    
+    // Store in cache with size limit (max 100 entries)
+    if (this.keywordsCache.size >= 100) {
+      // Simple LRU: remove oldest entry
+      const firstKey = this.keywordsCache.keys().next().value;
+      this.keywordsCache.delete(firstKey);
+    }
+    this.keywordsCache.set(text, keywords);
     
     return keywords;
   }
