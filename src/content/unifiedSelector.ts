@@ -629,15 +629,15 @@ export class UnifiedSelector {
           transform: translate(-50%, -50%);
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 12px;
-          width: 600px;
+          border-radius: 8px;
+          width: 480px;
           max-width: 90vw;
-          max-height: 500px;
+          max-height: 360px;
           display: flex;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           z-index: 10001;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
           overflow: hidden;
         }
         
@@ -645,24 +645,25 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 16px;
+          padding: 6px 10px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
         }
         
         .selector-tabs {
           display: flex;
-          gap: 8px;
+          gap: 4px;
         }
         
         .tab-btn {
-          padding: 6px 12px;
+          padding: 4px 8px;
           background: transparent;
           border: 1px solid transparent;
-          border-radius: 20px;
+          border-radius: 12px;
           color: #8b98a5;
           cursor: pointer;
           transition: all 0.2s;
+          font-size: 11px;
         }
         
         .tab-btn:hover {
@@ -676,15 +677,18 @@ export class UnifiedSelector {
         }
         
         .close-btn {
-          width: 32px;
-          height: 32px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: transparent;
           border: none;
           color: #8b98a5;
-          font-size: 24px;
+          font-size: 18px;
           cursor: pointer;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         
         .close-btn:hover {
@@ -695,58 +699,59 @@ export class UnifiedSelector {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 12px;
+          padding: 6px;
           background: #15202b;
         }
         
         .grid-view {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 16px;
+          gap: 8px;
         }
         
         .templates-section h3,
         .tones-section h3 {
-          margin: 0 0 8px 0;
+          margin: 0 0 4px 0;
           color: #e7e9ea;
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 600;
         }
         
         .template-category {
-          margin-bottom: 12px;
+          margin-bottom: 6px;
         }
         
         .template-category h4 {
-          margin: 0 0 6px 0;
+          margin: 0 0 3px 0;
           color: #8b98a5;
-          font-size: 11px;
+          font-size: 9px;
           font-weight: 500;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
         }
         
         .template-grid,
         .tone-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-          gap: 6px;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 3px;
         }
         
         .template-btn,
         .tone-btn {
           display: flex;
           align-items: center;
-          gap: 4px;
-          padding: 6px 10px;
+          gap: 2px;
+          padding: 5px 4px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 8px;
+          border-radius: 6px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
           position: relative;
-          font-size: 12px;
+          font-size: 10px;
+          min-height: 26px;
         }
         
         .template-btn:hover,
@@ -764,56 +769,58 @@ export class UnifiedSelector {
         
         .template-emoji,
         .tone-emoji {
-          font-size: 14px;
+          font-size: 12px;
         }
         
         .template-name,
         .tone-label {
-          font-size: 11px;
+          font-size: 10px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          flex: 1;
         }
         
         .favorite-star {
           position: absolute;
-          top: 2px;
-          right: 2px;
-          font-size: 10px;
+          top: 1px;
+          right: 1px;
+          font-size: 8px;
         }
         
         .selector-footer {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 16px;
+          padding: 6px 10px;
           border-top: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
           margin-top: auto;
+          gap: 8px;
         }
         
         .selection-info {
           display: flex;
-          gap: 8px;
+          gap: 4px;
         }
         
         .selected-template,
         .selected-tone {
-          padding: 4px 8px;
+          padding: 2px 6px;
           background: rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          font-size: 12px;
+          border-radius: 8px;
+          font-size: 10px;
           color: #e7e9ea;
         }
         
         .generate-btn {
-          padding: 8px 20px;
+          padding: 6px 16px;
           background: rgba(29, 155, 240, 0.3);
           border: 1px solid rgba(29, 155, 240, 0.5);
-          border-radius: 20px;
+          border-radius: 16px;
           color: #8b98a5;
           cursor: not-allowed;
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 600;
           transition: all 0.2s;
         }

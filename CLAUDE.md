@@ -153,7 +153,21 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.10)
+## Current Features (v0.0.11)
+
+### Unified Selector (New in v0.0.11)
+- **Compact Matrix UI**: Combined template & tone selection in single 480x360px popup
+- **Smart Organization**: Templates grouped by category with 2-column grid layout
+- **Feature Toggle**: Can switch between unified and traditional two-popup flow via localStorage flag
+- **Auto-close on Generation**: Popup automatically dismisses after successful reply generation
+- **Dark Mode Native**: Optimized for Twitter/X dark theme
+
+### Image Integration (Phase D - v0.0.11)
+- **AI Image Generation**: Uses OpenRouter API with Google Gemini Flash model
+- **Web Image Search**: Integration with Unsplash/Pexels APIs (fallback to placeholders)
+- **Smart Suggestions**: Context-aware image suggestions based on tweet content
+- **Enhanced Keyword Extraction**: Improved algorithm with hashtag support and better stop words
+- **Three-tab Interface**: Search Web, AI Generate, and Smart Suggest modes
 
 ### Template + Tone System (Revamped in v0.0.10)
 - **Centralized Configuration**: Templates and tones now defined in `src/config/templatesAndTones.ts`

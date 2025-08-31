@@ -1072,7 +1072,10 @@ class SmartReplyContentScript {
         // Reset button to normal state
         DOMUtils.hideLoadingState(button);
         
-        // Close dropdown after successful generation
+        // Close selector after successful generation
+        selectorAdapter.hide();
+        
+        // Also close old dropdown if it exists (backward compatibility)
         const dropdown = document.querySelector('.smart-reply-dropdown') as HTMLElement;
         if (dropdown) {
           setTimeout(() => {
