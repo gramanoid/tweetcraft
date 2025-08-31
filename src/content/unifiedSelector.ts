@@ -46,15 +46,13 @@ export class UnifiedSelector {
     // Show with animation
     requestAnimationFrame(() => {
       if (this.container) {
-        this.container.style.display = 'block';
+        this.container.style.display = 'flex';
         this.container.style.opacity = '0';
-        this.container.style.transform = 'translateY(10px)';
         
         requestAnimationFrame(() => {
           if (this.container) {
-            this.container.style.transition = 'opacity 0.2s, transform 0.2s';
+            this.container.style.transition = 'opacity 0.2s';
             this.container.style.opacity = '1';
-            this.container.style.transform = 'translateY(0)';
           }
         });
       }
@@ -86,26 +84,18 @@ export class UnifiedSelector {
   private positionNearButton(button: HTMLElement): void {
     if (!this.container) return;
     
+    // The CSS already centers the modal, just ensure it's not too low
+    // Check if button is in bottom third of screen
     const rect = button.getBoundingClientRect();
-    const selectorHeight = 500; // Approximate height
-    const selectorWidth = 600; // Width from styles
+    const viewportHeight = window.innerHeight;
     
-    // Calculate position
-    let top = rect.bottom + 10;
-    let left = rect.left;
-    
-    // Adjust if would go off screen
-    if (top + selectorHeight > window.innerHeight) {
-      top = rect.top - selectorHeight - 10;
+    if (rect.top > viewportHeight * 0.6) {
+      // Button is in lower part of screen, move modal up a bit
+      this.container.style.top = '40%';
+    } else {
+      // Keep centered
+      this.container.style.top = '50%';
     }
-    
-    if (left + selectorWidth > window.innerWidth) {
-      left = window.innerWidth - selectorWidth - 20;
-    }
-    
-    this.container.style.position = 'fixed';
-    this.container.style.top = `${top}px`;
-    this.container.style.left = `${left}px`;
   }
   
   /**
@@ -639,23 +629,25 @@ export class UnifiedSelector {
           transform: translate(-50%, -50%);
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 16px;
-          width: 90%;
-          max-width: 800px;
-          max-height: 80vh;
+          border-radius: 12px;
+          width: 600px;
+          max-width: 90vw;
+          max-height: 500px;
           display: flex;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           z-index: 10001;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+          overflow: hidden;
         }
         
         .selector-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px 20px;
+          padding: 12px 16px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
+          background: #15202b;
         }
         
         .selector-tabs {
@@ -703,47 +695,50 @@ export class UnifiedSelector {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 12px;
+          background: #15202b;
         }
         
         .grid-view {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
+          gap: 16px;
         }
         
         .templates-section h3,
         .tones-section h3 {
-          margin: 0 0 12px 0;
+          margin: 0 0 8px 0;
           color: #e7e9ea;
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
         }
         
         .template-category {
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
         
         .template-category h4 {
-          margin: 0 0 8px 0;
+          margin: 0 0 6px 0;
           color: #8b98a5;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         .template-grid,
         .tone-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+          gap: 6px;
         }
         
         .template-btn,
         .tone-btn {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
+          gap: 4px;
+          padding: 6px 10px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
@@ -751,6 +746,7 @@ export class UnifiedSelector {
           cursor: pointer;
           transition: all 0.2s;
           position: relative;
+          font-size: 12px;
         }
         
         .template-btn:hover,
@@ -768,12 +764,12 @@ export class UnifiedSelector {
         
         .template-emoji,
         .tone-emoji {
-          font-size: 16px;
+          font-size: 14px;
         }
         
         .template-name,
         .tone-label {
-          font-size: 12px;
+          font-size: 11px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -790,8 +786,10 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px 20px;
+          padding: 12px 16px;
           border-top: 1px solid rgba(139, 152, 165, 0.2);
+          background: #15202b;
+          margin-top: auto;
         }
         
         .selection-info {
