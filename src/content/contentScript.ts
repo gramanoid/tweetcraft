@@ -805,9 +805,13 @@ class SmartReplyContentScript {
         
         console.log('Smart Reply: Reply generated successfully:', response.reply);
         
-        // Hide loading and show success
+        // Hide loading and show success toast only (no duplicate icon)
         visualFeedback.hideLoading();
-        visualFeedback.showSuccess(button, isRewriteMode ? 'Draft rewritten!' : 'Reply generated!');
+        visualFeedback.showToast(isRewriteMode ? 'Draft rewritten!' : 'Reply generated!', {
+          type: 'success',
+          duration: 3000,
+          position: 'bottom'
+        });
         visualFeedback.pulse(button, '#17BF63');
         
         // Reset button to normal state
