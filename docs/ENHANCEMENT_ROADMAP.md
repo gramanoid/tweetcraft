@@ -76,31 +76,149 @@ After thorough codebase analysis (January 2025), actual implementation status:
 - "Witty Question" vs "Sarcastic Agreement" creates confusing combinations
 - Users think in terms of "I want to sound [TONE] while [STYLE]"
 
-**Proposed Split**:
+Excellent! This is an incredibly well-structured and thoughtful foundation for a powerful tool. Your categorization into Attitude, Register, Rhetoric, and Format, plus the modulator sliders, is a fantastic design pattern. It's modular, scalable, and gives users immense control.
 
-**Tones (Voice/Personality)** - HOW you sound:
-- 😊 Casual - Friendly and conversational
-- 💼 Professional - Formal and business-appropriate
-- 😄 Witty - Clever and humorous  
-- 😏 Sarcastic - Ironic and mocking
-- 🔥 Spicy - Bold and provocative
-- 🤗 Supportive - Encouraging and empathetic
-- 🎓 Academic - Scholarly and analytical
-- 😎 Gen Z - Modern slang and energy
-- 🙄 Dismissive - Unimpressed and critical
-- 💪 Motivational - Inspiring and energetic
+Here are my suggestions for additions, changes, and enhancements, followed by the requested prompts for each item, including the negative ones.
 
-**Styles (Approach/Structure)** - WHAT you do:
-- ❓ Ask Question - Turn into thoughtful question
-- 👍 Agree & Add - Support and expand the point
-- 🤔 Polite Challenge - Respectfully disagree  
-- 📚 Add Context - Provide background/explanation
-- 🔗 Share Experience - Personal anecdote/story
-- 🎯 Hot Take - Bold controversial opinion
-- 💡 Suggest Solution - Offer practical advice
-- 📊 Request Data - Ask for evidence/sources
-- 🏃 Call to Action - Encourage specific response
-- 😂 Make Joke - Turn into humor/meme
+---
+
+### **Part 1: Enhancements and Additions to Your Lists**
+
+Here are a few additions to round out your existing categories.
+
+#### A) **Attitude** (Additions)
+Your list is great. I'd add a few more nuanced options:
+
+*   🤔 **Inquisitive/Curious** — Genuinely seeks to understand, less about challenging and more about learning. Different from Skeptical.
+*   🎭 **Dramatic/Performative** — Exaggerated for effect, uses hyperbole.
+*   😌 **Calm/Zen** — Serene, unbothered, focuses on a higher-level perspective.
+*   🙌 **Enthusiastic** — Eager, high-energy, uses exclamation points generously.
+
+#### B) **Register** (Additions)
+You've covered the main professional and casual styles. Let's add more internet-native variants:
+
+*   📚 **Storyteller/Narrative** — Frames the reply as a short story or anecdote.
+*   🤡 **Shitposter/Meme-Lord** — Absurdist, non-sequitur, relies on in-jokes and meme formats.
+*   💖 **Fan/Stanspeak** — Uses hyperbole, specific community slang, and effusive praise (e.g., "they ATE," "the king/queen of X").
+
+#### C) **Rhetoric** (Additions)
+A few more strategic moves:
+
+*   😈 **Devil's Advocate** — Argue a contrary position for the sake of argument, often starting with "For the sake of argument..."
+*   🔭 **Zoom Out/Big Picture** — Re-contextualizes the topic within a larger trend or historical context.
+*   💥 **Counter-example** — Provides a single, powerful example that contradicts the original claim.
+*   🙏 **Gratitude/Shout-out** — Acknowledges and thanks the user for their post or a specific point.
+
+#### D) **Format** (Additions)
+*   🖼️ **GIF/Meme Reply** — A reply centered around a relevant GIF or meme with minimal text.
+*   ❓ **Quote-Tweet with a Question** — Instead of a TL;DR, it poses a question to the audience about the original tweet.
+
+---
+
+### **Part 2: The "Negative" Tones (New Category)**
+
+This is a crucial addition. For user safety and to avoid your extension being de-platformed, **it's critical to add a strong warning/disclaimer in the UI** whenever a user selects one of these. Something like: "Warning: This tone may violate Twitter's Terms of Service and could result in account suspension. Use with extreme caution."
+
+### E) **Antagonistic Attitudes** (Voice/Personality)
+
+*   😠 **Mean/Hostile** — Directly insulting, belittling, and aggressive.
+*   😒 **Sarcastic** — Mocks the original tweet using irony, saying the opposite of what is meant.
+*   🙄 **Dismissive** — Treats the original tweet as irrelevant, unintelligent, or not worth consideration.
+*   🔥 **Inflammatory** — Designed to provoke anger and start arguments; baiting.
+*   🧐 **Condescending** — Speaks down to the original poster as if they are less intelligent or informed.
+*   🤬 **Swearing/Profane** — Uses curse words for emphasis or insult.
+*   💣 **Controversial** — Intentionally takes a widely unpopular or divisive stance on the topic.
+*   🚨 **Threatening** — **[EXTREME DANGER]** Implies harm or negative consequences. This is almost always a direct ToS violation. Your LLM should likely have guardrails to refuse this, but listing the category is important for completeness.
+
+---
+
+### **Part 3: Prompts for the LLM Orchestrator**
+
+Here are the prompts for every item. The `[Original Tweet Text]` is a placeholder for the tweet the user is replying to. The `[User's Core Idea]` is a placeholder for an optional, brief instruction from the user about the point they want to make.
+
+#### **A) Attitude Prompts**
+
+*   **😊 Friendly:** "Generate a warm, approachable, and positive reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Use friendly language and maybe a positive emoji."
+*   **💼 Professional:** "Generate a respectful, formal, and restrained reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Maintain a professional tone suitable for a corporate or expert setting."
+*   **😄 Witty:** "Generate a clever and insightful reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. The humor should be smart and on-topic, not just a random joke."
+*   **😏 Snarky:** "Generate a reply with a playful, sharp edge to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. It should be subtly mocking or critical without being a direct personal attack."
+*   **🙃 Dry/Deadpan:** "Generate an understated, ironic reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. The humor should come from the complete lack of emotion or obvious markers of a joke."
+*   **🔥 Provocative:** "Generate a bold, challenging, and risk-tolerant reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. It should be designed to spark debate."
+*   **🤗 Supportive:** "Generate an empathetic and encouraging reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Validate the original poster's feelings or point of view."
+*   **🎯 Confident:** "Generate an assertive and self-assured reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. State the point clearly and directly, without arrogansce."
+*   **🧭 Diplomatic:** "Generate a balanced, non-confrontational, and de-escalating reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Aim to find common ground or gently reframe the conversation."
+*   **🧐 Skeptical:** "Generate a reply that critically probes the claims in this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Focus on questioning the argument or evidence, not attacking the person."
+*   **💪 Motivational:** "Generate an energetic, aspirational, and uplifting reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Aim to inspire the original poster or the audience."
+*   **🧘 Earnest:** "Generate a completely sincere and straightforward reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Avoid all traces of sarcasm, irony, or cynicism."
+*   **⚖️ Neutral:** "Generate an objective, fact-based, and emotionally minimal reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Report information without taking a stance."
+*   **🤔 Inquisitive/Curious:** "Generate a genuinely curious reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. The goal is to learn more, asking open-ended questions to understand their perspective better."
+*   **🎭 Dramatic/Performative:** "Generate an exaggerated, hyperbolic, and theatrical reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Use vivid language for dramatic effect."
+*   **😌 Calm/Zen:** "Generate a serene, unbothered, and high-level perspective reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. The tone should be calming and detached from the immediate emotional fray."
+*   **🙌 Enthusiastic:** "Generate a high-energy, eager, and positive reply to this tweet: `[Original Tweet Text]`. The core idea is `[User's Core Idea]`. Use exclamation points and effusive language to convey excitement."
+
+#### **B) Register Prompts**
+
+*   **📎 Plain English:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Use simple, short, and concrete words. Avoid jargon and complex sentences."
+*   **👔 Corporate/PR:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Use cautious, reputation-aware language. The tone should be official and brand-safe."
+*   **🎓 Academic/Scholarly:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Use precise terminology, nuanced language, and a formal, scholarly structure."
+*   **🛠️ Technical/Engineer:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Focus on systems, constraints, trade-offs, and first principles. Use technical but clear language."
+*   **📰 Journalistic:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Structure it with the most important information first (inverted pyramid) and attribute any claims."
+*   **📣 Marketing/Hype:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Focus on benefits, positive outcomes, and social proof. Build excitement."
+*   **🧾 Legal/Compliance:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Include disclaimers, qualifiers, and carefully hedged language to minimize liability."
+*   **😎 Internet/Gen Z:** "Rewrite this core idea `[User's Core Idea]` as a reply to `[Original Tweet Text]`. Use current slang, memes, and casual punctuation (e.g., lowercase, emojis). The tone should be very informal."
+*   **📚 Storyteller/Narrative:** "Frame this core idea `[User's Core Idea]` as a short anecdote or story in reply to `[Original Tweet Text]`. Start with 'That reminds me of a time...' or a similar hook."
+*   **🤡 Shitposter/Meme-Lord:** "Generate an absurdist, ironic, or non-sequitur reply to this tweet: `[Original Tweet Text]` based on the idea `[User's Core Idea]`. It should feel like an inside joke or a surreal meme."
+*   **💖 Fan/Stanspeak:** "Generate an effusively positive and hyperbolic reply to this tweet: `[Original Tweet Text]`. Use fan community slang (e.g., 'literally shaking,' 'ATE,' 'the blueprint') to praise the subject."
+
+#### **C) Rhetoric Prompts**
+*(These focus on the "move" being made)*
+
+*   **❓ Ask Question:** "Generate a reply to `[Original Tweet Text]` that asks a thoughtful, open-ended question based on `[User's Core Idea]`."
+*   **👍 Agree & Add:** "Generate a reply to `[Original Tweet Text]` that first agrees with the main point, then adds one new, useful piece of information or perspective based on `[User's Core Idea]`."
+*   **🤝 Polite Challenge:** "Generate a reply to `[Original Tweet Text]` that respectfully challenges the argument. Start by finding a point of agreement, then pivot to a counter-argument based on `[User's Core Idea]`."
+*   **📚 Add Context:** "Generate a reply to `[Original Tweet Text]` that provides essential background information or defines a key term to give more context, based on `[User's Core Idea]`."
+*   **🔗 Share Experience:** "Generate a reply to `[Original Tweet Text]` that shares a relevant personal anecdote or observed experience related to `[User's Core Idea]`."
+*   **🎯 Hot Take:** "Generate a concise, contrarian, and edgy reply to `[Original Tweet Text]` based on the hot take `[User's Core Idea]`."
+*   **💡 Suggest Solution:** "Generate a reply to `[Original Tweet Text]` that proposes a specific, actionable solution or next step based on `[User's Core Idea]`."
+*   **📊 Request Data:** "Generate a reply to `[Original Tweet Text]` that politely asks for a source, evidence, or data to support their claim."
+*   **🏃 Call to Action:** "Generate a reply to `[Original Tweet Text]` that invites the original poster or the audience to perform a specific action (e.g., 'Reply with your thoughts,' 'Check out this link')."
+*   **😂 Make Joke:** "Generate a short, on-topic quip or joke in reply to `[Original Tweet Text]`."
+*   **✍️ Reframe:** "Generate a reply to `[Original Tweet Text]` that restates their claim in a new way to clarify it or test its limits, based on the reframe `[User's Core Idea]`."
+*   **🧩 Compare/Contrast:** "Generate a reply to `[Original Tweet Text]` that compares X and Y, highlighting 1-2 key differences, based on `[User's Core Idea]`."
+*   **➕➖ Pros/Cons:** "Generate a reply to `[Original Tweet Text]` that quickly lists the pros and cons of their main point."
+*   **🧪 Myth/Fact:** "Generate a reply to `[Original Tweet Text]` that debunks a specific claim by stating it as a 'Myth' and providing the 'Fact'."
+*   **🪜 Step-by-Step:** "Generate a reply to `[Original Tweet Text]` that breaks down a process into a simple, numbered list (e.g., 1/ 2/ 3/)."
+*   **🧠 Analogy:** "Generate a reply to `[Original Tweet Text]` that explains the core concept using a simple analogy from a more familiar domain, based on `[User's Core Idea]`."
+*   **❗ Risk/Caveat:** "Generate a reply to `[Original Tweet Text]` that points out a potential risk, edge case, or important caveat to their argument."
+*   **🔍 Pull-Quote:** "Generate a reply to `[Original Tweet Text]` by quoting one specific phrase from it and reacting directly to that phrase."
+*   **🧭 “What Would It Take?”:** "Generate a reply to `[Original Tweet Text]` that asks what evidence or conditions would be required to change their mind."
+*   **😈 Devil's Advocate:** "Generate a reply to `[Original Tweet Text]` that begins with 'For the sake of argument...' and presents a contrary position based on `[User's Core Idea]`."
+*   **🔭 Zoom Out/Big Picture:** "Generate a reply to `[Original Tweet Text]` that re-contextualizes the topic by connecting it to a larger trend or historical pattern."
+*   **💥 Counter-example:** "Generate a reply to `[Original Tweet Text]` that provides a single, powerful counter-example that challenges their general claim."
+*   **🙏 Gratitude/Shout-out:** "Generate a reply to `[Original Tweet Text]` that expresses thanks or appreciation for the tweet or the author."
+
+#### **D) Format Prompts**
+*(These are often combined with other prompts)*
+
+*   **🗣️ Short Reply:** "Generate a reply to `[Original Tweet Text]`. **Constraint: The reply must be under 200 characters.**"
+*   **🧵 Mini-Thread:** "Generate a 2-tweet thread replying to `[Original Tweet Text]`. The first tweet should make the main point, and the second should elaborate or provide an example."
+*   **🔁 Quote-Tweet + TL;DR:** "Generate a Quote Tweet for `[Original Tweet Text]`. The text should start with 'TL;DR:' and provide a brief, often opinionated, summary."
+*   **🧱 Bulleted Reply:** "Generate a reply to `[Original Tweet Text]` formatted as a list using emoji for bullets (e.g., ✅, ❌, 👉)."
+*   **🖼️ GIF/Meme Reply:** "Suggest a concept for a GIF or popular meme that would be a funny reply to `[Original Tweet Text]`. Also, write a short, one-line caption to go with it."
+
+#### **E) Antagonistic Attitude Prompts**
+**[Developer Note: These prompts should trigger a prominent UI warning for the user.]**
+
+*   **😠 Mean/Hostile:** "Generate a directly insulting and belittling reply to `[Original Tweet Text]`. **Warning: Content may violate platform rules.**"
+*   **😒 Sarcastic:** "Generate a mocking, sarcastic reply to `[Original Tweet Text]` that says the opposite of what is literally meant to show disapproval."
+*   **🙄 Dismissive:** "Generate a reply to `[Original Tweet Text]` that treats the post as irrelevant, unintelligent, or a waste of time. Use phrases like 'anyway' or 'ok, and?'"
+*   **🔥 Inflammatory:** "Generate a reply to `[Original Tweet Text]` designed to provoke maximum anger and arguments from the original poster and other readers. Use baiting language."
+*   **🧐 Condescending:** "Generate a reply to `[Original Tweet Text]` that speaks down to the author, explaining something to them as if they are a child. Use phrases like 'let me explain' or 'actually...'"
+*   **🤬 Swearing/Profane:** "Generate a reply to `[Original Tweet Text]` that uses strong curse words for emphasis or as an insult."
+*   **💣 Controversial:** "Generate a reply to `[Original Tweet Text]` that intentionally takes the most divisive and unpopular stance possible on the topic."
+*   **🚨 Threatening:** "Generate a reply to `[Original Tweet Text]` that implies a veiled or direct negative consequence for the author. **EXTREME WARNING: THIS WILL LIKELY VIOLATE TERMS OF SERVICE AND MAY HAVE REAL-WORLD CONSEQUENCES.**"
+
+By implementing this full, structured list with corresponding prompts, your extension will be incredibly versatile and powerful. The key will be the user interface that allows people to mix and match these components easily.
 
 **Implementation**:
 - Modify existing unified selector to show Tone × Style matrix
