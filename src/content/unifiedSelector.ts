@@ -766,14 +766,6 @@ export class UnifiedSelector {
   }
 
   /**
-   * Get category title (deprecated - kept for compatibility)
-   */
-  private getCategoryTitle(category: string): string {
-    // No longer used since we removed categories
-    return category;
-  }
-
-  /**
    * Apply styles
    */
   private applyStyles(): void {

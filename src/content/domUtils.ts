@@ -376,13 +376,26 @@ export class DOMUtils {
         }
       }
       
-      // Extract tweet ID from the tweet link
-      const tweetLink = originalTweetElement.querySelector('a[href*="/status/"]') as HTMLAnchorElement;
+      // Extract tweet ID from the tweet link (avoid quoted/embedded tweets)
+      // First try to find the timestamp anchor which is more reliable
+      const timeElement = originalTweetElement.querySelector('time');
+      const tweetLink = timeElement?.closest('a') as HTMLAnchorElement | null;
+      
       if (tweetLink) {
         const match = tweetLink.href.match(/\/status\/(\d+)/);
         if (match && match[1]) {
           context.tweetId = match[1];
           console.log(`%c  Tweet ID: ${context.tweetId}`, 'color: #657786');
+        }
+      } else {
+        // Fallback to the previous selector if no time element found
+        const fallbackLink = originalTweetElement.querySelector('a[href*="/status/"]') as HTMLAnchorElement;
+        if (fallbackLink) {
+          const match = fallbackLink.href.match(/\/status\/(\d+)/);
+          if (match && match[1]) {
+            context.tweetId = match[1];
+            console.log(`%c  Tweet ID (fallback): ${context.tweetId}`, 'color: #657786');
+          }
         }
       }
 

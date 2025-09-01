@@ -358,19 +358,6 @@ export class PresetTemplates {
   }
 
   /**
-   * Get category title
-   */
-  private getCategoryTitle(category: string): string {
-    const titles: Record<string, string> = {
-      engagement: '💬 Engagement',
-      value: '💎 Add Value',
-      conversation: '🗣️ Conversation',
-      humor: '😄 Humor'
-    };
-    return titles[category] || category;
-  }
-
-  /**
    * Load custom presets from storage
    */
   private async loadCustomPresets(): Promise<void> {

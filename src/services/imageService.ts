@@ -438,9 +438,11 @@ Return ONLY the JSON array, no explanations.`;
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
     try {
-      const stored = await chrome.storage.local.get(['smartReply_apiKey']);
-      return stored.smartReply_apiKey || null;
-    } catch {
+      // Try neutral key first, then fall back to legacy key
+      const stored = await chrome.storage.local.get(['openrouter_apiKey', 'smartReply_apiKey']);
+      return stored.openrouter_apiKey || stored.smartReply_apiKey || null;
+    } catch (error) {
+      console.error('Failed to retrieve API key:', error);
       return null;
     }
   }
@@ -616,7 +618,7 @@ Return ONLY the search terms, separated by commas. No explanation.`;
     try {
       const apiKey = await this.getOpenRouterApiKey();
       if (!apiKey) {
-        return 'A relevant image';
+        throw new Error('OpenRouter API key not found. Please configure your API key in the extension settings.');
       }
       
       const combinedText = `${tweetText} ${replyText}`.trim() || 'general topic';
@@ -660,8 +662,9 @@ Return ONLY the image generation prompt, no explanation.`;
       });
       
       if (!response.ok) {
-        console.error('Prompt generation failed:', response.status);
-        return 'A relevant image for this discussion';
+        const errorMsg = `Prompt generation failed with status ${response.status}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
       
       const data = await response.json();
@@ -671,11 +674,13 @@ Return ONLY the image generation prompt, no explanation.`;
         console.log('%c✅ Generated prompt:', 'color: #17BF63', generatedPrompt);
         return generatedPrompt;
       }
+      
+      throw new Error('Failed to generate prompt: No content in response');
     } catch (error) {
       console.error('Smart prompt generation error:', error);
+      // Re-throw the error so the caller can handle it appropriately
+      throw error;
     }
-    
-    return 'A relevant image for this discussion';
   }
 
   /**

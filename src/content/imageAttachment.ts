@@ -11,6 +11,8 @@ export class ImageAttachment {
   private selectedImage: ImageResult | null = null;
   private onImageSelect: ((image: ImageResult | null) => void) | null = null;
   private textarea: HTMLElement | null = null;
+  private autoSuggestTimerId: NodeJS.Timeout | null = null;
+  private isOpen: boolean = false;
   
   constructor() {
     console.log('%c🖼️ ImageAttachment initialized', 'color: #1DA1F2; font-weight: bold');
@@ -181,11 +183,23 @@ export class ImageAttachment {
 
     // Append directly to body for fixed positioning
     document.body.appendChild(this.container);
+    this.isOpen = true;
 
-    // Auto-suggest on open if context exists
+    // Auto-suggest on open if context exists (with debounce)
     const tweetText = this.getTweetText();
     if (tweetText) {
-      this.autoSuggestOnOpen();
+      // Clear any existing timer
+      if (this.autoSuggestTimerId) {
+        clearTimeout(this.autoSuggestTimerId);
+      }
+      
+      // Use requestAnimationFrame for micro-debounce to ensure DOM is ready
+      this.autoSuggestTimerId = setTimeout(() => {
+        // Check if panel is still open and attached to DOM
+        if (this.isOpen && this.container && document.body.contains(this.container)) {
+          this.autoSuggestOnOpen();
+        }
+      }, 50); // Small delay to ensure DOM is stable
     }
   }
 
@@ -395,7 +409,9 @@ export class ImageAttachment {
    * Auto-suggest images on panel open
    */
   private async autoSuggestOnOpen(): Promise<void> {
-    const resultsDiv = this.container?.querySelector('.search-results') as HTMLElement;
+    // Store reference to current container to verify it hasn't changed
+    const currentContainer = this.container;
+    const resultsDiv = currentContainer?.querySelector('.search-results') as HTMLElement;
     if (!resultsDiv) return;
 
     // Show loading state
@@ -406,16 +422,31 @@ export class ImageAttachment {
       const replyText = this.getReplyText();
       const results = await imageService.suggestImages(tweetText, replyText);
       
+      // Verify container hasn't changed during async operation
+      if (this.container !== currentContainer) {
+        console.log('Container changed during auto-suggest, aborting');
+        return;
+      }
+      
+      // Verify resultsDiv is still in the DOM
+      const currentResultsDiv = this.container?.querySelector('.search-results') as HTMLElement;
+      if (!currentResultsDiv || currentResultsDiv !== resultsDiv) {
+        console.log('Results div changed during auto-suggest, aborting');
+        return;
+      }
+      
       if (results.length > 0) {
         this.displayImages(results, resultsDiv);
       } else {
-        // Clear if no suggestions
-        resultsDiv.innerHTML = '';
+        // Show gentle placeholder instead of clearing
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #8b98a5; font-size: 14px;">No suggestions available</div>';
       }
     } catch (error) {
       console.error('Failed to auto-suggest images:', error);
-      // Silent fail for auto-suggestions
-      resultsDiv.innerHTML = '';
+      // Show gentle error placeholder instead of clearing
+      if (this.container === currentContainer && resultsDiv && document.body.contains(resultsDiv)) {
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #8b98a5; font-size: 14px;">Unable to load suggestions</div>';
+      }
     }
   }
 
@@ -623,6 +654,15 @@ export class ImageAttachment {
    * Close the panel
    */
   close(): void {
+    // Clear auto-suggest timer if pending
+    if (this.autoSuggestTimerId) {
+      clearTimeout(this.autoSuggestTimerId);
+      this.autoSuggestTimerId = null;
+    }
+    
+    // Mark as closed
+    this.isOpen = false;
+    
     if (this.container) {
       this.container.remove();
       this.container = null;

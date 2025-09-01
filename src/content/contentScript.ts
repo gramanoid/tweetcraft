@@ -28,6 +28,10 @@ class SmartReplyContentScript {
   // Store event listener references for proper cleanup
   private eventListeners: Array<() => void> = [];
   private customEventListeners: Map<string, EventListener> = new Map();
+  
+  // Configurable cleanup interval
+  private cleanupIntervalMs: number = 3000; // Default to 3 seconds
+  private cleanupIntervalId: NodeJS.Timeout | null = null;
 
   constructor() {
     // Check if another instance already exists
@@ -318,14 +322,17 @@ class SmartReplyContentScript {
     // Clean up any duplicate buttons before starting
     this.cleanupDuplicateButtons();
     
-    // Set up periodic cleanup (every 3 seconds)
-    const cleanupInterval = setInterval(() => {
+    // Set up periodic cleanup with configurable interval
+    this.cleanupIntervalId = setInterval(() => {
       if (!this.isDestroyed) {
         this.cleanupDuplicateButtons();
       } else {
-        clearInterval(cleanupInterval);
+        if (this.cleanupIntervalId) {
+          clearInterval(this.cleanupIntervalId);
+          this.cleanupIntervalId = null;
+        }
       }
-    }, 3000);
+    }, this.cleanupIntervalMs);
 
     // Attempt initial injection with retries
     this.attemptInitialInjection();
@@ -1236,6 +1243,12 @@ class SmartReplyContentScript {
       document.removeEventListener(eventName, listener);
     });
     this.customEventListeners.clear();
+    
+    // Clear cleanup interval
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
     
     // Disconnect observer
     if (this.observer) {
