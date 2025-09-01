@@ -1,5 +1,5 @@
 import { StorageService } from '@/services/storage';
-import { TEMPLATES, TONES, getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
+import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -91,7 +91,7 @@ class SmartReplyServiceWorker {
         if (chrome.runtime.lastError) {
           console.log('Smart Reply: Could not show notification:', chrome.runtime.lastError.message);
         } else {
-          console.log('Smart Reply: Welcome notification shown');
+          console.log(`Smart Reply: Welcome notification shown with ID: ${notificationId}`);
         }
       });
     } else {
@@ -116,20 +116,22 @@ class SmartReplyServiceWorker {
   ): Promise<void> {
     try {
       switch (message.type) {
-        case 'GET_CONFIG':
+        case 'GET_CONFIG': {
           const config = await StorageService.getConfig();
           sendResponse({ success: true, config });
           break;
+        }
 
         case 'SET_CONFIG':
           await StorageService.setConfig(message.config);
           sendResponse({ success: true });
           break;
 
-        case 'GET_API_KEY':
+        case 'GET_API_KEY': {
           const apiKey = await StorageService.getApiKey();
           sendResponse({ success: true, apiKey });
           break;
+        }
 
         case 'SET_API_KEY':
           await StorageService.setApiKey(message.apiKey);
@@ -147,10 +149,11 @@ class SmartReplyServiceWorker {
           sendResponse({ success: true });
           break;
 
-        case 'GET_LAST_TONE':
+        case 'GET_LAST_TONE': {
           const lastTone = await StorageService.getLastTone();
           sendResponse({ success: true, lastTone });
           break;
+        }
 
         case 'SET_LAST_TONE':
           await StorageService.setLastTone(message.tone);
@@ -161,7 +164,117 @@ class SmartReplyServiceWorker {
           sendResponse({ success: true, message: 'Service worker is active' });
           break;
 
-        case 'TEST_API_KEY':
+        case 'GET_STORAGE': {
+          // Get generic storage items with validation
+          const storageKeys = message.keys || null;
+          
+          // Validate keys parameter
+          if (storageKeys !== null && 
+              typeof storageKeys !== 'string' && 
+              !Array.isArray(storageKeys) && 
+              (typeof storageKeys !== 'object' || storageKeys.constructor !== Object)) {
+            sendResponse({ success: false, error: 'Invalid keys format. Must be null, string, array of strings, or object' });
+            break;
+          }
+          
+          // Validate array contents if array
+          if (Array.isArray(storageKeys)) {
+            if (storageKeys.length > 100) {
+              sendResponse({ success: false, error: 'Too many keys requested (limit: 100)' });
+              break;
+            }
+            if (!storageKeys.every(key => typeof key === 'string')) {
+              sendResponse({ success: false, error: 'All array elements must be strings' });
+              break;
+            }
+          }
+          
+          // Validate object if object
+          if (storageKeys && typeof storageKeys === 'object' && !Array.isArray(storageKeys)) {
+            const keyCount = Object.keys(storageKeys).length;
+            if (keyCount > 100) {
+              sendResponse({ success: false, error: 'Too many keys requested (limit: 100)' });
+              break;
+            }
+          }
+          
+          chrome.storage.local.get(storageKeys, (data) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              sendResponse({ success: true, data });
+            }
+          });
+          break;
+        }
+
+        case 'SET_STORAGE': {
+          // Set generic storage items with validation
+          const dataToStore = message.data || {};
+          
+          // Validate data is a plain object
+          if (typeof dataToStore !== 'object' || dataToStore === null || Array.isArray(dataToStore)) {
+            sendResponse({ success: false, error: 'Data must be a plain object' });
+            break;
+          }
+          
+          // Validate number of keys
+          const keys = Object.keys(dataToStore);
+          if (keys.length > 100) {
+            sendResponse({ success: false, error: 'Too many keys to store (limit: 100)' });
+            break;
+          }
+          
+          // Validate key patterns and values
+          const allowedKeyPattern = /^[a-zA-Z0-9_-]+$/;
+          for (const key of keys) {
+            if (typeof key !== 'string') {
+              sendResponse({ success: false, error: 'All keys must be strings' });
+              break;
+            }
+            if (key.length > 100) {
+              sendResponse({ success: false, error: `Key too long: ${key.substring(0, 50)}...` });
+              break;
+            }
+            if (!allowedKeyPattern.test(key)) {
+              sendResponse({ success: false, error: `Invalid key pattern: ${key}. Only alphanumeric, underscore, and hyphen allowed` });
+              break;
+            }
+            
+            // Validate value is serializable
+            const value = dataToStore[key];
+            try {
+              JSON.stringify(value);
+            } catch (e) {
+              sendResponse({ success: false, error: `Value for key '${key}' is not serializable` });
+              break;
+            }
+          }
+          
+          // Estimate size (rough check)
+          let estimatedSize = 0;
+          try {
+            estimatedSize = JSON.stringify(dataToStore).length;
+            if (estimatedSize > 1024 * 1024) { // 1MB limit
+              sendResponse({ success: false, error: 'Data too large (limit: 1MB)' });
+              break;
+            }
+          } catch (e) {
+            sendResponse({ success: false, error: 'Failed to validate data size' });
+            break;
+          }
+          
+          chrome.storage.local.set(dataToStore, () => {
+            if (chrome.runtime.lastError) {
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              sendResponse({ success: true });
+            }
+          });
+          break;
+        }
+
+        case 'TEST_API_KEY': {
           // Test API key using shared utility
           const testApiKey = message.apiKey;
           if (!testApiKey) {
@@ -190,13 +303,14 @@ class SmartReplyServiceWorker {
               });
             });
           break;
+        }
 
         case 'GENERATE_REPLY':
           // Handle reply generation in service worker
           this.handleGenerateReply(message, sendResponse);
           break;
 
-        case 'FETCH_MODELS':
+        case 'FETCH_MODELS': {
           // Fetch available models using shared utility
           const fetchApiKey = message.apiKey;
           if (!fetchApiKey) {
@@ -257,6 +371,7 @@ class SmartReplyServiceWorker {
             });
           });
           break;
+        }
 
         default:
           console.warn('Smart Reply: Unknown message type:', message.type);
@@ -558,8 +673,10 @@ class SmartReplyServiceWorker {
     }
 
     // Add context awareness
-    if (config.contextAware && context.isReply) {
-      systemPrompt += ' Analyze the original tweet and write a contextually relevant reply.';
+    const hasTweetContext = context.tweetText || request.originalTweet;
+    if (hasTweetContext) {
+      systemPrompt += ' CRITICAL: You MUST analyze the tweet content provided and write a directly relevant reply that addresses the specific topic, data, or question in the tweet.';
+      systemPrompt += ' Your reply must demonstrate that you understood the tweet\'s content.';
     }
 
     systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
@@ -598,36 +715,44 @@ class SmartReplyServiceWorker {
     } else if (request.customPrompt) {
       console.log('%c  Type: Custom Prompt', 'color: #657786');
       userPrompt = request.customPrompt;
-    } else if (context.isReply && context.tweetText) {
-      console.log('%c  Type: Reply to Tweet', 'color: #657786');
-      const contextMode = config.contextMode || 'thread';
-      
-      if (contextMode === 'thread' && context.threadContext?.length > 0) {
-        console.log('%c  Context Mode: Thread', 'color: #657786');
-        console.log('%c  Thread Length:', 'color: #657786', context.threadContext.length + ' additional tweets');
-        
-        userPrompt = 'Here is a Twitter conversation thread:\n\n';
-        context.threadContext.forEach((tweet: any, index: number) => {
-          console.log(`%c  Tweet ${index + 1}:`, 'color: #657786', tweet.text.substring(0, 50) + '...');
-          userPrompt += `${tweet.author}: ${tweet.text}\n`;
-        });
-        if (context.authorHandle) {
-          userPrompt += `@${context.authorHandle}: ${context.tweetText}\n\n`;
-        } else {
-          userPrompt += `Latest tweet: ${context.tweetText}\n\n`;
-        }
-        userPrompt += 'Write a contextually relevant reply that continues this conversation naturally.';
-      } else if (contextMode === 'single' || (contextMode === 'thread' && !context.threadContext)) {
-        console.log('%c  Context Mode: Single Tweet', 'color: #657786');
-        console.log('%c  Tweet:', 'color: #657786', context.tweetText?.substring(0, 100) + '...');
-        userPrompt = `Write a reply to this tweet: "${context.tweetText}"`;
-      } else {
-        console.log('%c  Context Mode: None', 'color: #657786');
-        userPrompt = 'Write an engaging tweet reply.';
-      }
     } else {
-      console.log('%c  Type: Generic Tweet', 'color: #657786');
-      userPrompt = 'Write an engaging tweet.';
+      // ALWAYS check for tweet context first, regardless of source
+      const tweetText = context.tweetText || request.originalTweet;
+      
+      if (tweetText) {
+        console.log('%c  Type: Reply to Tweet', 'color: #657786');
+        console.log('%c  Tweet Text Found:', 'color: #17BF63', tweetText.substring(0, 100) + '...');
+        
+        const contextMode = config.contextMode || 'single'; // Default to single for simplicity
+        
+        if (contextMode === 'thread' && context.threadContext?.length > 0) {
+          console.log('%c  Context Mode: Thread', 'color: #657786');
+          console.log('%c  Thread Length:', 'color: #657786', context.threadContext.length + ' additional tweets');
+          
+          userPrompt = 'Here is a Twitter conversation thread:\n\n';
+          context.threadContext.forEach((tweet: any, index: number) => {
+            console.log(`%c  Tweet ${index + 1}:`, 'color: #657786', tweet.text.substring(0, 50) + '...');
+            userPrompt += `${tweet.author}: ${tweet.text}\n`;
+          });
+          if (context.authorHandle) {
+            userPrompt += `@${context.authorHandle}: ${tweetText}\n\n`;
+          } else {
+            userPrompt += `Latest tweet: ${tweetText}\n\n`;
+          }
+          userPrompt += 'Write a contextually relevant reply that continues this conversation naturally.';
+        } else {
+          // Single tweet mode - MOST IMPORTANT: Make the tweet context prominent
+          console.log('%c  Context Mode: Single Tweet', 'color: #657786');
+          
+          // Put the tweet FIRST and make it very clear this is what needs a reply
+          userPrompt = `IMPORTANT: You must write a reply to the following tweet. The reply MUST be relevant to the content below:\n\n`;
+          userPrompt += `Tweet to reply to: "${tweetText}"\n\n`;
+          userPrompt += `Write a reply that directly addresses or responds to the above tweet's content.`;
+        }
+      } else {
+        console.log('%c  Type: Generic Tweet (no context)', 'color: #FFA500');
+        userPrompt = 'Write an engaging tweet.';
+      }
     }
 
     console.log('%c  User Prompt Length:', 'color: #657786', userPrompt.length + ' characters');
@@ -652,7 +777,7 @@ class SmartReplyServiceWorker {
     // Remove common meta-text patterns
     const metaPatterns = [
       /^(A |An )?(balanced |measured |witty |professional |casual |supportive |contrarian |thoughtful )?(reply|response)( could be| might be)?:?\s*/i,
-      /^Here(\'s| is) (a |an )?(reply|response)?:?\s*/i,
+      /^Here('s| is) (a |an )?(reply|response)?:?\s*/i,
       /^(Reply|Response):?\s*/i,
       /^You could (say|reply|respond with):?\s*/i,
     ];
@@ -673,7 +798,7 @@ class SmartReplyServiceWorker {
 }
 
 // Initialize the service worker
-const serviceWorker = new SmartReplyServiceWorker();
+new SmartReplyServiceWorker();
 
 // Keep service worker alive for important events
 chrome.runtime.onConnect.addListener((port) => {
@@ -695,7 +820,7 @@ self.addEventListener('beforeunload', () => {
 // Service workers are now event-driven and will activate when needed
 
 // Enhanced lifecycle logging for debugging
-self.addEventListener('install', (event) => {
+self.addEventListener('install', (_event) => {
   console.log('%c🔧 Smart Reply: Service worker installing', 'color: #1DA1F2; font-weight: bold');
   // Skip waiting to activate immediately
   (self as any).skipWaiting();

@@ -111,7 +111,7 @@ export class KeyboardShortcutManager {
   /**
    * Execute shortcut action
    */
-  private static executeAction(action: string, event: KeyboardEvent): void {
+  private static executeAction(action: string, _event: KeyboardEvent): void {
     // Check for custom callback first
     const callback = this.callbacks.get(action);
     if (callback) {

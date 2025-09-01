@@ -7,6 +7,7 @@ import { Template, Tone, TEMPLATES, TONES } from '@/config/templatesAndTones';
 import { visualFeedback } from '@/ui/visualFeedback';
 import { templateSuggester } from '@/services/templateSuggester';
 import { DOMUtils } from '@/content/domUtils';
+import { imageService } from '@/services/imageService';
 
 export interface SelectionResult {
   template: Template;
@@ -22,22 +23,36 @@ export class UnifiedSelector {
   private onSelectCallback: ((result: SelectionResult) => void) | null = null;
   private favoriteTemplates: Set<string> = new Set();
   private favoriteTones: Set<string> = new Set();
-  private view: 'grid' | 'smart' | 'favorites' | 'custom' = 'grid';
+  private view: 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+  private scrollHandler: (() => void) | null = null;
+  private anchorButton: HTMLElement | null = null;
   private smartSuggestions: { templates: Template[], tones: Tone[] } = { templates: [], tones: [] };
+  private smartSuggestionsScores: any[] = [];
+  private customTemplatesLoaded: Promise<void> | null = null;
 
   constructor() {
     this.loadFavorites();
+    // Defer async loading
+    this.customTemplatesLoaded = this.loadCustomTemplates();
   }
 
   /**
    * Show the unified selector
    */
-  show(button: HTMLElement, onSelect: (result: SelectionResult) => void): void {
+  async show(button: HTMLElement, onSelect: (result: SelectionResult) => void): Promise<void> {
+    // Ensure custom templates are loaded
+    if (this.customTemplatesLoaded) {
+      await this.customTemplatesLoaded;
+    }
+    
     this.onSelectCallback = onSelect;
     
     // Remove any existing selector
     this.hide();
+    
+    // Store button reference for repositioning
+    this.anchorButton = button;
     
     // Create and show new selector
     this.container = this.createUI();
@@ -63,6 +78,9 @@ export class UnifiedSelector {
     
     // Add click outside handler
     this.setupClickOutsideHandler();
+    
+    // Add scroll handler to keep popup positioned relative to button
+    this.setupScrollHandler();
   }
   
   /**
@@ -79,6 +97,14 @@ export class UnifiedSelector {
       document.removeEventListener('click', this.clickOutsideHandler);
       this.clickOutsideHandler = null;
     }
+    
+    // Remove scroll handler
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler, true);
+      this.scrollHandler = null;
+    }
+    
+    this.anchorButton = null;
   }
   
   /**
@@ -144,12 +170,26 @@ export class UnifiedSelector {
       }
     }, 100);
   }
+  
+  /**
+   * Setup scroll handler to keep popup positioned
+   */
+  private setupScrollHandler(): void {
+    this.scrollHandler = () => {
+      if (this.anchorButton && this.container) {
+        this.positionNearButton(this.anchorButton);
+      }
+    };
+    
+    // Listen to scroll on window and any scrollable parent
+    window.addEventListener('scroll', this.scrollHandler, true);
+  }
 
   /**
    * Create the unified selector UI
    */
   private createUI(): HTMLElement {
-    this.onSelectCallback = this.onSelectCallback;
+    // Keep reference to callback (removed self-assignment)
     
     this.container = document.createElement('div');
     this.container.className = 'tweetcraft-unified-selector';
@@ -179,6 +219,9 @@ export class UnifiedSelector {
           </button>
           <button class="tab-btn ${this.view === 'favorites' ? 'active' : ''}" data-view="favorites">
             <span>⭐ Favorites</span>
+          </button>
+          <button class="tab-btn ${this.view === 'imagegen' ? 'active' : ''}" data-view="imagegen">
+            <span>🖼️ Image Gen</span>
           </button>
           <button class="tab-btn ${this.view === 'custom' ? 'active' : ''}" data-view="custom">
             <span>✨ Custom</span>
@@ -213,6 +256,8 @@ export class UnifiedSelector {
         return this.renderSmartSuggestionsView(templates, tones);
       case 'favorites':
         return this.renderFavoritesView(templates, tones);
+      case 'imagegen':
+        return this.renderImageGenView();
       case 'custom':
         return this.renderCustomView(templates, tones);
       default:
@@ -230,13 +275,19 @@ export class UnifiedSelector {
           <h3>Templates</h3>
           <div class="template-grid">
             ${templates.map(template => `
-              <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
-                      data-template="${template.id}"
-                      title="${template.description}">
-                <span class="template-emoji">${template.emoji}</span>
-                <span class="template-name">${template.name}</span>
-                ${this.favoriteTemplates.has(template.id) ? '<span class="favorite-star">⭐</span>' : ''}
-              </button>
+              <div class="item-wrapper">
+                <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                        data-template="${template.id}"
+                        title="${template.description}">
+                  <span class="template-emoji">${template.emoji}</span>
+                  <span class="template-name">${template.name}</span>
+                </button>
+                <button class="star-btn ${this.favoriteTemplates.has(template.id) ? 'active' : ''}" 
+                        data-template-star="${template.id}" 
+                        title="${this.favoriteTemplates.has(template.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoriteTemplates.has(template.id) ? '⭐' : '☆'}
+                </button>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -245,13 +296,19 @@ export class UnifiedSelector {
           <h3>Tones</h3>
           <div class="tone-grid">
             ${tones.map(tone => `
-              <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                      data-tone="${tone.id}"
-                      title="${tone.description}">
-                <span class="tone-emoji">${tone.emoji}</span>
-                <span class="tone-label">${tone.label}</span>
-                ${this.favoriteTones.has(tone.id) ? '<span class="favorite-star">⭐</span>' : ''}
-              </button>
+              <div class="item-wrapper">
+                <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
+                        data-tone="${tone.id}"
+                        title="${tone.description}">
+                  <span class="tone-emoji">${tone.emoji}</span>
+                  <span class="tone-label">${tone.label}</span>
+                </button>
+                <button class="star-btn ${this.favoriteTones.has(tone.id) ? 'active' : ''}" 
+                        data-tone-star="${tone.id}" 
+                        title="${this.favoriteTones.has(tone.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoriteTones.has(tone.id) ? '⭐' : '☆'}
+                </button>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -263,7 +320,7 @@ export class UnifiedSelector {
    * Render smart suggestions view
    */
   private renderSmartSuggestionsView(templates: Template[], tones: Tone[]): string {
-    // Use smart suggestions if available, otherwise show loading
+    // Use smart suggestions with scores if available
     const suggestedTemplates = this.smartSuggestions.templates.length > 0 
       ? this.smartSuggestions.templates 
       : templates.slice(0, 6); // Fallback to first 6 templates
@@ -272,39 +329,80 @@ export class UnifiedSelector {
       ? this.smartSuggestions.tones
       : tones.slice(0, 6); // Fallback to first 6 tones
     
+    // Get scores from smartSuggestionsScores if available
+    const scores = (this as any).smartSuggestionsScores || [];
+    
     return `
       <div class="selector-content smart-view">
         <div class="smart-info">
           <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0 0 12px 0;">
-            🤖 AI-suggested templates and tones based on the conversation context
+            🤖 AI-suggested combinations based on conversation context
           </p>
         </div>
-        <div class="templates-section">
-          <h3>Suggested Templates</h3>
-          <div class="template-grid">
-            ${suggestedTemplates.map(template => `
-              <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
-                      data-template="${template.id}"
-                      title="${template.description}">
-                <span class="template-emoji">${template.emoji}</span>
-                <span class="template-name">${template.name}</span>
-              </button>
-            `).join('')}
-          </div>
-        </div>
-        
-        <div class="tones-section">
-          <h3>Suggested Tones</h3>
-          <div class="tone-grid">
-            ${suggestedTones.map(tone => `
-              <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                      data-tone="${tone.id}"
-                      title="${tone.description}">
-                <span class="tone-emoji">${tone.emoji}</span>
-                <span class="tone-label">${tone.label}</span>
-              </button>
-            `).join('')}
-          </div>
+        <div class="smart-suggestions-list">
+          ${scores.length > 0 ? scores.slice(0, 6).map((score: any, _index: number) => {
+            const template = TEMPLATES.find(t => t.id === score.templateId);
+            const tone = TONES.find(t => t.id === score.toneId);
+            if (!template || !tone) return '';
+            
+            return `
+              <div class="suggestion-card" data-template="${template.id}" data-tone="${tone.id}">
+                <div class="suggestion-header">
+                  <span class="suggestion-combo">
+                    ${template.emoji} ${template.name} + ${tone.emoji} ${tone.label}
+                  </span>
+                  <span class="suggestion-score" title="AI confidence score based on context analysis">
+                    <span class="score-icon">⚡</span>
+                    ${score.score.toFixed(1)}
+                  </span>
+                </div>
+                <div class="suggestion-preview">
+                  ${template.description.length > 60 ? template.description.substring(0, 60) + '...' : template.description}
+                </div>
+                <div class="suggestion-reasons">
+                  ${score.reasons.map((reason: string, idx: number) => {
+                    // Enhance reason descriptions
+                    let enhancedReason = reason;
+                    if (reason.includes('Template matches')) enhancedReason = '🎯 ' + reason;
+                    else if (reason.includes('Tone suits')) enhancedReason = '🎨 ' + reason;
+                    else if (reason.includes('thread')) enhancedReason = '🧵 ' + reason;
+                    else if (reason.includes('viral')) enhancedReason = '🔥 ' + reason;
+                    else if (reason.includes('engagement')) enhancedReason = '💬 ' + reason;
+                    
+                    return idx < 3 ? `<span class="reason-chip" title="Why this combination works well">${enhancedReason}</span>` : '';
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div class="templates-section">
+              <h3>Suggested Templates</h3>
+              <div class="template-grid">
+                ${suggestedTemplates.map(template => `
+                  <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                          data-template="${template.id}"
+                          title="${template.description}">
+                    <span class="template-emoji">${template.emoji}</span>
+                    <span class="template-name">${template.name}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            
+            <div class="tones-section">
+              <h3>Suggested Tones</h3>
+              <div class="tone-grid">
+                ${suggestedTones.map(tone => `
+                  <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
+                          data-tone="${tone.id}"
+                          title="${tone.description}">
+                    <span class="tone-emoji">${tone.emoji}</span>
+                    <span class="tone-label">${tone.label}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -433,7 +531,7 @@ export class UnifiedSelector {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'smart' | 'favorites' | 'custom';
+        const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom';
         this.view = view;
         if (view === 'smart') {
           this.loadSmartSuggestions();
@@ -449,12 +547,26 @@ export class UnifiedSelector {
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
         this.selectTemplate(templateId);
       });
-
-      // Double-click to favorite
-      (btn as HTMLElement).addEventListener('dblclick', async (e) => {
+    });
+    
+    // Template star buttons
+    this.container.querySelectorAll('[data-template-star]').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const templateId = (e.currentTarget as HTMLElement).dataset.templateStar!;
+        await this.toggleFavoriteTemplate(templateId);
+      });
+    });
+    
+    // Suggestion card selection (for Smart view)
+    this.container.querySelectorAll('.suggestion-card').forEach(card => {
+      (card as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
-        await this.toggleFavoriteTemplate(templateId);
+        const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
+        this.selectTemplate(templateId);
+        this.selectTone(toneId);
       });
     });
 
@@ -465,11 +577,14 @@ export class UnifiedSelector {
         const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
         this.selectTone(toneId);
       });
-
-      // Double-click to favorite
-      (btn as HTMLElement).addEventListener('dblclick', async (e) => {
+    });
+    
+    // Tone star buttons
+    this.container.querySelectorAll('[data-tone-star]').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', async (e) => {
         e.stopPropagation();
-        const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
+        e.preventDefault();
+        const toneId = (e.currentTarget as HTMLElement).dataset.toneStar!;
         await this.toggleFavoriteTone(toneId);
       });
     });
@@ -494,8 +609,33 @@ export class UnifiedSelector {
     const createBtn = this.container.querySelector('.create-custom-btn');
     if (createBtn) {
       createBtn.addEventListener('click', () => {
-        // Show create dialog (not implemented yet)
-        visualFeedback.showToast('Custom template creation coming soon!', { type: 'info' });
+        this.showCreateCustomDialog();
+      });
+    }
+
+    // Image search button
+    const searchBtn = this.container.querySelector('.image-search-btn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', () => {
+        this.handleImageSearch();
+      });
+    }
+
+    // Image generate button
+    const generateImageBtn = this.container.querySelector('.image-generate-btn');
+    if (generateImageBtn) {
+      generateImageBtn.addEventListener('click', () => {
+        this.handleImageGenerate();
+      });
+    }
+
+    // Enter key on image search input
+    const searchInput = this.container.querySelector('.image-search-input') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.handleImageSearch();
+        }
       });
     }
   }
@@ -512,7 +652,7 @@ export class UnifiedSelector {
       let context: any = { tweetText: '', isReply: false };
       
       if (replyBox) {
-        const extracted = DOMUtils.extractTwitterContext(replyBox as HTMLElement);
+        const extracted = DOMUtils.extractTwitterContext();
         context = {
           tweetText: extracted.tweetText || '',
           isReply: extracted.isReply,
@@ -528,6 +668,9 @@ export class UnifiedSelector {
         timeOfDay: new Date().getHours(),
         dayOfWeek: new Date().getDay()
       });
+      
+      // Store the full scores for display
+      this.smartSuggestionsScores = suggestions;
       
       // Extract unique templates and tones from suggestions
       const templateIds = new Set<string>();
@@ -686,6 +829,10 @@ export class UnifiedSelector {
     console.log('%c  Combined prompt length:', 'color: #657786', combinedPrompt.length);
     console.log('%c  Temperature:', 'color: #657786', temperature);
 
+    // Hide the popup immediately when generating starts
+    this.hide();
+    
+    // Call the callback after hiding
     this.onSelectCallback(result);
   }
 
@@ -760,9 +907,305 @@ export class UnifiedSelector {
   /**
    * Show create custom template/tone dialog
    */
-  private showCreateDialog(): void {
-    // Placeholder for custom creation dialog
-    console.log('Create custom dialog - to be implemented');
+  private showCreateCustomDialog(): void {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'tweetcraft-custom-modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create Custom Template</h3>
+          <button class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Template Name *</label>
+            <input type="text" id="custom-name" placeholder="e.g., Thoughtful Response" maxlength="50" />
+          </div>
+          <div class="form-group">
+            <label>Emoji Icon</label>
+            <input type="text" id="custom-emoji" placeholder="e.g., 💭" maxlength="2" value="✨" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="custom-description" placeholder="Brief description of this template" />
+          </div>
+          <div class="form-group">
+            <label>Style Prompt *</label>
+            <textarea id="custom-style" rows="4" placeholder="Define the writing style and approach for this template (e.g., 'Write a thoughtful reply that acknowledges the point and adds a new perspective')"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tone Prompt *</label>
+            <textarea id="custom-tone" rows="4" placeholder="Define the tone and personality (e.g., 'Be professional but approachable, use clear language, avoid jargon')"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="custom-category">
+              <option value="custom">Custom</option>
+              <option value="engagement">Engagement</option>
+              <option value="debate">Debate</option>
+              <option value="humor">Humor</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel">Cancel</button>
+          <button class="btn-save">Create Template</button>
+        </div>
+      </div>
+    `;
+    
+    // Apply styles
+    const style = document.createElement('style');
+    style.textContent = `
+      .tweetcraft-custom-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10002;
+      }
+      
+      .modal-content {
+        background: #15202b;
+        border-radius: 12px;
+        width: 500px;
+        max-width: 90vw;
+        border: 1px solid rgba(139, 152, 165, 0.3);
+      }
+      
+      .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(139, 152, 165, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .modal-header h3 {
+        margin: 0;
+        color: #e7e9ea;
+        font-size: 18px;
+      }
+      
+      .modal-close {
+        background: transparent;
+        border: none;
+        color: #8b98a5;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+      }
+      
+      .modal-close:hover {
+        color: #e7e9ea;
+      }
+      
+      .modal-body {
+        padding: 20px;
+      }
+      
+      .form-group {
+        margin-bottom: 16px;
+      }
+      
+      .form-group label {
+        display: block;
+        color: #8b98a5;
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+      
+      .form-group input,
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(139, 152, 165, 0.3);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #000;
+        font-size: 14px;
+      }
+      
+      .form-group select option {
+        background: white;
+        color: black;
+      }
+      
+      .form-group input:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #1d9bf0;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      
+      .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid rgba(139, 152, 165, 0.2);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      
+      .btn-cancel,
+      .btn-save {
+        padding: 8px 20px;
+        border-radius: 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      
+      .btn-cancel {
+        background: transparent;
+        border: 1px solid rgba(139, 152, 165, 0.3);
+        color: #8b98a5;
+      }
+      
+      .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      
+      .btn-save {
+        background: #1d9bf0;
+        border: none;
+        color: white;
+      }
+      
+      .btn-save:hover {
+        background: #1a8cd8;
+      }
+    `;
+    
+    document.head.appendChild(style);
+    document.body.appendChild(modal);
+    
+    // Event handlers
+    const closeModal = () => {
+      modal.remove();
+      style.remove();
+    };
+    
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+    modal.querySelector('.btn-cancel')?.addEventListener('click', closeModal);
+    
+    modal.querySelector('.btn-save')?.addEventListener('click', async () => {
+      const name = (modal.querySelector('#custom-name') as HTMLInputElement)?.value.trim();
+      const emoji = (modal.querySelector('#custom-emoji') as HTMLInputElement)?.value.trim() || '✨';
+      const description = (modal.querySelector('#custom-description') as HTMLInputElement)?.value.trim();
+      const stylePrompt = (modal.querySelector('#custom-style') as HTMLTextAreaElement)?.value.trim();
+      const tonePrompt = (modal.querySelector('#custom-tone') as HTMLTextAreaElement)?.value.trim();
+      const category = (modal.querySelector('#custom-category') as HTMLSelectElement)?.value || 'custom';
+      
+      if (!name || !stylePrompt || !tonePrompt) {
+        visualFeedback.showToast('Name, style prompt, and tone prompt are required', { type: 'error' });
+        return;
+      }
+      
+      // Combine the prompts
+      const combinedPrompt = `${stylePrompt}\n\n${tonePrompt}`;
+      
+      // Create custom template
+      const customTemplate: Template = {
+        id: `custom_${Date.now()}`,
+        name,
+        emoji,
+        description: description || `Custom template: ${name}`,
+        prompt: combinedPrompt,
+        category: category as any
+      };
+      
+      // Save to storage
+      await this.saveCustomTemplate(customTemplate);
+      
+      visualFeedback.showToast('Custom template created!', { type: 'success' });
+      closeModal();
+      
+      // Refresh the view
+      this.view = 'custom';
+      this.render();
+    });
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+  }
+  
+  /**
+   * Save custom template to storage
+   */
+  private async saveCustomTemplate(template: Template): Promise<void> {
+    try {
+      // First get existing templates via message passing
+      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to load templates for saving:', chrome.runtime.lastError);
+          return;
+        }
+        
+        const customTemplates = (response?.data?.customTemplates || []);
+        const updatedTemplates = Array.isArray(customTemplates) ? [...customTemplates, template] : [template];
+        
+        // Save updated templates via service worker
+        chrome.runtime.sendMessage({ 
+          type: 'SET_STORAGE', 
+          data: { customTemplates: updatedTemplates } 
+        }, (saveResponse) => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to save custom template:', chrome.runtime.lastError);
+          } else if (saveResponse?.success) {
+            // Add to TEMPLATES array for current session
+            TEMPLATES.push(template);
+            console.log('Custom template saved successfully');
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Failed to save custom template:', error);
+    }
+  }
+  
+  /**
+   * Load custom templates from storage
+   */
+  private async loadCustomTemplates(): Promise<void> {
+    try {
+      // Use message passing to avoid CSP issues
+      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to load custom templates:', chrome.runtime.lastError);
+          return;
+        }
+        
+        if (response && response.success && response.data) {
+          const customTemplates = response.data.customTemplates || [];
+          
+          // Ensure customTemplates is an array before iterating
+          if (Array.isArray(customTemplates)) {
+            customTemplates.forEach((template: Template) => {
+              if (!TEMPLATES.find(t => t.id === template.id)) {
+                TEMPLATES.push(template);
+              }
+            });
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to load custom templates:', error);
+    }
   }
 
   /**
@@ -910,12 +1353,18 @@ export class UnifiedSelector {
           gap: 4px;
         }
         
+        .item-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        
         .template-btn,
         .tone-btn {
           display: flex;
           align-items: center;
           gap: 4px;
-          padding: 6px 5px;
+          padding: 6px 20px 6px 5px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
@@ -925,6 +1374,31 @@ export class UnifiedSelector {
           position: relative;
           font-size: 12px;
           min-height: 32px;
+          width: 100%;
+        }
+        
+        .star-btn {
+          position: absolute;
+          right: 2px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 2px 4px;
+          z-index: 10;
+          opacity: 0.6;
+          transition: opacity 0.2s;
+        }
+        
+        .star-btn:hover {
+          opacity: 1;
+        }
+        
+        .star-btn.active {
+          opacity: 1;
+          color: #ffd700;
         }
         
         .template-btn:hover,
@@ -1028,9 +1502,568 @@ export class UnifiedSelector {
         .create-custom-btn:hover {
           background: rgba(255, 255, 255, 0.15);
         }
+        
+        /* Smart suggestions cards */
+        .smart-suggestions-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .suggestion-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          border-radius: 8px;
+          padding: 10px 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .suggestion-card:hover {
+          background: rgba(29, 155, 240, 0.15);
+          border-color: rgba(29, 155, 240, 0.5);
+          transform: translateY(-1px);
+        }
+        
+        .suggestion-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        
+        .suggestion-combo {
+          color: #e7e9ea;
+          font-size: 13px;
+          font-weight: 500;
+        }
+        
+        .suggestion-score {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          color: #1d9bf0;
+          font-size: 12px;
+          font-weight: 600;
+          background: rgba(29, 155, 240, 0.1);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        
+        .score-icon {
+          font-size: 10px;
+        }
+        
+        .suggestion-preview {
+          font-size: 11px;
+          color: #8899a6;
+          margin-bottom: 8px;
+          line-height: 1.3;
+          font-style: italic;
+        }
+        
+        .suggestion-reasons {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+        }
+        
+        .reason-chip {
+          background: rgba(29, 155, 240, 0.15);
+          color: #a8b3bf;
+          font-size: 11px;
+          padding: 3px 6px;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+        
+        .reason-chip:hover {
+          background: rgba(29, 155, 240, 0.25);
+          color: #e7e9ea;
+        }
+        
+        /* Image Generation View Styles */
+        .imagegen-view {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        
+        .image-gen-controls {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 8px;
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 8px;
+        }
+        
+        .search-input-wrapper {
+          display: flex;
+          gap: 6px;
+        }
+        
+        .image-search-input {
+          flex: 1;
+          padding: 8px 12px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          border-radius: 8px;
+          color: #e7e9ea;
+          font-size: 13px;
+        }
+        
+        .image-search-input:focus {
+          outline: none;
+          border-color: #1d9bf0;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .image-search-btn,
+        .image-generate-btn {
+          padding: 8px 14px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          border-radius: 8px;
+          color: #e7e9ea;
+          cursor: pointer;
+          font-size: 16px;
+          transition: all 0.2s;
+        }
+        
+        .image-search-btn:hover,
+        .image-generate-btn:hover {
+          background: rgba(29, 155, 240, 0.2);
+          border-color: rgba(29, 155, 240, 0.5);
+        }
+        
+        .image-style-options {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .style-label {
+          color: #8b98a5;
+          font-size: 12px;
+        }
+        
+        .image-style-select {
+          flex: 1;
+          padding: 6px 10px;
+          background: rgba(255, 255, 255, 0.95);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          border-radius: 6px;
+          color: #000;
+          font-size: 12px;
+        }
+        
+        .image-style-select option {
+          background: white;
+          color: black;
+        }
+        
+        .image-results-container {
+          flex: 1;
+          overflow-y: auto;
+          position: relative;
+        }
+        
+        .image-results-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          padding: 8px;
+        }
+        
+        .image-result-item {
+          position: relative;
+          aspect-ratio: 1;
+          overflow: hidden;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: transform 0.2s;
+        }
+        
+        .image-result-item:hover {
+          transform: scale(1.05);
+        }
+        
+        .image-result-item img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .image-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.8));
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          padding: 6px;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        
+        .image-result-item:hover .image-overlay {
+          opacity: 1;
+        }
+        
+        .use-image-btn {
+          width: 28px;
+          height: 28px;
+          background: #1d9bf0;
+          border: none;
+          border-radius: 50%;
+          color: white;
+          font-size: 16px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .use-image-btn:hover {
+          background: #1a8cd8;
+        }
+        
+        .image-source {
+          background: rgba(0, 0, 0, 0.6);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          color: white;
+        }
+        
+        .image-empty-state,
+        .image-loading-state {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+          color: #8b98a5;
+        }
+        
+        .image-loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .spinner {
+          width: 24px;
+          height: 24px;
+          border: 2px solid rgba(29, 155, 240, 0.3);
+          border-top-color: #1d9bf0;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
       `;
       document.head.appendChild(style);
     }
+  }
+
+  /**
+   * Handle image search
+   */
+  private async handleImageSearch(): Promise<void> {
+    if (!this.container) return;
+    
+    const input = this.container.querySelector('.image-search-input') as HTMLInputElement;
+    const query = input?.value.trim();
+    
+    if (!query) {
+      visualFeedback.showToast('Please enter a search query', { type: 'error' });
+      return;
+    }
+    
+    console.log('%c🔍 Searching for images:', 'color: #1DA1F2', query);
+    
+    // Show loading state
+    const emptyState = this.container.querySelector('.image-empty-state') as HTMLElement;
+    const loadingState = this.container.querySelector('.image-loading-state') as HTMLElement;
+    const resultsGrid = this.container.querySelector('.image-results-grid') as HTMLElement;
+    
+    if (emptyState) emptyState.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'flex';
+    if (resultsGrid) resultsGrid.innerHTML = '';
+    
+    try {
+      const results = await imageService.searchImages({ 
+        query,
+        limit: 12 
+      });
+      
+      if (loadingState) loadingState.style.display = 'none';
+      
+      if (results.length === 0) {
+        if (emptyState) {
+          emptyState.innerHTML = `
+            <p>No images found for "${query}"</p>
+            <p style="font-size: 12px; color: #8b98a5;">Try a different search term</p>
+          `;
+          emptyState.style.display = 'block';
+        }
+        return;
+      }
+      
+      // Display results
+      this.displayImageResults(results);
+      
+    } catch (error) {
+      console.error('Image search failed:', error);
+      if (loadingState) loadingState.style.display = 'none';
+      visualFeedback.showToast('Failed to search images', { type: 'error' });
+      
+      if (emptyState) {
+        emptyState.innerHTML = `
+          <p>Failed to search images</p>
+          <p style="font-size: 12px; color: #8b98a5;">${error instanceof Error ? error.message : 'Unknown error'}</p>
+        `;
+        emptyState.style.display = 'block';
+      }
+    }
+  }
+
+  /**
+   * Handle AI image generation
+   */
+  private async handleImageGenerate(): Promise<void> {
+    if (!this.container) return;
+    
+    const input = this.container.querySelector('.image-search-input') as HTMLInputElement;
+    const styleSelect = this.container.querySelector('.image-style-select') as HTMLSelectElement;
+    const prompt = input?.value.trim();
+    const style = styleSelect?.value as 'realistic' | 'cartoon' | 'artistic' | 'sketch';
+    
+    if (!prompt) {
+      visualFeedback.showToast('Please enter an image description', { type: 'error' });
+      return;
+    }
+    
+    console.log('%c✨ Generating AI image:', 'color: #9146FF', { prompt, style });
+    
+    // Show loading state
+    const emptyState = this.container.querySelector('.image-empty-state') as HTMLElement;
+    const loadingState = this.container.querySelector('.image-loading-state') as HTMLElement;
+    const resultsGrid = this.container.querySelector('.image-results-grid') as HTMLElement;
+    
+    if (emptyState) emptyState.style.display = 'none';
+    if (loadingState) {
+      loadingState.style.display = 'flex';
+      loadingState.innerHTML = `
+        <div class="spinner"></div>
+        <p>Generating AI image...</p>
+      `;
+    }
+    if (resultsGrid) resultsGrid.innerHTML = '';
+    
+    // Get configured image size or use default
+    const allowedSizes = ['256x256', '512x512', '1024x1024'] as const;
+    let imageSize: '256x256' | '512x512' | '1024x1024' = '512x512'; // Default size
+    
+    // Get size from config or UI if available
+    const sizeSelector = this.container.querySelector('.image-size-selector') as HTMLSelectElement;
+    if (sizeSelector && sizeSelector.value && allowedSizes.includes(sizeSelector.value as any)) {
+      imageSize = sizeSelector.value as '256x256' | '512x512' | '1024x1024';
+    }
+    
+    try {
+      const result = await imageService.generateImage({ 
+        prompt,
+        style,
+        size: imageSize
+      });
+      
+      if (loadingState) loadingState.style.display = 'none';
+      
+      // Display the generated image
+      this.displayImageResults([result]);
+      
+      visualFeedback.showToast('AI image generated!', { type: 'success' });
+      
+    } catch (error) {
+      console.error('Image generation failed:', error);
+      if (loadingState) loadingState.style.display = 'none';
+      
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      visualFeedback.showToast(`Failed to generate image: ${errorMsg}`, { type: 'error' });
+      
+      if (emptyState) {
+        emptyState.innerHTML = `
+          <p>Failed to generate image</p>
+          <p style="font-size: 12px; color: #8b98a5;">${errorMsg}</p>
+        `;
+        emptyState.style.display = 'block';
+      }
+    }
+  }
+
+  /**
+   * Display image results in the grid
+   */
+  private displayImageResults(results: any[]): void {
+    if (!this.container) return;
+    
+    const resultsGrid = this.container.querySelector('.image-results-grid') as HTMLElement;
+    if (!resultsGrid) return;
+    
+    // Clear previous results
+    resultsGrid.innerHTML = '';
+    
+    // Create elements using DOM API to prevent XSS
+    results.forEach(img => {
+      // Validate URL protocol
+      let url = img.url;
+      try {
+        const urlObj = new URL(url);
+        if (!['https:', 'http:', 'data:'].includes(urlObj.protocol)) {
+          console.warn('Invalid image URL protocol:', urlObj.protocol);
+          return;
+        }
+        // Only allow specific data image types
+        if (urlObj.protocol === 'data:' && !url.startsWith('data:image/')) {
+          console.warn('Invalid data URL type');
+          return;
+        }
+      } catch (e) {
+        console.warn('Invalid URL:', url);
+        return;
+      }
+      
+      const item = document.createElement('div');
+      item.className = 'image-result-item';
+      item.setAttribute('data-url', url);
+      
+      // Sanitize and limit alt text
+      const altText = (img.alt || 'Image').substring(0, 200).replace(/[<>]/g, '');
+      item.setAttribute('data-alt', altText);
+      
+      const imgElement = document.createElement('img');
+      imgElement.src = img.thumbnail || url;
+      imgElement.alt = altText;
+      
+      const overlay = document.createElement('div');
+      overlay.className = 'image-overlay';
+      
+      const button = document.createElement('button');
+      button.className = 'use-image-btn';
+      button.title = 'Use this image';
+      button.textContent = '✓';
+      
+      const sourceSpan = document.createElement('span');
+      sourceSpan.className = 'image-source';
+      sourceSpan.textContent = img.source === 'generated' ? '✨ AI' : '🔍 Web';
+      
+      overlay.appendChild(button);
+      overlay.appendChild(sourceSpan);
+      
+      item.appendChild(imgElement);
+      item.appendChild(overlay);
+      
+      resultsGrid.appendChild(item);
+    });
+    
+    // Add click handlers for using images
+    resultsGrid.querySelectorAll('.use-image-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = (e.target as HTMLElement).closest('.image-result-item');
+        if (item) {
+          const url = item.getAttribute('data-url');
+          const alt = item.getAttribute('data-alt');
+          if (url) {
+            this.handleImageSelection(url, alt || '');
+          }
+        }
+      });
+    });
+    
+    // Click on image also selects it
+    resultsGrid.querySelectorAll('.image-result-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const url = item.getAttribute('data-url');
+        const alt = item.getAttribute('data-alt');
+        if (url) {
+          this.handleImageSelection(url, alt || '');
+        }
+      });
+    });
+  }
+
+  /**
+   * Handle image selection
+   */
+  private handleImageSelection(url: string, alt: string): void {
+    console.log('%c🖼️ Image selected:', 'color: #17BF63', { url, alt });
+    
+    // Insert image URL into the tweet textarea
+    const replyBox = document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root') as HTMLElement;
+    if (replyBox) {
+      // Get current text and append image URL
+      const currentText = DOMUtils.getTextFromTextarea(replyBox);
+      const newText = currentText ? `${currentText}\n${url}` : url;
+      DOMUtils.setTextareaValue(replyBox, newText);
+      visualFeedback.showToast('Image URL added to tweet!', { type: 'success' });
+    }
+    
+    // Hide the selector
+    this.hide();
+  }
+
+  /**
+   * Render image generation view
+   */
+  private renderImageGenView(): string {
+    return `
+      <div class="selector-content imagegen-view">
+        <div class="image-gen-controls">
+          <div class="search-input-wrapper">
+            <input type="text" 
+                   class="image-search-input" 
+                   placeholder="Search for images or describe what you want..." />
+            <button class="image-search-btn" title="Search Images">🔍</button>
+            <button class="image-generate-btn" title="Generate AI Image">✨</button>
+          </div>
+          
+          <div class="image-style-options">
+            <label class="style-label">Style:</label>
+            <select class="image-style-select">
+              <option value="realistic">Realistic</option>
+              <option value="cartoon">Cartoon</option>
+              <option value="artistic">Artistic</option>
+              <option value="sketch">Sketch</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="image-results-container">
+          <div class="image-results-grid" id="image-results">
+            <!-- Results will be inserted here -->
+          </div>
+          <div class="image-empty-state">
+            <p>🖼️ Search for images or generate AI images</p>
+            <p style="font-size: 12px; color: #8b98a5;">Enter a description and click search or generate</p>
+          </div>
+        </div>
+        
+        <div class="image-loading-state" style="display: none;">
+          <div class="spinner"></div>
+          <p>Loading images...</p>
+        </div>
+      </div>
+    `;
   }
 
   /**

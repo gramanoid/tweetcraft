@@ -569,19 +569,21 @@ export class ToneSelector {
     const currentIndex = toneButtons.findIndex(btn => btn.classList.contains('active'));
     
     switch (e.key) {
-      case 'ArrowRight':
+      case 'ArrowRight': {
         e.preventDefault();
         const nextIndex = (currentIndex + 1) % toneButtons.length;
         toneButtons[nextIndex]?.click();
         toneButtons[nextIndex]?.focus();
         break;
+      }
         
-      case 'ArrowLeft':
+      case 'ArrowLeft': {
         e.preventDefault();
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : toneButtons.length - 1;
         toneButtons[prevIndex]?.click();
         toneButtons[prevIndex]?.focus();
         break;
+      }
         
       case 'Enter':
       case ' ':

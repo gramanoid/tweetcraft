@@ -3,15 +3,14 @@ export function debounce<T extends (...args: any[]) => any>(
   wait: number,
   immediate: boolean = false
 ): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   
   return function(this: any, ...args: Parameters<T>) {
-    const context = this;
     
     const later = () => {
       timeout = null;
       if (!immediate) {
-        func.apply(context, args);
+        func.apply(this, args);
       }
     };
     
@@ -24,7 +23,7 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(later, wait);
     
     if (callNow) {
-      func.apply(context, args);
+      func.apply(this, args);
     }
   };
 }
@@ -36,10 +35,9 @@ export function throttle<T extends (...args: any[]) => any>(
   let inThrottle = false;
   
   return function(this: any, ...args: Parameters<T>) {
-    const context = this;
     
     if (!inThrottle) {
-      func.apply(context, args);
+      func.apply(this, args);
       inThrottle = true;
       
       setTimeout(() => {

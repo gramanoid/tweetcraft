@@ -61,7 +61,7 @@ export class ImageAttachment {
       e.stopPropagation();
       
       visualFeedback.pulse(button, '#9146FF');
-      this.showImagePanel(button, replyText);
+      this.showImagePanel(button);
     });
 
     return button;
@@ -70,7 +70,7 @@ export class ImageAttachment {
   /**
    * Show image selection panel
    */
-  private showImagePanel(button: HTMLElement, replyText: string): void {
+  private showImagePanel(button: HTMLElement): void {
     // Remove any existing panel
     if (this.container) {
       this.container.remove();
@@ -530,7 +530,6 @@ export class ImageAttachment {
       // Alternative: Insert image URL in text
       if (this.textarea) {
         const currentText = this.textarea.textContent || '';
-        const newText = currentText + (currentText ? '\n\n' : '') + imageUrl;
         
         // Use the same method as text insertion
         if (this.textarea.contentEditable === 'true') {
@@ -573,7 +572,6 @@ export class ImageAttachment {
         // Fallback: insert URL in text
         if (this.textarea) {
           const currentText = this.textarea.textContent || '';
-          const newText = currentText + (currentText ? '\n\n' : '') + imageUrl;
           
           if (this.textarea.contentEditable === 'true') {
             const selection = window.getSelection();

@@ -7,6 +7,9 @@ import { TEMPLATES } from '@/content/presetTemplates';
 import { TONES } from '@/content/toneSelector';
 import type { PresetTemplate } from '@/content/presetTemplates';
 import type { ToneOption } from '@/content/toneSelector';
+import type { LLMAnalysisResult } from '@/types/llm';
+import { TEMPLATE_SUGGESTER } from '@/config/models';
+import { JSONExtractor } from '@/utils/jsonExtractor';
 
 interface SuggestionContext {
   tweetText: string;
@@ -123,7 +126,7 @@ export class TemplateSuggester {
     const preferences = await this.getUserPreferences();
     
     // Try to get LLM-enhanced analysis if API key is available
-    let llmAnalysis = null;
+    let llmAnalysis: LLMAnalysisResult | null = null;
     try {
       const apiKey = await this.getApiKey();
       if (apiKey && context.tweetText.length > 20) {
@@ -200,7 +203,7 @@ export class TemplateSuggester {
     context: SuggestionContext,
     patternScores: Map<string, number>,
     preferences: any,
-    llmAnalysis?: any
+    llmAnalysis?: LLMAnalysisResult | null
   ): SuggestionScore {
     let score = 1.0;
     const reasons: string[] = [];
@@ -344,7 +347,7 @@ export class TemplateSuggester {
    * Get quick suggestions (no context analysis)
    */
   async getQuickSuggestions(): Promise<{ templates: PresetTemplate[], tones: ToneOption[] }> {
-    const preferences = await this.getUserPreferences();
+    // const preferences = await this.getUserPreferences();
     
     // Get favorites from localStorage
     const favoriteTemplates = await this.getFavoriteTemplates();
@@ -515,13 +518,34 @@ export class TemplateSuggester {
   }
 
   /**
-   * Get API key from storage
+   * Get API key from storage (with encryption support and timeout)
    */
   private async getApiKey(): Promise<string | null> {
     try {
-      const stored = await chrome.storage.local.get(['smartReply_apiKey']);
-      return stored.smartReply_apiKey || null;
-    } catch {
+      // Use message passing to service worker to avoid CSP issues
+      return new Promise((resolve) => {
+        // Set up timeout
+        const timeout = setTimeout(() => {
+          console.error('API key request timed out after 5 seconds');
+          resolve(null);
+        }, 5000); // 5 second timeout
+        
+        chrome.runtime.sendMessage({ type: 'GET_API_KEY' }, (response) => {
+          // Clear timeout on response
+          clearTimeout(timeout);
+          
+          if (chrome.runtime.lastError) {
+            console.error('Failed to get API key:', chrome.runtime.lastError);
+            resolve(null);
+          } else if (response && response.success) {
+            resolve(response.apiKey);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Failed to retrieve API key:', error);
       return null;
     }
   }
@@ -529,7 +553,7 @@ export class TemplateSuggester {
   /**
    * Get LLM analysis of tweet for better suggestions
    */
-  private async getLLMAnalysis(tweetText: string, apiKey: string): Promise<any> {
+  private async getLLMAnalysis(tweetText: string, apiKey: string): Promise<LLMAnalysisResult | null> {
     try {
       console.log('%c🤖 Getting LLM analysis for better suggestions', 'color: #1DA1F2');
       
@@ -554,7 +578,7 @@ Respond with:
           'X-Title': 'TweetCraft Smart Suggestions'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
+          model: TEMPLATE_SUGGESTER,
           messages: [
             {
               role: 'system',
@@ -578,16 +602,14 @@ Respond with:
       const content = data.choices[0]?.message?.content;
       
       if (content) {
-        try {
-          // Extract JSON from the response
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const analysis = JSON.parse(jsonMatch[0]);
-            console.log('%c🤖 LLM analysis result:', 'color: #17BF63', analysis);
-            return analysis;
-          }
-        } catch (parseError) {
-          console.warn('Failed to parse LLM response:', parseError);
+        // Use JSONExtractor for robust parsing
+        const analysis = JSONExtractor.parseJSON<LLMAnalysisResult>(content);
+        
+        if (analysis) {
+          console.log('%c🤖 LLM analysis result:', 'color: #17BF63', analysis);
+          return analysis;
+        } else {
+          console.warn('Failed to extract valid JSON from LLM response');
         }
       }
     } catch (error) {

@@ -6,7 +6,7 @@
 import { PresetTemplate, PresetTemplates } from './presetTemplates';
 import { CustomTemplate, CustomTemplateManager } from './customTemplates';
 import { ToneOption } from './toneSelector';
-import { TEMPLATES, TONES } from '@/config/templatesAndTones';
+import { TONES } from '@/config/templatesAndTones';
 
 export class TemplateSelector {
   private container: HTMLElement | null = null;

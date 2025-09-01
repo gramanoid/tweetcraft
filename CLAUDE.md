@@ -12,10 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X reply generator Chrome extension with OpenRouter integration, template+tone system, custom templates with variables, thread context awareness, and advanced network resilience features. Current version: 0.0.9 Enhanced Template System
+TweetCraft - AI-powered Twitter/X reply generator Chrome extension with comprehensive feature set including: OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.11 (preparing v0.0.12)
 
-### BulkCraft Feature (Separate Branch - Pending Integration)
-BulkCraft is an advanced content generation feature currently in a separate branch, planned for integration into the main extension. It provides:
+### BulkCraft Feature (Separate Directory - Pending Integration)
+BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
 - **CSV Analysis**: Analyzes Twitter export data to identify viral patterns
 - **AI-Powered Generation**: Creates optimized content using historical performance data
 - **Trend Research**: Researches current viral trends and topics
@@ -75,11 +75,12 @@ Manual testing only - no automated tests:
 ## Architecture Overview
 
 ### Chrome Extension Structure (Manifest V3)
-- **Service Worker** (`src/background/serviceWorker.ts`) - Background message handling
+- **Service Worker** (`src/background/serviceWorker.ts`) - Background message handling and CSP-compliant storage access
 - **Content Script** (`src/content/contentScript.ts`) - Twitter DOM manipulation with singleton pattern to prevent multiple instances
 - **Popup** (`src/popup/popup-simple.ts`) - Extension settings UI
 - **Storage** (`src/services/storage.ts`) - Chrome storage API wrapper for API keys and settings
 - **OpenRouter Service** (`src/services/openRouter.ts`) - AI model integration
+- **Platform Support** (`src/platforms/`) - Multi-platform compatibility (Twitter/X, HypeFury)
 
 ### Key Architectural Patterns
 1. **Singleton Content Script**: Uses `__smartReplyInstance` global to prevent duplicate instances
@@ -90,6 +91,8 @@ Manual testing only - no automated tests:
 6. **Session Caching**: Reduces API calls by caching responses in session storage
 7. **Network Resilience**: Offline queuing, adaptive timeouts based on connection quality (3G/4G/5G aware)
 8. **Request Optimization**: Deduplication, intelligent batching, and performance metrics tracking
+9. **AsyncOperationManager**: Prevents race conditions with AbortController coordination
+10. **Multi-Platform Support**: Adapter pattern for Twitter/X and HypeFury integration
 
 ### Build System (Webpack)
 - Configuration in `build/` directory with common/dev/prod configs
@@ -153,9 +156,41 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.11)
+## Current Features (v0.0.12 - Latest Fixes)
 
-### Unified Selector (Enhanced in v0.0.11)
+### Core System Components
+- **Arsenal Mode** (`src/services/arsenalService.ts`) - IndexedDB with 6 categories, usage tracking, favorites
+- **Keyboard Shortcuts System** (`src/utils/keyboardShortcuts.ts`) - Alt+1-9 for tones, Alt+Q/R/T/S/C/E for actions
+- **Loading State Manager** (`src/utils/loadingStateManager.ts`) - Multi-stage progress with animations and cancel support
+- **DOM Resilience System** (`src/utils/domCache.ts`) - 4+ fallback levels per selector with WeakMap caching
+- **AsyncOperationManager** (`src/utils/asyncOperationManager.ts`) - Race condition prevention with AbortController
+- **Configuration Manager** (`src/config/configurationManager.ts`) - Centralized settings with caching
+- **Memory Manager** (`src/utils/memoryManager.ts`) - WeakMap/WeakSet with comprehensive cleanup
+- **Error Handler** (`src/utils/errorHandler.ts`) - Comprehensive recovery workflows
+
+### Unified AI Reply Interface (v0.0.11 - Latest Major Update)
+- **Five-tab Interface**: All Templates, Smart Suggestions, Favorites, Image Gen, Custom
+- **Smart Suggestions Tab**: 
+  - AI-powered scoring of template/tone combinations
+  - Shows top 6 suggestions with scores and reasoning
+  - Context-aware recommendations based on tweet content
+- **Image Generation Tab**: 
+  - AI image generation using `google/gemini-2.5-flash-image-preview`
+  - Web image search using `perplexity/sonar` model
+  - Style selection (realistic, cartoon, artistic, sketch)
+  - Direct URL insertion into tweets
+  - No placeholder images - only real results
+- **Enhanced Custom Templates**: 
+  - Separate Style and Tone prompt fields
+  - No character limits on prompts
+  - Combined prompts for maximum flexibility
+- **Popup Improvements**:
+  - Stays anchored to button during scroll
+  - Disappears immediately when generating starts
+  - All dropdown text fixed to black on white background
+- **Removed Standalone Buttons**: Smart Suggestions and Image buttons now integrated
+
+### Unified Selector (Phase C - Base Implementation)
 - **Responsive Design**: Adaptive layout from 560px (desktop) to 95vw (mobile) with media queries
 - **Smart Organization**: Templates grouped by category with 2-column grid (1-column on mobile)
 - **Improved Dimensions**: 560x420px default with min/max constraints for better content fit
@@ -194,6 +229,11 @@ console.log('%c  Property:', 'color: #657786', value);
 - **Context-Aware Rewriting**: Maintains context of what the user is replying to
 - **Improved Positioning**: AI Rewrite button now appears correctly before the tweet button
 
+### Security Improvements (v0.0.11)
+- **AES-GCM Encryption**: API keys now encrypted using Web Crypto API
+- **Secure Storage**: Enhanced storage mechanisms for sensitive data
+- **Improved Error Handling**: Better validation and sanitization of API responses
+
 ### Technical Features
 - **Thread Context Extraction**: Analyzes up to 4 tweets for context-aware replies
 - **Advanced Caching**: Session-based response caching with deduplication
@@ -208,19 +248,31 @@ console.log('%c  Property:', 'color: #657786', value);
 ## Development Tips
 
 1. **Extension reloading**: After code changes, reload extension in Chrome extensions page
-2. **Console debugging**: TweetCraft uses color-coded structured logging
+2. **Console debugging**: TweetCraft uses color-coded structured logging (see Console Logging Standards)
 3. **Service Worker debugging**: Use chrome://extensions → Service Worker link
-4. **DOM changes**: Twitter's DOM changes frequently - verify selectors work
+4. **DOM changes**: Twitter's DOM changes frequently - verify selectors work with 4+ fallback strategies
 5. **Context invalidation**: Reload extension if seeing "Extension context invalidated" errors
 6. **Memory leaks**: Extension implements cleanup with WeakSet for DOM references
 7. **Performance**: Uses debounced mutation observer (100ms) to reduce CPU usage
+8. **CSP Compliance**: All storage operations use message passing pattern through service worker
+9. **Platform Testing**: Test on both twitter.com and x.com domains
 
 ## Known Issues
 
-- Twitter DOM structure changes may break button injection
-- Service worker shows "Inactive" in Chrome (normal for Manifest V3)
-- Extension context can become invalidated on reload
+### Active Issues
+- Twitter DOM structure changes may break button injection (mitigated with 4+ fallback strategies)
+- Service worker shows "Inactive" in Chrome extensions page (normal for Manifest V3)
+- Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
+
+### Recently Fixed (v0.0.12)
+- ✅ ChunkLoadError in image generation - Fixed with message passing pattern
+- ✅ Missing "Generating..." loading state - Fixed with enhanced button finding
+- ✅ 48 ESLint errors - All critical errors resolved
+- ✅ CSP violations - Fixed with GET_STORAGE/SET_STORAGE handlers
+- ✅ Chrome message timeouts - Added 5-second timeout to prevent hanging
+- ✅ Timer type safety - Fixed NodeJS.Timeout usage in browser context
+- ✅ JSON extraction bug - Fixed depth tracking for nested structures
 
 ## Future Integration: BulkCraft
 
@@ -255,6 +307,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `FETCH_MODELS` - Retrieves available models list
 - `GENERATE_REPLY` - Main reply generation endpoint
 - `GET_LAST_TONE` / `SET_LAST_TONE` - Tone preference persistence
+- `GET_STORAGE` / `SET_STORAGE` - Generic storage access for CSP compliance (v0.0.12)
 
 ## Performance Optimizations
 
@@ -271,6 +324,14 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Automatic cleanup** on page navigation
 - **Debounced operations** to reduce CPU usage
 - **LRU Cache** for keyword extraction (100 entries max)
+
+## Code Quality Improvements (v0.0.12 - Latest Fixes)
+
+### CSP Compliance Fixes
+- **Message Passing Pattern**: All chrome.storage calls now use service worker
+- **GET_STORAGE/SET_STORAGE Handlers**: Added to service worker for CSP compliance
+- **Enhanced Button Finding**: 4-strategy fallback system for reliable DOM queries
+- **TypeScript Type Safety**: Fixed all type mismatches and null safety issues
 
 ## Code Quality Improvements (v0.0.11 - Post-CodeRabbit)
 
@@ -297,6 +358,19 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Consistent Key Storage**: Uses 'smartReply_apiKey' throughout the extension
 - **Better Error Recovery**: Retry logic skips auth errors (401) automatically
 - **Improved Logging**: Detailed console logging for debugging API issues
+
+## File Organization
+
+### Key Files and Their Purpose
+- `src/content/contentScript.ts` - Main content script, singleton pattern, button injection
+- `src/content/domUtils.ts` - Twitter DOM manipulation, text insertion (DO NOT MODIFY insertion logic)
+- `src/content/unifiedSelector.ts` - 5-tab unified AI interface implementation
+- `src/services/openRouter.ts` - OpenRouter API integration with retry logic
+- `src/services/imageService.ts` - AI image generation and web search
+- `src/services/templateSuggester.ts` - Smart suggestions with AI scoring
+- `src/background/serviceWorker.ts` - Message handling, storage operations
+- `src/config/templatesAndTones.ts` - Template and tone definitions
+- `src/platforms/hypefury.ts` - HypeFury platform adapter
 
 ## Documentation Maintenance
 

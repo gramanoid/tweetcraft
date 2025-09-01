@@ -45,14 +45,33 @@ export class ImageService {
   }
 
   /**
-   * Load API keys from storage
+   * Load API keys from storage via service worker
    */
   private async loadApiKeys(): Promise<void> {
     try {
-      const stored = await chrome.storage.local.get(['imageApiKeys']);
-      if (stored.imageApiKeys) {
-        Object.assign(this, stored.imageApiKeys);
-      }
+      // Use message passing to avoid CSP issues with 5 second timeout
+      await new Promise<void>((resolve) => {
+        const timeoutId = setTimeout(() => {
+          console.warn('Image API keys load timeout after 5s');
+          resolve();
+        }, 5000);
+        
+        chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['imageApiKeys'] }, (response) => {
+          clearTimeout(timeoutId);
+          
+          // Check for runtime errors first
+          if (chrome.runtime.lastError) {
+            console.error('Runtime error loading image API keys:', chrome.runtime.lastError.message);
+            resolve();
+            return;
+          }
+          
+          if (response && response.success && response.data?.imageApiKeys) {
+            Object.assign(this, response.data.imageApiKeys);
+          }
+          resolve();
+        });
+      });
     } catch (error) {
       console.warn('Failed to load image API keys:', error);
     }
@@ -74,8 +93,8 @@ export class ImageService {
     }
 
     try {
-      // Use an LLM to generate image search keywords, then search for relevant images
-      const keywordResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      // Use Gemini Flash Image Preview to generate images
+      const imageResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -84,14 +103,18 @@ export class ImageService {
           'X-Title': 'TweetCraft'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp:free',
+          model: 'google/gemini-2.5-flash-image-preview',
           messages: [
             {
               role: 'user',
-              content: `Convert this image generation prompt into search keywords: "${options.prompt}"
+              content: `Find or generate an image for: "${options.prompt}"
                        Style: ${options.style || 'realistic'}
                        
-                       Return ONLY 3-5 relevant search keywords as a simple comma-separated list, no other text.`
+                       Return a JSON object with a direct image URL:
+                       {
+                         "url": "https://actual-image-url.jpg",
+                         "alt": "description of the image"
+                       }`
             }
           ],
           temperature: 0.3,
@@ -99,18 +122,18 @@ export class ImageService {
         })
       });
 
-      // Check keyword generation response
-      if (!keywordResponse.ok) {
-        throw new Error(`Keyword generation failed: ${keywordResponse.status}`);
+      // Check image generation response
+      if (!imageResponse.ok) {
+        throw new Error(`Image generation failed: ${imageResponse.status}`);
       }
       
-      const keywordData = await keywordResponse.json();
-      const keywords = keywordData.choices?.[0]?.message?.content?.trim() || options.prompt;
+      const imageData = await imageResponse.json();
+      const aiResponse = imageData.choices?.[0]?.message?.content?.trim();
       
-      console.log('%c🔑 Generated keywords:', 'color: #657786', keywords);
+      console.log('%c🎨 AI Response:', 'color: #657786', aiResponse);
       
       // Now search for images using the generated keywords
-      const searchPrompt = `Find high-quality ${options.style || 'realistic'} images for: "${keywords}"
+      const searchPrompt = `Find high-quality ${options.style || 'realistic'} images for: "${options.prompt}"
       
 Return a JSON array of 4-6 image results with this exact format:
 [
@@ -123,44 +146,89 @@ Return a JSON array of 4-6 image results with this exact format:
 
 Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pixabay, or other free image sites. Return ONLY the JSON array.`;
 
-      const searchResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'chrome-extension://tweetcraft',
-          'X-Title': 'TweetCraft Image Generation'
-        },
-        body: JSON.stringify({
-          model: 'perplexity/llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an image search assistant. Find and return real, accessible image URLs.'
-            },
-            {
-              role: 'user',
-              content: searchPrompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 800
-        })
-      });
+      // Retry logic for OpenRouter calls
+      let searchData: any = null;
+      let lastError: Error | null = null;
+      const maxRetries = 2;
       
-      if (!searchResponse.ok) {
-        throw new Error(`Image search failed: ${searchResponse.status}`);
-      }
-      
-      const searchData = await searchResponse.json();
-      const content = searchData.choices?.[0]?.message?.content;
-      
-      if (content) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (attempt > 0) {
+          // Exponential backoff: 100ms, 300ms
+          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(3, attempt - 1)));
+        }
+        
         try {
-          const jsonMatch = content.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            const results = JSON.parse(jsonMatch[0]);
-            if (results.length > 0) {
+          const searchResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'chrome-extension://tweetcraft',
+              'X-Title': 'TweetCraft Image Generation'
+            },
+            body: JSON.stringify({
+              model: 'perplexity/llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are an image search assistant. Find and return real, accessible image URLs.'
+                },
+                {
+                  role: 'user',
+                  content: searchPrompt
+                }
+              ],
+              temperature: 0.3,
+              max_tokens: 300  // Reduced for tighter responses
+            })
+          });
+          
+          // Don't retry on auth/permission/rate limit errors
+          if (searchResponse.status === 401 || searchResponse.status === 403 || searchResponse.status === 429) {
+            throw new Error(`API error: ${searchResponse.status} - ${searchResponse.statusText}`);
+          }
+          
+          if (!searchResponse.ok) {
+            throw new Error(`Image search failed: ${searchResponse.status}`);
+          }
+          
+          searchData = await searchResponse.json();
+          break; // Success, exit retry loop
+          
+        } catch (error) {
+          lastError = error as Error;
+          
+          // Don't retry on specific error codes
+          if (error instanceof Error && error.message.includes('401')) break;
+          if (error instanceof Error && error.message.includes('403')) break;
+          if (error instanceof Error && error.message.includes('429')) break;
+          
+          if (attempt === maxRetries - 1) {
+            throw lastError; // Final attempt failed
+          }
+        }
+      }
+      const searchResultContent = searchData.choices?.[0]?.message?.content;
+      
+      if (searchResultContent) {
+        try {
+          // First try to find fenced JSON blocks
+          let jsonStr: string | null = null;
+          const fencedMatch = searchResultContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+          
+          if (fencedMatch) {
+            jsonStr = fencedMatch[1].trim();
+          } else {
+            // Fallback to bracket matching
+            const jsonMatch = searchResultContent.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              jsonStr = jsonMatch[0];
+            }
+          }
+          
+          if (jsonStr) {
+            const results = JSON.parse(jsonStr);
+            if (Array.isArray(results) && results.length > 0) {
               // Return the first result as the "generated" image
               const firstResult = results[0];
               const result: ImageResult = {
@@ -180,21 +248,8 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
         }
       }
       
-      // Fallback to placeholder if search fails
-      const seed = options.prompt.split(' ').join('-').toLowerCase();
-      const size = options.size || '512x512';
-      const [width, height] = size.split('x').map(Number);
-      
-      const result: ImageResult = {
-        url: `https://picsum.photos/seed/${seed}/${width}/${height}`,
-        alt: options.prompt,
-        source: 'generated',
-        width,
-        height
-      };
-      
-      console.log('%c📸 Using placeholder image', 'color: #657786', result);
-      return result;
+      // No fallback - throw error if we can't get real images
+      throw new Error('Could not generate image from AI. Please try again.');
     } catch (error: any) {
       console.error('Failed to generate image:', error);
       
@@ -206,16 +261,8 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
         return this.generateImage(options, retries - 1);
       }
       
-      // Fallback to mock image after all retries exhausted
-      console.log('%c📸 Falling back to placeholder image', 'color: #657786');
-      const mockUrl = await this.generateMockImage(options.prompt);
-      return {
-        url: mockUrl,
-        alt: options.prompt,
-        source: 'generated',
-        width: 512,
-        height: 512
-      };
+      // No fallback - just throw the error
+      throw error;
     }
   }
 
@@ -261,12 +308,13 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
         }
       }
 
-      // Use a free image search API as fallback
-      return this.searchFreeImages(options);
+      // No fallback to mock images - return empty array
+      console.log('%c⚠️ Search failed, no results available', 'color: #FFA500');
+      return [];
     } catch (error) {
       console.error('Failed to search images:', error);
-      // Use free image search as final fallback
-      return this.searchFreeImages(options);
+      // No fallback to mock images - return empty array
+      return [];
     }
   }
 
@@ -314,7 +362,7 @@ Return ONLY the JSON array, no explanations.`;
           'X-Title': 'TweetCraft Image Search'
         },
         body: JSON.stringify({
-          model: 'perplexity/llama-3.1-sonar-small-128k-online',
+          model: 'perplexity/sonar',
           messages: [
             {
               role: 'system',
@@ -365,8 +413,9 @@ Return ONLY the JSON array, no explanations.`;
       console.error('Perplexity search error:', error);
     }
     
-    // Fallback to free search
-    return this.searchFreeImages(options);
+    // No fallback to mock images - return empty array
+    console.log('%c⚠️ No search results available', 'color: #FFA500');
+    return [];
   }
 
   /**
@@ -434,13 +483,23 @@ Return ONLY the JSON array, no explanations.`;
   }
 
   /**
-   * Get OpenRouter API key from storage
+   * Get OpenRouter API key from storage via service worker
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
     try {
-      // Try neutral key first, then fall back to legacy key
-      const stored = await chrome.storage.local.get(['openrouter_apiKey', 'smartReply_apiKey']);
-      return stored.openrouter_apiKey || stored.smartReply_apiKey || null;
+      // Use message passing to service worker to avoid CSP issues
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'GET_API_KEY' }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to get API key:', chrome.runtime.lastError);
+            resolve(null);
+          } else if (response && response.success) {
+            resolve(response.apiKey);
+          } else {
+            resolve(null);
+          }
+        });
+      });
     } catch (error) {
       console.error('Failed to retrieve API key:', error);
       return null;
@@ -477,14 +536,7 @@ Return ONLY the JSON array, no explanations.`;
     return mockImages;
   }
 
-  /**
-   * Fallback to mock images when API fails
-   */
-  private async searchFreeImages(options: ImageSearchOptions): Promise<ImageResult[]> {
-    // Always use mock images as fallback - no external APIs except OpenRouter
-    console.log('%c📸 Using placeholder images as fallback', 'color: #657786');
-    return this.getMockImages(options.query);
-  }
+  // searchFreeImages method has been removed - no mock images
 
   /**
    * Suggest images based on tweet context

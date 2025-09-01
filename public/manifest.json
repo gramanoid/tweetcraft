@@ -10,7 +10,8 @@
     {
       "matches": [
         "https://twitter.com/*",
-        "https://x.com/*"
+        "https://x.com/*",
+        "https://app.hypefury.com/*"
       ],
       "js": ["contentScript.js"],
       "css": ["contentScript.css"],
@@ -57,7 +58,8 @@
       "resources": ["icons/*"],
       "matches": [
         "https://twitter.com/*",
-        "https://x.com/*"
+        "https://x.com/*",
+        "https://app.hypefury.com/*"
       ]
     }
   ]

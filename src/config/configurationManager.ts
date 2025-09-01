@@ -4,7 +4,6 @@
  */
 
 import { TEMPLATES, TONES, REPLY_CONFIG, Template, Tone } from './templatesAndTones';
-import { StorageService } from '@/services/storage';
 
 export interface UserPreferences {
   favoriteTemplates: string[];

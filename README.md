@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.9-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.12--dev-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,11 +23,27 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.9)**
+### ✅ **Currently Working (v0.0.11 → v0.0.12)**
+
+#### Discovered Existing Features (Already Implemented)
+- **🛡️ Arsenal Mode** - 474 lines, IndexedDB with 6 categories, usage tracking ([src/services/arsenalService.ts](src/services/arsenalService.ts))
+- **⌨️ Advanced Keyboard Shortcuts** - 384 lines comprehensive system with Alt+1-9, Alt+Q/R/T/S/C/E ([src/utils/keyboardShortcuts.ts](src/utils/keyboardShortcuts.ts))
+- **📊 Multi-Stage Loading States** - 326 lines with progress indicators and animations ([src/utils/loadingStateManager.ts](src/utils/loadingStateManager.ts))
+- **🔄 DOM Resilience System** - 4+ fallback levels per selector with caching ([src/utils/domCache.ts](src/utils/domCache.ts))
+- **🚦 Race Condition Prevention** - AsyncOperationManager with AbortController ([src/utils/asyncOperationManager.ts](src/utils/asyncOperationManager.ts))
+- **⚙️ Configuration Manager** - 349 lines centralized settings system ([src/config/configurationManager.ts](src/config/configurationManager.ts))
+- **💾 Memory Manager** - 314 lines with WeakMap/WeakSet cleanup ([src/utils/memoryManager.ts](src/utils/memoryManager.ts))
+- **🔧 Error Handler** - 412 lines with recovery workflows ([src/utils/errorHandler.ts](src/utils/errorHandler.ts))
+
+#### Current Working Features
+- **🎨 Unified AI Reply Popup** - 5-tab interface (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
 - **📝 Template + Tone System** - Choose reply structure (templates) AND personality (tones) separately
-- **🎯 AI Reply Generation** - 12+ preset templates, 11 tones, custom templates with variables
+- **🤖 Smart Suggestions** - AI-powered template/tone recommendations with scoring
+- **🖼️ Image Generation** - AI image creation and web search integrated into replies
+- **✨ AI Rewrite** - Transform your draft tweets with AI while maintaining core message
+- **🎯 AI Reply Generation** - 15+ preset templates, 12 tones, custom templates with Style and Tone prompts
 - **🎨 Dark Mode UI** - Beautiful dark theme matching Twitter/X's interface
-- **📊 Custom Templates** - Create your own templates with {variable} placeholders
+- **📊 Custom Templates** - Create your own templates with separate Style and Tone prompts
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
 - **🧵 Context Processing** - Thread context extraction (up to 4 tweets)
 - **🚫 Race Condition Prevention** - AsyncOperationManager with AbortController coordination
@@ -38,22 +54,29 @@
 - **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
 - **🔍 Comprehensive Logging** - Full prompt construction tracking in console
 
-### 🔮 **Future Features Roadmap (Planned)**
-- **📝 Content Creation** - Thread composer, quote tweet generator, AI tweet creation
-- **🧠 Psychology Analytics** - Behavioral pattern insights, audience psychology profiling
-- **🔬 Research Assistant** - Real-time research with citations and fact checking
-- **📊 Content Analysis** - Sentiment analysis, engagement prediction, viral assessment
-- **✨ Enhanced UI** - Improved tone selector, better context modes, keyboard shortcuts
+### 🔮 **Truly New Features (Not Yet Implemented)**
+- **📝 Thread Composer** - Multi-tweet thread creation with auto-numbering (NOT IMPLEMENTED)
+- **💬 Quote Tweet Generator** - Smart commentary for quote tweets (NOT IMPLEMENTED)
+- **🤖 AI Tweet Creation** - Generate original tweets from topics (NOT IMPLEMENTED)
+- **📊 Simple Analytics** - Basic engagement insights (NOT IMPLEMENTED)
+- **🚀 Smart Posting** - Automated posting with safety controls (NOT IMPLEMENTED)
 
-### 🎨 MVP Features (v0.0.9)
+### 🎨 MVP Features (v0.0.11)
 
-#### 📝 Template + Tone System (NEW!)
+#### 🎨 Unified AI Reply Interface (NEW v0.0.11!)
+- **All-in-one popup** - Five tabs: All Templates, Smart Suggestions, Favorites, Image Gen, Custom
+- **Smart Suggestions** - AI analyzes context and scores template/tone combinations
+- **Image Generation** - Search or generate AI images with styles (realistic, cartoon, artistic, sketch)
+- **Favorites System** - Star your favorite templates and tones for quick access
+- **Enhanced Custom Templates** - Separate Style and Tone prompts with no character limits
+
+#### 📝 Template + Tone System
 - **Two-step selection process** - Choose what to say (template) and how to say it (tone)
-- **12+ preset templates** - Ask Question, Add Value, Share Experience, Challenge Politely, etc.
-- **11 personality tones** - Professional, Witty, Sarcastic, Academic, Spicy, and more
-- **Custom templates** - Create your own with {variable} placeholders
+- **15+ preset templates** - Hot Take, Ratio Bait, Steel Man, Devil's Advocate, Challenge Politely, and more
+- **12 personality tones** - Professional, Witty, Sarcastic, Academic, Spicy, Gen Z, Minimalist, and more
+- **Custom templates** - Create your own with separate Style and Tone prompts
 - **Dark mode UI** - Beautiful interface matching Twitter/X's dark theme
-- **Seamless flow** - Template → Tone selection without closing popup
+- **Seamless flow** - Popup disappears immediately when generating starts
 
 #### Intelligent Reply Generation
 - **Combined prompts** - Template structure + Tone personality for perfect replies
@@ -272,6 +295,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.8** - AI reply assistant with keyboard shortcuts, enhanced loading states, and instant UI response 🚀
+**TweetCraft v0.0.12-dev** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
 
 Made with ❤️ by the TweetCraft team

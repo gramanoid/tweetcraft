@@ -165,7 +165,7 @@ export class DOMUtils {
   /**
    * Resilient selector finder with automatic fallback
    */
-  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element, silent = true): Element | null {
+  static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element): Element | null {
     const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
     
@@ -294,7 +294,7 @@ export class DOMUtils {
    */
   private static shouldExpectElement(selectorType: keyof typeof SELECTOR_CHAINS): boolean {
     switch (selectorType) {
-      case 'replyTextarea':
+      case 'replyTextarea': {
         // Only expect reply textarea when we're in compose/reply mode
         // Check for compose tweet modal, reply modal, or inline reply
         const hasComposeModal = !!document.querySelector('[data-testid="tweetTextarea_0"]');
@@ -302,6 +302,7 @@ export class DOMUtils {
         const isReplyPage = window.location.pathname.includes('/compose/tweet') || 
                            window.location.href.includes('reply');
         return hasComposeModal || hasReplyModal || isReplyPage;
+      }
       case 'toolbar':
         // Only expect toolbar in tweet contexts, not on profile pages or other pages
         return !!document.querySelector('article[data-testid="tweet"]') || 
@@ -322,7 +323,7 @@ export class DOMUtils {
     const silent = !this.shouldExpectElement('replyTextarea');
     
     // Use resilient selector with fallback
-    let textarea = this.findWithFallback('replyTextarea', element, silent) as HTMLElement;
+    let textarea = this.findWithFallback('replyTextarea', element) as HTMLElement;
     if (textarea) {
       return textarea;
     }
@@ -330,7 +331,7 @@ export class DOMUtils {
     // Search upward in the DOM tree with fallback selectors
     let parent = element.parentElement;
     while (parent) {
-      textarea = this.findWithFallback('replyTextarea', parent, silent) as HTMLElement;
+      textarea = this.findWithFallback('replyTextarea', parent) as HTMLElement;
       if (textarea) {
         return textarea;
       }
@@ -340,7 +341,7 @@ export class DOMUtils {
     return null;
   }
 
-  static extractTwitterContext(toolbarElement: Element): TwitterContext {
+  static extractTwitterContext(): TwitterContext {
     const context: TwitterContext = {
       isReply: false
     };
@@ -493,6 +494,33 @@ export class DOMUtils {
       // Focus the textarea first
       textarea.focus();
       
+      // Check if this is a standard HTML textarea (HypeFury) or contentEditable (Twitter)
+      if (textarea instanceof HTMLTextAreaElement) {
+        // HypeFury uses standard textareas
+        textarea.value = text;
+        
+        // Trigger proper events for React/Vue/Angular frameworks
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype,
+          'value'
+        )?.set;
+        
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(textarea, text);
+        }
+        
+        // Dispatch input event to trigger framework updates
+        const inputEvent = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(inputEvent);
+        
+        // Also dispatch change event for good measure
+        const changeEvent = new Event('change', { bubbles: true });
+        textarea.dispatchEvent(changeEvent);
+        
+        return;
+      }
+      
+      // Twitter's contentEditable approach
       // Use the paste event approach (proven to work in TweetGPT)
       const dataTransfer = new DataTransfer();
       
@@ -521,7 +549,7 @@ export class DOMUtils {
     } catch (error) {
       console.error('Failed to set textarea value:', error);
       
-      // Fallback: Try the simpler innerHTML approach
+      // Fallback: Try the simpler innerHTML approach for contentEditable
       try {
         const innerDiv = textarea.querySelector('div');
         if (innerDiv) {

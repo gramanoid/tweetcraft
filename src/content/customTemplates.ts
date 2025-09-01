@@ -3,7 +3,6 @@
  * Allows users to create, save, and manage custom reply templates with variables
  */
 
-import { StorageService } from '@/services/storage';
 import { PresetTemplate } from './presetTemplates';
 
 export interface CustomTemplate extends PresetTemplate {

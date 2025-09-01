@@ -6,9 +6,77 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ---
 
+## 🚀 **v0.0.12** - CSP Fixes & Documentation Update
+
+**Release Date**: September 2024 (In Development)
+**Focus**: Critical bug fixes and accurate documentation
+
+### ✅ **Bug Fixes Completed**
+
+#### 1. **ChunkLoadError in Image Generation** 🔴 **CRITICAL**
+- **Problem**: Chrome's CSP blocking direct chrome.storage calls in content scripts
+- **Solution**: Implemented message passing pattern via service worker
+- **Files Modified**: `src/services/imageService.ts`, `src/content/unifiedSelector.ts`, `src/background/serviceWorker.ts`
+- **Impact**: Image generation now works reliably without CSP violations
+
+#### 2. **Missing Loading State** 🔴 **CRITICAL**
+- **Problem**: "Generating..." text not appearing in AI Reply button
+- **Solution**: Enhanced button finding logic with 4-strategy fallback system
+- **Files Modified**: `src/content/contentScript.ts`
+- **Impact**: Users can now see generation progress
+
+#### 3. **ESLint Error Resolution** 🟡 **MEDIUM**
+- **Problem**: 48 critical ESLint errors preventing clean build
+- **Solution**: Systematic fixes for unused imports, variables, case blocks, Function types
+- **Files Modified**: Multiple files across codebase
+- **Impact**: Clean build with no critical errors
+
+### 📚 **Documentation Discovery**
+
+#### Discovered Existing Implementations
+- **Arsenal Mode**: 474 lines, fully functional with IndexedDB
+- **Keyboard Shortcuts**: 384 lines, comprehensive system already working
+- **Loading State Manager**: 326 lines with multi-stage progress
+- **DOM Resilience System**: Complete with 4+ fallback levels
+- **Race Condition Prevention**: AsyncOperationManager fully implemented
+- **Configuration Manager**: 349 lines, centralized settings
+- **Memory Manager**: 314 lines with WeakMap/WeakSet
+- **Error Handler**: 412 lines with recovery workflows
+
+### 📊 **Impact Metrics**
+- **Bug Fixes**: 3 critical, multiple medium priority
+- **ESLint Errors**: 48 → 0 critical errors
+- **Documentation**: 5 files updated to reflect reality
+- **Discovery**: 8 major features already implemented but undocumented
+
+---
+
+## 🎨 **v0.0.11** - Unified AI Interface Release
+
+**Release Date**: September 2024  
+**Focus**: Complete UI overhaul with unified popup interface
+
+### ✅ **Features Completed**
+
+#### Unified AI Reply Popup
+- Five-tab interface: Templates, Smart Suggestions, Favorites, Images, Custom
+- AI-powered template/tone scoring with explanations
+- Integrated image generation and search
+- Enhanced custom templates with separate Style/Tone prompts
+- Popup anchoring during scroll
+- Auto-dismiss on generation start
+
+### 📊 **Performance Improvements**
+- Instant popup response
+- Better memory management
+- Enhanced caching with TTL
+- Network resilience improvements
+
+---
+
 ## 🚀 **v0.0.2** - Critical Stability Release
 
-**Release Date**: August 29, 2025  
+**Release Date**: August 29, 2024  
 **Focus**: Critical fixes for long-term stability and reliability
 
 ### ✅ **Enhancements Completed**
@@ -67,7 +135,7 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ## 🔧 **v0.0.3** - Quick Wins Release
 
-**Release Date**: August 29, 2025  
+**Release Date**: August 29, 2024  
 **Focus**: Low-effort, high-impact improvements for better performance and stability
 
 ### ✅ **Enhancements Completed**
@@ -127,7 +195,7 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ## 🎨 **v0.0.4** - User Experience Enhancement Release
 
-**Release Date**: August 29, 2025  
+**Release Date**: August 29, 2024  
 **Focus**: Better user feedback, loading states, and error recovery
 
 ### ✅ **Enhancements Completed**
@@ -175,7 +243,7 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ## 🚀 **v0.0.5** - Performance & Optimization Release
 
-**Release Date**: August 29, 2025  
+**Release Date**: August 29, 2024  
 **Focus**: API optimization, progressive enhancements, and performance improvements
 
 ### ✅ **Enhancements Completed**
@@ -266,7 +334,7 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ## 🎯 **v0.0.1** - Initial MVP Release
 
-**Release Date**: August 2025  
+**Release Date**: August 2024  
 **Focus**: Core AI reply generation functionality
 
 ### ✅ **Core Features Implemented**

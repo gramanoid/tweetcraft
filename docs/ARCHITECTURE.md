@@ -12,7 +12,7 @@ TweetCraft is a consumer-focused AI reply assistant for Twitter/X that provides 
 
 ---
 
-## ✅ **CURRENT MVP ARCHITECTURE** (v0.0.1)
+## ✅ **CURRENT ARCHITECTURE** (v0.0.11)
 
 ### Chrome Extension Structure
 ```
@@ -41,19 +41,30 @@ TweetCraft/
 └── dist/                      # Built extension output
 ```
 
-### Current Features
-- **AI Reply Generation** → Context-aware replies with 12 tone presets
-- **Visual Interface** → Emoji-based tone selector for quick selection
-- **Thread Context** → Extract context from up to 4 tweets
-- **Session Caching** → Response caching to reduce API calls
-- **OpenRouter Integration** → Secure BYOK API key management
+### Current Features (v0.0.11)
+- **AI Reply Generation** → Context-aware replies with 15+ templates and 12 tones
+- **Unified AI Interface** → 5-tab popup (Templates, Smart Suggestions, Favorites, Images, Custom)
+- **Smart Suggestions** → AI-powered template/tone scoring and recommendations
+- **Image Generation** → AI image creation and web search integrated into replies
+- **Custom Templates** → Separate Style and Tone prompts with no character limits
+- **Thread Context** → Extract context from up to 4 tweets with advanced parsing
+- **Session Caching** → Response caching with deduplication and TTL management
+- **OpenRouter Integration** → Secure BYOK API key management with AES-GCM encryption
+- **Arsenal Mode** → 474 lines IndexedDB implementation with 6 categories (fully implemented)
+- **Keyboard Shortcuts** → Comprehensive 384-line system (Alt+1-9, Alt+Q/R/T/S/C/E)
+- **Network Resilience** → Offline queuing, adaptive timeouts, connection quality detection
+- **Race Condition Prevention** → AsyncOperationManager with AbortController coordination
 
 ### Technical Implementation
-- TypeScript + Webpack build system
-- Chrome Manifest V3 with service worker
+- TypeScript + Webpack build system with hot reloading
+- Chrome Manifest V3 with enhanced service worker message passing
 - Singleton pattern prevents multiple content script instances
-- Memory management with proper cleanup
-- Structured console logging for debugging
+- Advanced memory management (314 lines) with WeakMap/WeakSet
+- Multi-stage loading states (326 lines) with progress indicators
+- DOM resilience system with 4+ fallback levels per selector
+- Configuration manager (349 lines) with centralized settings
+- Error handler (412 lines) with comprehensive recovery workflows
+- Structured console logging with color-coded debugging
 
 ---
 
@@ -73,34 +84,37 @@ Caches result for performance
 
 ---
 
-## 🔮 **PLANNED CONSUMER FEATURES** (Simple Additions)
+## 🔮 **PLANNED CONSUMER FEATURES** (Truly New - Not Yet Implemented)
 
 ### 1. **Content Creation Suite** 📝
 **Goal**: Help users create better content faster
-- **Thread Composer** → Simple multi-tweet thread creation with auto-numbering
-- **Quote Tweet Generator** → Smart commentary suggestions for quote tweets
-- **AI Tweet Creation** → Generate original tweets from topics with style options
+- **Thread Composer** → Multi-tweet thread creation with auto-numbering (NOT IMPLEMENTED)
+- **Quote Tweet Generator** → Smart commentary suggestions for quote tweets (NOT IMPLEMENTED)
+- **AI Tweet Creation** → Generate original tweets from topics (NOT IMPLEMENTED)
 
-### 2. **Enhanced UI/UX** ✨
-**Goal**: Smoother, more intuitive usage
-- **Improved Tone Selector** → Better visual interface for tone selection
-- **Enhanced Context Modes** → Smarter thread context understanding
-- **Keyboard Shortcuts** → Power user efficiency features (Alt+Q)
-- **Better Error Handling** → Clear feedback and recovery
+### 2. **Simple Analytics** 📊 
+**Goal**: Help users understand what works (NOT enterprise dashboards)
+- **Basic Engagement Insights** → Simple metrics in popup (NOT IMPLEMENTED)
+- **Writing Pattern Recognition** → Learn user's effective styles (NOT IMPLEMENTED)
+- **Response Performance** → Track which tones work best (NOT IMPLEMENTED)
 
-### 3. **Research Assistant** 🔬
+### 3. **Smart Posting System** 🚀 (Optional with Safety)
+**Goal**: Convenience for power users with safety first
+- **Automated Posting** → With user approval (OFF by default) (NOT IMPLEMENTED)
+- **Basic Scheduling** → Simple post timing (NOT IMPLEMENTED)
+- **Safety Controls** → Always requires user confirmation (NOT IMPLEMENTED)
+
+### 4. **Research Assistant** 🔬
 **Goal**: Add credible information to tweets
 - **Quick Fact Checking** → Verify claims with credible sources
 - **Real-time Research** → Get current information on topics
 - **Citation Support** → Add source links to tweets
 
-### 4. **Simple Analytics** 📊
 **Goal**: Help users understand what works (NOT enterprise dashboards)
 - **Basic Engagement Insights** → Simple metrics in popup
 - **Writing Pattern Recognition** → Learn user's effective styles
 - **Response Performance** → Track which tones work best
 
-### 5. **Optional Automation** 🚀
 **Goal**: Convenience for power users with safety first
 - **Smart Posting** → Automated posting with user approval (OFF by default)
 - **Basic Scheduling** → Simple post timing

@@ -3,7 +3,7 @@
  * Generates and displays 3 reply suggestions in parallel with navigation
  */
 
-import { ToneOption } from './toneSelector';
+// import { ToneOption } from './toneSelector';
 
 export interface Suggestion {
   id: string;
@@ -199,7 +199,7 @@ export class SuggestionCarousel {
       switch (keyEvent.key) {
         case '1':
         case '2':
-        case '3':
+        case '3': {
           keyEvent.preventDefault();
           const index = parseInt(keyEvent.key) - 1;
           if (index < this.suggestions.length) {
@@ -207,6 +207,7 @@ export class SuggestionCarousel {
             this.useCurrent();
           }
           break;
+        }
         case 'Enter':
           keyEvent.preventDefault();
           this.useCurrent();
