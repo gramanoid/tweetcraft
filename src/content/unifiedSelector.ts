@@ -5,6 +5,8 @@
 
 import { Template, Tone, TEMPLATES, TONES } from '@/config/templatesAndTones';
 import { visualFeedback } from '@/ui/visualFeedback';
+import { templateSuggester } from '@/services/templateSuggester';
+import { DOMUtils } from '@/content/domUtils';
 
 export interface SelectionResult {
   template: Template;
@@ -20,8 +22,9 @@ export class UnifiedSelector {
   private onSelectCallback: ((result: SelectionResult) => void) | null = null;
   private favoriteTemplates: Set<string> = new Set();
   private favoriteTones: Set<string> = new Set();
-  private view: 'grid' | 'favorites' | 'custom' = 'grid';
+  private view: 'grid' | 'smart' | 'favorites' | 'custom' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+  private smartSuggestions: { templates: Template[], tones: Tone[] } = { templates: [], tones: [] };
 
   constructor() {
     this.loadFavorites();
@@ -91,7 +94,7 @@ export class UnifiedSelector {
     // Calculate whether to show above or below
     const spaceBelow = viewportHeight - buttonRect.bottom;
     const spaceAbove = buttonRect.top;
-    const selectorHeight = 580; // max-height from CSS (updated to match new design)
+    const selectorHeight = 600; // max-height from CSS (updated to match new design)
     const showAbove = spaceBelow < selectorHeight && spaceAbove > spaceBelow;
     
     // Use fixed positioning to stick to viewport
@@ -171,6 +174,9 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === 'grid' ? 'active' : ''}" data-view="grid">
             <span>📝 All</span>
           </button>
+          <button class="tab-btn ${this.view === 'smart' ? 'active' : ''}" data-view="smart">
+            <span>🤖 Smart</span>
+          </button>
           <button class="tab-btn ${this.view === 'favorites' ? 'active' : ''}" data-view="favorites">
             <span>⭐ Favorites</span>
           </button>
@@ -203,6 +209,8 @@ export class UnifiedSelector {
    */
   private renderViewContent(templates: Template[], tones: Tone[]): string {
     switch (this.view) {
+      case 'smart':
+        return this.renderSmartSuggestionsView(templates, tones);
       case 'favorites':
         return this.renderFavoritesView(templates, tones);
       case 'custom':
@@ -243,6 +251,57 @@ export class UnifiedSelector {
                 <span class="tone-emoji">${tone.emoji}</span>
                 <span class="tone-label">${tone.label}</span>
                 ${this.favoriteTones.has(tone.id) ? '<span class="favorite-star">⭐</span>' : ''}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render smart suggestions view
+   */
+  private renderSmartSuggestionsView(templates: Template[], tones: Tone[]): string {
+    // Use smart suggestions if available, otherwise show loading
+    const suggestedTemplates = this.smartSuggestions.templates.length > 0 
+      ? this.smartSuggestions.templates 
+      : templates.slice(0, 6); // Fallback to first 6 templates
+    
+    const suggestedTones = this.smartSuggestions.tones.length > 0
+      ? this.smartSuggestions.tones
+      : tones.slice(0, 6); // Fallback to first 6 tones
+    
+    return `
+      <div class="selector-content smart-view">
+        <div class="smart-info">
+          <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0 0 12px 0;">
+            🤖 AI-suggested templates and tones based on the conversation context
+          </p>
+        </div>
+        <div class="templates-section">
+          <h3>Suggested Templates</h3>
+          <div class="template-grid">
+            ${suggestedTemplates.map(template => `
+              <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                      data-template="${template.id}"
+                      title="${template.description}">
+                <span class="template-emoji">${template.emoji}</span>
+                <span class="template-name">${template.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="tones-section">
+          <h3>Suggested Tones</h3>
+          <div class="tone-grid">
+            ${suggestedTones.map(tone => `
+              <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
+                      data-tone="${tone.id}"
+                      title="${tone.description}">
+                <span class="tone-emoji">${tone.emoji}</span>
+                <span class="tone-label">${tone.label}</span>
               </button>
             `).join('')}
           </div>
@@ -372,8 +431,13 @@ export class UnifiedSelector {
     // Tab switching
     this.container.querySelectorAll('.tab-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
-        const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'favorites' | 'custom';
+        e.preventDefault();
+        e.stopPropagation();
+        const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'smart' | 'favorites' | 'custom';
         this.view = view;
+        if (view === 'smart') {
+          this.loadSmartSuggestions();
+        }
         this.render();
       });
     });
@@ -433,6 +497,94 @@ export class UnifiedSelector {
         // Show create dialog (not implemented yet)
         visualFeedback.showToast('Custom template creation coming soon!', { type: 'info' });
       });
+    }
+  }
+
+  /**
+   * Load smart suggestions based on context
+   */
+  private async loadSmartSuggestions(): Promise<void> {
+    try {
+      console.log('%c🤖 Loading smart suggestions', 'color: #1DA1F2');
+      
+      // Get the current tweet context
+      const replyBox = document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root');
+      let context: any = { tweetText: '', isReply: false };
+      
+      if (replyBox) {
+        const extracted = DOMUtils.extractTwitterContext(replyBox as HTMLElement);
+        context = {
+          tweetText: extracted.tweetText || '',
+          isReply: extracted.isReply,
+          threadContext: extracted.threadContext
+        };
+      }
+      
+      // Get suggestions from the template suggester
+      const suggestions = await templateSuggester.getSuggestions({
+        tweetText: context.tweetText || '',
+        isReply: true,
+        threadContext: context.threadContext,
+        timeOfDay: new Date().getHours(),
+        dayOfWeek: new Date().getDay()
+      });
+      
+      // Extract unique templates and tones from suggestions
+      const templateIds = new Set<string>();
+      const toneIds = new Set<string>();
+      
+      suggestions.slice(0, 9).forEach(suggestion => {
+        templateIds.add(suggestion.templateId);
+        toneIds.add(suggestion.toneId);
+      });
+      
+      // Get the actual template and tone objects
+      const suggestedTemplates = Array.from(templateIds)
+        .map(id => TEMPLATES.find(t => t.id === id))
+        .filter(Boolean) as Template[];
+      
+      const suggestedTones = Array.from(toneIds)
+        .map(id => TONES.find(t => t.id === id))
+        .filter(Boolean) as Tone[];
+      
+      // Ensure we have at least 6 suggestions
+      if (suggestedTemplates.length < 6) {
+        const remaining = 6 - suggestedTemplates.length;
+        const additionalTemplates = TEMPLATES
+          .filter(t => !templateIds.has(t.id))
+          .slice(0, remaining);
+        suggestedTemplates.push(...additionalTemplates);
+      }
+      
+      if (suggestedTones.length < 6) {
+        const remaining = 6 - suggestedTones.length;
+        const additionalTones = TONES
+          .filter(t => !toneIds.has(t.id))
+          .slice(0, remaining);
+        suggestedTones.push(...additionalTones);
+      }
+      
+      // Store the suggestions
+      this.smartSuggestions = {
+        templates: suggestedTemplates.slice(0, 6),
+        tones: suggestedTones.slice(0, 6)
+      };
+      
+      console.log('%c🤖 Smart suggestions loaded:', 'color: #17BF63', this.smartSuggestions);
+      
+      // Re-render to show the suggestions
+      this.render();
+      
+    } catch (error) {
+      console.error('Failed to load smart suggestions:', error);
+      
+      // Fallback to popular choices
+      this.smartSuggestions = {
+        templates: TEMPLATES.slice(0, 6),
+        tones: TONES.slice(0, 6)
+      };
+      
+      this.render();
     }
   }
 
@@ -637,7 +789,7 @@ export class UnifiedSelector {
           width: 540px;
           max-width: 92vw;
           min-width: 480px;
-          max-height: 580px;
+          max-height: 600px;
           min-height: 400px;
           display: flex;
           flex-direction: column;
