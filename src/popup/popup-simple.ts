@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Save config with correct storage key
         const config: StorageConfig = {
           ...existingConfig.config,
-          model: model || 'openai/gpt-4o',
+          model: model || modelSelect?.value || 'openai/gpt-4o',
           systemPrompt: systemPrompt || 'I am a helpful assistant',
           customStylePrompt: customStylePrompt || '',
           contextMode: contextMode,
@@ -212,14 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('popup-simple.ts: Save button not found');
   }
   
-  // Handle Configure API link
-  const configureLink = document.getElementById('configure-api');
-  if (configureLink) {
-    configureLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.runtime.openOptionsPage();
-    });
-  }
+  // API key configuration removed - now handled via environment variables
   
   // Handle refresh models button
   if (refreshModelsBtn && modelSelect) {

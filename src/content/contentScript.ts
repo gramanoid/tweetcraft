@@ -56,6 +56,11 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
+    // Initialize Arsenal Mode UI (ensures event listeners are set up)
+    if (arsenalModeUI) {
+      console.log('%c⚔️ Arsenal Mode initialized', 'color: #1DA1F2');
+    }
+    
     // Initialize vision service first
     try {
       await visionService.initialize();
