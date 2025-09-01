@@ -84,18 +84,44 @@ export class UnifiedSelector {
   private positionNearButton(button: HTMLElement): void {
     if (!this.container) return;
     
-    // The CSS already centers the modal, just ensure it's not too low
-    // Check if button is in bottom third of screen
-    const rect = button.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
     
-    if (rect.top > viewportHeight * 0.6) {
-      // Button is in lower part of screen, move modal up a bit
-      this.container.style.top = '40%';
+    // Calculate whether to show above or below
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const selectorHeight = 580; // max-height from CSS (updated to match new design)
+    const showAbove = spaceBelow < selectorHeight && spaceAbove > spaceBelow;
+    
+    // Use fixed positioning to stick to viewport
+    this.container.style.position = 'fixed';
+    
+    // Position vertically relative to button
+    if (showAbove) {
+      this.container.style.bottom = `${viewportHeight - buttonRect.top + 8}px`;
+      this.container.style.top = 'auto';
     } else {
-      // Keep centered
-      this.container.style.top = '50%';
+      this.container.style.top = `${buttonRect.bottom + 8}px`;
+      this.container.style.bottom = 'auto';
     }
+    
+    // Center horizontally but keep within viewport
+    const selectorWidth = 540; // width from CSS (updated to match new design)
+    let leftPos = buttonRect.left + (buttonRect.width / 2) - (selectorWidth / 2);
+    
+    // Ensure it stays within viewport bounds
+    if (leftPos < 10) {
+      leftPos = 10;
+    } else if (leftPos + selectorWidth > viewportWidth - 10) {
+      leftPos = viewportWidth - selectorWidth - 10;
+    }
+    
+    this.container.style.left = `${leftPos}px`;
+    this.container.style.right = 'auto';
+    
+    // Remove the transform since we're positioning directly
+    this.container.style.transform = 'none';
   }
   
   /**
@@ -190,37 +216,25 @@ export class UnifiedSelector {
    * Render grid view (all templates and tones)
    */
   private renderGridView(templates: Template[], tones: Tone[]): string {
-    const categories = ['engagement', 'value', 'conversation', 'humor', 'debate', 'viral'];
-    
     return `
       <div class="selector-content grid-view">
         <div class="templates-section">
-          <h3>Choose Template</h3>
-          ${categories.map(category => {
-            const categoryTemplates = templates.filter(t => t.category === category);
-            if (categoryTemplates.length === 0) return '';
-            
-            return `
-              <div class="template-category">
-                <h4>${this.getCategoryTitle(category)}</h4>
-                <div class="template-grid">
-                  ${categoryTemplates.map(template => `
-                    <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
-                            data-template="${template.id}"
-                            title="${template.description}">
-                      <span class="template-emoji">${template.emoji}</span>
-                      <span class="template-name">${template.name}</span>
-                      ${this.favoriteTemplates.has(template.id) ? '<span class="favorite-star">⭐</span>' : ''}
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          }).join('')}
+          <h3>Templates</h3>
+          <div class="template-grid">
+            ${templates.map(template => `
+              <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                      data-template="${template.id}"
+                      title="${template.description}">
+                <span class="template-emoji">${template.emoji}</span>
+                <span class="template-name">${template.name}</span>
+                ${this.favoriteTemplates.has(template.id) ? '<span class="favorite-star">⭐</span>' : ''}
+              </button>
+            `).join('')}
+          </div>
         </div>
         
         <div class="tones-section">
-          <h3>Choose Tone</h3>
+          <h3>Tones</h3>
           <div class="tone-grid">
             ${tones.map(tone => `
               <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
@@ -600,18 +614,11 @@ export class UnifiedSelector {
   }
 
   /**
-   * Get category title
+   * Get category title (deprecated - kept for compatibility)
    */
   private getCategoryTitle(category: string): string {
-    const titles: Record<string, string> = {
-      engagement: '💬 Engagement',
-      value: '💎 Add Value',
-      conversation: '🗣️ Conversation',
-      humor: '😄 Humor',
-      debate: '⚔️ Debate',
-      viral: '🔥 Viral'
-    };
-    return titles[category] || category;
+    // No longer used since we removed categories
+    return category;
   }
 
   /**
@@ -624,17 +631,14 @@ export class UnifiedSelector {
       style.textContent = `
         .tweetcraft-unified-selector {
           position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 8px;
-          width: 560px;
-          max-width: 95vw;
+          border-radius: 12px;
+          width: 540px;
+          max-width: 92vw;
           min-width: 480px;
-          max-height: 420px;
-          min-height: 300px;
+          max-height: 580px;
+          min-height: 400px;
           display: flex;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -648,7 +652,7 @@ export class UnifiedSelector {
           .tweetcraft-unified-selector {
             width: 95vw;
             min-width: 320px;
-            max-height: 80vh;
+            max-height: 85vh;
           }
           
           .grid-view {
@@ -673,25 +677,26 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 8px 12px;
+          padding: 10px 14px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
         }
         
         .selector-tabs {
           display: flex;
-          gap: 4px;
+          gap: 8px;
         }
         
         .tab-btn {
-          padding: 4px 8px;
+          padding: 6px 12px;
           background: transparent;
           border: 1px solid transparent;
-          border-radius: 12px;
+          border-radius: 14px;
           color: #8b98a5;
           cursor: pointer;
           transition: all 0.2s;
-          font-size: 11px;
+          font-size: 13px;
+          font-weight: 500;
         }
         
         .tab-btn:hover {
@@ -705,13 +710,13 @@ export class UnifiedSelector {
         }
         
         .close-btn {
-          width: 24px;
-          height: 24px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
           background: transparent;
           border: none;
           color: #8b98a5;
-          font-size: 18px;
+          font-size: 20px;
           cursor: pointer;
           transition: all 0.2s;
           display: flex;
@@ -727,59 +732,55 @@ export class UnifiedSelector {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 8px;
+          padding: 10px;
           background: #15202b;
         }
         
         .grid-view {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        .templates-section,
+        .tones-section {
+          flex: 1;
         }
         
         .templates-section h3,
         .tones-section h3 {
-          margin: 0 0 4px 0;
+          margin: 0 0 10px 0;
           color: #e7e9ea;
-          font-size: 11px;
+          font-size: 15px;
           font-weight: 600;
+          padding-bottom: 8px;
+          border-bottom: 1px solid rgba(139, 152, 165, 0.2);
         }
         
-        .template-category {
-          margin-bottom: 6px;
-        }
-        
-        .template-category h4 {
-          margin: 0 0 3px 0;
-          color: #8b98a5;
-          font-size: 9px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.3px;
-        }
+        /* Removed template-category styles since we no longer use categories */
         
         .template-grid,
         .tone-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 3px;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 4px;
         }
         
         .template-btn,
         .tone-btn {
           display: flex;
           align-items: center;
-          gap: 2px;
-          padding: 5px 4px;
+          gap: 4px;
+          padding: 6px 5px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 6px;
+          border-radius: 8px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
           position: relative;
-          font-size: 10px;
-          min-height: 26px;
+          font-size: 12px;
+          min-height: 32px;
         }
         
         .template-btn:hover,
@@ -797,12 +798,12 @@ export class UnifiedSelector {
         
         .template-emoji,
         .tone-emoji {
-          font-size: 12px;
+          font-size: 16px;
         }
         
         .template-name,
         .tone-label {
-          font-size: 10px;
+          font-size: 12px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -811,16 +812,16 @@ export class UnifiedSelector {
         
         .favorite-star {
           position: absolute;
-          top: 1px;
-          right: 1px;
-          font-size: 8px;
+          top: 2px;
+          right: 2px;
+          font-size: 10px;
         }
         
         .selector-footer {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 8px 12px;
+          padding: 10px 14px;
           border-top: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
           margin-top: auto;
@@ -829,26 +830,26 @@ export class UnifiedSelector {
         
         .selection-info {
           display: flex;
-          gap: 4px;
+          gap: 6px;
         }
         
         .selected-template,
         .selected-tone {
-          padding: 2px 6px;
+          padding: 4px 10px;
           background: rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          font-size: 10px;
+          border-radius: 10px;
+          font-size: 12px;
           color: #e7e9ea;
         }
         
         .generate-btn {
-          padding: 6px 16px;
+          padding: 8px 18px;
           background: rgba(29, 155, 240, 0.3);
           border: 1px solid rgba(29, 155, 240, 0.5);
-          border-radius: 16px;
+          border-radius: 18px;
           color: #8b98a5;
           cursor: not-allowed;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           transition: all 0.2s;
         }

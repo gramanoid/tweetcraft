@@ -375,6 +375,16 @@ export class DOMUtils {
           console.log(`%c  Author: @${context.authorHandle}`, 'color: #657786');
         }
       }
+      
+      // Extract tweet ID from the tweet link
+      const tweetLink = originalTweetElement.querySelector('a[href*="/status/"]') as HTMLAnchorElement;
+      if (tweetLink) {
+        const match = tweetLink.href.match(/\/status\/(\d+)/);
+        if (match && match[1]) {
+          context.tweetId = match[1];
+          console.log(`%c  Tweet ID: ${context.tweetId}`, 'color: #657786');
+        }
+      }
 
       // Extract thread context (3 additional tweets for more context)
       const threadContext = this.extractThreadContext();

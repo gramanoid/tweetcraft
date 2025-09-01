@@ -15,17 +15,19 @@ import { suggestionCarousel } from './suggestionCarousel';
 import { TEMPLATES } from './presetTemplates';
 import { TONES } from './toneSelector';
 import { imageAttachment } from './imageAttachment';
+import { APP_VERSION } from '@/config/version';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
-  private static readonly VERSION = '0.0.9';
+  private static readonly VERSION = APP_VERSION;
   private isDestroyed = false;
   
   // Store event listener references for proper cleanup
   private eventListeners: Array<() => void> = [];
+  private customEventListeners: Map<string, EventListener> = new Map();
 
   constructor() {
     // Check if another instance already exists
@@ -85,8 +87,8 @@ class SmartReplyContentScript {
   }
 
   private setupKeyboardShortcutListener(): void {
-    // Listen for custom events from keyboard shortcuts
-    document.addEventListener('tweetcraft:generate-reply', ((event: Event) => {
+    // Create and store the event listener
+    const generateReplyListener = ((event: Event) => {
       const customEvent = event as CustomEvent;
       const { tone, bypassCache, regenerate } = customEvent.detail;
       
@@ -112,7 +114,13 @@ class SmartReplyContentScript {
       
       // Trigger generation with HTMLElement cast
       this.generateReply(textarea as HTMLElement, context, tone, bypassCache || regenerate);
-    }) as EventListener);
+    }) as EventListener;
+    
+    // Store reference for cleanup
+    this.customEventListeners.set('tweetcraft:generate-reply', generateReplyListener);
+    
+    // Listen for custom events from keyboard shortcuts
+    document.addEventListener('tweetcraft:generate-reply', generateReplyListener);
   }
 
   private setupCleanupHandlers(): void {
@@ -227,6 +235,30 @@ class SmartReplyContentScript {
     }
   }
 
+  /**
+   * Clean up duplicate buttons in the DOM
+   */
+  private cleanupDuplicateButtons(): void {
+    const allButtons = document.querySelectorAll('.smart-reply-container');
+    const seenLocations = new Map<string, Element>();
+    
+    allButtons.forEach(button => {
+      // Create a location key based on the nearest reply container
+      const replyContainer = button.closest('[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]');
+      if (replyContainer) {
+        const locationKey = replyContainer.getAttribute('data-testid') || replyContainer.getAttribute('role') || 'unknown';
+        
+        if (seenLocations.has(locationKey)) {
+          // This is a duplicate, remove it
+          console.log('%c🧹 Removing duplicate button', 'color: #FFA500');
+          button.remove();
+        } else {
+          seenLocations.set(locationKey, button);
+        }
+      }
+    });
+  }
+
   private connectToServiceWorker(): void {
     try {
       // Check if extension context is still valid
@@ -282,6 +314,18 @@ class SmartReplyContentScript {
       }, 1000);
       return;
     }
+    
+    // Clean up any duplicate buttons before starting
+    this.cleanupDuplicateButtons();
+    
+    // Set up periodic cleanup (every 3 seconds)
+    const cleanupInterval = setInterval(() => {
+      if (!this.isDestroyed) {
+        this.cleanupDuplicateButtons();
+      } else {
+        clearInterval(cleanupInterval);
+      }
+    }, 3000);
 
     // Attempt initial injection with retries
     this.attemptInitialInjection();
@@ -348,6 +392,25 @@ class SmartReplyContentScript {
     if (toolbarElement.querySelector('.smart-reply-container')) {
       this.processedToolbars.add(toolbarElement);
       return;
+    }
+    
+    // Additional check: Look for buttons in parent containers to prevent duplicates
+    // This handles cases where Twitter recreates toolbar elements
+    const parentContainer = toolbarElement.closest('[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]');
+    if (parentContainer) {
+      const existingButton = parentContainer.querySelector('.smart-reply-container');
+      if (existingButton) {
+        // Check if the existing button is still in the DOM and visible
+        const isVisible = (existingButton as HTMLElement).offsetParent !== null;
+        if (isVisible) {
+          console.log('%c⚠️ Duplicate button prevented in parent container', 'color: #FFA500');
+          this.processedToolbars.add(toolbarElement);
+          return;
+        } else {
+          // Remove the old invisible button
+          existingButton.remove();
+        }
+      }
     }
 
     // CRITICAL: Only process toolbars that are in reply/compose contexts
@@ -1167,6 +1230,12 @@ class SmartReplyContentScript {
     console.log(`%c  Cleaning up ${this.eventListeners.length} stored event listeners`, 'color: #657786');
     this.eventListeners.forEach(cleanup => cleanup());
     this.eventListeners = [];
+    
+    // Clean up custom event listeners
+    this.customEventListeners.forEach((listener, eventName) => {
+      document.removeEventListener(eventName, listener);
+    });
+    this.customEventListeners.clear();
     
     // Disconnect observer
     if (this.observer) {

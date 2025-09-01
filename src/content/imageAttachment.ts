@@ -76,10 +76,21 @@ export class ImageAttachment {
 
     this.container = document.createElement('div');
     this.container.className = 'tweetcraft-image-panel';
+    
+    // Calculate position relative to viewport
+    const buttonRect = button.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const panelHeight = 500;
+    
+    // Determine if panel should appear above or below button
+    const spaceAbove = buttonRect.top;
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const showAbove = spaceAbove > panelHeight || spaceAbove > spaceBelow;
+    
     this.container.style.cssText = `
-      position: absolute;
-      bottom: 100%;
-      left: 0;
+      position: fixed;
+      ${showAbove ? `bottom: ${viewportHeight - buttonRect.top + 8}px` : `top: ${buttonRect.bottom + 8}px`};
+      left: ${Math.min(buttonRect.left, window.innerWidth - 420)}px;
       background: white;
       border: 1px solid #e1e8ed;
       border-radius: 12px;
@@ -88,7 +99,6 @@ export class ImageAttachment {
       width: 400px;
       max-height: 500px;
       z-index: 10000;
-      margin-bottom: 8px;
       overflow-y: auto;
     `;
 
@@ -106,18 +116,22 @@ export class ImageAttachment {
       
       <div class="image-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
         <button class="tab-btn active" data-tab="search" style="flex: 1; padding: 8px; border: 1px solid #1d9bf0; background: #1d9bf0; color: white; border-radius: 8px; cursor: pointer; font-size: 14px;">
-          🔍 Search Web
+          🔍 Search
         </button>
         <button class="tab-btn" data-tab="generate" style="flex: 1; padding: 8px; border: 1px solid #e1e8ed; background: transparent; color: #536471; border-radius: 8px; cursor: pointer; font-size: 14px;">
           🎨 AI Generate
         </button>
-        <button class="tab-btn" data-tab="suggest" style="flex: 1; padding: 8px; border: 1px solid #e1e8ed; background: transparent; color: #536471; border-radius: 8px; cursor: pointer; font-size: 14px;">
-          💡 Suggest
-        </button>
       </div>
       
       <div class="tab-content" id="search-content">
-        <input type="text" class="image-search-input" placeholder="Search for images..." style="width: 100%; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; font-size: 14px; margin-bottom: 12px;">
+        <div style="margin-bottom: 12px;">
+          <button class="suggest-btn" style="width: 100%; padding: 10px; background: #FFA500; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 8px;">
+            💡 Get Smart Suggestions
+          </button>
+          <p style="font-size: 12px; color: #536471; text-align: center; margin: 0;">Based on tweet context</p>
+        </div>
+        <div style="margin: 16px 0; text-align: center; color: #536471; font-size: 12px;">— OR —</div>
+        <input type="text" class="image-search-input" placeholder="Search for specific images..." style="width: 100%; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; font-size: 14px; margin-bottom: 12px;">
         <button class="search-btn" style="width: 100%; padding: 10px; background: #1d9bf0; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 12px;">
           Search Images
         </button>
@@ -125,6 +139,9 @@ export class ImageAttachment {
       </div>
       
       <div class="tab-content" id="generate-content" style="display: none;">
+        <button class="smart-prompt-btn" style="width: 100%; padding: 10px; background: #FFA500; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 12px;">
+          🤖 Generate Smart Prompt from Context
+        </button>
         <textarea class="image-prompt-input" placeholder="Describe the image you want to generate..." style="width: 100%; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; font-size: 14px; margin-bottom: 12px; min-height: 80px; resize: vertical;"></textarea>
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
           <select class="style-select" style="flex: 1; padding: 8px; border: 1px solid #e1e8ed; border-radius: 8px; font-size: 14px;">
@@ -144,13 +161,6 @@ export class ImageAttachment {
         <div class="generate-result"></div>
       </div>
       
-      <div class="tab-content" id="suggest-content" style="display: none;">
-        <p style="font-size: 14px; color: #536471; margin-bottom: 12px;">Suggested images based on your reply:</p>
-        <button class="suggest-btn" style="width: 100%; padding: 10px; background: #FFA500; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 12px;">
-          Get Suggestions
-        </button>
-        <div class="suggest-results" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;"></div>
-      </div>
       
       <div class="selected-image-preview" style="margin-top: 16px; display: none;">
         <div style="font-size: 12px; color: #536471; margin-bottom: 8px;">Selected Image:</div>
@@ -169,16 +179,13 @@ export class ImageAttachment {
     // Add event listeners
     this.attachEventListeners();
 
-    // Position relative to button
-    const buttonContainer = button.parentElement;
-    if (buttonContainer) {
-      buttonContainer.style.position = 'relative';
-      buttonContainer.appendChild(this.container);
-    }
+    // Append directly to body for fixed positioning
+    document.body.appendChild(this.container);
 
-    // Auto-suggest if reply text exists
-    if (replyText) {
-      this.autoSuggestImages(replyText);
+    // Auto-suggest on open if context exists
+    const tweetText = this.getTweetText();
+    if (tweetText) {
+      this.autoSuggestOnOpen();
     }
   }
 
@@ -250,11 +257,34 @@ export class ImageAttachment {
     const promptInput = this.container.querySelector('.image-prompt-input') as HTMLTextAreaElement;
     const styleSelect = this.container.querySelector('.style-select') as HTMLSelectElement;
     const sizeSelect = this.container.querySelector('.size-select') as HTMLSelectElement;
+    const smartPromptBtn = this.container.querySelector('.smart-prompt-btn') as HTMLElement;
     
     generateBtn?.addEventListener('click', async () => {
       const prompt = promptInput?.value.trim();
       if (prompt) {
         await this.generateImage(prompt, styleSelect?.value, sizeSelect?.value);
+      }
+    });
+    
+    // Smart prompt generation
+    smartPromptBtn?.addEventListener('click', async () => {
+      if (promptInput) {
+        promptInput.value = 'Generating smart prompt...';
+        promptInput.disabled = true;
+        
+        try {
+          const tweetText = this.getTweetText();
+          const replyText = this.getReplyText();
+          const smartPrompt = await imageService.generateSmartPrompt(tweetText, replyText);
+          promptInput.value = smartPrompt;
+        } catch (error) {
+          console.error('Failed to generate smart prompt:', error);
+          promptInput.value = '';
+          visualFeedback.showToast('Failed to generate prompt', { type: 'error' });
+        } finally {
+          promptInput.disabled = false;
+          promptInput.focus();
+        }
       }
     });
 
@@ -364,13 +394,28 @@ export class ImageAttachment {
   /**
    * Auto-suggest images on panel open
    */
-  private async autoSuggestImages(replyText: string): Promise<void> {
-    // Switch to suggest tab
-    const suggestTab = this.container?.querySelector('[data-tab="suggest"]') as HTMLElement;
-    if (suggestTab) {
-      suggestTab.click();
-      // Automatically get suggestions
-      await this.suggestImages();
+  private async autoSuggestOnOpen(): Promise<void> {
+    const resultsDiv = this.container?.querySelector('.search-results') as HTMLElement;
+    if (!resultsDiv) return;
+
+    // Show loading state
+    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #536471;">Loading suggestions based on context...</div>';
+
+    try {
+      const tweetText = this.getTweetText();
+      const replyText = this.getReplyText();
+      const results = await imageService.suggestImages(tweetText, replyText);
+      
+      if (results.length > 0) {
+        this.displayImages(results, resultsDiv);
+      } else {
+        // Clear if no suggestions
+        resultsDiv.innerHTML = '';
+      }
+    } catch (error) {
+      console.error('Failed to auto-suggest images:', error);
+      // Silent fail for auto-suggestions
+      resultsDiv.innerHTML = '';
     }
   }
 
@@ -430,34 +475,130 @@ export class ImageAttachment {
   private selectImage(image: ImageResult): void {
     this.selectedImage = image;
     
-    const preview = this.container?.querySelector('.selected-image-preview') as HTMLElement;
-    const previewImg = this.container?.querySelector('.preview-img') as HTMLImageElement;
+    // Try to attach the image to the tweet
+    this.attachImageToTweet(image.url);
     
-    if (preview && previewImg) {
-      previewImg.src = image.url;
-      previewImg.alt = image.alt;
-      preview.style.display = 'block';
+    // Close the panel after selection
+    this.close();
+    
+    visualFeedback.showToast('Image attached to reply', {
+      type: 'success',
+      duration: 2000
+    });
+  }
+  
+  /**
+   * Attach image to tweet by simulating file upload
+   */
+  private attachImageToTweet(imageUrl: string): void {
+    // Find the media upload button
+    const mediaButton = document.querySelector('[data-testid="fileInput"]') as HTMLInputElement;
+    if (!mediaButton) {
+      console.warn('Media upload button not found');
       
-      // Scroll to preview
-      preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Alternative: Insert image URL in text
+      if (this.textarea) {
+        const currentText = this.textarea.textContent || '';
+        const newText = currentText + (currentText ? '\n\n' : '') + imageUrl;
+        
+        // Use the same method as text insertion
+        if (this.textarea.contentEditable === 'true') {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(this.textarea);
+          range.collapse(false); // Move to end
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          
+          document.execCommand('insertText', false, '\n\n' + imageUrl);
+          
+          const inputEvent = new InputEvent('input', { 
+            inputType: 'insertText', 
+            data: imageUrl,
+            bubbles: true,
+            cancelable: true
+          });
+          this.textarea.dispatchEvent(inputEvent);
+        }
+      }
+      return;
     }
     
-    visualFeedback.showToast('Image selected', {
-      type: 'info',
-      duration: 1500
-    });
+    // Try to fetch and convert image to blob for upload
+    fetch(imageUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        
+        mediaButton.files = dataTransfer.files;
+        
+        const changeEvent = new Event('change', { bubbles: true });
+        mediaButton.dispatchEvent(changeEvent);
+      })
+      .catch(error => {
+        console.error('Failed to attach image:', error);
+        // Fallback: insert URL in text
+        if (this.textarea) {
+          const currentText = this.textarea.textContent || '';
+          const newText = currentText + (currentText ? '\n\n' : '') + imageUrl;
+          
+          if (this.textarea.contentEditable === 'true') {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(this.textarea);
+            range.collapse(false);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            
+            document.execCommand('insertText', false, '\n\n' + imageUrl);
+            
+            const inputEvent = new InputEvent('input', { 
+              inputType: 'insertText', 
+              data: imageUrl,
+              bubbles: true,
+              cancelable: true
+            });
+            this.textarea.dispatchEvent(inputEvent);
+          }
+        }
+      });
   }
 
   /**
    * Get tweet text from page
    */
   private getTweetText(): string {
-    // Find the tweet being replied to
-    const article = this.textarea?.closest('article');
-    if (article) {
-      const tweetTextElement = article.querySelector('[data-testid="tweetText"]');
-      return tweetTextElement?.textContent || '';
+    // Try multiple strategies to find the tweet text
+    
+    // Strategy 1: Look for the tweet we're replying to (in reply modal or thread)
+    const replyingToTweet = document.querySelector('article [data-testid="tweetText"]');
+    if (replyingToTweet) {
+      return replyingToTweet.textContent || '';
     }
+    
+    // Strategy 2: Find the closest article element and look for tweet text
+    const closestArticle = this.textarea?.closest('article');
+    if (closestArticle) {
+      // Look for previous sibling articles (the tweet being replied to)
+      let prevArticle = closestArticle.previousElementSibling;
+      while (prevArticle && prevArticle.tagName === 'ARTICLE') {
+        const tweetText = prevArticle.querySelector('[data-testid="tweetText"]');
+        if (tweetText) {
+          return tweetText.textContent || '';
+        }
+        prevArticle = prevArticle.previousElementSibling;
+      }
+    }
+    
+    // Strategy 3: Look for any visible tweet text on the page
+    const allTweetTexts = document.querySelectorAll('[data-testid="tweetText"]');
+    if (allTweetTexts.length > 0) {
+      // Return the first tweet text (usually the main tweet)
+      return allTweetTexts[0].textContent || '';
+    }
+    
     return '';
   }
 

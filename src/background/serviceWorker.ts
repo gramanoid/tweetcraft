@@ -84,7 +84,7 @@ class SmartReplyServiceWorker {
     if (chrome.notifications && chrome.notifications.create) {
       chrome.notifications.create('smartReplyWelcome', {
         type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon48.png'),
+        iconUrl: chrome.runtime.getURL('icons/icon_48.png'),
         title: 'Smart Reply Installed!',
         message: 'Click the extension icon to configure your API key and settings.'
       }, (notificationId) => {

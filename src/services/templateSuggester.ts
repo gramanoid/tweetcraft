@@ -122,6 +122,17 @@ export class TemplateSuggester {
     // Get user preferences from localStorage
     const preferences = await this.getUserPreferences();
     
+    // Try to get LLM-enhanced analysis if API key is available
+    let llmAnalysis = null;
+    try {
+      const apiKey = await this.getApiKey();
+      if (apiKey && context.tweetText.length > 20) {
+        llmAnalysis = await this.getLLMAnalysis(context.tweetText, apiKey);
+      }
+    } catch (error) {
+      console.log('%c🤖 Proceeding without LLM analysis', 'color: #657786');
+    }
+    
     // Calculate scores for each template-tone combination
     const templates = TEMPLATES;
     const tones = TONES;
@@ -134,7 +145,8 @@ export class TemplateSuggester {
           tone,
           context,
           patternScores,
-          preferences
+          preferences,
+          llmAnalysis
         );
         
         scores.set(key, score);
@@ -187,7 +199,8 @@ export class TemplateSuggester {
     tone: ToneOption,
     context: SuggestionContext,
     patternScores: Map<string, number>,
-    preferences: any
+    preferences: any,
+    llmAnalysis?: any
   ): SuggestionScore {
     let score = 1.0;
     const reasons: string[] = [];
@@ -261,6 +274,32 @@ export class TemplateSuggester {
       if (template.category === 'debate') {
         score += 0.5;
         reasons.push('Long thread');
+      }
+    }
+    
+    // LLM analysis bonus if available
+    if (llmAnalysis) {
+      // Check if template matches LLM-detected intent
+      if (llmAnalysis.suggestedCategories?.includes(template.category)) {
+        score += 2.0;
+        reasons.push('AI-detected intent match');
+      }
+      
+      // Check if tone matches LLM-detected sentiment
+      if (llmAnalysis.suggestedTones?.includes(tone.id)) {
+        score += 1.5;
+        reasons.push('AI-detected tone match');
+      }
+      
+      // Sentiment-based adjustments
+      if (llmAnalysis.sentiment) {
+        if (llmAnalysis.sentiment === 'positive' && tone.id === 'enthusiastic') {
+          score += 0.5;
+        } else if (llmAnalysis.sentiment === 'negative' && tone.id === 'motivational') {
+          score += 0.5;
+        } else if (llmAnalysis.sentiment === 'controversial' && template.category === 'debate') {
+          score += 1.0;
+        }
       }
     }
     
@@ -473,6 +512,89 @@ export class TemplateSuggester {
     return preferences.favoriteTones
       ?.map((id: string) => TONES.find((t: ToneOption) => t.id === id))
       .filter(Boolean) || [];
+  }
+
+  /**
+   * Get API key from storage
+   */
+  private async getApiKey(): Promise<string | null> {
+    try {
+      const stored = await chrome.storage.local.get(['smartReply_apiKey']);
+      return stored.smartReply_apiKey || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get LLM analysis of tweet for better suggestions
+   */
+  private async getLLMAnalysis(tweetText: string, apiKey: string): Promise<any> {
+    try {
+      console.log('%c🤖 Getting LLM analysis for better suggestions', 'color: #1DA1F2');
+      
+      const prompt = `Analyze this tweet for reply suggestions. Return JSON only:
+Tweet: "${tweetText}"
+
+Respond with:
+{
+  "sentiment": "positive/negative/neutral/controversial",
+  "intent": "question/opinion/announcement/problem/achievement/humor/debate",
+  "suggestedCategories": ["engagement", "value", "conversation", "humor", "debate", "viral"],
+  "suggestedTones": ["professional", "casual", "witty", "enthusiastic", "contrarian", etc.],
+  "topics": ["tech", "business", "personal", etc.]
+}`;
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'chrome-extension://tweetcraft',
+          'X-Title': 'TweetCraft Smart Suggestions'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-lite',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a tweet analysis assistant. Respond only with valid JSON.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 200
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+      
+      if (content) {
+        try {
+          // Extract JSON from the response
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const analysis = JSON.parse(jsonMatch[0]);
+            console.log('%c🤖 LLM analysis result:', 'color: #17BF63', analysis);
+            return analysis;
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse LLM response:', parseError);
+        }
+      }
+    } catch (error) {
+      console.log('%c🤖 LLM analysis failed:', 'color: #657786', error);
+    }
+    
+    return null;
   }
 }
 

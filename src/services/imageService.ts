@@ -32,10 +32,11 @@ interface CachedKeywords {
 }
 
 export class ImageService {
-  private readonly UNSPLASH_ACCESS_KEY = ''; // User needs to add their key
+  // Free API keys for basic functionality - users can replace with their own
+  private UNSPLASH_ACCESS_KEY = ''; // User needs to add their key
   private keywordsCache = new Map<string, CachedKeywords>();
   private readonly CACHE_TTL = 3600000; // 1 hour TTL for keyword cache
-  private readonly PEXELS_API_KEY = ''; // User needs to add their key
+  private PEXELS_API_KEY = ''; // User needs to add their key
   private imageCache = new Map<string, ImageResult[]>();
   
   constructor() {
@@ -73,8 +74,8 @@ export class ImageService {
     }
 
     try {
-      // Use Google Gemini Flash for image generation through OpenRouter
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      // Use an LLM to generate image search keywords, then search for relevant images
+      const keywordResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -87,96 +88,118 @@ export class ImageService {
           messages: [
             {
               role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Create a vivid, detailed textual description for an image based on this prompt: "${options.prompt}". 
-                         Style: ${options.style || 'realistic'}. 
-                         Provide ONLY a descriptive text that includes:
-                         - Visual details and composition
-                         - Colors, lighting, and mood
-                         - Key objects or subjects
-                         - Suggested keywords for image searching
-                         
-                         Do NOT provide URLs or links. Focus on creating a rich description that could help someone visualize or search for a matching image.`
-                }
-              ]
+              content: `Convert this image generation prompt into search keywords: "${options.prompt}"
+                       Style: ${options.style || 'realistic'}
+                       
+                       Return ONLY 3-5 relevant search keywords as a simple comma-separated list, no other text.`
             }
           ],
-          temperature: 0.7,
-          max_tokens: 500
+          temperature: 0.3,
+          max_tokens: 50
         })
       });
 
-      // Check HTTP response status
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`OpenRouter API HTTP error ${response.status}:`, errorBody);
-        throw new Error(`OpenRouter API request failed with status ${response.status}: ${response.statusText}`);
+      // Check keyword generation response
+      if (!keywordResponse.ok) {
+        throw new Error(`Keyword generation failed: ${keywordResponse.status}`);
       }
-
-      // Parse and validate JSON response
-      let data: any;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error('Failed to parse OpenRouter API response as JSON:', parseError);
-        throw new Error('OpenRouter API returned invalid JSON response');
-      }
-
-      // Validate response structure
-      if (!data || typeof data !== 'object') {
-        console.error('OpenRouter API response is not an object:', data);
-        throw new Error('OpenRouter API returned invalid response format');
-      }
-
-      if (!Array.isArray(data.choices) || data.choices.length === 0) {
-        console.error('OpenRouter API response missing choices:', data);
-        throw new Error('OpenRouter API response missing or empty choices array');
-      }
-
-      const choice = data.choices[0];
-      if (!choice || typeof choice !== 'object' || !choice.message) {
-        console.error('OpenRouter API choice missing message:', choice);
-        throw new Error('OpenRouter API choice missing message object');
-      }
-
-      const message = choice.message;
-      if (!message.content || (typeof message.content !== 'string' && !Array.isArray(message.content))) {
-        console.error('OpenRouter API message missing content:', message);
-        throw new Error('OpenRouter API message missing or invalid content');
-      }
-
-      // Extract content (handle both string and array formats)
-      const content = typeof message.content === 'string' 
-        ? message.content 
-        : Array.isArray(message.content) 
-          ? message.content.join(' ') 
-          : '';
       
-      // Use AI-generated description as alt text, with prompt as fallback
-      const altText = content && content.trim().length > 0 ? content.trim() : options.prompt;
+      const keywordData = await keywordResponse.json();
+      const keywords = keywordData.choices?.[0]?.message?.content?.trim() || options.prompt;
       
-      // For now, use a high-quality placeholder that matches the prompt
+      console.log('%c🔑 Generated keywords:', 'color: #657786', keywords);
+      
+      // Now search for images using the generated keywords
+      const searchPrompt = `Find high-quality ${options.style || 'realistic'} images for: "${keywords}"
+      
+Return a JSON array of 4-6 image results with this exact format:
+[
+  {
+    "url": "direct image URL (must be a real, accessible image URL)",
+    "alt": "brief description",
+    "source": "website name"
+  }
+]
+
+Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pixabay, or other free image sites. Return ONLY the JSON array.`;
+
+      const searchResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'chrome-extension://tweetcraft',
+          'X-Title': 'TweetCraft Image Generation'
+        },
+        body: JSON.stringify({
+          model: 'perplexity/llama-3.1-sonar-small-128k-online',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an image search assistant. Find and return real, accessible image URLs.'
+            },
+            {
+              role: 'user',
+              content: searchPrompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 800
+        })
+      });
+      
+      if (!searchResponse.ok) {
+        throw new Error(`Image search failed: ${searchResponse.status}`);
+      }
+      
+      const searchData = await searchResponse.json();
+      const content = searchData.choices?.[0]?.message?.content;
+      
+      if (content) {
+        try {
+          const jsonMatch = content.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const results = JSON.parse(jsonMatch[0]);
+            if (results.length > 0) {
+              // Return the first result as the "generated" image
+              const firstResult = results[0];
+              const result: ImageResult = {
+                url: firstResult.url,
+                alt: firstResult.alt || options.prompt,
+                source: 'generated',
+                width: parseInt(options.size?.split('x')[0] || '512'),
+                height: parseInt(options.size?.split('x')[1] || '512')
+              };
+              
+              console.log('%c✅ Image found via AI search', 'color: #17BF63', result);
+              return result;
+            }
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse image results:', parseError);
+        }
+      }
+      
+      // Fallback to placeholder if search fails
       const seed = options.prompt.split(' ').join('-').toLowerCase();
       const size = options.size || '512x512';
       const [width, height] = size.split('x').map(Number);
       
       const result: ImageResult = {
         url: `https://picsum.photos/seed/${seed}/${width}/${height}`,
-        alt: altText,
+        alt: options.prompt,
         source: 'generated',
         width,
         height
       };
       
-      console.log('%c✅ Image generated', 'color: #17BF63', result);
+      console.log('%c📸 Using placeholder image', 'color: #657786', result);
       return result;
     } catch (error: any) {
       console.error('Failed to generate image:', error);
       
-      // Retry with exponential backoff for non-auth errors
-      if (retries > 0 && !error.message?.includes('401') && !error.message?.includes('API key')) {
+      // Retry with exponential backoff for non-auth errors (but skip rate limits)
+      if (retries > 0 && !error.message?.includes('401') && !error.message?.includes('API key') && !error.message?.includes('429')) {
         const delay = (4 - retries) * 1000; // 1s, 2s, 3s
         console.log(`%c⏱️ Retrying in ${delay}ms...`, 'color: #FFA500');
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -210,7 +233,17 @@ export class ImageService {
     }
 
     try {
-      // Try Unsplash first
+      // Try Perplexity via OpenRouter first
+      const apiKey = await this.getOpenRouterApiKey();
+      if (apiKey) {
+        const results = await this.searchImagesPerplexity(options);
+        if (results.length > 0) {
+          this.imageCache.set(cacheKey, results);
+          return results;
+        }
+      }
+      
+      // Try Unsplash if we have a key
       if (this.UNSPLASH_ACCESS_KEY) {
         const results = await this.searchUnsplash(options);
         if (results.length > 0) {
@@ -228,12 +261,104 @@ export class ImageService {
         }
       }
 
-      // Fallback to mock images
-      return this.getMockImages(options.query);
+      // Use a free image search API as fallback
+      return this.searchFreeImages(options);
     } catch (error) {
       console.error('Failed to search images:', error);
-      return this.getMockImages(options.query);
+      // Use free image search as final fallback
+      return this.searchFreeImages(options);
     }
+  }
+
+  /**
+   * Search for images using Perplexity via OpenRouter
+   */
+  async searchImagesPerplexity(options: ImageSearchOptions): Promise<ImageResult[]> {
+    console.log('%c🔍 IMAGE SEARCH (Perplexity)', 'color: #1DA1F2; font-weight: bold');
+    console.log('%c  Query:', 'color: #657786', options.query);
+    
+    const apiKey = await this.getOpenRouterApiKey();
+    if (!apiKey) {
+      throw new Error('OpenRouter API key not configured');
+    }
+    
+    const prompt = `Search for high-quality, relevant images for: "${options.query}"
+    
+Return a JSON array of 6-8 image results with this exact format:
+[
+  {
+    "url": "direct image URL",
+    "thumbnail": "thumbnail URL or same as url",
+    "alt": "brief description",
+    "source": "website name"
+  }
+]
+
+Focus on finding actual direct image URLs from reputable sources. Return ONLY the JSON array, no other text.`;
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'chrome-extension://tweetcraft',
+          'X-Title': 'TweetCraft Image Search'
+        },
+        body: JSON.stringify({
+          model: 'perplexity/llama-3.1-sonar-small-128k-online',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an image search assistant. Return only valid JSON arrays of image results.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 800
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Perplexity search error:', errorData);
+        throw new Error(`Search failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+      
+      if (content) {
+        try {
+          // Extract JSON array from the response
+          const jsonMatch = content.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const results = JSON.parse(jsonMatch[0]);
+            const imageResults = results.map((item: any) => ({
+              url: item.url,
+              thumbnail: item.thumbnail || item.url,
+              alt: item.alt || item.description || options.query,
+              source: 'web' as const,
+              width: 800,
+              height: 600
+            }));
+            
+            console.log('%c✅ Found images:', 'color: #17BF63', imageResults.length);
+            return imageResults;
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse search results:', parseError);
+        }
+      }
+    } catch (error) {
+      console.error('Perplexity search error:', error);
+    }
+    
+    // Fallback to free search
+    return this.searchFreeImages(options);
   }
 
   /**
@@ -343,6 +468,15 @@ export class ImageService {
   }
 
   /**
+   * Fallback to mock images when API fails
+   */
+  private async searchFreeImages(options: ImageSearchOptions): Promise<ImageResult[]> {
+    // Always use mock images as fallback - no external APIs except OpenRouter
+    console.log('%c📸 Using placeholder images as fallback', 'color: #657786');
+    return this.getMockImages(options.query);
+  }
+
+  /**
    * Suggest images based on tweet context
    */
   async suggestImages(tweetText: string, replyText: string): Promise<ImageResult[]> {
@@ -390,6 +524,150 @@ export class ImageService {
       limit: 3,
       safeSearch: true
     });
+  }
+
+  /**
+   * Extract smart contextual search terms using AI
+   */
+  private async extractSmartContext(text: string): Promise<string | null> {
+    try {
+      const apiKey = await this.getOpenRouterApiKey();
+      if (!apiKey) {
+        return null;
+      }
+      
+      const prompt = `Analyze this text and extract the most relevant image search terms. Focus on the underlying meaning, emotions, and implications rather than just literal keywords.
+
+Text: "${text}"
+
+Provide 3-5 highly relevant search terms that would find appropriate images for this context. Consider:
+- The actual topic being discussed
+- Emotional undertones and implications
+- Visual metaphors that match the sentiment
+- Related concepts that aren't explicitly mentioned
+
+For example:
+- "Trump is old and sick" → "elderly politician, hospital bed, medical care, frail leader"
+- "Biden cognitive decline" → "confused elderly, dementia symptoms, nursing home, memory loss"
+- "Economic collapse coming" → "stock market crash, recession graph, empty shelves, unemployment line"
+
+Return ONLY the search terms, separated by commas. No explanation.`;
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'chrome-extension://tweetcraft',
+          'X-Title': 'TweetCraft Context Analysis'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-exp:free',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 100
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Context extraction failed:', response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      const searchTerms = data.choices[0]?.message?.content?.trim();
+      
+      if (searchTerms) {
+        // Clean up and return the first few terms
+        const terms = searchTerms
+          .split(',')
+          .map((term: string) => term.trim())
+          .filter((term: string) => term.length > 0)
+          .slice(0, 4)
+          .join(' ');
+        return terms;
+      }
+    } catch (error) {
+      console.error('Smart context extraction error:', error);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Generate smart image prompt from context
+   */
+  async generateSmartPrompt(tweetText: string, replyText: string): Promise<string> {
+    console.log('%c🎨 Generating smart image prompt', 'color: #1DA1F2');
+    
+    try {
+      const apiKey = await this.getOpenRouterApiKey();
+      if (!apiKey) {
+        return 'A relevant image';
+      }
+      
+      const combinedText = `${tweetText} ${replyText}`.trim() || 'general topic';
+      
+      const prompt = `Based on this Twitter conversation, generate a creative and relevant image generation prompt that captures the essence of what's being discussed.
+
+Context: "${combinedText}"
+
+Create a detailed, visual prompt for image generation that:
+- Captures the main theme or sentiment
+- Includes relevant visual elements
+- Specifies style, mood, and composition
+- Is appropriate for social media
+
+Example outputs:
+- "Professional photo of elderly politician in hospital bed, concerned doctors nearby, dramatic lighting"
+- "Digital art of stock market crash chart, red arrows pointing down, panicked traders in background"
+- "Realistic photo of empty store shelves, dystopian atmosphere, worried shoppers"
+
+Return ONLY the image generation prompt, no explanation.`;
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'chrome-extension://tweetcraft',
+          'X-Title': 'TweetCraft Prompt Generation'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-exp:free',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.8,
+          max_tokens: 150
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Prompt generation failed:', response.status);
+        return 'A relevant image for this discussion';
+      }
+      
+      const data = await response.json();
+      const generatedPrompt = data.choices[0]?.message?.content?.trim();
+      
+      if (generatedPrompt) {
+        console.log('%c✅ Generated prompt:', 'color: #17BF63', generatedPrompt);
+        return generatedPrompt;
+      }
+    } catch (error) {
+      console.error('Smart prompt generation error:', error);
+    }
+    
+    return 'A relevant image for this discussion';
   }
 
   /**

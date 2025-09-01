@@ -18,6 +18,7 @@ export class KeyboardShortcutManager {
   private static shortcuts = new Map<string, ShortcutConfig>();
   private static isInitialized = false;
   private static callbacks = new Map<string, () => void>();
+  private static boundHandleKeydown: ((event: KeyboardEvent) => void) | null = null;
   
   /**
    * Default keyboard shortcuts
@@ -69,8 +70,9 @@ export class KeyboardShortcutManager {
       this.shortcuts.set(key, shortcut);
     });
     
-    // Add global keyboard listener
-    document.addEventListener('keydown', this.handleKeydown.bind(this), true);
+    // Add global keyboard listener (store bound reference for cleanup)
+    this.boundHandleKeydown = this.handleKeydown.bind(this);
+    document.addEventListener('keydown', this.boundHandleKeydown, true);
     
     this.isInitialized = true;
     console.log(`%c  Registered ${this.shortcuts.size} shortcuts`, 'color: #657786');
@@ -371,7 +373,10 @@ export class KeyboardShortcutManager {
    * Cleanup
    */
   static destroy(): void {
-    document.removeEventListener('keydown', this.handleKeydown, true);
+    if (this.boundHandleKeydown) {
+      document.removeEventListener('keydown', this.boundHandleKeydown, true);
+      this.boundHandleKeydown = null;
+    }
     this.shortcuts.clear();
     this.callbacks.clear();
     this.isInitialized = false;

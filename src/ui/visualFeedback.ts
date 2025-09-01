@@ -135,44 +135,19 @@ export class VisualFeedback {
   }
 
   /**
-   * Show loading overlay
+   * Show loading overlay (deprecated - now just logs)
    */
   showLoading(message: string = 'Loading...'): void {
-    if (!this.loadingOverlay) {
-      this.loadingOverlay = document.createElement('div');
-      this.loadingOverlay.className = 'tweetcraft-loading-overlay';
-    }
-    
-    this.loadingOverlay.innerHTML = `
-      <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <div class="loading-message">${message}</div>
-      </div>
-    `;
-    
-    document.body.appendChild(this.loadingOverlay);
-    
-    requestAnimationFrame(() => {
-      this.loadingOverlay?.classList.add('show');
-    });
-    
-    console.log('%c✨ Loading shown', 'color: #FFA500');
+    // No longer show full-screen overlay, just log for debugging
+    console.log('%c⏳ Loading:', 'color: #FFA500', message);
   }
 
   /**
-   * Hide loading overlay
+   * Hide loading overlay (deprecated - now just logs)
    */
   hideLoading(): void {
-    if (this.loadingOverlay) {
-      this.loadingOverlay.classList.remove('show');
-      
-      setTimeout(() => {
-        this.loadingOverlay?.remove();
-        this.loadingOverlay = null;
-      }, 300);
-    }
-    
-    console.log('%c✨ Loading hidden', 'color: #17BF63');
+    // No longer needed since we don't show overlay
+    console.log('%c✅ Loading complete', 'color: #17BF63');
   }
 
   /**
@@ -432,47 +407,7 @@ export class VisualFeedback {
           color: #e7e9ea;
         }
         
-        .tweetcraft-loading-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10001;
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-        
-        .tweetcraft-loading-overlay.show {
-          opacity: 1;
-        }
-        
-        .loading-content {
-          text-align: center;
-        }
-        
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid rgba(29, 155, 240, 0.3);
-          border-top-color: #1d9bf0;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 16px;
-        }
-        
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        
-        .loading-message {
-          color: #e7e9ea;
-          font-size: 14px;
-        }
+        /* Loading overlay removed - now using button-only loading animation */
         
         .tweetcraft-pulse {
           animation: pulse 0.6s ease;
