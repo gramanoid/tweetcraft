@@ -10,7 +10,7 @@
 
 ## 🆕 NEW FEATURES TO IMPLEMENT
 
-After thorough codebase analysis, only these 5 features don't exist yet:
+After thorough codebase analysis (January 2025), actual implementation status:
 
 ### 1. **AI Tweet Creation** 🤖
 **Status**: Planning  
@@ -27,8 +27,8 @@ After thorough codebase analysis, only these 5 features don't exist yet:
 ---
 
 ### 2. **Image Understanding for Context** 👁️
-**Status**: Planning  
-**Effort**: 3-5 hours  
+**Status**: 90% Complete ✅  
+**Effort**: 0.5 hours remaining  
 **Description**: Analyze images in tweets to provide richer context for AI replies
 
 **Implementation**:
@@ -67,8 +67,8 @@ After thorough codebase analysis, only these 5 features don't exist yet:
 ---
 
 ### 3. **Tones & Styles Split** 🎨
-**Status**: Planning  
-**Effort**: 2-3 hours  
+**Status**: 70% Complete (Backend exists, needs UI) ⚠️  
+**Effort**: 1-2 hours  
 **Description**: Refactor Templates into intuitive Tones (voice) + Styles (approach) system
 
 **Current Problem**:
@@ -171,20 +171,19 @@ After thorough codebase analysis, only these 5 features don't exist yet:
 ---
 
 ### 5. **Arsenal Mode UI Integration** ⚡
-**Status**: Backend complete, needs UI  
-**Effort**: 2-3 hours  
+**Status**: COMPLETE ✅  
+**Effort**: 0 hours  
 **Description**: Complete the Arsenal Mode feature with UI integration
 
 **What's Already Built**:
 - ArsenalService backend (474 lines) - fully functional
-- Pre-generation logic and caching
-- Configuration integration
-- Error handling and fallbacks
+- ArsenalModeUI component (428 lines) - full UI implementation
+- Pre-generated replies in arsenalReplies.json
+- Button injection into Twitter UI
+- Alt+A keyboard shortcut working
+- Complete popup with categories, favorites, usage tracking
 
-**What's Missing**:
-- UI button injection into Twitter (the service exists, needs UI)
-- Actual pre-generated replies in JSON (currently uses mocks)
-- Alt+A keyboard shortcut integration
+**DONE**: This feature is fully implemented and functional
 
 **Implementation**:
 - Add Arsenal Mode button to Twitter UI near existing reply buttons
@@ -255,12 +254,12 @@ These existing implementations work well despite their complexity:
 - ✅ All planned features completed
 
 ### v0.0.13 (Next Week - Core Features & UX)
-**Focus**: Essential features + image understanding + UX refinements
-- AI Tweet Creation from topics
-- Image Understanding for Context (automatic visual analysis)
-- Tones & Styles Split (UX improvement - separate voice from approach)
-- Research Assistant (fact-checking and credible source integration)
-- Arsenal Mode UI Integration (complete the backend with frontend)
+**Focus**: Essential features + UX refinements
+- AI Tweet Creation from topics (NEW)
+- Image Understanding for Context (COMPLETE - just needs activation)
+- Tones & Styles Split (UI improvement only - backend exists)
+- Research Assistant (NEW - fact-checking and credible source integration)
+- ~~Arsenal Mode UI Integration~~ (ALREADY COMPLETE)
 
 ### v0.1.0 (1 Month - Intelligence & Optimization)
 **Focus**: Smart features and performance
