@@ -216,12 +216,12 @@ export class ConfigurationManager {
       
       if (sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
         if (targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue)) {
-          result[key] = this.deepMerge(targetValue, sourceValue);
+          (result as any)[key] = this.deepMerge(targetValue as any, sourceValue as any);
         } else {
-          result[key] = sourceValue;
+          (result as any)[key] = sourceValue;
         }
       } else {
-        result[key] = sourceValue;
+        (result as any)[key] = sourceValue;
       }
     }
     

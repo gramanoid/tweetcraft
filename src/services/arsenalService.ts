@@ -75,19 +75,23 @@ export class ArsenalService {
           resolve();
         };
 
-      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        
-        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-          const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
-          store.createIndex('category', 'category', { unique: false });
-          store.createIndex('templateId', 'templateId', { unique: false });
-          store.createIndex('toneId', 'toneId', { unique: false });
-          store.createIndex('usageCount', 'usageCount', { unique: false });
-          store.createIndex('lastUsed', 'lastUsed', { unique: false });
-          console.log('%c⚔️ Arsenal database created', 'color: #17BF63');
-        }
-      };
+        request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          
+          if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+            const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+            store.createIndex('category', 'category', { unique: false });
+            store.createIndex('templateId', 'templateId', { unique: false });
+            store.createIndex('toneId', 'toneId', { unique: false });
+            store.createIndex('usageCount', 'usageCount', { unique: false });
+            store.createIndex('lastUsed', 'lastUsed', { unique: false });
+            console.log('%c⚔️ Arsenal database created', 'color: #17BF63');
+          }
+        };
+      } catch (error) {
+        console.error('Failed to initialize IndexedDB:', error);
+        resolve(); // Still resolve to allow the service to work without DB
+      }
     });
   }
 

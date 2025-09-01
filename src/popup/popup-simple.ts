@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
   
-  chrome.storage.sync.get<{ smartReply_config?: StorageConfig; features?: Features }>(['smartReply_config', 'features'], (result) => {
+  chrome.storage.sync.get(['smartReply_config', 'features'], (result: { smartReply_config?: StorageConfig; features?: Features }) => {
     if (result.smartReply_config) {
       const config = result.smartReply_config;
       if (config.systemPrompt && systemPromptInput) {
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
           contextMode: contextMode,
           temperature,
           replyLengthDefault: replyLengthDefault || undefined,
-          customTones: existingConfig.config.customTones || []
+          customTones: (existingConfig.config as StorageConfig).customTones || []
         };
         
         // Save features settings
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           
           // Restore previously selected model if it exists
-          chrome.storage.sync.get<{ smartReply_config?: StorageConfig }>(['smartReply_config'], (result) => {
+          chrome.storage.sync.get(['smartReply_config'], (result: { smartReply_config?: StorageConfig }) => {
             if (result.smartReply_config?.model) {
               modelSelect.value = result.smartReply_config.model;
             }
