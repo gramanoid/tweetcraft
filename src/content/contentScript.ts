@@ -592,7 +592,7 @@ class SmartReplyContentScript {
     
     const button = document.createElement('button');
     button.className = 'smart-reply-button';
-    button.innerHTML = '✨ AI Reply';
+    button.innerHTML = '<span>✨ AI Reply</span>';
     button.title = 'Generate AI-powered reply';
     
     button.addEventListener('click', async (e) => {

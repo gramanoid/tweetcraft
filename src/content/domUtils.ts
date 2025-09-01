@@ -713,10 +713,28 @@ export class DOMUtils {
    */
   static showLoadingState(button: HTMLElement, stage: string = 'Generating'): void {
     button.classList.add('loading');
-    const span = button.querySelector('span');
+    
+    // Try to find span element first
+    let span = button.querySelector('span');
     if (span) {
       span.textContent = `${stage}...`;
+    } else {
+      // If no span exists, update the button's text content directly
+      // but preserve any icons/svgs
+      const svg = button.querySelector('svg');
+      if (svg) {
+        // If there's an SVG, create a span for the text
+        button.innerHTML = '';
+        button.appendChild(svg.cloneNode(true));
+        const newSpan = document.createElement('span');
+        newSpan.textContent = ` ${stage}...`;
+        button.appendChild(newSpan);
+      } else {
+        // No SVG, just update text
+        button.textContent = `${stage}...`;
+      }
     }
+    
     (button as HTMLButtonElement).disabled = true;
     
     // Add or update progress indicator
@@ -747,10 +765,29 @@ export class DOMUtils {
 
   static hideLoadingState(button: HTMLElement): void {
     button.classList.remove('loading');
+    
+    // Restore button text based on mode and platform
+    const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
+    const isHypeFury = button.classList.contains('smart-reply-button');
+    
     const span = button.querySelector('span');
     if (span) {
-      span.textContent = 'AI Reply';
+      if (isRewriteMode) {
+        span.textContent = 'AI Rewrite ✨';
+      } else if (isHypeFury) {
+        span.textContent = '✨ AI Reply';
+      } else {
+        span.textContent = 'AI Reply';
+      }
+    } else {
+      // Fallback if no span
+      if (isHypeFury) {
+        button.textContent = '✨ AI Reply';
+      } else {
+        button.textContent = 'AI Reply';
+      }
     }
+    
     (button as HTMLButtonElement).disabled = false;
     
     // Remove progress indicator after a brief success animation
