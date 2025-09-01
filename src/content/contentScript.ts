@@ -108,8 +108,10 @@ class SmartReplyContentScript {
         return;
       }
       
-      // Find the AI Reply button
-      const button = document.querySelector('.smart-reply-btn') as HTMLElement;
+      // Find the AI Reply button (check both class names for platform compatibility)
+      const isHypeFury = window.location.hostname === 'app.hypefury.com';
+      const buttonSelector = isHypeFury ? '.smart-reply-button' : '.smart-reply-btn';
+      const button = document.querySelector(buttonSelector) as HTMLElement;
       if (!button) {
         console.warn('Smart Reply: AI Reply button not found for keyboard shortcut');
         return;
@@ -1312,18 +1314,22 @@ class SmartReplyContentScript {
     isRewriteMode: boolean = false
   ): Promise<void> {
     // Find the button to show loading state
+    // Check if we're on HypeFury to use the correct class name
+    const isHypeFury = window.location.hostname === 'app.hypefury.com';
+    const buttonSelector = isHypeFury ? '.smart-reply-button' : '.smart-reply-btn';
+    
     // Strategy 1: Find button near the textarea (for replies)
     let button: HTMLElement | null = null;
     const replyContainer = textarea.closest('[data-testid="tweetTextarea_0_label"]')?.parentElement?.parentElement;
     if (replyContainer) {
-      button = replyContainer.querySelector('.smart-reply-btn') as HTMLElement;
+      button = replyContainer.querySelector(buttonSelector) as HTMLElement;
     }
     
     // Strategy 2: Find button in the tweet being replied to
     if (!button) {
       const tweetArticle = textarea.closest('article[data-testid="tweet"]');
       if (tweetArticle) {
-        button = tweetArticle.querySelector('.smart-reply-btn') as HTMLElement;
+        button = tweetArticle.querySelector(buttonSelector) as HTMLElement;
       }
     }
     
@@ -1331,13 +1337,21 @@ class SmartReplyContentScript {
     if (!button) {
       const dialog = textarea.closest('[role="dialog"]');
       if (dialog) {
-        button = dialog.querySelector('.smart-reply-btn') as HTMLElement;
+        button = dialog.querySelector(buttonSelector) as HTMLElement;
       }
     }
     
-    // Strategy 4: Find any visible smart-reply button on the page
+    // Strategy 4: For HypeFury, look in parent containers
+    if (!button && isHypeFury) {
+      const parent = textarea.closest('.mention-item, .feed-item, article');
+      if (parent) {
+        button = parent.querySelector(buttonSelector) as HTMLElement;
+      }
+    }
+    
+    // Strategy 5: Find any visible smart-reply button on the page
     if (!button) {
-      const allButtons = Array.from(document.querySelectorAll('.smart-reply-btn'));
+      const allButtons = Array.from(document.querySelectorAll(buttonSelector));
       for (const btn of allButtons) {
         const htmlBtn = btn as HTMLElement;
         if (htmlBtn.offsetParent !== null) { // Check if visible
@@ -1350,7 +1364,7 @@ class SmartReplyContentScript {
     if (!button) {
       console.warn('%c⚠️ Smart Reply: Button not found for loading state', 'color: #FFA500');
       console.log('Textarea location:', textarea);
-      console.log('All smart-reply-btn elements:', document.querySelectorAll('.smart-reply-btn').length);
+      console.log(`All ${buttonSelector} elements:`, document.querySelectorAll(buttonSelector).length);
       // Continue without button - generation will still work
     } else {
       console.log('%c✅ Found button for loading state', 'color: #17BF63', button);
