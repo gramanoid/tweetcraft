@@ -282,19 +282,27 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
       throw new Error('OpenRouter API key not configured');
     }
     
-    const prompt = `Search for high-quality, relevant images for: "${options.query}"
-    
-Return a JSON array of 6-8 image results with this exact format:
+    const prompt = `Find and return real image URLs for: "${options.query}"
+
+Search the web for actual images related to this query. Look for:
+- News images from Reuters, AP, Getty Images
+- Stock photos from Unsplash, Pexels, Shutterstock  
+- Relevant memes or reaction images
+- Political cartoons if applicable
+- Real photographs that match the search terms
+
+Return a JSON array with 4-6 REAL image URLs that actually exist:
 [
   {
-    "url": "direct image URL",
+    "url": "https://actual-image-url.jpg",
     "thumbnail": "thumbnail URL or same as url",
-    "alt": "brief description",
+    "alt": "what the image shows",
     "source": "website name"
   }
 ]
 
-Focus on finding actual direct image URLs from reputable sources. Return ONLY the JSON array, no other text.`;
+IMPORTANT: Return only REAL, working image URLs that you find on the web. No placeholders.
+Return ONLY the JSON array, no explanations.`;
 
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -562,15 +570,15 @@ Return ONLY the search terms, separated by commas. No explanation.`;
           'X-Title': 'TweetCraft Context Analysis'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp:free',
+          model: 'anthropic/claude-3-haiku',
           messages: [
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.7,
-          max_tokens: 100
+          temperature: 0.8,
+          max_tokens: 150
         })
       });
       
@@ -639,15 +647,15 @@ Return ONLY the image generation prompt, no explanation.`;
           'X-Title': 'TweetCraft Prompt Generation'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp:free',
+          model: 'anthropic/claude-3-haiku',
           messages: [
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.8,
-          max_tokens: 150
+          temperature: 0.9,
+          max_tokens: 200
         })
       });
       
