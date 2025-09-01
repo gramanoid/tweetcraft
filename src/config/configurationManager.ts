@@ -5,6 +5,22 @@
 
 import { TEMPLATES, TONES, REPLY_CONFIG, Template, Tone } from './templatesAndTones';
 
+export interface FeatureSettings {
+  imageUnderstanding?: {
+    enabled: boolean;
+    model?: string;
+    maxImagesPerRequest?: number;
+  };
+  smartSuggestions?: {
+    enabled: boolean;
+    maxSuggestions?: number;
+  };
+  arsenalMode?: {
+    enabled: boolean;
+    maxReplies?: number;
+  };
+}
+
 export interface UserPreferences {
   favoriteTemplates: string[];
   favoriteTones: string[];
@@ -13,6 +29,15 @@ export interface UserPreferences {
   autoSuggestEnabled: boolean;
   customTemplates: Template[];
   customTones: Tone[];
+}
+
+export interface AppConfig {
+  features?: FeatureSettings;
+  userPreferences?: UserPreferences;
+  apiKey?: string;
+  model?: string;
+  systemPrompt?: string;
+  temperature?: number;
 }
 
 export class ConfigurationManager {
@@ -176,12 +201,40 @@ export class ConfigurationManager {
   }
 
   /**
+   * Deep merge utility for nested objects
+   */
+  private deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    const result = { ...target };
+    
+    for (const key in source) {
+      const sourceValue = source[key];
+      const targetValue = result[key];
+      
+      if (sourceValue === undefined) {
+        continue;
+      }
+      
+      if (sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
+        if (targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue)) {
+          result[key] = this.deepMerge(targetValue, sourceValue);
+        } else {
+          result[key] = sourceValue;
+        }
+      } else {
+        result[key] = sourceValue;
+      }
+    }
+    
+    return result;
+  }
+
+  /**
    * Save user preferences
    */
   async saveUserPreferences(preferences: Partial<UserPreferences>): Promise<void> {
     try {
       const current = await this.getUserPreferences();
-      this.userPreferences = { ...current, ...preferences };
+      this.userPreferences = this.deepMerge(current, preferences);
       
       await chrome.storage.local.set({ userPreferences: this.userPreferences });
       
@@ -343,6 +396,78 @@ export class ConfigurationManager {
       customTones: this.userPreferences?.customTones?.length || 0,
       cacheSize: this.combinedPromptCache.size
     };
+  }
+
+  /**
+   * Get full application configuration including features
+   */
+  async getConfig(): Promise<AppConfig> {
+    // Load from storage - API key from local storage, rest from sync
+    const [syncData, localData] = await Promise.all([
+      chrome.storage.sync.get(['features', 'smartReply_config']),
+      chrome.storage.local.get(['smartReply_apiKey'])
+    ]);
+    
+    const storedConfig = {
+      ...syncData,
+      ...syncData.smartReply_config,
+      smartReply_apiKey: localData.smartReply_apiKey
+    };
+    
+    const config: AppConfig = {
+      features: storedConfig.features || {
+        imageUnderstanding: {
+          enabled: false, // Default off for cost control
+          model: 'gemini-pro-vision',
+          maxImagesPerRequest: 2
+        },
+        smartSuggestions: {
+          enabled: true,
+          maxSuggestions: 6
+        },
+        arsenalMode: {
+          enabled: true,
+          maxReplies: 50
+        }
+      },
+      userPreferences: await this.getUserPreferences(),
+      apiKey: storedConfig.smartReply_apiKey,
+      model: storedConfig.model || 'gpt-4o-mini',
+      systemPrompt: storedConfig.systemPrompt || REPLY_CONFIG.globalInstructions,
+      temperature: storedConfig.temperature || 0.7
+    };
+
+    return config;
+  }
+
+  /**
+   * Update feature settings with deep merge
+   */
+  async updateFeatureSettings(features: Partial<FeatureSettings>): Promise<void> {
+    const config = await this.getConfig();
+    const currentFeatures = config.features || {};
+    const updatedFeatures = this.deepMerge(currentFeatures, features);
+
+    await chrome.storage.sync.set({ features: updatedFeatures });
+    console.log('%c⚙️ Feature settings updated', 'color: #1DA1F2', features);
+  }
+
+  /**
+   * Toggle image understanding feature
+   */
+  async toggleImageUnderstanding(enabled: boolean): Promise<void> {
+    const config = await this.getConfig();
+    const currentSettings = config.features?.imageUnderstanding || {
+      model: 'gemini-pro-vision',
+      maxImagesPerRequest: 2
+    };
+    
+    await this.updateFeatureSettings({
+      imageUnderstanding: {
+        ...currentSettings,
+        enabled
+      }
+    });
   }
 }
 

@@ -1,0 +1,171 @@
+{
+  "categories": [
+    {
+      "id": "quick",
+      "name": "Quick Responses",
+      "emoji": "⚡",
+      "replies": [
+        {
+          "id": "quick_001",
+          "text": "You raise an excellent point here. The data clearly supports this perspective, and I appreciate how you've articulated it.",
+          "tags": ["agreement", "professional", "supportive"]
+        },
+        {
+          "id": "quick_002",
+          "text": "Totally agree with this! You've nailed it perfectly. 💯",
+          "tags": ["agreement", "casual", "enthusiastic"]
+        },
+        {
+          "id": "quick_003",
+          "text": "This is fascinating! But now I'm curious - what happens when we flip the script entirely? 🤔",
+          "tags": ["question", "witty", "engaging"]
+        },
+        {
+          "id": "quick_004",
+          "text": "Thanks for sharing this insight! Really made me think differently about the topic.",
+          "tags": ["gratitude", "thoughtful"]
+        }
+      ]
+    },
+    {
+      "id": "debate",
+      "name": "Debate Arsenal",
+      "emoji": "⚔️",
+      "replies": [
+        {
+          "id": "debate_001",
+          "text": "I see your point, but have you considered the counterargument? The evidence suggests a more nuanced picture.",
+          "tags": ["counterargument", "respectful", "analytical"]
+        },
+        {
+          "id": "debate_002",
+          "text": "This overlooks a crucial factor though. What about the long-term implications we're not discussing?",
+          "tags": ["challenge", "thoughtful", "strategic"]
+        },
+        {
+          "id": "debate_003",
+          "text": "Interesting take! However, the latest research from [source] actually contradicts this assumption.",
+          "tags": ["fact-check", "evidence-based", "educational"]
+        },
+        {
+          "id": "debate_004",
+          "text": "While I understand where you're coming from, I think we need to zoom out and see the bigger picture here.",
+          "tags": ["perspective", "diplomatic", "strategic"]
+        }
+      ]
+    },
+    {
+      "id": "humor",
+      "name": "Humor Bank",
+      "emoji": "😂",
+      "replies": [
+        {
+          "id": "humor_001",
+          "text": "Plot twist: what if we're all just NPCs in someone else's simulation arguing about this? 😅",
+          "tags": ["funny", "philosophical", "meta"]
+        },
+        {
+          "id": "humor_002",
+          "text": "Sir, this is a Wendy's... but actually, you make a solid point! 😂",
+          "tags": ["meme", "funny", "agreement"]
+        },
+        {
+          "id": "humor_003",
+          "text": "I came here for the hot takes and was not disappointed. This thread is chef's kiss! 👨‍🍳",
+          "tags": ["compliment", "funny", "engaging"]
+        },
+        {
+          "id": "humor_004",
+          "text": "Tell me you're right without telling me you're right... I'll wait 😏",
+          "tags": ["sarcastic", "playful", "challenge"]
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "name": "Support Replies",
+      "emoji": "💪",
+      "replies": [
+        {
+          "id": "support_001",
+          "text": "This is incredibly brave of you to share. Your vulnerability here will help more people than you know. 💙",
+          "tags": ["supportive", "empathetic", "encouraging"]
+        },
+        {
+          "id": "support_002",
+          "text": "You're absolutely not alone in this. Thank you for putting words to what many of us feel.",
+          "tags": ["solidarity", "comforting", "validating"]
+        },
+        {
+          "id": "support_003",
+          "text": "This resonates deeply. Keep speaking your truth - the world needs more voices like yours.",
+          "tags": ["encouraging", "inspirational", "authentic"]
+        },
+        {
+          "id": "support_004",
+          "text": "Sending you strength and positive energy. Remember: progress over perfection, always. 🌟",
+          "tags": ["motivational", "caring", "uplifting"]
+        }
+      ]
+    },
+    {
+      "id": "professional",
+      "name": "Professional",
+      "emoji": "💼",
+      "replies": [
+        {
+          "id": "prof_001",
+          "text": "Thank you for this comprehensive analysis. The methodology you've employed here is particularly noteworthy.",
+          "tags": ["formal", "appreciative", "analytical"]
+        },
+        {
+          "id": "prof_002",
+          "text": "I'd be interested in exploring this further. Could you elaborate on the implementation details?",
+          "tags": ["curious", "professional", "engaging"]
+        },
+        {
+          "id": "prof_003",
+          "text": "This aligns well with industry best practices. Have you considered publishing this as a case study?",
+          "tags": ["complimentary", "strategic", "networking"]
+        },
+        {
+          "id": "prof_004",
+          "text": "Excellent observation. This could be a game-changer for how we approach the problem space.",
+          "tags": ["praising", "forward-thinking", "impactful"]
+        }
+      ]
+    },
+    {
+      "id": "viral",
+      "name": "Viral Potential",
+      "emoji": "🔥",
+      "replies": [
+        {
+          "id": "viral_001",
+          "text": "This is the content I signed up for. Bookmark-worthy thread right here! 🔖",
+          "tags": ["engaging", "shareable", "complimentary"]
+        },
+        {
+          "id": "viral_002",
+          "text": "THREAD: Why this take is actually revolutionary and you're not ready for this conversation... 🧵",
+          "tags": ["thread-starter", "bold", "attention-grabbing"]
+        },
+        {
+          "id": "viral_003",
+          "text": "Normalize having these conversations! RT if you agree that we need more of this energy.",
+          "tags": ["call-to-action", "movement", "engaging"]
+        },
+        {
+          "id": "viral_004",
+          "text": "This aged like fine wine. Screenshotting for when everyone realizes you called it first! 📸",
+          "tags": ["predictive", "supportive", "memorable"]
+        },
+        {
+          "id": "viral_005",
+          "text": "The way you just solved a problem we didn't know we had... Mind = blown 🤯",
+          "tags": ["impressive", "viral", "mind-blowing"]
+        }
+      ]
+    }
+  ]
+}

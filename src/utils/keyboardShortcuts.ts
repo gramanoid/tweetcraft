@@ -36,6 +36,7 @@ export class KeyboardShortcutManager {
     { key: '9', alt: true, action: 'tone_sarcastic', description: 'Sarcastic tone' },
     
     // Quick actions
+    { key: 'a', alt: true, action: 'open_arsenal', description: 'Open Arsenal Mode - pre-generated replies' },
     { key: 'q', alt: true, action: 'quick_generate', description: 'Generate with default tone' },
     { key: 'r', alt: true, action: 'regenerate', description: 'Regenerate with same tone' },
     { key: 't', alt: true, action: 'open_templates', description: 'Open template selector' },
@@ -143,6 +144,10 @@ export class KeyboardShortcutManager {
         
       case 'edit_mode':
         this.enableEditMode();
+        break;
+        
+      case 'open_arsenal':
+        this.openArsenalMode();
         break;
         
       case 'switch_suggestion':
@@ -367,6 +372,23 @@ export class KeyboardShortcutManager {
    */
   static getShortcuts(): ShortcutConfig[] {
     return Array.from(this.shortcuts.values());
+  }
+  
+  /**
+   * Open Arsenal Mode
+   */
+  private static openArsenalMode(): void {
+    console.log('%c⚔️ Opening Arsenal Mode', 'color: #1DA1F2; font-weight: bold');
+    
+    // Dispatch custom event that the content script will listen for
+    const event = new CustomEvent('tweetcraft:open-arsenal');
+    document.dispatchEvent(event);
+    
+    // Alternative: Click the Arsenal button if it exists
+    const arsenalButton = document.querySelector('.arsenal-mode-btn') as HTMLElement;
+    if (arsenalButton) {
+      arsenalButton.click();
+    }
   }
   
   /**

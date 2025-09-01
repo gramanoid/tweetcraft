@@ -7,6 +7,7 @@ import { TEMPLATES } from '@/content/presetTemplates';
 import { TONES } from '@/content/toneSelector';
 import type { PresetTemplate } from '@/content/presetTemplates';
 import type { ToneOption } from '@/content/toneSelector';
+import arsenalRepliesData from '@/data/arsenalReplies.json';
 
 interface ArsenalReply {
   id: string;
@@ -22,10 +23,11 @@ interface ArsenalReply {
   isFavorite: boolean;
 }
 
-interface ArsenalCategory {
+export interface ArsenalCategory {
   id: string;
   name: string;
   emoji: string;
+  icon?: string;
   replies: ArsenalReply[];
 }
 
@@ -55,19 +57,23 @@ export class ArsenalService {
    */
   private async initializeDB(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      try {
+        const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
 
-      request.onerror = () => {
-        console.error('Failed to open IndexedDB:', request.error);
-        reject(request.error);
-      };
+        request.onerror = () => {
+          console.error('Failed to open IndexedDB:', request.error);
+          // Resolve instead of reject to allow service to work without DB
+          resolve();
+        };
 
-      request.onsuccess = () => {
-        this.db = request.result;
-        console.log('%c⚔️ Arsenal database opened', 'color: #17BF63');
-        this.loadFromDB();
-        resolve();
-      };
+        request.onsuccess = () => {
+          this.db = request.result;
+          console.log('%c⚔️ Arsenal database opened', 'color: #17BF63');
+          this.loadFromDB().catch(error => {
+            console.error('Failed to load from DB:', error);
+          });
+          resolve();
+        };
 
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -90,17 +96,59 @@ export class ArsenalService {
    */
   private initializeCategories(): void {
     const defaultCategories = [
-      { id: 'quick', name: 'Quick Responses', emoji: '⚡' },
-      { id: 'debate', name: 'Debate Arsenal', emoji: '⚔️' },
-      { id: 'humor', name: 'Humor Bank', emoji: '😂' },
-      { id: 'support', name: 'Support Replies', emoji: '💪' },
-      { id: 'professional', name: 'Professional', emoji: '💼' },
-      { id: 'viral', name: 'Viral Potential', emoji: '🔥' }
+      { id: 'quick', name: 'Quick Responses', emoji: '⚡', icon: '⚡' },
+      { id: 'debate', name: 'Debate Arsenal', emoji: '⚔️', icon: '⚔️' },
+      { id: 'humor', name: 'Humor Bank', emoji: '😂', icon: '😂' },
+      { id: 'support', name: 'Support Replies', emoji: '💪', icon: '💪' },
+      { id: 'professional', name: 'Professional', emoji: '💼', icon: '💼' },
+      { id: 'viral', name: 'Viral Potential', emoji: '🔥', icon: '🔥' }
     ];
 
     defaultCategories.forEach(cat => {
       this.categories.set(cat.id, { ...cat, replies: [] });
     });
+
+    // Load pre-generated replies from JSON
+    this.loadPreGeneratedReplies();
+  }
+
+  /**
+   * Load pre-generated replies from JSON
+   */
+  private loadPreGeneratedReplies(): void {
+    try {
+      if (arsenalRepliesData && arsenalRepliesData.categories) {
+        arsenalRepliesData.categories.forEach((category: any) => {
+          category.replies.forEach((reply: any) => {
+            const arsenalReply: ArsenalReply = {
+              id: reply.id || `${category.id}-${Date.now()}-${Math.random()}`,
+              templateId: reply.templateId || '',
+              toneId: reply.toneId || '',
+              text: reply.text,
+              category: category.id,
+              tags: reply.tags || [],
+              usageCount: 0,
+              createdAt: new Date(),
+              temperature: reply.temperature || 0.7,
+              isFavorite: false
+            };
+            
+            // Add to arsenal
+            this.arsenal.set(arsenalReply.id, arsenalReply);
+            
+            // Add to category
+            const cat = this.categories.get(category.id);
+            if (cat) {
+              cat.replies.push(arsenalReply);
+            }
+          });
+        });
+        
+        console.log(`%c⚔️ Loaded ${this.arsenal.size} pre-generated replies`, 'color: #17BF63');
+      }
+    } catch (error) {
+      console.error('Failed to load pre-generated replies:', error);
+    }
   }
 
   /**
@@ -181,23 +229,43 @@ export class ArsenalService {
   }
 
   /**
-   * Add reply to arsenal
+   * Add reply to arsenal with validation
    */
   async addReply(reply: ArsenalReply): Promise<void> {
+    // Validate reply
+    if (!reply.id || !reply.text || !reply.category) {
+      console.error('Invalid reply: missing required fields', reply);
+      return;
+    }
+    
     this.arsenal.set(reply.id, reply);
     
     // Add to category
     const category = this.categories.get(reply.category);
     if (category) {
-      category.replies.push(reply);
+      // Check for duplicates
+      if (!category.replies.find(r => r.id === reply.id)) {
+        category.replies.push(reply);
+      }
     }
 
     // Save to IndexedDB
     if (this.db) {
-      const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(this.STORE_NAME);
-      store.put(reply);
+      try {
+        const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(this.STORE_NAME);
+        store.put(reply);
+      } catch (error) {
+        console.error('Failed to save reply to DB:', error);
+      }
     }
+  }
+
+  /**
+   * Get all categories
+   */
+  getCategories(): ArsenalCategory[] {
+    return Array.from(this.categories.values());
   }
 
   /**
@@ -213,6 +281,13 @@ export class ArsenalService {
   getRepliesByCategory(categoryId: string): ArsenalReply[] {
     const category = this.categories.get(categoryId);
     return category ? category.replies : [];
+  }
+
+  /**
+   * Track usage of a reply (unified with useReply)
+   */
+  async trackUsage(replyId: string): Promise<void> {
+    await this.useReply(replyId);
   }
 
   /**
@@ -261,12 +336,20 @@ export class ArsenalService {
       
       // Update in database
       if (this.db) {
-        const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(this.STORE_NAME);
-        store.put(reply);
+        try {
+          const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.put(reply);
+          
+          request.onerror = () => {
+            console.error('Failed to update reply usage in DB:', request.error);
+          };
+        } catch (error) {
+          console.error('Database transaction failed:', error);
+        }
       }
       
-      console.log('%c⚔️ Reply used:', 'color: #657786', id);
+      console.log('%c⚔️ Reply used:', 'color: #657786', id, `(count: ${reply.usageCount})`);
     }
   }
 
@@ -280,9 +363,17 @@ export class ArsenalService {
       
       // Update in database
       if (this.db) {
-        const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(this.STORE_NAME);
-        store.put(reply);
+        try {
+          const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.put(reply);
+          
+          request.onerror = () => {
+            console.error('Failed to update favorite status in DB:', request.error);
+          };
+        } catch (error) {
+          console.error('Database transaction failed:', error);
+        }
       }
       
       console.log('%c⚔️ Favorite toggled:', 'color: #FFA500', id, reply.isFavorite);
@@ -310,9 +401,17 @@ export class ArsenalService {
       
       // Delete from database
       if (this.db) {
-        const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(this.STORE_NAME);
-        store.delete(id);
+        try {
+          const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.delete(id);
+          
+          request.onerror = () => {
+            console.error('Failed to delete reply from DB:', request.error);
+          };
+        } catch (error) {
+          console.error('Database transaction failed:', error);
+        }
       }
       
       console.log('%c⚔️ Reply deleted:', 'color: #DC3545', id);

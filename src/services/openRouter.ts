@@ -8,6 +8,7 @@ import {
 import { StorageService } from './storage';
 import { CacheService } from './cache';
 import { URLCleaner } from '@/utils/urlCleaner';
+import { requestOptimizer } from './requestOptimizer';
 
 export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';

@@ -1,28 +1,70 @@
 // Super simple popup to test if scripts work at all
 import './popup.scss';
+
+// TypeScript interfaces for storage
+interface StorageConfig {
+  model?: string;
+  systemPrompt?: string;
+  customStylePrompt?: string;
+  contextMode?: string;
+  temperature?: number;
+  replyLengthDefault?: string;
+  customTones?: any[];
+}
+
+interface Features {
+  imageUnderstanding?: {
+    enabled: boolean;
+    model?: string;
+    maxImagesPerRequest?: number;
+  };
+  smartSuggestions?: {
+    enabled: boolean;
+    maxSuggestions?: number;
+  };
+  arsenalMode?: {
+    enabled: boolean;
+    maxReplies?: number;
+  };
+}
+
+// Configuration constants
+const MAX_IMAGES_PER_REQUEST = 2;
+
 console.log('popup-simple.ts: Script loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('popup-simple.ts: DOM loaded');
   
   // Load saved settings
-  const systemPromptInput = document.getElementById('system-prompt') as HTMLTextAreaElement;
-  const customStylePromptInput = document.getElementById('custom-style-prompt') as HTMLTextAreaElement;
-  const contextModeSelect = document.getElementById('context-mode') as HTMLSelectElement;
-  const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-  const temperatureInput = document.getElementById('temperature') as HTMLInputElement;
+  const systemPromptInput = document.getElementById('system-prompt') as HTMLTextAreaElement | null;
+  const customStylePromptInput = document.getElementById('custom-style-prompt') as HTMLTextAreaElement | null;
+  const contextModeSelect = document.getElementById('context-mode') as HTMLSelectElement | null;
+  const modelSelect = document.getElementById('model-select') as HTMLSelectElement | null;
+  const temperatureInput = document.getElementById('temperature') as HTMLInputElement | null;
   const temperatureValue = document.getElementById('temperature-value');
-  const refreshModelsBtn = document.getElementById('refresh-models') as HTMLButtonElement;
-  const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement;
+  const refreshModelsBtn = document.getElementById('refresh-models') as HTMLButtonElement | null;
+  const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement | null;
   
   // Custom tone elements
-  const customToneNameInput = document.getElementById('custom-tone-name') as HTMLInputElement;
-  const customToneEmojiInput = document.getElementById('custom-tone-emoji') as HTMLInputElement;
-  const customTonePromptInput = document.getElementById('custom-tone-prompt') as HTMLTextAreaElement;
-  const addCustomToneBtn = document.getElementById('add-custom-tone') as HTMLButtonElement;
-  const customTonesList = document.getElementById('custom-tones-list') as HTMLDivElement;
+  const customToneNameInput = document.getElementById('custom-tone-name') as HTMLInputElement | null;
+  const customToneEmojiInput = document.getElementById('custom-tone-emoji') as HTMLInputElement | null;
+  const customTonePromptInput = document.getElementById('custom-tone-prompt') as HTMLTextAreaElement | null;
+  const addCustomToneBtn = document.getElementById('add-custom-tone') as HTMLButtonElement | null;
+  const customTonesList = document.getElementById('custom-tones-list') as HTMLDivElement | null;
   
-  chrome.storage.sync.get(['smartReply_config'], (result) => {
+  // Image understanding elements with null checks
+  const imageUnderstandingCheckbox = document.getElementById('image-understanding') as HTMLInputElement | null;
+  const visionSettingsDiv = document.getElementById('vision-settings') as HTMLDivElement | null;
+  const visionModelSelect = document.getElementById('vision-model') as HTMLSelectElement | null;
+  
+  // Early return if critical elements are missing
+  if (!modelSelect || !systemPromptInput) {
+    console.error('Critical form elements missing');
+    return;
+  }
+  
+  chrome.storage.sync.get<{ smartReply_config?: StorageConfig; features?: Features }>(['smartReply_config', 'features'], (result) => {
     if (result.smartReply_config) {
       const config = result.smartReply_config;
       if (config.systemPrompt && systemPromptInput) {
@@ -34,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.model && modelSelect) {
         modelSelect.value = config.model;
       }
-      if (config.temperature && temperatureInput) {
+      if (config.temperature !== undefined && temperatureInput) {
         temperatureInput.value = config.temperature.toString();
         if (temperatureValue) {
           temperatureValue.textContent = config.temperature.toString();
@@ -57,7 +99,34 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       console.log('Loaded config:', config);
     }
+    
+    // Load image understanding features
+    if (result.features) {
+      const features = result.features;
+      if (features.imageUnderstanding) {
+        if (imageUnderstandingCheckbox) {
+          imageUnderstandingCheckbox.checked = features.imageUnderstanding.enabled || false;
+          // Show/hide vision settings based on checkbox
+          if (visionSettingsDiv) {
+            visionSettingsDiv.style.display = imageUnderstandingCheckbox.checked ? 'block' : 'none';
+            imageUnderstandingCheckbox.setAttribute('aria-expanded', imageUnderstandingCheckbox.checked ? 'true' : 'false');
+          }
+        }
+        if (visionModelSelect && features.imageUnderstanding.model) {
+          visionModelSelect.value = features.imageUnderstanding.model;
+        }
+      }
+    }
   });
+  
+  // Handle image understanding checkbox toggle
+  if (imageUnderstandingCheckbox && visionSettingsDiv) {
+    imageUnderstandingCheckbox.addEventListener('change', () => {
+      const isChecked = imageUnderstandingCheckbox.checked;
+      visionSettingsDiv.style.display = isChecked ? 'block' : 'none';
+      imageUnderstandingCheckbox.setAttribute('aria-expanded', isChecked ? 'true' : 'false');
+    });
+  }
   
   // Handle temperature slider
   if (temperatureInput) {
@@ -74,32 +143,57 @@ document.addEventListener('DOMContentLoaded', () => {
     saveBtn.addEventListener('click', async () => {
       console.log('popup-simple.ts: Save button clicked!');
       
-      const systemPrompt = (document.getElementById('system-prompt') as HTMLTextAreaElement)?.value?.trim();
-      const customStylePrompt = (document.getElementById('custom-style-prompt') as HTMLTextAreaElement)?.value?.trim();
-      const contextMode = (document.getElementById('context-mode') as HTMLSelectElement)?.value || 'thread';
-      const model = (document.getElementById('model-select') as HTMLSelectElement)?.value;
-      const temperature = parseFloat((document.getElementById('temperature') as HTMLInputElement)?.value || '0.7');
-      const replyLengthDefault = (document.getElementById('reply-length') as HTMLSelectElement)?.value || '';
+      const systemPrompt = systemPromptInput?.value?.trim();
+      const customStylePrompt = customStylePromptInput?.value?.trim();
+      const contextMode = contextModeSelect?.value || 'thread';
+      const model = modelSelect?.value;
+      const temperature = parseFloat(temperatureInput?.value || '0.7');
+      const replyLengthDefault = replyLengthSelect?.value || '';
+      
+      // Get image understanding settings
+      const imageUnderstandingEnabled = imageUnderstandingCheckbox?.checked || false;
+      const visionModel = visionModelSelect?.value || 'gemini-pro-vision';
         
-        // Get existing config to preserve custom tones
-        const existingConfig = await new Promise<any>(resolve => {
-          chrome.storage.sync.get(['smartReply_config'], (result) => {
-            resolve(result.smartReply_config || {});
+        // Get existing config to preserve custom tones with error handling
+        const existingConfig = await new Promise<{ config: StorageConfig; features: Features }>((resolve, reject) => {
+          chrome.storage.sync.get(['smartReply_config', 'features'], (result) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve({ config: result.smartReply_config || {}, features: result.features || {} });
+            }
           });
+        }).catch(error => {
+          console.error('Failed to get existing config:', error);
+          return { config: {}, features: {} };
         });
         
         // Save config with correct storage key
-        const config = {
-          ...existingConfig,
+        const config: StorageConfig = {
+          ...existingConfig.config,
           model: model || 'openai/gpt-4o',
           systemPrompt: systemPrompt || 'I am a helpful assistant',
           customStylePrompt: customStylePrompt || '',
           contextMode: contextMode,
           temperature,
           replyLengthDefault: replyLengthDefault || undefined,
-          customTones: existingConfig.customTones || []
+          customTones: existingConfig.config.customTones || []
         };
-        await chrome.storage.sync.set({ smartReply_config: config });
+        
+        // Save features settings
+        const features: Features = {
+          ...existingConfig.features,
+          imageUnderstanding: {
+            enabled: imageUnderstandingEnabled,
+            model: visionModel,
+            maxImagesPerRequest: MAX_IMAGES_PER_REQUEST
+          }
+        };
+        
+        await chrome.storage.sync.set({ 
+          smartReply_config: config,
+          features: features 
+        });
         
         // Show success message
         const statusDiv = document.getElementById('status-message');
@@ -128,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // Handle refresh models button
-  if (refreshModelsBtn) {
+  if (refreshModelsBtn && modelSelect) {
     refreshModelsBtn.addEventListener('click', async () => {
       console.log('Fetching models from OpenRouter...');
       
@@ -167,20 +261,33 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           
           // Restore previously selected model if it exists
-          chrome.storage.sync.get(['smartReply_config'], (result) => {
+          chrome.storage.sync.get<{ smartReply_config?: StorageConfig }>(['smartReply_config'], (result) => {
             if (result.smartReply_config?.model) {
               modelSelect.value = result.smartReply_config.model;
             }
           });
           
-          console.log(`Loaded ${response.models.length} models from OpenRouter`);
+          // Show model info
+          const modelInfo = document.getElementById('model-info');
+          if (modelInfo) {
+            modelInfo.textContent = `Found ${response.models.length} models`;
+            modelInfo.style.color = 'green';
+          }
         } else {
           console.error('Failed to fetch models:', response?.error);
-          alert('Failed to fetch models. Check your API key.');
+          const modelInfo = document.getElementById('model-info');
+          if (modelInfo) {
+            modelInfo.textContent = 'Failed to fetch models';
+            modelInfo.style.color = 'red';
+          }
         }
       } catch (error) {
         console.error('Error fetching models:', error);
-        alert('Error fetching models. Check console for details.');
+        const modelInfo = document.getElementById('model-info');
+        if (modelInfo) {
+          modelInfo.textContent = 'Error fetching models';
+          modelInfo.style.color = 'red';
+        }
       } finally {
         refreshModelsBtn.disabled = false;
         refreshModelsBtn.textContent = '↻';
@@ -189,61 +296,54 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // Handle custom tone addition
-  if (addCustomToneBtn) {
+  if (addCustomToneBtn && customToneNameInput && customToneEmojiInput && customTonePromptInput) {
     addCustomToneBtn.addEventListener('click', async () => {
-      const name = customToneNameInput?.value?.trim();
-      const emoji = customToneEmojiInput?.value?.trim() || '✨';
-      const prompt = customTonePromptInput?.value?.trim();
+      const name = customToneNameInput.value.trim();
+      const emoji = customToneEmojiInput.value.trim() || '✨';
+      const prompt = customTonePromptInput.value.trim();
       
       if (!name || !prompt) {
-        alert('Please enter both a tone name and prompt modifier');
+        alert('Please provide both a name and prompt for the custom tone');
         return;
       }
       
       // Get existing config
       const result = await new Promise<any>(resolve => {
-        chrome.storage.sync.get(['smartReply_config'], (result) => {
-          resolve(result);
-        });
+        chrome.storage.sync.get(['smartReply_config'], resolve);
       });
       
       const config = result.smartReply_config || {};
       const customTones = config.customTones || [];
       
-      // Check for duplicate
-      if (customTones.some((tone: any) => tone.name === name)) {
-        alert('A tone with this name already exists');
-        return;
-      }
-      
-      // Add new custom tone
+      // Create new tone
       const newTone = {
-        id: `custom_${Date.now()}`,
+        id: `custom-${Date.now()}`,
         name,
-        description: `Custom: ${name}`,
-        promptModifier: prompt,
         emoji,
-        isCustom: true
+        systemPrompt: prompt
       };
       
+      // Add to custom tones
       customTones.push(newTone);
-      config.customTones = customTones;
       
-      // Save updated config
+      // Save back to storage
+      config.customTones = customTones;
       await chrome.storage.sync.set({ smartReply_config: config });
       
       // Clear inputs
-      if (customToneNameInput) customToneNameInput.value = '';
-      if (customToneEmojiInput) customToneEmojiInput.value = '';
-      if (customTonePromptInput) customTonePromptInput.value = '';
+      customToneNameInput.value = '';
+      customToneEmojiInput.value = '';
+      customTonePromptInput.value = '';
       
       // Update display
-      displayCustomTones(customTones);
+      if (customTonesList) {
+        displayCustomTones(customTones);
+      }
       
       // Show success message
       const statusDiv = document.getElementById('status-message');
       if (statusDiv) {
-        statusDiv.textContent = `Custom tone "${name}" added!`;
+        statusDiv.textContent = 'Custom tone added!';
         statusDiv.style.display = 'block';
         statusDiv.style.color = 'green';
         setTimeout(() => {
@@ -253,50 +353,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Function to display custom tones
   function displayCustomTones(customTones: any[]) {
     if (!customTonesList) return;
     
+    customTonesList.innerHTML = '';
+    
     if (customTones.length === 0) {
-      customTonesList.innerHTML = '<small style="color: #888;">No custom tones added yet</small>';
+      customTonesList.innerHTML = '<small style="color: #666;">No custom tones yet</small>';
       return;
     }
     
-    customTonesList.innerHTML = '<strong>Your Custom Tones:</strong><br>';
-    customTones.forEach((tone: any) => {
+    customTones.forEach(tone => {
       const toneDiv = document.createElement('div');
-      toneDiv.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 5px; margin: 5px 0; background: #f0f0f0; border-radius: 4px;';
-      toneDiv.innerHTML = `
-        <span>${tone.emoji} ${tone.name}</span>
-        <button class="remove-tone" data-tone-id="${tone.id}" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
-      `;
+      toneDiv.style.cssText = 'padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;';
+      
+      const toneInfo = document.createElement('div');
+      toneInfo.innerHTML = `<strong>${tone.emoji} ${tone.name}</strong><br><small style="color: #666;">${tone.systemPrompt.substring(0, 50)}...</small>`;
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 16px;';
+      deleteBtn.title = 'Delete tone';
+      deleteBtn.onclick = async () => {
+        if (!confirm(`Delete custom tone "${tone.name}"?`)) return;
+        
+        // Get current config
+        const result = await new Promise<any>(resolve => {
+          chrome.storage.sync.get(['smartReply_config'], resolve);
+        });
+        
+        const config = result.smartReply_config || {};
+        config.customTones = (config.customTones || []).filter((t: any) => t.id !== tone.id);
+        
+        // Save updated config
+        await chrome.storage.sync.set({ smartReply_config: config });
+        
+        // Update display
+        displayCustomTones(config.customTones);
+      };
+      
+      toneDiv.appendChild(toneInfo);
+      toneDiv.appendChild(deleteBtn);
       customTonesList.appendChild(toneDiv);
     });
-    
-    // Add remove handlers
-    document.querySelectorAll('.remove-tone').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const toneId = (e.target as HTMLElement).getAttribute('data-tone-id');
-        await removeCustomTone(toneId);
-      });
-    });
-  }
-  
-  // Function to remove custom tone
-  async function removeCustomTone(toneId: string | null) {
-    if (!toneId) return;
-    
-    const result = await new Promise<any>(resolve => {
-      chrome.storage.sync.get(['smartReply_config'], (result) => {
-        resolve(result);
-      });
-    });
-    
-    const config = result.smartReply_config || {};
-    config.customTones = (config.customTones || []).filter((tone: any) => tone.id !== toneId);
-    
-    await chrome.storage.sync.set({ smartReply_config: config });
-    displayCustomTones(config.customTones);
   }
 });
-

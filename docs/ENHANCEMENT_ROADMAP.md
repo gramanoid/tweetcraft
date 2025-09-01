@@ -12,40 +12,7 @@
 
 After thorough codebase analysis, only these 5 features don't exist yet:
 
-### 1. **Thread Composer** 📝
-**Status**: Planning  
-**Effort**: 4-6 hours  
-**Description**: Help users create multi-tweet threads easily
-
-**Implementation**:
-- Text area for full thread content
-- Auto-split at 280 chars with smart breaks
-- Number tweets automatically (1/n format)
-- Preview before posting
-- Copy all tweets button
-
-**Key Features**:
-- Smart splitting (avoid breaking words/links)
-- Thread continuation detection
-- Hashtag preservation across tweets
-- Optional AI enhancement for each tweet
-
----
-
-### 2. **Quote Tweet Generator** 💬
-**Status**: Planning  
-**Effort**: 3-4 hours  
-**Description**: Smart commentary for quote tweets
-
-**Implementation**:
-- Detect when quoting a tweet
-- Extract original content
-- Suggest angles: agree, disagree, add context, joke
-- Maintain thread context if applicable
-
----
-
-### 3. **AI Tweet Creation** 🤖
+### 1. **AI Tweet Creation** 🤖
 **Status**: Planning  
 **Effort**: 4-5 hours  
 **Description**: Generate original tweets from topics
@@ -59,109 +26,184 @@ After thorough codebase analysis, only these 5 features don't exist yet:
 
 ---
 
-### 4. **Content Analytics Dashboard** 📊
-**Status**: Design phase  
-**Effort**: 4-6 hours  
-**Description**: Simple insights without enterprise complexity
-
-**Core Metrics**:
-- Which tones get most engagement
-- Best performing time slots
-- Follower growth correlation
-- Reply success rate
+### 2. **Image Understanding for Context** 👁️
+**Status**: Planning  
+**Effort**: 3-5 hours  
+**Description**: Analyze images in tweets to provide richer context for AI replies
 
 **Implementation**:
-- Single page in popup
-- Local storage only (no external analytics)
-- Weekly email summary (optional)
-- Export to CSV for power users
+- Detect images in tweet being replied to
+- Use OpenRouter vision models (GPT-4V, Claude 3.5 Sonnet, Gemini Pro Vision)
+- Extract visual context automatically during reply generation
+- Include image descriptions in reply prompt for more relevant responses
+- Graceful fallback when image analysis fails or is unavailable
+
+**Key Features**:
+- **Automatic Detection**: No extra user steps - seamlessly integrated
+- **Multi-Image Support**: Handle tweets with multiple images
+- **Context Integration**: Visual context merged with existing text context
+- **Cost Awareness**: Vision calls only when images present and feature enabled
+- **Performance**: Parallel processing to avoid slowing down text-only replies
+
+**Video Handling Strategy**:
+- **Phase 1**: Extract video thumbnails as static images for analysis
+- **Phase 2**: Parse video metadata (title, description) if accessible via Twitter API
+- **Future**: Video frame analysis for key moments (low priority)
+- **Fallback**: Skip video analysis, rely on tweet text and thumbnail
+
+**Technical Approach**:
+- Extend existing `contextExtractor.ts` to include image URLs
+- Add vision model selection to configuration
+- Implement image fetching with proper error handling
+- Include visual context in existing prompt construction
+- Feature flag controlled with user preference
+
+**Consumer-First Design**:
+- **Invisible to User**: Works automatically, no new UI complexity
+- **Optional**: Can be disabled in settings for cost-conscious users  
+- **Fast**: Parallel processing, doesn't block text reply generation
+- **Robust**: Graceful degradation when images can't be analyzed
 
 ---
 
-### 5. **Smart Posting System** 🚀 (Optional with Safety)
-**Status**: Approved with safety requirements  
-**Effort**: 6-8 hours  
-**Description**: Automated posting with multiple safety checks
+### 3. **Tones & Styles Split** 🎨
+**Status**: Planning  
+**Effort**: 2-3 hours  
+**Description**: Refactor Templates into intuitive Tones (voice) + Styles (approach) system
 
-**Implementation Requirements**:
-- **OFF by default** - explicit user opt-in required
-- Confirmation dialog on first use
-- Multiple posting method fallbacks
-- Clear success/failure indicators
-- Never post without user seeing content first
+**Current Problem**:
+- Templates mix personality (how you sound) with approach (what you do)
+- "Witty Question" vs "Sarcastic Agreement" creates confusing combinations
+- Users think in terms of "I want to sound [TONE] while [STYLE]"
 
-**Safety Features**:
-- Feature flag controlled
-- Require double confirmation for first post
-- Rate limiting built-in
-- Emergency stop button
-- Audit log of all automated actions
+**Proposed Split**:
+
+**Tones (Voice/Personality)** - HOW you sound:
+- 😊 Casual - Friendly and conversational
+- 💼 Professional - Formal and business-appropriate
+- 😄 Witty - Clever and humorous  
+- 😏 Sarcastic - Ironic and mocking
+- 🔥 Spicy - Bold and provocative
+- 🤗 Supportive - Encouraging and empathetic
+- 🎓 Academic - Scholarly and analytical
+- 😎 Gen Z - Modern slang and energy
+- 🙄 Dismissive - Unimpressed and critical
+- 💪 Motivational - Inspiring and energetic
+
+**Styles (Approach/Structure)** - WHAT you do:
+- ❓ Ask Question - Turn into thoughtful question
+- 👍 Agree & Add - Support and expand the point
+- 🤔 Polite Challenge - Respectfully disagree  
+- 📚 Add Context - Provide background/explanation
+- 🔗 Share Experience - Personal anecdote/story
+- 🎯 Hot Take - Bold controversial opinion
+- 💡 Suggest Solution - Offer practical advice
+- 📊 Request Data - Ask for evidence/sources
+- 🏃 Call to Action - Encourage specific response
+- 😂 Make Joke - Turn into humor/meme
+
+**Implementation**:
+- Modify existing unified selector to show Tone × Style matrix
+- Update prompt construction to combine tone + style instructions
+- Migrate existing templates to new tone/style combinations
+- Maintain backward compatibility with favorites/arsenal
+- A/B test with subset of users before full rollout
+
+**Consumer Benefits**:
+- **More Intuitive**: "Sound casual while asking a question" vs complex template names
+- **Better Combinations**: 10 tones × 10 styles = 100 possibilities vs 15 fixed templates
+- **Faster Selection**: Users think naturally in tone + style terms
+- **Cleaner UI**: Two simple dropdowns instead of long template list
+
+**Technical Approach**:
+- Extend `templatesAndTones.ts` configuration
+- Update unified selector UI with two-step selection
+- Modify prompt builder to combine tone + style instructions
+- Add migration logic for existing user preferences
+- Feature flag for gradual rollout
+
+**Migration Strategy**:
+- Current "Hot Take + Sarcastic" → "Sarcastic Tone + Hot Take Style"
+- Current "Challenge Politely + Professional" → "Professional Tone + Polite Challenge Style"
+- Maintain existing favorites by auto-mapping to closest tone/style combo
 
 ---
 
-## 🚀 MINOR ENHANCEMENTS
+### 4. **Research Assistant** 🔬
+**Status**: Planning  
+**Effort**: 4-5 hours  
+**Description**: Intelligent fact-checking and research integration for more credible tweets
 
-### Arsenal Mode UI Integration
+**Implementation**:
+- Quick fact verification using search APIs (Perplexity/Bing/Google)
+- Real-time information retrieval for current events
+- Source citation formatting with credible links
+- Automatic link shortening for tweet character limits
+- Context-aware research suggestions based on tweet content
+
+**Key Features**:
+- **Fact Check Mode**: Verify claims before posting controversial takes
+- **Source Integration**: Add credible citations to strengthen arguments
+- **Current Events**: Get latest information on trending topics
+- **Link Management**: Automatic shortening and clean formatting
+- **Research Suggestions**: AI suggests relevant facts/statistics
+
+**Consumer-First Design**:
+- **Optional**: Can be toggled on/off per tweet
+- **Fast**: Parallel research while composing reply
+- **Transparent**: Shows source confidence scores
+- **Privacy-Conscious**: Uses anonymous search APIs
+
+**Technical Approach**:
+- Integrate search APIs through existing OpenRouter service architecture
+- Add research toggle to unified selector interface
+- Implement citation formatting for Twitter's character limits
+- Cache research results to avoid duplicate API calls
+- Feature flag controlled with user preference
+
+**Use Cases**:
+- Fact-checking before replying to controversial posts
+- Adding supporting data to strengthen arguments
+- Getting current information on breaking news
+- Finding credible sources for debate responses
+- Enhancing replies with relevant statistics/studies
+
+---
+
+### 5. **Arsenal Mode UI Integration** ⚡
 **Status**: Backend complete, needs UI  
 **Effort**: 2-3 hours  
+**Description**: Complete the Arsenal Mode feature with UI integration
+
+**What's Already Built**:
+- ArsenalService backend (474 lines) - fully functional
+- Pre-generation logic and caching
+- Configuration integration
+- Error handling and fallbacks
+
 **What's Missing**:
 - UI button injection into Twitter (the service exists, needs UI)
 - Actual pre-generated replies in JSON (currently uses mocks)
 - Alt+A keyboard shortcut integration
 
-### Research Assistant
-**Status**: Low Priority  
-**Features**:
-- Quick fact checking with sources
-- Real-time information retrieval
-- Citation formatting
-- Link shortening
+**Implementation**:
+- Add Arsenal Mode button to Twitter UI near existing reply buttons
+- Connect button to existing ArsenalService.generateArsenal()
+- Implement keyboard shortcut (Alt+A) detection and handling
+- Replace mock data with real pre-generated replies
+- Add loading states and error handling for UI interactions
+
+**Consumer Benefits**:
+- **Instant Replies**: Pre-generated responses ready immediately
+- **Keyboard Shortcut**: Power users can access via Alt+A
+- **Context Aware**: Uses same context extraction as regular replies
+- **Template Variety**: Multiple reply styles generated automatically
 
 ---
 
-## ⚡ QUICK WINS (Can Do Today)
+## 🚀 MINOR ENHANCEMENTS
 
-### Immediate Improvements (< 1 hour each)
-1. **Service Worker Lifecycle Fix**: Remove deprecated keep-alive pattern
-2. **Event Listener Bug Fix**: Fix anonymous function removal issues
-3. **Thread Context Optimization**: Cache DOM queries outside loops
-4. **HTTP-Referer Header**: Use descriptive URL for better API attribution
-5. **Session Storage Cleanup**: Add TTL to cached responses
-6. **Console Log Reduction**: Add debug flag to control verbosity
-
----
-
-## 🛠️ TECHNICAL IMPROVEMENTS
-
-### Performance Optimizations
-
-#### API Request Optimization
-**Status**: High Value  
-**Features**:
-- Request deduplication (30-second cache)
-- Intelligent batching (200ms window)
-- Response streaming for better perceived performance
-- Connection quality detection for adaptive timeouts
-
-#### DOM Query Caching
-**Status**: Medium Priority
-- Implement WeakMap-based caching for frequent queries
-- Reduce redundant DOM traversals
-- Improve performance for repeated operations
-
-### Stability Improvements
-
-#### Progressive Enhancement System
-**Status**: High Value - Graceful degradation
-- Feature detection before enabling
-- Graceful fallbacks when features unavailable
-- Maintain partial functionality during Twitter changes
-
-#### Extension Context Recovery
-**Status**: Medium Priority - Auto-recovery with state restoration
-- Save critical state before unload
-- Restore state on re-initialization
-- Eliminate manual page refresh requirement
+*No minor enhancements currently planned - focusing on core features.*
 
 ---
 
@@ -188,6 +230,7 @@ These existing implementations work well despite their complexity:
 ## 🚫 EXPLICITLY NOT DOING (Overengineered/Enterprise)
 
 ### Will Not Implement:
+- ❌ Smart Posting System (automated posting - too risky for consumers)
 - ❌ Multi-account management
 - ❌ Team collaboration features
 - ❌ Complex workflow automation
@@ -207,31 +250,29 @@ These existing implementations work well despite their complexity:
 
 ## 📅 RELEASE TIMELINE
 
-### v0.0.12 (Immediate - Bug Fixes & UI Polish)
-**Focus**: Connect existing features to UI
-- Arsenal Mode UI button injection (backend already complete!)
-- Add pre-generated replies JSON file
-- Connect Alt+A shortcut to existing Arsenal service
-- Service worker lifecycle optimization
-- Event listener memory leak fixes
+### v0.0.12 (Completed)
+**Focus**: Bug fixes, UI polish, and technical improvements
+- ✅ All planned features completed
 
-### v0.0.13 (Next Week - Content Creation)
-**Focus**: New content creation tools
-- Thread Composer
-- Quote Tweet Generator
+### v0.0.13 (Next Week - Core Features & UX)
+**Focus**: Essential features + image understanding + UX refinements
 - AI Tweet Creation from topics
+- Image Understanding for Context (automatic visual analysis)
+- Tones & Styles Split (UX improvement - separate voice from approach)
+- Research Assistant (fact-checking and credible source integration)
+- Arsenal Mode UI Integration (complete the backend with frontend)
 
-### v0.1.0 (1 Month - Analytics & Intelligence)
-**Focus**: Smart features
-- Content Analytics dashboard (simplified)
+### v0.1.0 (1 Month - Intelligence & Optimization)
+**Focus**: Smart features and performance
 - Engagement prediction
 - API request optimization (deduplication, batching)
+- Performance monitoring and optimization
 
 ### v0.2.0 (2 Months - Advanced Features)
 **Focus**: Power users
-- Smart Posting System (with extensive safety)
-- Research Assistant
 - Performance optimization suite
+- Advanced analytics features
+- Power user workflow enhancements
 
 ---
 

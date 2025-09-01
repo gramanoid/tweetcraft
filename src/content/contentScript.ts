@@ -12,8 +12,13 @@ import { templateSuggester } from '@/services/templateSuggester';
 import { TEMPLATES } from './presetTemplates';
 import { TONES } from './toneSelector';
 import { imageAttachment } from './imageAttachment';
+import { arsenalModeUI } from './arsenalMode';
 import { APP_VERSION } from '@/config/version';
 import { HypeFuryPlatform, HYPEFURY_SELECTORS } from '@/platforms/hypefury';
+import { ProgressiveEnhancement } from '@/utils/progressiveEnhancement';
+import { ContextRecovery } from '@/utils/contextRecovery';
+import { ContextExtractor, TweetContext } from '@/utils/contextExtractor';
+import { visionService, VisionService } from '@/services/visionService';
 import './contentScript.scss';
 
 class SmartReplyContentScript {
@@ -50,6 +55,43 @@ class SmartReplyContentScript {
   private async init(): Promise<void> {
     // Check if already destroyed
     if (this.isDestroyed) return;
+    
+    // Initialize vision service first
+    try {
+      await visionService.initialize();
+      console.log('%c👁️ Vision service initialized', 'color: #794BC4');
+    } catch (error) {
+      console.warn('Failed to initialize vision service:', error);
+    }
+    
+    // Initialize Progressive Enhancement System
+    const capabilities = await ProgressiveEnhancement.init();
+    console.log('%c🔍 Progressive Enhancement initialized', 'color: #9146FF; font-weight: bold', capabilities);
+    
+    // Initialize Context Recovery System
+    ContextRecovery.init({
+      autoRecover: true,
+      stateExpiration: 3600000, // 1 hour
+      checkInterval: 5000 // 5 seconds
+    });
+    
+    // Save initial state
+    ContextRecovery.saveState({
+      timestamp: Date.now(),
+      activeTab: 'all-templates'
+    });
+    
+    // Listen for recovery completion
+    window.addEventListener('tweetcraft-recovery-complete', (event: any) => {
+      console.log('%c✅ Recovery complete', 'color: #17BF63; font-weight: bold', event.detail);
+      // Re-inject buttons after recovery by reinitializing DOM observation
+      if (HypeFuryPlatform.isHypeFury()) {
+        this.startObservingHypeFury();
+      } else {
+        // Restart DOM observation for Twitter/X
+        this.init();
+      }
+    });
     
     // Detect platform
     const platform = HypeFuryPlatform.isHypeFury() ? 'HypeFury' : 'Twitter/X';
@@ -391,8 +433,8 @@ class SmartReplyContentScript {
       });
     }, 100); // Reduced to 100ms for instant button appearance
 
-    // Set up mutation observer to detect new toolbars
-    this.observer = new MutationObserver((mutations) => {
+    // Set up mutation observer to detect new toolbars (with Progressive Enhancement)
+    const observerCallback = (mutations: MutationRecord[]) => {
       // Check if mutations are relevant before triggering handler
       const hasRelevantChanges = mutations.some(mutation => {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
@@ -411,12 +453,25 @@ class SmartReplyContentScript {
       if (hasRelevantChanges) {
         debouncedMutationHandler();
       }
-    });
-
-    this.observer.observe(reactRoot, {
+    };
+    
+    // Create observer with Progressive Enhancement fallback
+    this.observer = ProgressiveEnhancement.createObserver(observerCallback, {
       childList: true,
       subtree: true
     });
+    
+    if (this.observer) {
+      this.observer.observe(reactRoot, {
+        childList: true,
+        subtree: true
+      });
+    } else {
+      // Fallback: Listen for custom DOM change events
+      window.addEventListener('pe-dom-change', () => {
+        debouncedMutationHandler();
+      });
+    }
 
     // Process existing toolbars
     const existingToolbars = document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
@@ -446,17 +501,30 @@ class SmartReplyContentScript {
       this.processHypeFuryTextareas();
     }, 500);
     
-    this.observer = new MutationObserver(() => {
+    // Create observer with Progressive Enhancement fallback for HypeFury
+    this.observer = ProgressiveEnhancement.createObserver(() => {
       debouncedHandler();
-    });
-    
-    // Observe the entire body for HypeFury
-    this.observer.observe(document.body, {
+    }, {
       childList: true,
       subtree: true,
       attributes: true,
       attributeFilter: ['placeholder', 'contenteditable']
     });
+    
+    // Observe the entire body for HypeFury
+    if (this.observer) {
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['placeholder', 'contenteditable']
+      });
+    } else {
+      // Fallback: Listen for custom DOM change events
+      window.addEventListener('pe-dom-change', () => {
+        debouncedHandler();
+      });
+    }
     
     // Also try processing after a delay for Vue components to load
     setTimeout(() => {
@@ -1009,8 +1077,14 @@ class SmartReplyContentScript {
         }
       });
       
+      // Create Arsenal Mode button
+      const arsenalButton = this.createArsenalButton(textarea);
+      
       // Assemble the components
       buttonContainer.appendChild(button);
+      if (arsenalButton) {
+        buttonContainer.appendChild(arsenalButton);
+      }
       // Standalone buttons removed - features integrated into AI Reply popup
       // if (suggestButton) {
       //   buttonContainer.appendChild(suggestButton);
@@ -1072,6 +1146,53 @@ class SmartReplyContentScript {
   /**
    * Create smart suggestions button
    */
+  private createArsenalButton(textarea: HTMLElement): HTMLButtonElement | null {
+    const arsenalButton = document.createElement('button');
+    arsenalButton.className = 'arsenal-mode-btn';
+    arsenalButton.innerHTML = '⚔️';
+    arsenalButton.setAttribute('title', 'Arsenal Mode - Pre-generated replies (Alt+A)');
+    arsenalButton.style.cssText = `
+      background: transparent;
+      border: none;
+      color: #8899A6;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      margin-left: 4px;
+      font-size: 16px;
+    `;
+
+    // Add hover effect
+    arsenalButton.addEventListener('mouseenter', () => {
+      arsenalButton.style.backgroundColor = 'rgba(29, 161, 242, 0.1)';
+      arsenalButton.style.color = '#1DA1F2';
+    });
+
+    arsenalButton.addEventListener('mouseleave', () => {
+      arsenalButton.style.backgroundColor = 'transparent';
+      arsenalButton.style.color = '#8899A6';
+    });
+
+    // Click handler to open Arsenal Mode
+    arsenalButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('%c⚔️ Arsenal button clicked', 'color: #1DA1F2; font-weight: bold');
+      
+      // Dispatch custom event to open Arsenal Mode
+      const event = new CustomEvent('tweetcraft:open-arsenal', {
+        detail: { textarea }
+      });
+      document.dispatchEvent(event);
+    });
+
+    return arsenalButton;
+  }
+
   private createSmartSuggestButton(textarea: HTMLElement, context: any): HTMLButtonElement | null {
     const suggestButton = document.createElement('button');
     suggestButton.className = 'tweetcraft-suggest-button';
@@ -1288,6 +1409,17 @@ class SmartReplyContentScript {
     bypassCache: boolean = false,
     isRewriteMode: boolean = false
   ): Promise<void> {
+    // Save state before generating
+    ContextRecovery.saveState({
+      timestamp: Date.now(),
+      lastTone: tone,
+      pendingReply: {
+        text: '',
+        tweetId: context.tweetId || '',
+        context: context.tweetText
+      }
+    });
+    
     // Use AsyncOperationManager to prevent race conditions
     const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}_${isRewriteMode ? 'rewrite' : 'generate'}`;
     
@@ -1431,9 +1563,44 @@ class SmartReplyContentScript {
         }
       }
       
+      // Extract full context including images
+      let visualContext = '';
+      try {
+        // Use ContextExtractor to get complete tweet context
+        const fullContext = ContextExtractor.extractFullContext();
+        
+        // Check if image understanding is enabled and we have images
+        if (ContextExtractor.hasVisualContent(fullContext)) {
+          const visionEnabled = await visionService.isEnabled();
+          
+          if (visionEnabled) {
+            console.log('%c👁️ Analyzing images for context...', 'color: #794BC4; font-weight: bold');
+            
+            // Get image URLs for analysis
+            const { imageUrls, needsVision } = ContextExtractor.prepareForVisionAnalysis(fullContext);
+            
+            if (needsVision && imageUrls.length > 0) {
+              // Analyze images with vision service
+              const visionResult = await visionService.analyzeImages(imageUrls, context.tweetText);
+              
+              if (visionResult.success) {
+                // Format the vision context for inclusion in prompt
+                visualContext = VisionService.formatVisionContext(visionResult);
+                console.log('%c✅ Visual context added to prompt', 'color: #17BF63');
+              } else {
+                console.warn('Vision analysis failed:', visionResult.error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to extract visual context:', error);
+        // Continue without visual context
+      }
+
       // Prepare the request
       const request: ReplyGenerationRequest = {
-        originalTweet: context.tweetText,
+        originalTweet: context.tweetText + visualContext, // Append visual context to tweet text
         tone: actualTone,
         isRewriteMode,
         existingText
@@ -1626,6 +1793,9 @@ class SmartReplyContentScript {
     
     // Cleanup keyboard shortcuts
     KeyboardShortcutManager.destroy();
+    
+    // Cleanup Context Recovery
+    ContextRecovery.destroy();
     
     // Disconnect port
     if (this.port) {

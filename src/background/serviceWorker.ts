@@ -274,6 +274,12 @@ class SmartReplyServiceWorker {
           break;
         }
 
+        case 'ANALYZE_IMAGES': {
+          // Handle vision API calls for image analysis
+          this.handleAnalyzeImages(message, sendResponse);
+          break;
+        }
+        
         case 'TEST_API_KEY': {
           // Test API key using shared utility
           const testApiKey = message.apiKey;
@@ -530,8 +536,8 @@ class SmartReplyServiceWorker {
       console.log('%c  Full Request:', 'color: #657786', openRouterRequest);
       console.log('%c  Headers:', 'color: #657786', {
         'Authorization': 'Bearer [REDACTED]',
-        'HTTP-Referer': 'https://tweetcraft.ai/extension',
-        'X-Title': 'TweetCraft - AI Reply Assistant'
+        'HTTP-Referer': 'https://github.com/gramanoid/tweetcraft',
+        'X-Title': 'TweetCraft - AI-powered Twitter/X Reply Chrome Extension'
       });
       console.log('%c  Reply Length Preset:', 'color: #657786', request.replyLength || 'auto');
 
@@ -541,8 +547,8 @@ class SmartReplyServiceWorker {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://tweetcraft.ai/extension',
-          'X-Title': 'TweetCraft - AI Reply Assistant'
+          'HTTP-Referer': 'https://github.com/gramanoid/tweetcraft',
+          'X-Title': 'TweetCraft - AI-powered Twitter/X Reply Chrome Extension'
         },
         body: JSON.stringify(openRouterRequest)
       });
@@ -790,7 +796,79 @@ class SmartReplyServiceWorker {
     return cleaned || reply;
   }
 
-  // Method to handle cleanup on extension disable/uninstall
+  // Handle image analysis requests from vision service
+  private async handleAnalyzeImages(
+    message: any,
+    sendResponse: (response?: any) => void
+  ): Promise<void> {
+    console.log('%c👁️ SERVICE WORKER: ANALYZE IMAGES', 'color: #794BC4; font-weight: bold');
+    
+    try {
+      const { imageUrls, tweetText, modelId, messages } = message;
+      
+      // Get API key
+      const apiKey = await StorageService.getApiKey();
+      if (!apiKey) {
+        sendResponse({
+          success: false,
+          error: 'No API key configured'
+        });
+        return;
+      }
+      
+      // Make the vision API call
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://tweetcraft.app',
+          'X-Title': 'TweetCraft Vision'
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: messages,
+          max_tokens: 500,
+          temperature: 0.3,
+          stream: false
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Vision API error:', error);
+        
+        if (response.status === 401) {
+          sendResponse({ success: false, error: 'Invalid API key' });
+        } else if (response.status === 429) {
+          sendResponse({ success: false, error: 'Rate limit exceeded' });
+        } else if (response.status === 402) {
+          sendResponse({ success: false, error: 'Insufficient credits' });
+        } else {
+          sendResponse({ success: false, error: `API error: ${response.status}` });
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        sendResponse({ success: false, error: 'No content in response' });
+        return;
+      }
+      
+      sendResponse({ success: true, content });
+      
+    } catch (error) {
+      console.error('Vision analysis error:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
   private cleanup(): void {
     console.log('Smart Reply: Performing cleanup');
     // Any cleanup logic can go here
