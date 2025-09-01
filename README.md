@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.12--dev-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.12-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -18,12 +18,22 @@
 ---
 
 <div align="center">
-  <strong>🚀 AI-powered Twitter/X reply assistant • 🎭 12 unique tones • 🧵 Thread context awareness • ⚙️ OpenRouter integration</strong>
+  <strong>🚀 AI-powered Twitter/X & HypeFury assistant • 🎭 12 unique tones • 🧵 Thread context awareness • ⚙️ OpenRouter integration</strong>
 </div>
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.11 → v0.0.12)**
+### ✅ **Currently Working (v0.0.12)**
+
+#### 🌐 Multi-Platform Support
+- **Twitter/X** - Full feature support on twitter.com and x.com
+- **HypeFury** - Complete feature parity on app.hypefury.com
+  - ✅ Unified 5-tab selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - ✅ All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
+  - ✅ AI Rewrite functionality
+  - ✅ Loading states with "Generating..." text
+  - ✅ Smart context extraction from HypeFury's UI
+  - ✅ Platform-specific styling and button placement
 
 #### Discovered Existing Features (Already Implemented)
 - **🛡️ Arsenal Mode** - 474 lines, IndexedDB with 6 categories, usage tracking ([src/services/arsenalService.ts](src/services/arsenalService.ts))
@@ -162,8 +172,8 @@
    - Choose your default tone for keyboard shortcuts
 
 3. **Start Using TweetCraft**
-   - Navigate to [twitter.com](https://twitter.com) or [x.com](https://x.com)
-   - Click reply on any tweet
+   - Navigate to [twitter.com](https://twitter.com), [x.com](https://x.com), or [app.hypefury.com](https://app.hypefury.com)
+   - Click reply on any tweet/post
    - Look for the "AI Reply" button in the reply toolbar
    - Select a tone or template and generate!
 

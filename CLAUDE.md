@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X reply generator Chrome extension with comprehensive feature set including: OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.11 (preparing v0.0.12)
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.12
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -68,9 +68,10 @@ npm run typecheck   # TypeScript type checking
 
 ### Testing
 Manual testing only - no automated tests:
-- Test on both twitter.com and x.com
-- Verify all 12 tone presets and templates work
+- Test on twitter.com, x.com, and app.hypefury.com
+- Verify all 12 tone presets and templates work on all platforms
 - Check browser console for debug logs (uses structured, color-coded logging)
+- Verify loading states show "Generating..." on all platforms
 
 ## Architecture Overview
 
@@ -157,6 +158,32 @@ console.log('%c  Property:', 'color: #657786', value);
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
 ## Current Features (v0.0.12 - Latest Fixes)
+
+### Platform Support
+- **Twitter/X**: Full support on twitter.com and x.com
+- **HypeFury**: Complete feature parity on app.hypefury.com
+  - Unified 5-tab selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
+  - AI Rewrite functionality
+  - Loading states with "Generating..." text
+  - Smart context extraction from HypeFury's UI
+  - Platform-specific styling and button placement
+
+### Platform-Specific Implementation Details
+```typescript
+// Platform detection
+const isHypeFury = window.location.hostname === 'app.hypefury.com';
+
+// Button selector adaptation
+const buttonSelector = isHypeFury ? '.smart-reply-button' : '.smart-reply-btn';
+
+// Loading state handling
+if (isHypeFury) {
+  span.textContent = '✨ AI Reply';  // HypeFury style
+} else {
+  span.textContent = 'AI Reply';     // Twitter style
+}
+```
 
 ### Core System Components
 - **Arsenal Mode** (`src/services/arsenalService.ts`) - IndexedDB with 6 categories, usage tracking, favorites

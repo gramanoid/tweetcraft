@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.12] - 2025-09-01
 
+### Added
+- **Full HypeFury Support**: Complete feature parity with Twitter/X
+  - All 5-tab unified selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - Full keyboard shortcuts support (Alt+1-9, Alt+Q, etc.)
+  - AI Rewrite functionality
+  - Smart context extraction from HypeFury's UI
+  - Platform-specific styling and button placement
+
 ### Fixed
 - **Chrome Message Timeouts**: Added 5-second timeout to prevent hanging on `chrome.runtime.sendMessage` calls
 - **Timer Type Safety**: Fixed `NodeJS.Timeout` usage in browser context (now uses `ReturnType<typeof setTimeout>`)
@@ -20,11 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **HypeFury Fix**: Maximum 5 buttons per page to prevent spam
   - **HypeFury Fix**: Added height check to skip small/hidden textareas
   - Automatic removal of duplicate buttons if they appear
+- **Loading State Display**: Fixed "Generating..." text not showing on buttons
+  - Added `<span>` wrapper to HypeFury button text
+  - Enhanced `showLoadingState` to handle buttons with or without spans
+  - Fixed `hideLoadingState` to restore correct text for each platform
+  - Platform-aware button text restoration (with/without emojis)
+- **HypeFury Button Selector**: Fixed button not found for loading state error
+  - Added platform detection for correct class names
+  - HypeFury uses `.smart-reply-button`, Twitter uses `.smart-reply-btn`
 
 ### Changed
 - Improved reliability of message passing between content script and service worker
 - Enhanced JSON parsing to correctly handle mixed bracket types (`{}` and `[]`)
 - More robust toolbar processing to prevent duplicate button injection
+- Platform-aware button selectors throughout the codebase
 
 ## [0.0.11] - 2025-09-01
 

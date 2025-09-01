@@ -6,10 +6,23 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ---
 
-## 🚀 **v0.0.12** - CSP Fixes & Documentation Update
+## 🚀 **v0.0.12** - Full HypeFury Support & Critical Fixes
 
-**Release Date**: September 2024 (In Development)
-**Focus**: Critical bug fixes and accurate documentation
+**Release Date**: September 2024
+**Focus**: Multi-platform support, critical bug fixes, and accurate documentation
+
+### ✨ **New Platform Support**
+
+#### **HypeFury Integration** 🎯 **MAJOR FEATURE**
+- **Full Feature Parity**: All Twitter/X features now work on app.hypefury.com
+- **Features Enabled**: 
+  - Unified 5-tab selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
+  - AI Rewrite functionality
+  - Loading states with "Generating..." text
+- **Smart Context Extraction**: Specialized logic for HypeFury's DOM structure
+- **Platform Detection**: Automatic detection and adaptation
+- **Files Modified**: `src/content/contentScript.ts`, `src/platforms/hypefury.ts`, `src/content/domUtils.ts`
 
 ### ✅ **Bug Fixes Completed**
 
@@ -19,13 +32,22 @@ This document tracks all version releases, enhancements, and changes made to Twe
 - **Files Modified**: `src/services/imageService.ts`, `src/content/unifiedSelector.ts`, `src/background/serviceWorker.ts`
 - **Impact**: Image generation now works reliably without CSP violations
 
-#### 2. **Missing Loading State** 🔴 **CRITICAL**
+#### 2. **Loading State Display** 🔴 **CRITICAL**
 - **Problem**: "Generating..." text not appearing in AI Reply button
-- **Solution**: Enhanced button finding logic with 4-strategy fallback system
-- **Files Modified**: `src/content/contentScript.ts`
-- **Impact**: Users can now see generation progress
+- **Solution**: 
+  - Enhanced button finding logic with 4-strategy fallback system
+  - Added `<span>` wrapper to HypeFury buttons for compatibility
+  - Platform-aware text restoration after loading
+- **Files Modified**: `src/content/contentScript.ts`, `src/content/domUtils.ts`
+- **Impact**: Users can now see generation progress on all platforms
 
-#### 3. **ESLint Error Resolution** 🟡 **MEDIUM**
+#### 3. **HypeFury Button Selector Bug** 🔴 **CRITICAL**
+- **Problem**: "Button not found for loading state" error on HypeFury
+- **Solution**: Platform-specific class name handling (.smart-reply-button vs .smart-reply-btn)
+- **Files Modified**: `src/content/contentScript.ts`
+- **Impact**: Loading states work correctly on both platforms
+
+#### 4. **ESLint Error Resolution** 🟡 **MEDIUM**
 - **Problem**: 48 critical ESLint errors preventing clean build
 - **Solution**: Systematic fixes for unused imports, variables, case blocks, Function types
 - **Files Modified**: Multiple files across codebase
