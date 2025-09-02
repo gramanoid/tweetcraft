@@ -44,9 +44,9 @@ export function buildFourPartPrompt(request: ReplyGenerationRequest): PromptComp
   console.log('%c  Prompt:', 'color: #17BF63', vocabularyPrompt.substring(0, 100) + '...');
   
   // Part 3: RHETORIC - Approach to topic
-  const rhetoricId = request.rhetoric || 'factual';
+  const rhetoricId = request.rhetoric || 'agree_build';
   const rhetoric = getRhetoricalMove(rhetoricId);
-  const rhetoricPrompt = rhetoric?.systemPrompt || 'Present information factually and directly.';
+  const rhetoricPrompt = rhetoric?.systemPrompt || 'Generate a collaborative reply.';
   
   console.log('%c📍 PART 3: RHETORIC (Approach to topic)', 'color: #FF9F1C; font-weight: bold');
   console.log('%c  Selected:', 'color: #657786', rhetoricId);
