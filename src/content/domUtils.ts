@@ -399,22 +399,39 @@ export class DOMUtils {
     // Determine if we should be silent based on context
     const silent = !this.shouldExpectElement('replyTextarea');
     
-    // Use resilient selector with fallback
-    let textarea = this.findWithFallback('replyTextarea', element) as HTMLElement;
-    if (textarea) {
-      return textarea;
+    // Strategy 1: Look for textarea as sibling or nearby element first
+    let container = element.closest('[role="dialog"], [data-testid="reply"], [data-testid="inline-reply"], [aria-label*="compose" i]');
+    if (container) {
+      let textarea = this.findWithFallback('replyTextarea', container) as HTMLElement;
+      if (textarea) {
+        return textarea;
+      }
     }
-
-    // Search upward in the DOM tree with fallback selectors
+    
+    // Strategy 2: Search in parent containers
     let parent = element.parentElement;
     while (parent) {
-      textarea = this.findWithFallback('replyTextarea', parent) as HTMLElement;
+      let textarea = this.findWithFallback('replyTextarea', parent) as HTMLElement;
       if (textarea) {
         return textarea;
       }
       parent = parent.parentElement;
     }
+    
+    // Strategy 3: Global search with specific context
+    const globalTextarea = this.findWithFallback('replyTextarea') as HTMLElement;
+    if (globalTextarea) {
+      // Verify this textarea is related to our toolbar
+      const toolbarContainer = globalTextarea.closest('[role="dialog"], article');
+      const elementContainer = element.closest('[role="dialog"], article');
+      if (toolbarContainer === elementContainer) {
+        return globalTextarea;
+      }
+    }
 
+    if (!silent) {
+      console.log('%c🔍 No textarea found for toolbar', 'color: #FFA500', element);
+    }
     return null;
   }
 

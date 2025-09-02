@@ -843,9 +843,33 @@ class SmartReplyContentScript {
     }
     
     if (!textarea) {
-      // This is unexpected in a reply context, but handle gracefully
-      console.warn('TweetCraft: Reply toolbar found but no textarea available yet');
-      return;
+      // Try aggressive global search for any active textarea
+      console.log('%c🔍 Trying aggressive textarea search...', 'color: #FFA500');
+      
+      // Look for any contenteditable textarea on the page
+      const allTextareas = document.querySelectorAll('[contenteditable="true"], textarea');
+      console.log(`%c  Found ${allTextareas.length} potential textareas`, 'color: #657786');
+      
+      for (const ta of allTextareas) {
+        const element = ta as HTMLElement;
+        // Check if it's visible and likely a reply textarea
+        if (element.offsetHeight > 20 && element.offsetWidth > 100) {
+          const placeholder = element.getAttribute('placeholder') || element.getAttribute('aria-label') || '';
+          if (placeholder.toLowerCase().includes('tweet') || 
+              placeholder.toLowerCase().includes('reply') || 
+              placeholder.toLowerCase().includes('post') ||
+              element.getAttribute('role') === 'textbox') {
+            textarea = element;
+            console.log('%c✅ Found textarea via global search', 'color: #17BF63');
+            break;
+          }
+        }
+      }
+      
+      if (!textarea) {
+        console.warn('TweetCraft: Reply toolbar found but no textarea available yet');
+        return;
+      }
     }
 
     // Extract Twitter context
