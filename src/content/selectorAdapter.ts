@@ -43,7 +43,7 @@ export class SelectorAdapter {
    */
   show(
     button: HTMLElement,
-    callback: (template: PresetTemplate | CustomTemplate, tone: ToneOption) => void
+    callback: (template: PresetTemplate | CustomTemplate, tone: ToneOption, vocabulary?: string, lengthPacing?: string) => void
   ): void {
     if (this.useUnifiedSelector && this.unifiedSelector) {
       // Use unified selector
@@ -67,11 +67,14 @@ export class SelectorAdapter {
           systemPrompt: result.tone.systemPrompt
         };
         
-        callback(template, tone);
+        // Pass vocabulary and lengthPacing if available (from 4-part structure)
+        callback(template, tone, result.vocabulary, result.lengthPacing);
       });
     } else if (this.templateSelector) {
-      // Use traditional two-popup flow
-      this.templateSelector.show(button, callback);
+      // Use traditional two-popup flow (no 4-part structure)
+      this.templateSelector.show(button, (template, tone) => {
+        callback(template, tone);
+      });
     }
   }
   

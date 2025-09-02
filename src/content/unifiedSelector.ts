@@ -4,6 +4,8 @@
  */
 
 import { Template, Personality, TEMPLATES, PERSONALITIES } from '@/config/templatesAndTones';
+import { VocabularyStyle, getAllVocabularyStyles } from '@/config/vocabulary';
+import { LengthPacingStyle, getAllLengthPacingStyles } from '@/config/lengthPacing';
 // Type alias for backward compatibility
 type Tone = Personality;
 import { visualFeedback } from '@/ui/visualFeedback';
@@ -16,12 +18,17 @@ export interface SelectionResult {
   tone: Tone;
   combinedPrompt: string;
   temperature: number;
+  // New 4-part structure
+  vocabulary?: string;
+  lengthPacing?: string;
 }
 
 export class UnifiedSelector {
   private container: HTMLElement | null = null;
   private selectedTemplate: Template | null = null;
   private selectedPersonality: Personality | null = null;
+  private selectedVocabulary: VocabularyStyle | null = null;
+  private selectedLengthPacing: LengthPacingStyle | null = null;
   // Backward compatibility alias
   private get selectedTone(): Personality | null { return this.selectedPersonality; }
   private set selectedTone(value: Personality | null) { this.selectedPersonality = value; }
@@ -243,11 +250,24 @@ export class UnifiedSelector {
       
       <div class="selector-footer">
         <div class="selection-info">
-          ${this.selectedTemplate ? `<span class="selected-template">${this.selectedTemplate.emoji} ${this.selectedTemplate.name}</span>` : ''}
-          ${this.selectedPersonality ? `<span class="selected-personality">${this.selectedPersonality.emoji} ${this.selectedPersonality.label}</span>` : ''}
+          ${this.view === 'grid' ? `
+            <div class="four-part-selection">
+              ${this.selectedPersonality ? `<span class="selected-item">1️⃣ ${this.selectedPersonality.emoji}</span>` : '<span class="missing-item">1️⃣ ...</span>'}
+              ${this.selectedVocabulary ? `<span class="selected-item">2️⃣ ${this.selectedVocabulary.emoji}</span>` : '<span class="missing-item">2️⃣ ...</span>'}
+              ${this.selectedTemplate ? `<span class="selected-item">3️⃣ ${this.selectedTemplate.emoji}</span>` : '<span class="missing-item">3️⃣ ...</span>'}
+              ${this.selectedLengthPacing ? `<span class="selected-item">4️⃣ ${this.selectedLengthPacing.label.substring(0, 10)}</span>` : '<span class="missing-item">4️⃣ ...</span>'}
+            </div>
+          ` : `
+            ${this.selectedTemplate ? `<span class="selected-template">${this.selectedTemplate.emoji} ${this.selectedTemplate.name}</span>` : ''}
+            ${this.selectedPersonality ? `<span class="selected-personality">${this.selectedPersonality.emoji} ${this.selectedPersonality.label}</span>` : ''}
+          `}
         </div>
-        <button class="generate-btn ${this.selectedTemplate && this.selectedPersonality ? 'active' : ''}" 
-                ${!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : ''}>
+        <button class="generate-btn ${this.view === 'grid' 
+          ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing ? 'active' : '')
+          : (this.selectedTemplate && this.selectedPersonality ? 'active' : '')}" 
+                ${this.view === 'grid'
+          ? (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing ? 'disabled' : '')
+          : (!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : '')}>
           Generate Reply
         </button>
       </div>
@@ -275,14 +295,18 @@ export class UnifiedSelector {
   }
 
   /**
-   * Render grid view (all templates and tones)
+   * Render grid view (all 4 parts)
    */
   private renderGridView(templates: Template[], personalities: Personality[]): string {
+    const vocabularyStyles = getAllVocabularyStyles();
+    const lengthPacingStyles = getAllLengthPacingStyles();
+    
     return `
-      <div class="selector-content grid-view">
-        <div class="personalities-section">
-          <h3>Personality</h3>
-          <div class="personality-grid">
+      <div class="selector-content grid-view four-part-structure">
+        <!-- Part 1: Personality (Who is talking) -->
+        <div class="part-section personalities-section">
+          <h3><span class="part-number">1</span> Personality <span class="part-subtitle">(Who is talking)</span></h3>
+          <div class="personality-grid selection-grid">
             ${personalities.map(personality => `
               <div class="item-wrapper">
                 <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
@@ -301,9 +325,25 @@ export class UnifiedSelector {
           </div>
         </div>
         
-        <div class="rhetoric-section">
-          <h3>Rhetoric</h3>
-          <div class="rhetoric-grid">
+        <!-- Part 2: Vocabulary (How it's written) -->
+        <div class="part-section vocabulary-section">
+          <h3><span class="part-number">2</span> Vocabulary <span class="part-subtitle">(How it's written)</span></h3>
+          <div class="vocabulary-grid selection-grid">
+            ${vocabularyStyles.map(vocab => `
+              <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''}"
+                      data-vocabulary="${vocab.id}"
+                      title="${vocab.description}">
+                <span class="vocabulary-emoji">${vocab.emoji}</span>
+                <span class="vocabulary-label">${vocab.label}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- Part 3: Rhetoric (Approach to topic) -->
+        <div class="part-section rhetoric-section">
+          <h3><span class="part-number">3</span> Rhetoric <span class="part-subtitle">(Approach to topic)</span></h3>
+          <div class="rhetoric-grid selection-grid">
             ${templates.map(template => `
               <div class="item-wrapper">
                 <button class="rhetoric-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
@@ -318,6 +358,20 @@ export class UnifiedSelector {
                   ${this.favoriteTemplates.has(template.id) ? '⭐' : '☆'}
                 </button>
               </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- Part 4: Length & Pacing (How it flows) -->
+        <div class="part-section length-pacing-section">
+          <h3><span class="part-number">4</span> Length & Pacing <span class="part-subtitle">(How it flows)</span></h3>
+          <div class="length-pacing-grid selection-grid">
+            ${lengthPacingStyles.map(pacing => `
+              <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''}"
+                      data-lengthpacing="${pacing.id}"
+                      title="${pacing.description}">
+                <span class="length-pacing-emoji">${pacing.label}</span>
+              </button>
             `).join('')}
           </div>
         </div>
@@ -549,12 +603,30 @@ export class UnifiedSelector {
       });
     });
 
+    // Vocabulary selection (new 4-part structure)
+    this.container.querySelectorAll('.vocabulary-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        const vocabularyId = (e.currentTarget as HTMLElement).dataset.vocabulary!;
+        this.selectVocabulary(vocabularyId);
+      });
+    });
+    
     // Rhetoric selection (new buttons)
     this.container.querySelectorAll('.rhetoric-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const rhetoricId = (e.currentTarget as HTMLElement).dataset.rhetoric!;
         this.selectTemplate(rhetoricId);
+      });
+    });
+    
+    // Length & Pacing selection (new 4-part structure)
+    this.container.querySelectorAll('.length-pacing-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lengthPacingId = (e.currentTarget as HTMLElement).dataset.lengthpacing!;
+        this.selectLengthPacing(lengthPacingId);
       });
     });
     
@@ -773,6 +845,32 @@ export class UnifiedSelector {
   }
 
   /**
+   * Select a vocabulary style
+   */
+  private selectVocabulary(vocabularyId: string): void {
+    const vocabulary = getAllVocabularyStyles().find(v => v.id === vocabularyId) || null;
+    if (vocabulary) {
+      this.selectedVocabulary = vocabulary;
+      console.log('%c📝 Vocabulary selected:', 'color: #FF6B6B', vocabulary.label);
+      this.updateUI();
+      this.checkReadyToGenerate();
+    }
+  }
+
+  /**
+   * Select a length & pacing style
+   */
+  private selectLengthPacing(lengthPacingId: string): void {
+    const lengthPacing = getAllLengthPacingStyles().find(lp => lp.id === lengthPacingId) || null;
+    if (lengthPacing) {
+      this.selectedLengthPacing = lengthPacing;
+      console.log('%c⏱️ Length & Pacing selected:', 'color: #E91E63', lengthPacing.label);
+      this.updateUI();
+      this.checkReadyToGenerate();
+    }
+  }
+
+  /**
    * Select a personality
    */
   private selectPersonality(personalityId: string): void {
@@ -791,9 +889,19 @@ export class UnifiedSelector {
   private updateUI(): void {
     if (!this.container) return;
 
+    // Update vocabulary buttons (new 4-part)
+    this.container.querySelectorAll('.vocabulary-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-vocabulary') === this.selectedVocabulary?.id);
+    });
+
     // Update rhetoric buttons (new)
     this.container.querySelectorAll('.rhetoric-btn').forEach(btn => {
       btn.classList.toggle('selected', btn.getAttribute('data-rhetoric') === this.selectedTemplate?.id);
+    });
+    
+    // Update length & pacing buttons (new 4-part)
+    this.container.querySelectorAll('.length-pacing-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-lengthpacing') === this.selectedLengthPacing?.id);
     });
     
     // Update template buttons (backward compatibility)
@@ -806,19 +914,14 @@ export class UnifiedSelector {
       btn.classList.toggle('selected', btn.getAttribute('data-personality') === this.selectedPersonality?.id);
     });
 
-    // Update selection info
-    const selectionInfo = this.container.querySelector('.selection-info');
-    if (selectionInfo) {
-      selectionInfo.innerHTML = `
-        ${this.selectedTemplate ? `<span class="selected-template">${this.selectedTemplate.emoji} ${this.selectedTemplate.name}</span>` : ''}
-        ${this.selectedTone ? `<span class="selected-tone">${this.selectedTone.emoji} ${this.selectedTone.label}</span>` : ''}
-      `;
-    }
-
+    // Update selection info - handled in render() now with 4-part display
+    
     // Update generate button
     const generateBtn = this.container.querySelector('.generate-btn');
     if (generateBtn) {
-      const ready = this.selectedTemplate && this.selectedTone;
+      const ready = this.view === 'grid' 
+        ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing)
+        : (this.selectedTemplate && this.selectedTone);
       generateBtn.classList.toggle('active', !!ready);
       if (ready) {
         generateBtn.removeAttribute('disabled');
@@ -832,10 +935,22 @@ export class UnifiedSelector {
    * Check if ready to generate
    */
   private checkReadyToGenerate(): void {
-    if (this.selectedTemplate && this.selectedTone) {
-      console.log('%c✅ Ready to generate!', 'color: #17BF63');
-      console.log('%c  Template:', 'color: #657786', this.selectedTemplate.name);
-      console.log('%c  Tone:', 'color: #657786', this.selectedTone.label);
+    if (this.view === 'grid') {
+      // Check all 4 parts for grid view
+      if (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing) {
+        console.log('%c✅ All 4 parts selected!', 'color: #17BF63; font-weight: bold');
+        console.log('%c  1️⃣ Personality:', 'color: #657786', this.selectedPersonality.label);
+        console.log('%c  2️⃣ Vocabulary:', 'color: #657786', this.selectedVocabulary.label);
+        console.log('%c  3️⃣ Rhetoric:', 'color: #657786', this.selectedTemplate.name);
+        console.log('%c  4️⃣ Length & Pacing:', 'color: #657786', this.selectedLengthPacing.label);
+      }
+    } else {
+      // Check 2 parts for other views (backward compatibility)
+      if (this.selectedTemplate && this.selectedTone) {
+        console.log('%c✅ Ready to generate!', 'color: #17BF63');
+        console.log('%c  Template:', 'color: #657786', this.selectedTemplate.name);
+        console.log('%c  Tone:', 'color: #657786', this.selectedTone.label);
+      }
     }
   }
 
@@ -843,22 +958,39 @@ export class UnifiedSelector {
    * Handle generate action
    */
   private handleGenerate(): void {
-    if (!this.selectedTemplate || !this.selectedTone || !this.onSelectCallback) return;
+    if (!this.onSelectCallback) return;
+    
+    // Check requirements based on view
+    if (this.view === 'grid') {
+      if (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing) return;
+    } else {
+      if (!this.selectedTemplate || !this.selectedTone) return;
+    }
 
-    // Combine template and tone prompts
-    const combinedPrompt = `${this.selectedTemplate.prompt} ${this.selectedTone.systemPrompt}`;
+    // Combine template and tone prompts (backward compatibility)
+    const combinedPrompt = `${this.selectedTemplate.prompt} ${this.selectedTone?.systemPrompt || this.selectedPersonality?.systemPrompt || ''}`;
 
     // Get temperature for tone (default 0.7)
     const temperature = 0.7;
 
     const result: SelectionResult = {
       template: this.selectedTemplate,
-      tone: this.selectedTone,
+      tone: this.selectedTone || this.selectedPersonality!,
       combinedPrompt,
-      temperature
+      temperature,
+      // Add 4-part structure data if in grid view
+      ...(this.view === 'grid' && {
+        vocabulary: this.selectedVocabulary?.id,
+        lengthPacing: this.selectedLengthPacing?.id
+      })
     };
 
     console.log('%c🚀 Generating with selection:', 'color: #1DA1F2; font-weight: bold');
+    if (this.view === 'grid') {
+      console.log('%c  Using 4-part structure:', 'color: #FF6B6B; font-weight: bold');
+      console.log('%c  Vocabulary ID:', 'color: #657786', result.vocabulary);
+      console.log('%c  Length & Pacing ID:', 'color: #657786', result.lengthPacing);
+    }
     console.log('%c  Combined prompt length:', 'color: #657786', combinedPrompt.length);
     console.log('%c  Temperature:', 'color: #657786', temperature);
 
@@ -1354,6 +1486,46 @@ export class UnifiedSelector {
           gap: 16px;
         }
         
+        /* 4-part structure styles */
+        .four-part-structure {
+          gap: 0;
+        }
+        
+        .part-section {
+          padding: 12px;
+          border-bottom: 2px solid rgba(139, 152, 165, 0.15);
+          background: #15202b;
+        }
+        
+        .part-section:last-child {
+          border-bottom: none;
+        }
+        
+        .part-section h3 {
+          margin: 0 0 10px 0;
+          color: #e7e9ea;
+          font-size: 14px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .part-number {
+          background: rgba(29, 155, 240, 0.2);
+          color: #1d9bf0;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 700;
+          font-size: 12px;
+        }
+        
+        .part-subtitle {
+          color: #8b98a5;
+          font-size: 12px;
+          font-weight: 400;
+        }
+        
         .templates-section,
         .personalities-section {
           flex: 1;
@@ -1371,12 +1543,65 @@ export class UnifiedSelector {
         
         /* Removed template-category styles since we no longer use categories */
         
+        .selection-grid,
         .rhetoric-grid,
         .template-grid,
-        .personality-grid {
+        .personality-grid,
+        .vocabulary-grid,
+        .length-pacing-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 4px;
+        }
+        
+        .vocabulary-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .length-pacing-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .vocabulary-btn,
+        .length-pacing-btn {
+          padding: 8px 10px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(139, 152, 165, 0.2);
+          border-radius: 8px;
+          color: #e7e9ea;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .vocabulary-btn:hover,
+        .length-pacing-btn:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: rgba(29, 155, 240, 0.3);
+        }
+        
+        .vocabulary-btn.selected,
+        .length-pacing-btn.selected {
+          background: rgba(29, 155, 240, 0.2);
+          border-color: rgba(29, 155, 240, 0.5);
+          color: #1d9bf0;
+        }
+        
+        .vocabulary-emoji,
+        .length-pacing-emoji {
+          font-size: 16px;
+        }
+        
+        .vocabulary-label,
+        .length-pacing-label {
+          flex: 1;
+          text-align: left;
         }
         
         .item-wrapper {
@@ -1489,6 +1714,33 @@ export class UnifiedSelector {
           border-radius: 10px;
           font-size: 12px;
           color: #e7e9ea;
+        }
+        
+        /* 4-part selection display */
+        .four-part-selection {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+        
+        .selected-item,
+        .missing-item {
+          padding: 3px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 500;
+        }
+        
+        .selected-item {
+          background: rgba(29, 155, 240, 0.2);
+          color: #1d9bf0;
+          border: 1px solid rgba(29, 155, 240, 0.3);
+        }
+        
+        .missing-item {
+          background: rgba(139, 152, 165, 0.1);
+          color: #657786;
+          border: 1px dashed rgba(139, 152, 165, 0.3);
         }
         
         .generate-btn {

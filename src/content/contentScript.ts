@@ -758,10 +758,10 @@ class SmartReplyContentScript {
       
       // Show unified selector
       // Show unified selector using the selector adapter
-      selectorAdapter.show(button, (template, tone) => {
+      selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing) => {
         // Generate reply with the selected template and tone
         const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-        this.generateReply(textarea as HTMLElement, { tweetText: context.text }, combinedPrompt, false, false);
+        this.generateReply(textarea as HTMLElement, { tweetText: context.text }, combinedPrompt, false, false, vocabulary, lengthPacing);
       });
     });
     
@@ -1039,7 +1039,7 @@ class SmartReplyContentScript {
         const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
         
         // Show selector (unified or traditional based on feature flag)
-        selectorAdapter.show(button, (template, tone) => {
+        selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing) => {
           // When both template and tone are selected, generate/rewrite
           console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
           console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
@@ -1070,7 +1070,7 @@ class SmartReplyContentScript {
           console.log('%c════════════════════════════════', 'color: #2E3236');
           
           // Generate or rewrite using the combined instruction
-          this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode);
+          this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode, vocabulary, lengthPacing);
         });
         
         return false; // Prevent any default action
@@ -1386,7 +1386,7 @@ class SmartReplyContentScript {
           
           // Generate with this combination
           const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-          this.generateReply(textarea, context, combinedPrompt, false, false);
+          this.generateReply(textarea, context, combinedPrompt, false, false, undefined, undefined);
           
           // Show toast
           visualFeedback.showToast(`Using: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
@@ -1438,7 +1438,9 @@ class SmartReplyContentScript {
     context: { tweetId?: string; tweetText: string; threadContext?: string[]; authorHandle?: string }, 
     tone?: string,
     bypassCache: boolean = false,
-    isRewriteMode: boolean = false
+    isRewriteMode: boolean = false,
+    vocabulary?: string,
+    lengthPacing?: string
   ): Promise<void> {
     // Save state before generating
     ContextRecovery.saveState({
@@ -1456,7 +1458,7 @@ class SmartReplyContentScript {
     
     try {
       await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode);
+        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode, vocabulary, lengthPacing);
       });
     } catch (error) {
       if ((error as Error).message.includes('cancelled')) {
@@ -1474,7 +1476,9 @@ class SmartReplyContentScript {
     tone: string | undefined,
     signal: AbortSignal,
     _bypassCache: boolean = false,
-    isRewriteMode: boolean = false
+    isRewriteMode: boolean = false,
+    vocabulary?: string,
+    lengthPacing?: string
   ): Promise<void> {
     // Find the button to show loading state
     // Check if we're on HypeFury to use the correct class name
@@ -1646,6 +1650,14 @@ class SmartReplyContentScript {
         if (config.replyLengthDefault) {
           request.replyLength = config.replyLengthDefault;
         }
+      }
+      
+      // Add 4-part structure data if available
+      if (vocabulary) {
+        request.vocabulary = vocabulary;
+      }
+      if (lengthPacing) {
+        request.lengthPacing = lengthPacing;
       }
 
       console.log('%c📦 CONTENT SCRIPT: REQUEST PREPARED', 'color: #9146FF; font-weight: bold; font-size: 14px');
