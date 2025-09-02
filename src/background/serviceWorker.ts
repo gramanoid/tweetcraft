@@ -1,5 +1,6 @@
 import { StorageService } from '@/services/storage';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
+import { EncryptionService } from '@/utils/encryption';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -906,6 +907,12 @@ self.addEventListener('install', (_event) => {
 
 self.addEventListener('activate', (event: any) => {
   console.log('%c✅ Smart Reply: Service worker activated', 'color: #17BF63; font-weight: bold');
+  
+  // Clean up expired migration locks on activation
+  EncryptionService.cleanupExpiredLocks().catch(error => {
+    console.error('Failed to cleanup expired locks on activation:', error);
+  });
+  
   // Claim all clients immediately
   event.waitUntil((self as any).clients.claim());
 });
