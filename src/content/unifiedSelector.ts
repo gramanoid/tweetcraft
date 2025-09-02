@@ -6,6 +6,7 @@
 import { Template, Personality, TEMPLATES, PERSONALITIES } from '@/config/templatesAndTones';
 import { VocabularyStyle, getAllVocabularyStyles } from '@/config/vocabulary';
 import { LengthPacingStyle, getAllLengthPacingStyles } from '@/config/lengthPacing';
+import { QuickPersona, getAllQuickPersonas } from '@/config/quickPersonas';
 // Type alias for backward compatibility
 type Tone = Personality;
 import { visualFeedback } from '@/ui/visualFeedback';
@@ -21,6 +22,8 @@ export interface SelectionResult {
   // New 4-part structure
   vocabulary?: string;
   lengthPacing?: string;
+  personality?: string;
+  rhetoric?: string;
 }
 
 export class UnifiedSelector {
@@ -29,6 +32,7 @@ export class UnifiedSelector {
   private selectedPersonality: Personality | null = null;
   private selectedVocabulary: VocabularyStyle | null = null;
   private selectedLengthPacing: LengthPacingStyle | null = null;
+  private selectedPersona: QuickPersona | null = null;
   // Backward compatibility alias
   private get selectedTone(): Personality | null { return this.selectedPersonality; }
   private set selectedTone(value: Personality | null) { this.selectedPersonality = value; }
@@ -39,7 +43,7 @@ export class UnifiedSelector {
   private favoritePersonalities: Set<string> = new Set();
   // Backward compatibility alias
   private get favoriteTones(): Set<string> { return this.favoritePersonalities; }
-  private view: 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
+  private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -227,6 +231,9 @@ export class UnifiedSelector {
     this.container.innerHTML = `
       <div class="selector-header">
         <div class="selector-tabs">
+          <button class="tab-btn ${this.view === 'personas' ? 'active' : ''}" data-view="personas">
+            <span>👤 Personas</span>
+          </button>
           <button class="tab-btn ${this.view === 'grid' ? 'active' : ''}" data-view="grid">
             <span>📝 All</span>
           </button>
@@ -250,7 +257,9 @@ export class UnifiedSelector {
       
       <div class="selector-footer">
         <div class="selection-info">
-          ${this.view === 'grid' ? `
+          ${this.view === 'personas' ? `
+            ${this.selectedPersona ? `<span class="selected-persona">${this.selectedPersona.emoji} ${this.selectedPersona.name}</span>` : '<span class="missing-item">Select a persona...</span>'}
+          ` : this.view === 'grid' ? `
             <div class="four-part-selection">
               ${this.selectedPersonality ? `<span class="selected-item">1️⃣ ${this.selectedPersonality.emoji}</span>` : '<span class="missing-item">1️⃣ ...</span>'}
               ${this.selectedVocabulary ? `<span class="selected-item">2️⃣ ${this.selectedVocabulary.emoji}</span>` : '<span class="missing-item">2️⃣ ...</span>'}
@@ -262,10 +271,14 @@ export class UnifiedSelector {
             ${this.selectedPersonality ? `<span class="selected-personality">${this.selectedPersonality.emoji} ${this.selectedPersonality.label}</span>` : ''}
           `}
         </div>
-        <button class="generate-btn ${this.view === 'grid' 
+        <button class="generate-btn ${this.view === 'personas'
+          ? (this.selectedPersona ? 'active' : '')
+          : this.view === 'grid' 
           ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing ? 'active' : '')
           : (this.selectedTemplate && this.selectedPersonality ? 'active' : '')}" 
-                ${this.view === 'grid'
+                ${this.view === 'personas'
+          ? (!this.selectedPersona ? 'disabled' : '')
+          : this.view === 'grid'
           ? (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing ? 'disabled' : '')
           : (!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : '')}>
           Generate Reply
@@ -281,6 +294,8 @@ export class UnifiedSelector {
    */
   private renderViewContent(templates: Template[], personalities: Personality[]): string {
     switch (this.view) {
+      case 'personas':
+        return this.renderPersonasView();
       case 'smart':
         return this.renderSmartSuggestionsView(templates, personalities);
       case 'favorites':
@@ -292,6 +307,34 @@ export class UnifiedSelector {
       default:
         return this.renderGridView(templates, personalities);
     }
+  }
+
+  /**
+   * Render personas view (quick personas)
+   */
+  private renderPersonasView(): string {
+    const personas = getAllQuickPersonas();
+    
+    return `
+      <div class="selector-content personas-view">
+        <div class="personas-info">
+          <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0 0 12px 0;">
+            🎭 Quick personas with pre-configured personality, vocabulary, rhetoric, and pacing
+          </p>
+        </div>
+        <div class="personas-grid">
+          ${personas.map(persona => `
+            <button class="persona-card ${this.selectedPersona?.id === persona.id ? 'selected' : ''}"
+                    data-persona="${persona.id}"
+                    title="${persona.description}">
+              <div class="persona-emoji">${persona.emoji}</div>
+              <div class="persona-name">${persona.name}</div>
+              <div class="persona-description">${persona.description}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -594,7 +637,7 @@ export class UnifiedSelector {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const view = (e.currentTarget as HTMLElement).dataset.view as 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom';
+        const view = (e.currentTarget as HTMLElement).dataset.view as 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom';
         this.view = view;
         if (view === 'smart') {
           this.loadSmartSuggestions();
@@ -603,6 +646,15 @@ export class UnifiedSelector {
       });
     });
 
+    // Persona selection (quick personas)
+    this.container.querySelectorAll('.persona-card').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        const personaId = (e.currentTarget as HTMLElement).dataset.persona!;
+        this.selectPersona(personaId);
+      });
+    });
+    
     // Vocabulary selection (new 4-part structure)
     this.container.querySelectorAll('.vocabulary-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
@@ -845,6 +897,25 @@ export class UnifiedSelector {
   }
 
   /**
+   * Select a quick persona
+   */
+  private selectPersona(personaId: string): void {
+    const personas = getAllQuickPersonas();
+    const persona = personas.find(p => p.id === personaId) || null;
+    if (persona) {
+      this.selectedPersona = persona;
+      console.log('%c👤 Persona selected:', 'color: #FFD700; font-weight: bold', persona.name);
+      console.log('%c  Pre-configured:', 'color: #657786');
+      console.log('%c    Personality:', 'color: #9146FF', persona.personality);
+      console.log('%c    Vocabulary:', 'color: #FF6B6B', persona.vocabulary);
+      console.log('%c    Rhetoric:', 'color: #FF9F1C', persona.rhetoricMove);
+      console.log('%c    Pacing:', 'color: #E91E63', persona.lengthPacing);
+      this.updateUI();
+      this.checkReadyToGenerate();
+    }
+  }
+
+  /**
    * Select a vocabulary style
    */
   private selectVocabulary(vocabularyId: string): void {
@@ -888,6 +959,11 @@ export class UnifiedSelector {
    */
   private updateUI(): void {
     if (!this.container) return;
+
+    // Update persona cards
+    this.container.querySelectorAll('.persona-card').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-persona') === this.selectedPersona?.id);
+    });
 
     // Update vocabulary buttons (new 4-part)
     this.container.querySelectorAll('.vocabulary-btn').forEach(btn => {
@@ -935,7 +1011,14 @@ export class UnifiedSelector {
    * Check if ready to generate
    */
   private checkReadyToGenerate(): void {
-    if (this.view === 'grid') {
+    if (this.view === 'personas') {
+      // Check if persona is selected
+      if (this.selectedPersona) {
+        console.log('%c✅ Persona selected!', 'color: #17BF63; font-weight: bold');
+        console.log('%c  Name:', 'color: #657786', this.selectedPersona.name);
+        console.log('%c  Using pre-configured 4-part structure', 'color: #FFD700');
+      }
+    } else if (this.view === 'grid') {
       // Check all 4 parts for grid view
       if (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing) {
         console.log('%c✅ All 4 parts selected!', 'color: #17BF63; font-weight: bold');
@@ -961,6 +1044,53 @@ export class UnifiedSelector {
     if (!this.onSelectCallback) return;
     
     // Check requirements based on view
+    if (this.view === 'personas') {
+      if (!this.selectedPersona) return;
+      
+      // Use persona's system prompt directly
+      const result: SelectionResult = {
+        // Create temporary template and tone for backward compatibility
+        template: {
+          id: this.selectedPersona.id,
+          name: this.selectedPersona.name,
+          emoji: this.selectedPersona.emoji,
+          prompt: this.selectedPersona.systemPrompt,
+          description: this.selectedPersona.description,
+          category: 'persona',
+          categoryLabel: 'Persona'
+        },
+        tone: {
+          id: this.selectedPersona.id,
+          emoji: this.selectedPersona.emoji,
+          label: this.selectedPersona.name,
+          description: this.selectedPersona.description,
+          systemPrompt: this.selectedPersona.systemPrompt,
+          category: 'neutral' // Use neutral for personas as they have varied tones
+        },
+        combinedPrompt: this.selectedPersona.systemPrompt,
+        temperature: 0.8, // Slightly higher for personas
+        // Pass pre-configured 4-part data
+        vocabulary: this.selectedPersona.vocabulary,
+        lengthPacing: this.selectedPersona.lengthPacing,
+        // Also pass personality and rhetoric for complete structure
+        personality: this.selectedPersona.personality,
+        rhetoric: this.selectedPersona.rhetoricMove
+      };
+      
+      console.log('%c🚀 Generating with Persona:', 'color: #FFD700; font-weight: bold');
+      console.log('%c  Name:', 'color: #657786', this.selectedPersona.name);
+      console.log('%c  Pre-configured 4-part structure:', 'color: #FF6B6B');
+      console.log('%c    Personality:', 'color: #9146FF', result.personality);
+      console.log('%c    Vocabulary:', 'color: #FF6B6B', result.vocabulary);
+      console.log('%c    Rhetoric:', 'color: #FF9F1C', result.rhetoric);
+      console.log('%c    Pacing:', 'color: #E91E63', result.lengthPacing);
+      
+      // Hide and call callback
+      this.hide();
+      this.onSelectCallback(result);
+      return;
+    }
+    
     if (this.view === 'grid') {
       if (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing) return;
     } else {
@@ -1602,6 +1732,77 @@ export class UnifiedSelector {
         .length-pacing-label {
           flex: 1;
           text-align: left;
+        }
+        
+        /* Personas view styles */
+        .personas-view {
+          padding: 8px;
+        }
+        
+        .personas-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          max-height: 350px;
+          overflow-y: auto;
+        }
+        
+        .persona-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(139, 152, 165, 0.2);
+          border-radius: 12px;
+          padding: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 6px;
+        }
+        
+        .persona-card:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: rgba(29, 155, 240, 0.3);
+          transform: translateY(-2px);
+        }
+        
+        .persona-card.selected {
+          background: rgba(29, 155, 240, 0.2);
+          border-color: rgba(29, 155, 240, 0.5);
+          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.2);
+        }
+        
+        .persona-emoji {
+          font-size: 28px;
+        }
+        
+        .persona-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: #e7e9ea;
+        }
+        
+        .persona-description {
+          font-size: 11px;
+          color: #8b98a5;
+          line-height: 1.3;
+          max-height: 2.6em;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+        
+        .selected-persona {
+          padding: 4px 12px;
+          background: rgba(255, 215, 0, 0.15);
+          border: 1px solid rgba(255, 215, 0, 0.3);
+          border-radius: 10px;
+          font-size: 13px;
+          color: #FFD700;
+          font-weight: 500;
         }
         
         .item-wrapper {
