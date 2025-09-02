@@ -94,6 +94,35 @@ export class EncryptionService {
   }
   
   /**
+   * Encrypt an API key (convenience method)
+   */
+  static async encryptApiKey(apiKey: string): Promise<string> {
+    const { ciphertext, iv, salt } = await this.encrypt(apiKey);
+    // Store as a single string with prefix
+    return `enc_${ciphertext}_${iv}_${salt}`;
+  }
+  
+  /**
+   * Decrypt an API key (convenience method)
+   */
+  static async decryptApiKey(encryptedData: string): Promise<string> {
+    // Check for encrypted prefix
+    if (!encryptedData.startsWith('enc_')) {
+      // Not encrypted, return as-is (backward compatibility)
+      return encryptedData;
+    }
+    
+    // Parse the encrypted data
+    const parts = encryptedData.substring(4).split('_');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted API key format');
+    }
+    
+    const [ciphertext, iv, salt] = parts;
+    return this.decrypt(ciphertext, iv, salt);
+  }
+  
+  /**
    * Decrypt a string
    */
   static async decrypt(ciphertext: string, iv: string, salt: string, passphrase?: string): Promise<string> {

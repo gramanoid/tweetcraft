@@ -54,7 +54,8 @@ export class SelectorAdapter {
           name: result.template.name,
           emoji: result.template.emoji,
           prompt: result.template.prompt,
-          category: result.template.category as 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral',
+          // Category is now properly typed to support all values
+          category: result.template.category as any, // Template category is flexible now
           description: result.template.description || ''
         };
         

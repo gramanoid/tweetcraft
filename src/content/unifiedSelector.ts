@@ -872,19 +872,15 @@ export class UnifiedSelector {
   /**
    * Toggle favorite template
    */
-  private async toggleFavoriteTemplate(templateId: string): Promise<void> {
-    if (this.favoriteTemplates.has(templateId)) {
-      this.favoriteTemplates.delete(templateId);
-      // Remove from favorites
-      this.favoriteTemplates.delete(templateId);
+  private async toggleFavoriteTemplate(rhetoricId: string): Promise<void> {
+    if (this.favoriteRhetoric.has(rhetoricId)) {
+      this.favoriteRhetoric.delete(rhetoricId);
       this.saveFavorites();
-      console.log('%c⭐ Removed from favorites:', 'color: #FFA500', templateId);
+      console.log('%c⭐ Removed from favorites:', 'color: #FFA500', rhetoricId);
     } else {
-      this.favoriteTemplates.add(templateId);
-      // Add to favorites
-      this.favoriteTemplates.add(templateId);
+      this.favoriteRhetoric.add(rhetoricId);
       this.saveFavorites();
-      console.log('%c⭐ Added to favorites:', 'color: #FFA500', templateId);
+      console.log('%c⭐ Added to favorites:', 'color: #FFA500', rhetoricId);
     }
     this.render();
   }

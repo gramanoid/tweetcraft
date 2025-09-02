@@ -5,13 +5,17 @@
 
 import { memoryManager } from '@/utils/memoryManager';
 
+// Extended category type to support both old and new categories
+type TemplateCategory = 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral' | 
+                        'collaborative' | 'clarifying' | 'challenging' | 'online_native';
+
 export interface PresetTemplate {
   id: string;
   name: string;
   emoji: string;
   prompt: string;
   description: string;
-  category: 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral';
+  category: TemplateCategory;
 }
 
 // Export TEMPLATES array for use by other modules

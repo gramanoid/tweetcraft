@@ -1,4 +1,5 @@
 import { AppConfig, DEFAULT_CONFIG } from '@/types';
+import { EncryptionService } from '@/utils/encryption';
 
 const STORAGE_KEYS = {
   CONFIG: 'smartReply_config',
@@ -31,7 +32,24 @@ export class StorageService {
   static async getApiKey(): Promise<string | undefined> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEYS.API_KEY);
-      return result[STORAGE_KEYS.API_KEY];
+      const storedValue = result[STORAGE_KEYS.API_KEY];
+      
+      if (!storedValue) {
+        return undefined;
+      }
+      
+      // Check if it's encrypted (has the encrypted prefix)
+      if (storedValue.startsWith('enc_')) {
+        // It's already encrypted, decrypt it
+        return await EncryptionService.decryptApiKey(storedValue);
+      } else {
+        // Legacy plain text API key - encrypt it for future use
+        const encrypted = await EncryptionService.encryptApiKey(storedValue);
+        await chrome.storage.local.set({
+          [STORAGE_KEYS.API_KEY]: encrypted
+        });
+        return storedValue;
+      }
     } catch (error) {
       console.error('Failed to get API key from storage:', error);
       return undefined;
@@ -40,8 +58,10 @@ export class StorageService {
 
   static async setApiKey(apiKey: string): Promise<void> {
     try {
+      // Always encrypt API keys before storing
+      const encrypted = await EncryptionService.encryptApiKey(apiKey);
       await chrome.storage.local.set({
-        [STORAGE_KEYS.API_KEY]: apiKey
+        [STORAGE_KEYS.API_KEY]: encrypted
       });
     } catch (error) {
       console.error('Failed to save API key to storage:', error);

@@ -35,7 +35,7 @@ export type { Personality as ToneType } from './personalities';
 export const TEMPLATES: Template[] = RHETORICAL_MOVES.map(move => ({
   ...move,
   prompt: move.systemPrompt, // Map systemPrompt to prompt for backward compatibility
-  category: move.category as any // Map category type
+  category: move.category // Category is already a string, no casting needed
 }));
 
 /**
