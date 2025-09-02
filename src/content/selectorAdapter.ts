@@ -4,7 +4,7 @@
  */
 
 import { TemplateSelector } from './templateSelector';
-import { UnifiedSelector, FiveStepSelectionResult } from './unifiedSelector';
+import { UnifiedSelectorEnhanced, FiveStepSelectionResult } from './unifiedSelectorEnhanced';
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
 
@@ -21,14 +21,14 @@ type SelectionCallback = (
 export class SelectorAdapter {
   private useUnifiedSelector: boolean;
   private templateSelector: TemplateSelector | null = null;
-  private unifiedSelector: UnifiedSelector | null = null;
+  private unifiedSelector: UnifiedSelectorEnhanced | null = null;
   
   constructor() {
     // Check feature flag from storage or default to unified
     this.useUnifiedSelector = this.checkFeatureFlag();
     
     if (this.useUnifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
+      this.unifiedSelector = new UnifiedSelectorEnhanced();
     } else {
       this.templateSelector = new TemplateSelector();
     }
@@ -114,7 +114,7 @@ export class SelectorAdapter {
     
     // Initialize unified selector
     if (!this.unifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
+      this.unifiedSelector = new UnifiedSelectorEnhanced();
     }
   }
   
