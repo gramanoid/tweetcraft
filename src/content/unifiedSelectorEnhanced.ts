@@ -267,11 +267,35 @@ export class UnifiedSelectorEnhanced {
     const container = document.createElement('div');
     container.className = 'unified-selector-enhanced';
     
+    console.log('%c🎨 Creating UI container...', 'color: #9146FF');
+    
     // Inject styles into document head once
     this.injectStyles();
     
-    // Set content without styles
-    container.innerHTML = this.renderContent();
+    // Get the rendered content
+    const content = this.renderContent();
+    console.log('%c  Content length:', 'color: #657786', content.length);
+    console.log('%c  Content preview:', 'color: #657786', content.substring(0, 200) + '...');
+    
+    try {
+      // Create a temporary div to hold the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      
+      console.log('%c  TempDiv children:', 'color: #657786', tempDiv.children.length);
+      
+      // Move all child nodes from tempDiv to container
+      while (tempDiv.firstChild) {
+        container.appendChild(tempDiv.firstChild);
+      }
+      
+      console.log('%c  Container children:', 'color: #657786', container.children.length);
+      console.log('%c✅ UI created successfully', 'color: #17BF63');
+    } catch (error) {
+      console.error('%c❌ Error creating UI:', 'color: #DC3545', error);
+      // Fallback: set text content to show something
+      container.textContent = 'Error: Failed to render TweetCraft UI. Please refresh the page.';
+    }
     
     // Don't attach listeners here - container not in DOM yet
     // Will be attached after appending to document in show()
@@ -2252,7 +2276,17 @@ export class UnifiedSelectorEnhanced {
   private render(): void {
     if (!this.container) return;
     // Don't re-inject styles - they're already in document head
-    this.container.innerHTML = this.renderContent();
+    
+    // Create a temporary div to hold the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = this.renderContent();
+    
+    // Clear container and move all child nodes from tempDiv
+    this.container.innerHTML = '';
+    while (tempDiv.firstChild) {
+      this.container.appendChild(tempDiv.firstChild);
+    }
+    
     this.attachEventListeners();
     this.updateWarnings();
   }

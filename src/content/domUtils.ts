@@ -688,10 +688,22 @@ export class DOMUtils {
    */
   static hasUserText(textarea: HTMLElement): boolean {
     const text = DOMUtils.getTextFromTextarea(textarea);
+    console.log('%c🔍 hasUserText check:', 'color: #9146FF', `text="${text}", length=${text.length}`);
+    
     // Check if there's meaningful text (not just placeholder or empty)
-    return text.length > 0 && 
-           !text.toLowerCase().includes('post your reply') && 
-           !text.toLowerCase().includes('add another tweet');
+    // Twitter's placeholder text varies, so check for common patterns
+    const isPlaceholder = text.length === 0 || 
+                         text.toLowerCase().includes('post your reply') || 
+                         text.toLowerCase().includes('add another tweet') ||
+                         text.toLowerCase().includes('add a comment') ||
+                         text.toLowerCase().includes('tweet your reply') ||
+                         text.toLowerCase().includes('what\'s happening') ||
+                         text.toLowerCase().includes("what's happening");
+    
+    const hasText = text.length > 0 && !isPlaceholder;
+    console.log('%c  Result:', 'color: #657786', `hasText=${hasText}, isPlaceholder=${isPlaceholder}`);
+    
+    return hasText;
   }
 
   static async createToneDropdown(onToneSelect: (tone: string) => void): Promise<HTMLElement> {
