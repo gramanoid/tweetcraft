@@ -2067,14 +2067,70 @@ export class UnifiedSelectorEnhanced {
   }
   
   private positionNearButton(button: HTMLElement): void {
-    // Implementation from original
+    if (!this.container) return;
+    
+    const buttonRect = button.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Calculate whether to show above or below
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const selectorHeight = 600; // max-height from CSS
+    const showAbove = spaceBelow < selectorHeight && spaceAbove > spaceBelow;
+    
+    // Use fixed positioning to stick to viewport
+    this.container.style.position = 'fixed';
+    this.container.style.zIndex = '10000';
+    
+    // Position vertically relative to button
+    if (showAbove) {
+      this.container.style.bottom = `${viewportHeight - buttonRect.top + 8}px`;
+      this.container.style.top = 'auto';
+    } else {
+      this.container.style.top = `${buttonRect.bottom + 8}px`;
+      this.container.style.bottom = 'auto';
+    }
+    
+    // Center horizontally but keep within viewport
+    const selectorWidth = 560; // width from CSS
+    let leftPos = buttonRect.left + (buttonRect.width / 2) - (selectorWidth / 2);
+    
+    // Ensure it stays within viewport bounds
+    if (leftPos < 10) {
+      leftPos = 10;
+    } else if (leftPos + selectorWidth > viewportWidth - 10) {
+      leftPos = viewportWidth - selectorWidth - 10;
+    }
+    
+    this.container.style.left = `${leftPos}px`;
+    this.container.style.right = 'auto';
   }
   
   private setupClickOutsideHandler(): void {
-    // Implementation from original
+    this.clickOutsideHandler = (e: MouseEvent) => {
+      if (!this.container || !this.anchorButton) return;
+      
+      const target = e.target as Node;
+      if (!this.container.contains(target) && !this.anchorButton.contains(target)) {
+        this.hide();
+      }
+    };
+    
+    // Add slight delay to prevent immediate closure
+    setTimeout(() => {
+      document.addEventListener('click', this.clickOutsideHandler!);
+    }, 100);
   }
   
   private setupScrollHandler(): void {
-    // Implementation from original
+    this.scrollHandler = () => {
+      if (this.anchorButton && this.container) {
+        this.positionNearButton(this.anchorButton);
+      }
+    };
+    
+    // Listen to scroll on window and any scrollable parent
+    window.addEventListener('scroll', this.scrollHandler, true);
   }
 }
