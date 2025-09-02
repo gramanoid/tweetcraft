@@ -41,9 +41,15 @@ export class StorageService {
       // Check if it's encrypted (has the encrypted prefix)
       if (storedValue.startsWith('enc_')) {
         // It's already encrypted, decrypt it
-        return await EncryptionService.decryptApiKey(storedValue);
+        const decrypted = await EncryptionService.decryptApiKey(storedValue);
+        console.log('%c🔓 API Key Decrypted', 'color: #17BF63', { 
+          stored: storedValue.substring(0, 20) + '...', 
+          decrypted: decrypted ? 'success' : 'failed' 
+        });
+        return decrypted;
       } else {
         // Legacy plain text API key - encrypt it for future use
+        console.log('%c🔐 Encrypting legacy API key', 'color: #FFA500');
         const encrypted = await EncryptionService.encryptApiKey(storedValue);
         await chrome.storage.local.set({
           [STORAGE_KEYS.API_KEY]: encrypted

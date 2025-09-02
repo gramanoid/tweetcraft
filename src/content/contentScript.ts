@@ -32,6 +32,10 @@ class SmartReplyContentScript {
   private eventListeners: Array<() => void> = [];
   private customEventListeners: Map<string, EventListener> = new Map();
   
+  // Timer and interval tracking for memory leak prevention
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private intervals = new Set<ReturnType<typeof setInterval>>();
+  
   // Configurable cleanup interval
   private cleanupIntervalMs: number = 3000; // Default to 3 seconds
   private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -51,6 +55,29 @@ class SmartReplyContentScript {
     this.setupCleanupHandlers();
     
     this.init();
+  }
+  
+  // Safe setTimeout wrapper that tracks timers
+  private safeSetTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+    const timerId = setTimeout(() => {
+      this.timers.delete(timerId);
+      if (!this.isDestroyed) {
+        callback();
+      }
+    }, delay);
+    this.timers.add(timerId);
+    return timerId;
+  }
+  
+  // Safe setInterval wrapper that tracks intervals
+  private safeSetInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
+    const intervalId = setInterval(() => {
+      if (!this.isDestroyed) {
+        callback();
+      }
+    }, delay);
+    this.intervals.add(intervalId);
+    return intervalId;
   }
 
   private async init(): Promise<void> {
@@ -208,18 +235,14 @@ class SmartReplyContentScript {
         this.initialRetryCount = 0;
         
         // Give the new page time to load - increased delay for Twitter's dynamic loading
-        this.navigationTimerId = setTimeout(() => {
-          if (!this.isDestroyed) {
-            console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
-            this.attemptInitialInjection();
-            
-            // Also trigger a manual scan after a bit more delay
-            this.navigationTimerId = setTimeout(() => {
-              if (!this.isDestroyed) {
-                this.manualToolbarScan();
-              }
-            }, 1000);
-          }
+        this.navigationTimerId = this.safeSetTimeout(() => {
+          console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
+          this.attemptInitialInjection();
+          
+          // Also trigger a manual scan after a bit more delay
+          this.navigationTimerId = this.safeSetTimeout(() => {
+            this.manualToolbarScan();
+          }, 1000);
         }, 800);
       }
     };
@@ -351,7 +374,7 @@ class SmartReplyContentScript {
         
         // Otherwise try silent reconnection
         this.port = null;
-        setTimeout(() => this.connectToServiceWorker(), 1000);
+        this.safeSetTimeout(() => this.connectToServiceWorker(), 1000);
       });
     } catch (error: any) {
       // Check for context invalidation
@@ -366,7 +389,7 @@ class SmartReplyContentScript {
         console.error('Smart Reply: Connection error:', error);
       }
       
-      setTimeout(() => this.connectToServiceWorker(), 5000);
+      this.safeSetTimeout(() => this.connectToServiceWorker(), 5000);
     }
   }
 
@@ -385,8 +408,8 @@ class SmartReplyContentScript {
     const reactRoot = document.querySelector('#react-root');
     if (!reactRoot) {
       // Silently retry
-      setTimeout(() => {
-        if (!this.isDestroyed) this.startObserving();
+      this.safeSetTimeout(() => {
+        this.startObserving();
       }, 1000);
       return;
     }
@@ -395,15 +418,8 @@ class SmartReplyContentScript {
     this.cleanupDuplicateButtons();
     
     // Set up periodic cleanup with configurable interval
-    this.cleanupIntervalId = setInterval(() => {
-      if (!this.isDestroyed) {
-        this.cleanupDuplicateButtons();
-      } else {
-        if (this.cleanupIntervalId) {
-          clearInterval(this.cleanupIntervalId);
-          this.cleanupIntervalId = null;
-        }
-      }
+    this.cleanupIntervalId = this.safeSetInterval(() => {
+      this.cleanupDuplicateButtons();
     }, this.cleanupIntervalMs);
 
     // Attempt initial injection with retries
@@ -539,7 +555,7 @@ class SmartReplyContentScript {
     }
     
     // Also try processing after a delay for Vue components to load
-    setTimeout(() => {
+    this.safeSetTimeout(() => {
       console.log('%c⏰ Delayed processing for Vue components', 'color: #667eea');
       this.processHypeFuryTextareas();
     }, 2000);
@@ -983,7 +999,7 @@ class SmartReplyContentScript {
       // Also listen for input events
       textarea.addEventListener('input', updateButtonMode);
       textarea.addEventListener('paste', () => {
-        setTimeout(updateButtonMode, 100);
+        this.safeSetTimeout(updateButtonMode, 100);
       });
       
       // Store cleanup function
@@ -1397,20 +1413,23 @@ class SmartReplyContentScript {
     }
     
     // Auto-remove after 15 seconds
-    setTimeout(() => {
+    this.safeSetTimeout(() => {
       if (suggestPopup.parentElement) {
         suggestPopup.remove();
       }
     }, 15000);
 
     // Close on click outside
-    setTimeout(() => {
-      document.addEventListener('click', function closePopup(e) {
+    this.safeSetTimeout(() => {
+      const closePopup = (e: MouseEvent) => {
         if (!suggestPopup.contains(e.target as Node) && e.target !== button) {
           suggestPopup.remove();
           document.removeEventListener('click', closePopup);
         }
-      });
+      };
+      document.addEventListener('click', closePopup);
+      // Store for cleanup
+      this.eventListeners.push(() => document.removeEventListener('click', closePopup));
     }, 100);
   }
 
@@ -1691,7 +1710,7 @@ class SmartReplyContentScript {
         // Also close old dropdown if it exists (backward compatibility)
         const dropdown = document.querySelector('.smart-reply-dropdown') as HTMLElement;
         if (dropdown) {
-          setTimeout(() => {
+          this.safeSetTimeout(() => {
             dropdown.style.display = 'none';
             // Note: Scroll listener is already properly managed by updateDropdownPosition
           }, 500); // Small delay to show the completion
@@ -1779,6 +1798,16 @@ class SmartReplyContentScript {
     this.isDestroyed = true;
     
     console.log('%c🗑️ Smart Reply: Content script destroyed', 'color: #DC3545; font-weight: bold');
+    
+    // Clean up all timers
+    console.log(`%c  Cleaning up ${this.timers.size} timers`, 'color: #657786');
+    this.timers.forEach(timerId => clearTimeout(timerId));
+    this.timers.clear();
+    
+    // Clean up all intervals
+    console.log(`%c  Cleaning up ${this.intervals.size} intervals`, 'color: #657786');
+    this.intervals.forEach(intervalId => clearInterval(intervalId));
+    this.intervals.clear();
     
     // Clean up all stored event listeners
     console.log(`%c  Cleaning up ${this.eventListeners.length} stored event listeners`, 'color: #657786');
@@ -1920,10 +1949,8 @@ class SmartReplyContentScript {
       const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
       console.log(`%c⏳ No toolbars found, retrying in ${delay}ms (${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
       
-      setTimeout(() => {
-        if (!this.isDestroyed) {
-          this.attemptInitialInjection();
-        }
+      this.safeSetTimeout(() => {
+        this.attemptInitialInjection();
       }, delay);
     } else {
       // Max retries reached

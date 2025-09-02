@@ -22,7 +22,7 @@ export class OpenRouterService {
   
   // Enhanced rate limiting and optimization
   private static lastRequestTime = 0;
-  private static readonly MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
+  private static readonly MIN_REQUEST_INTERVAL = 100; // 100ms between requests (10x faster)
   
   // Retry configuration
   private static readonly MAX_RETRIES = 3;
@@ -43,7 +43,7 @@ export class OpenRouterService {
     signal?: AbortSignal;
   }> = [];
   private static batchTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly BATCH_WINDOW = 200; // 200ms batching window
+  private static readonly BATCH_WINDOW = 50; // 50ms batching window (4x faster)
   
   // Performance metrics
   private static metrics = {
