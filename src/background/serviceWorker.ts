@@ -1,5 +1,5 @@
 import { StorageService } from '@/services/storage';
-import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
+import { getTemplate, getTone, REPLY_CONFIG, REPLY_OPTIONS } from '@/config/templatesAndTones';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -650,9 +650,48 @@ class SmartReplyServiceWorker {
       systemPrompt += ' ' + config.customStylePrompt;
     }
 
-    // Add tone modifier
-    if (request.tone) {
-      console.log('%c🎭 TONE MODIFIER', 'color: #E1AD01; font-weight: bold');
+    // Check if this is a five-step selection (new system)
+    if (request.selections) {
+      console.log('%c🎯 FIVE-STEP SELECTIONS', 'color: #E1AD01; font-weight: bold');
+      console.log('%c  Selections:', 'color: #657786', request.selections);
+      
+      // Get all options flat for easy lookup
+      const allOptionsFlat: any[] = [];
+      allOptionsFlat.push(...REPLY_OPTIONS.personaFraming);
+      Object.values(REPLY_OPTIONS.attitude).forEach((subgroup: any) => {
+        allOptionsFlat.push(...subgroup);
+      });
+      Object.values(REPLY_OPTIONS.rhetoric).forEach((subgroup: any) => {
+        allOptionsFlat.push(...subgroup);
+      });
+      Object.values(REPLY_OPTIONS.vocabulary).forEach((subgroup: any) => {
+        allOptionsFlat.push(...subgroup);
+      });
+      allOptionsFlat.push(...REPLY_OPTIONS.formatPacing);
+      
+      // Build combined prompt from selections
+      const categoryOrder = ['personaFraming', 'attitude', 'rhetoric', 'vocabulary', 'formatPacing'];
+      const instructions: string[] = [];
+      
+      for (const category of categoryOrder) {
+        const selectedId = request.selections[category];
+        if (selectedId) {
+          const selectedOption = allOptionsFlat.find(opt => opt.id === selectedId);
+          if (selectedOption && selectedOption.prompt) {
+            instructions.push(selectedOption.prompt);
+            console.log(`%c  ${category}:`, 'color: #9146FF', selectedOption.label);
+          }
+        }
+      }
+      
+      if (instructions.length > 0) {
+        systemPrompt += '\n\nCRITICAL: You must generate a reply following these specific, combined instructions:\n- ' + 
+                       instructions.join('\n- ');
+      }
+    }
+    // Handle old template/tone system (backward compatibility)
+    else if (request.tone) {
+      console.log('%c🎭 TONE MODIFIER (Legacy)', 'color: #E1AD01; font-weight: bold');
       console.log('%c  Requested Tone:', 'color: #657786', request.tone);
       
       // First check if it's one of our backend-configured tones

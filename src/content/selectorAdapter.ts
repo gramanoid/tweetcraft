@@ -4,12 +4,19 @@
  */
 
 import { TemplateSelector } from './templateSelector';
-import { UnifiedSelector } from './unifiedSelector';
+import { UnifiedSelector, FiveStepSelectionResult } from './unifiedSelector';
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
 
 // Use PresetTemplate for both preset and custom templates
 type CustomTemplate = PresetTemplate;
+
+// Extended callback type that can handle both old and new systems
+type SelectionCallback = (
+  template: PresetTemplate | CustomTemplate, 
+  tone: ToneOption,
+  fiveStepSelections?: any
+) => void;
 
 export class SelectorAdapter {
   private useUnifiedSelector: boolean;
@@ -40,37 +47,45 @@ export class SelectorAdapter {
   
   /**
    * Show the selector (unified or traditional)
+   * Now supports both old template/tone system and new five-step system
    */
   show(
     button: HTMLElement,
-    callback: (template: PresetTemplate | CustomTemplate, tone: ToneOption) => void
+    callback: SelectionCallback
   ): void {
     if (this.useUnifiedSelector && this.unifiedSelector) {
-      // Use unified selector
-      this.unifiedSelector.show(button, (result) => {
-        // Convert unified result to traditional format
+      // Use unified selector with five-step system
+      this.unifiedSelector.show(button, (result: FiveStepSelectionResult) => {
+        // For the five-step system, we create synthetic template and tone objects
+        // but also pass the actual selections for proper handling
+        
+        // Create a synthetic template that represents the selections
         const template: PresetTemplate = {
-          id: result.template.id,
-          name: result.template.name,
-          emoji: result.template.emoji,
-          prompt: result.template.prompt,
-          category: result.template.category,
-          description: result.template.description || ''
+          id: 'five-step-combined',
+          name: 'Custom Selection',
+          emoji: '🎯',
+          prompt: '', // Empty - prompts are in selections
+          category: 'value' as any, // Using 'value' as a placeholder for five-step
+          description: 'Five-step AI reply configuration'
         };
         
+        // Create a synthetic tone
         const tone: ToneOption = {
-          id: result.tone.id,
-          emoji: result.tone.emoji,
-          label: result.tone.label,
-          description: result.tone.description,
-          systemPrompt: result.tone.systemPrompt
+          id: 'five-step',
+          emoji: '✨',
+          label: 'Five-Step',
+          description: 'Using five-step selection system',
+          systemPrompt: '' // Empty - prompts are in selections
         };
         
-        callback(template, tone);
+        // Pass the five-step selections as the third parameter
+        callback(template, tone, result.selections);
       });
     } else if (this.templateSelector) {
-      // Use traditional two-popup flow
-      this.templateSelector.show(button, callback);
+      // Use traditional two-popup flow (no five-step selections)
+      this.templateSelector.show(button, (template, tone) => {
+        callback(template, tone, undefined);
+      });
     }
   }
   

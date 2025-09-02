@@ -27,6 +27,13 @@ export interface ReplyGenerationRequest {
   replyLength?: 'short' | 'medium' | 'long'; // New: Reply length preset
   isRewriteMode?: boolean; // New: Whether to rewrite existing text
   existingText?: string; // New: The text to rewrite
+  selections?: { // New: Five-step selections
+    personaFraming: string | null;
+    attitude: string | null;
+    rhetoric: string | null;
+    vocabulary: string | null;
+    formatPacing: string | null;
+  };
 }
 
 export interface ReplyGenerationResponse {

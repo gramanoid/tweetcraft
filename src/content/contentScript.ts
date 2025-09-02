@@ -735,10 +735,16 @@ class SmartReplyContentScript {
       
       // Show unified selector
       // Show unified selector using the selector adapter
-      selectorAdapter.show(button, (template, tone) => {
-        // Generate reply with the selected template and tone
-        const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-        this.generateReply(textarea as HTMLElement, { tweetText: context.text }, combinedPrompt, false, false);
+      selectorAdapter.show(button, (template, tone, fiveStepSelections) => {
+        // Check if we're using the five-step system
+        if (fiveStepSelections) {
+          // For five-step system, pass selections directly
+          this.generateReply(textarea as HTMLElement, { tweetText: context.text }, '', false, false, fiveStepSelections);
+        } else {
+          // Legacy template/tone system
+          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+          this.generateReply(textarea as HTMLElement, { tweetText: context.text }, combinedPrompt, false, false);
+        }
       });
     });
     
@@ -1016,9 +1022,9 @@ class SmartReplyContentScript {
         const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
         
         // Show selector (unified or traditional based on feature flag)
-        selectorAdapter.show(button, (template, tone) => {
+        selectorAdapter.show(button, (template, tone, fiveStepSelections) => {
           // When both template and tone are selected, generate/rewrite
-          console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
+          console.log('%c🔨 BUILDING PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
           console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
           
           if (isRewriteMode) {
@@ -1026,28 +1032,44 @@ class SmartReplyContentScript {
             console.log('%c  Existing Text:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));
           }
           
-          console.log('%c  Template Selected:', 'color: #657786');
-          console.log(`%c    ${template.emoji} ${template.name}`, 'color: #1DA1F2');
-          console.log('%c    Prompt:', 'color: #8899a6', template.prompt);
-          console.log('%c  Tone Selected:', 'color: #657786');
-          console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
-          console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
-          
-          // Show toast for selection
-          visualFeedback.showToast(`Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
-            type: 'info',
-            duration: 2000
-          });
-          
-          // Combine template prompt with tone system prompt
-          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-          
-          console.log('%c  ✨ COMBINED PROMPT:', 'color: #17BF63; font-weight: bold');
-          console.log(`%c    "${combinedPrompt}"`, 'color: #17BF63');
-          console.log('%c════════════════════════════════', 'color: #2E3236');
-          
-          // Generate or rewrite using the combined instruction
-          this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode);
+          if (fiveStepSelections) {
+            // Five-step system
+            console.log('%c  Using Five-Step System:', 'color: #1DA1F2');
+            console.log('%c  Selections:', 'color: #8899a6', fiveStepSelections);
+            
+            // Show toast for selection
+            visualFeedback.showToast('Generating with five-step configuration...', {
+              type: 'info',
+              duration: 2000
+            });
+            
+            // Generate or rewrite using five-step selections
+            this.generateReply(textarea, context, '', bypassCache, isRewriteMode, fiveStepSelections);
+          } else {
+            // Legacy template/tone system
+            console.log('%c  Template Selected:', 'color: #657786');
+            console.log(`%c    ${template.emoji} ${template.name}`, 'color: #1DA1F2');
+            console.log('%c    Prompt:', 'color: #8899a6', template.prompt);
+            console.log('%c  Tone Selected:', 'color: #657786');
+            console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
+            console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
+            
+            // Show toast for selection
+            visualFeedback.showToast(`Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
+              type: 'info',
+              duration: 2000
+            });
+            
+            // Combine template prompt with tone system prompt
+            const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+            
+            console.log('%c  ✨ COMBINED PROMPT:', 'color: #17BF63; font-weight: bold');
+            console.log(`%c    "${combinedPrompt}"`, 'color: #17BF63');
+            console.log('%c════════════════════════════════', 'color: #2E3236');
+            
+            // Generate or rewrite using the combined instruction
+            this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode);
+          }
         });
         
         return false; // Prevent any default action
@@ -1412,8 +1434,12 @@ class SmartReplyContentScript {
     context: { tweetId?: string; tweetText: string; threadContext?: string[]; authorHandle?: string }, 
     tone?: string,
     bypassCache: boolean = false,
-    isRewriteMode: boolean = false
+    isRewriteMode: boolean = false,
+    selections?: any
   ): Promise<void> {
+    // Capture selections parameter in local scope
+    const fiveStepSelections = selections;
+    
     // Save state before generating
     ContextRecovery.saveState({
       timestamp: Date.now(),
@@ -1430,7 +1456,7 @@ class SmartReplyContentScript {
     
     try {
       await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode);
+        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode, fiveStepSelections);
       });
     } catch (error) {
       if ((error as Error).message.includes('cancelled')) {
@@ -1448,7 +1474,8 @@ class SmartReplyContentScript {
     tone: string | undefined,
     signal: AbortSignal,
     _bypassCache: boolean = false,
-    isRewriteMode: boolean = false
+    isRewriteMode: boolean = false,
+    fiveStepSelections?: any
   ): Promise<void> {
     // Find the button to show loading state
     // Check if we're on HypeFury to use the correct class name
@@ -1610,6 +1637,11 @@ class SmartReplyContentScript {
         isRewriteMode,
         existingText
       };
+      
+      // Include five-step selections if provided
+      if (fiveStepSelections) {
+        request.selections = fiveStepSelections;
+      }
 
       // Add reply length if specified in tone or use default from config
       if (replyLength) {
