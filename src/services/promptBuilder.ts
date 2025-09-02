@@ -54,7 +54,7 @@ export function buildFourPartPrompt(request: ReplyGenerationRequest): PromptComp
   console.log('%c  Prompt:', 'color: #17BF63', rhetoricPrompt.substring(0, 100) + '...');
   
   // Part 4: LENGTH & PACING - How long/short is the reply
-  const lengthPacingId = request.lengthPacing || 'standard';
+  const lengthPacingId = request.lengthPacing || 'conversational_clause';
   const lengthPacingPrompt = getLengthPacingPrompt(lengthPacingId);
   const characterGuidance = getCharacterGuidance(lengthPacingId);
   
