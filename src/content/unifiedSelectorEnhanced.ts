@@ -128,6 +128,9 @@ export class UnifiedSelectorEnhanced {
    * Show the unified selector
    */
   async show(button: HTMLElement, onSelect: (result: FiveStepSelectionResult) => void): Promise<void> {
+    console.log('%c🎨 UnifiedSelectorEnhanced.show() called', 'color: #17BF63; font-weight: bold');
+    console.log('%c  Button:', 'color: #657786', button);
+    
     this.onSelectCallback = onSelect;
     
     // Extract tweet context for smart suggestions
@@ -143,11 +146,21 @@ export class UnifiedSelectorEnhanced {
     this.anchorButton = button;
     
     // Create and show new selector
+    console.log('%c  Creating UI...', 'color: #657786');
     this.container = this.createUI();
+    console.log('%c  Container created:', 'color: #657786', this.container);
+    
+    if (!this.container) {
+      console.error('%c❌ Failed to create container!', 'color: #DC3545');
+      return;
+    }
+    
     document.body.appendChild(this.container);
+    console.log('%c  Container appended to body', 'color: #657786');
     
     // Position near button
     this.positionNearButton(button);
+    console.log('%c  Container positioned', 'color: #657786');
     
     // Show with animation
     requestAnimationFrame(() => {

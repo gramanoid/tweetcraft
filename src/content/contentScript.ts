@@ -1057,6 +1057,7 @@ class SmartReplyContentScript {
 
       // Add click handler for the main button
       button.addEventListener('click', (e) => {
+        console.log('%c🖱️ AI Reply button clicked!', 'color: #1DA1F2; font-weight: bold');
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation(); // Stop all other handlers
@@ -1069,6 +1070,7 @@ class SmartReplyContentScript {
         const bypassCache = button.getAttribute('data-bypass-cache') === 'true';
         
         if (presetTone) {
+          console.log('%c  Using preset tone:', 'color: #657786', presetTone);
           // Remove the attributes so next click shows dropdown
           button.removeAttribute('data-tone');
           button.removeAttribute('data-bypass-cache');
@@ -1082,8 +1084,13 @@ class SmartReplyContentScript {
         // Check if we're in rewrite mode
         const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
         
+        console.log('%c  Showing selector...', 'color: #657786');
+        console.log('%c  Button element:', 'color: #657786', button);
+        console.log('%c  Button position:', 'color: #657786', button.getBoundingClientRect());
+        
         // Show selector (unified or traditional based on feature flag)
-        selectorAdapter.show(button, (template, tone, fiveStepSelections) => {
+        try {
+          selectorAdapter.show(button, (template, tone, fiveStepSelections) => {
           // When both template and tone are selected, generate/rewrite
           console.log('%c🔨 BUILDING PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
           console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
@@ -1132,6 +1139,13 @@ class SmartReplyContentScript {
             this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode);
           }
         });
+        } catch (error) {
+          console.error('%c❌ Error showing selector:', 'color: #DC3545', error);
+          visualFeedback.showToast('Error opening AI Reply selector. Please try again.', {
+            type: 'error',
+            duration: 3000
+          });
+        }
         
         return false; // Prevent any default action
       }, true); // Use capture phase

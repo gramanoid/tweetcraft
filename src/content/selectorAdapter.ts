@@ -57,7 +57,12 @@ export class SelectorAdapter {
     button: HTMLElement,
     callback: SelectionCallback
   ): void {
+    console.log('%c📋 SelectorAdapter.show called', 'color: #9146FF; font-weight: bold');
+    console.log('%c  Using unified selector:', 'color: #657786', this.useUnifiedSelector);
+    console.log('%c  Unified selector instance:', 'color: #657786', this.unifiedSelector);
+    
     if (this.useUnifiedSelector && this.unifiedSelector) {
+      console.log('%c  Calling UnifiedSelectorEnhanced.show()', 'color: #657786');
       // Use unified selector with five-step system
       this.unifiedSelector.show(button, (result: FiveStepSelectionResult) => {
         // For the five-step system, we create synthetic template and tone objects
