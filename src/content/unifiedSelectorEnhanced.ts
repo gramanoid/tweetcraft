@@ -149,10 +149,20 @@ export class UnifiedSelectorEnhanced {
     console.log('%c  Creating UI...', 'color: #657786');
     this.container = this.createUI();
     console.log('%c  Container created:', 'color: #657786', this.container);
+    console.log('%c  Container HTML length:', 'color: #657786', this.container?.innerHTML?.length || 0);
     
     if (!this.container) {
       console.error('%c❌ Failed to create container!', 'color: #DC3545');
       return;
+    }
+    
+    // Verify styles are injected
+    const stylesExist = document.getElementById('tweetcraft-unified-selector-styles');
+    console.log('%c  Styles injected:', 'color: #657786', !!stylesExist);
+    
+    if (!stylesExist) {
+      console.warn('%c⚠️ Styles not found, re-injecting...', 'color: #FFA500');
+      this.injectStyles();
     }
     
     document.body.appendChild(this.container);
@@ -256,12 +266,43 @@ export class UnifiedSelectorEnhanced {
   private createUI(): HTMLElement {
     const container = document.createElement('div');
     container.className = 'unified-selector-enhanced';
-    container.innerHTML = this.getStyles() + this.renderContent();
+    
+    // Inject styles into document head once
+    this.injectStyles();
+    
+    // Set content without styles
+    container.innerHTML = this.renderContent();
     
     // Don't attach listeners here - container not in DOM yet
     // Will be attached after appending to document in show()
     
     return container;
+  }
+  
+  /**
+   * Inject styles into document head
+   */
+  private injectStyles(): void {
+    // Check if styles already injected
+    if (document.getElementById('tweetcraft-unified-selector-styles')) {
+      return;
+    }
+    
+    const styleElement = document.createElement('style');
+    styleElement.id = 'tweetcraft-unified-selector-styles';
+    styleElement.type = 'text/css';
+    styleElement.textContent = this.getStylesCSS();
+    
+    try {
+      document.head.appendChild(styleElement);
+      console.log('%c🎨 Unified selector styles injected', 'color: #9146FF');
+    } catch (error) {
+      console.error('%c❌ Failed to inject styles:', 'color: #DC3545', error);
+      // Fallback: inject styles directly into the container
+      const styleEl = document.createElement('style');
+      styleEl.textContent = this.getStylesCSS();
+      document.body.appendChild(styleEl);
+    }
   }
   
   /**
@@ -1278,11 +1319,10 @@ export class UnifiedSelectorEnhanced {
   // ... (remaining helper methods from original implementation)
   
   /**
-   * Get styles
+   * Get styles CSS content only (without <style> tags)
    */
-  private getStyles(): string {
+  private getStylesCSS(): string {
     return `
-      <style>
         .unified-selector-enhanced {
           position: fixed;
           z-index: 10000;
@@ -1292,10 +1332,10 @@ export class UnifiedSelectorEnhanced {
         .selector-container {
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 12px;
-          width: 480px;
+          border-radius: 10px;
+          width: 420px;
           max-width: 95vw;
-          max-height: 60vh;
+          max-height: 55vh;
           display: flex;
           flex-direction: column;
           box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
@@ -1314,7 +1354,7 @@ export class UnifiedSelectorEnhanced {
         }
         
         .selector-header {
-          padding: 6px 10px;
+          padding: 4px 8px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: rgba(0, 0, 0, 0.3);
         }
@@ -1327,17 +1367,17 @@ export class UnifiedSelectorEnhanced {
         
         .selector-tabs {
           display: flex;
-          gap: 3px;
+          gap: 2px;
         }
         
         .tab-btn {
-          padding: 3px 6px;
+          padding: 2px 4px;
           background: transparent;
           border: 1px solid transparent;
-          border-radius: 12px;
+          border-radius: 8px;
           color: #8b98a5;
           cursor: pointer;
-          font-size: 11px;
+          font-size: 10px;
           transition: all 0.2s;
         }
         
@@ -1358,13 +1398,13 @@ export class UnifiedSelectorEnhanced {
         }
         
         .mode-toggle {
-          padding: 4px 8px;
+          padding: 3px 6px;
           background: rgba(139, 152, 165, 0.2);
           border: none;
-          border-radius: 8px;
+          border-radius: 6px;
           color: #e7e9ea;
           cursor: pointer;
-          font-size: 12px;
+          font-size: 10px;
           transition: all 0.2s;
         }
         
@@ -1373,14 +1413,14 @@ export class UnifiedSelectorEnhanced {
         }
         
         .close-btn {
-          width: 28px;
-          height: 28px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: transparent;
           border: none;
           color: #8b98a5;
           cursor: pointer;
-          font-size: 20px;
+          font-size: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1393,28 +1433,28 @@ export class UnifiedSelectorEnhanced {
         }
         
         .preset-bar {
-          padding: 8px 16px;
+          padding: 6px 12px;
           background: rgba(29, 155, 240, 0.05);
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
         
         .preset-label {
           color: #8b98a5;
-          font-size: 12px;
-          margin-right: 4px;
+          font-size: 10px;
+          margin-right: 3px;
         }
         
         .preset-btn {
-          padding: 4px 8px;
+          padding: 3px 6px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(139, 152, 165, 0.2);
-          border-radius: 12px;
+          border-radius: 8px;
           color: #e7e9ea;
           cursor: pointer;
-          font-size: 14px;
+          font-size: 12px;
           transition: all 0.2s;
         }
         
@@ -1437,14 +1477,14 @@ export class UnifiedSelectorEnhanced {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 16px;
+          padding: 12px;
         }
         
         .progress-bar {
           display: flex;
           justify-content: space-between;
-          padding: 0 20px;
-          margin-bottom: 20px;
+          padding: 0 12px;
+          margin-bottom: 16px;
           position: relative;
         }
         
@@ -1472,15 +1512,15 @@ export class UnifiedSelectorEnhanced {
         }
         
         .step-circle {
-          width: 30px;
-          height: 30px;
+          width: 26px;
+          height: 26px;
           border-radius: 50%;
           background: #15202b;
           border: 2px solid rgba(139, 152, 165, 0.3);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 12px;
+          font-size: 11px;
           color: #8b98a5;
           transition: all 0.3s;
           position: relative;
@@ -1510,8 +1550,8 @@ export class UnifiedSelectorEnhanced {
         }
         
         .step-label {
-          margin-top: 4px;
-          font-size: 11px;
+          margin-top: 3px;
+          font-size: 9px;
           color: #8b98a5;
         }
         
@@ -1522,9 +1562,9 @@ export class UnifiedSelectorEnhanced {
         .selection-preview {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.2);
-          border-radius: 12px;
-          padding: 12px;
-          margin-bottom: 16px;
+          border-radius: 8px;
+          padding: 10px;
+          margin-bottom: 12px;
         }
         
         .selection-preview.empty {
@@ -1537,55 +1577,55 @@ export class UnifiedSelectorEnhanced {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
         
         .preview-header h4 {
           margin: 0;
           color: #e7e9ea;
-          font-size: 13px;
+          font-size: 12px;
         }
         
         .reset-btn {
-          padding: 2px 6px;
+          padding: 1px 4px;
           background: rgba(139, 152, 165, 0.2);
           border: none;
-          border-radius: 6px;
+          border-radius: 4px;
           color: #8b98a5;
           cursor: pointer;
-          font-size: 11px;
+          font-size: 9px;
         }
         
         .preview-description {
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
         
         .preview-tag {
           display: inline-block;
-          padding: 2px 6px;
+          padding: 1px 4px;
           background: rgba(29, 155, 240, 0.1);
-          border-radius: 4px;
+          border-radius: 3px;
           color: #1d9bf0;
-          font-size: 11px;
-          margin-right: 4px;
+          font-size: 9px;
+          margin-right: 3px;
         }
         
         .example-preview {
-          padding-top: 8px;
+          padding-top: 6px;
           border-top: 1px solid rgba(139, 152, 165, 0.1);
         }
         
         .example-label {
           color: #8b98a5;
-          font-size: 11px;
+          font-size: 9px;
           display: block;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
         
         .example-text {
           color: #e7e9ea;
           font-style: italic;
-          font-size: 12px;
+          font-size: 10px;
         }
         
         .step-content {
@@ -1599,30 +1639,30 @@ export class UnifiedSelectorEnhanced {
         
         .step-title {
           color: #e7e9ea;
-          font-size: 16px;
-          margin: 0 0 8px 0;
+          font-size: 14px;
+          margin: 0 0 6px 0;
         }
         
         .step-description {
           color: #8b98a5;
-          font-size: 13px;
-          margin-bottom: 16px;
+          font-size: 11px;
+          margin-bottom: 12px;
         }
         
         .search-bar {
           position: relative;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
         
         .option-search {
           width: 100%;
-          padding: 8px 12px;
-          padding-right: 30px;
+          padding: 6px 10px;
+          padding-right: 26px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(139, 152, 165, 0.2);
-          border-radius: 20px;
+          border-radius: 16px;
           color: #e7e9ea;
-          font-size: 13px;
+          font-size: 11px;
           outline: none;
           transition: all 0.2s;
         }
@@ -1634,43 +1674,43 @@ export class UnifiedSelectorEnhanced {
         
         .clear-search {
           position: absolute;
-          right: 8px;
+          right: 6px;
           top: 50%;
           transform: translateY(-50%);
           background: none;
           border: none;
           color: #8b98a5;
           cursor: pointer;
-          font-size: 16px;
-          padding: 4px;
+          font-size: 14px;
+          padding: 3px;
         }
         
         .options-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 8px;
-          margin-bottom: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 6px;
+          margin-bottom: 12px;
         }
         
         .option-subgroup {
-          margin-bottom: 20px;
+          margin-bottom: 16px;
         }
         
         .subgroup-title {
           color: #8b98a5;
-          font-size: 12px;
+          font-size: 10px;
           text-transform: uppercase;
-          margin: 0 0 8px 0;
-          padding-bottom: 4px;
+          margin: 0 0 6px 0;
+          padding-bottom: 3px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.1);
         }
         
         .option-button {
           position: relative;
-          padding: 10px;
+          padding: 8px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(139, 152, 165, 0.2);
-          border-radius: 8px;
+          border-radius: 6px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
@@ -1722,22 +1762,22 @@ export class UnifiedSelectorEnhanced {
           display: flex;
           justify-content: space-between;
           align-items: start;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
         
         .option-label {
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 500;
         }
         
         .option-description {
-          font-size: 11px;
+          font-size: 9px;
           color: #8b98a5;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
         
         .option-example {
-          font-size: 10px;
+          font-size: 8px;
           color: #657786;
           font-style: italic;
           opacity: 0;
@@ -1748,9 +1788,9 @@ export class UnifiedSelectorEnhanced {
         
         .suggestion-badge,
         .conflict-badge {
-          font-size: 10px;
-          padding: 1px 4px;
-          border-radius: 4px;
+          font-size: 8px;
+          padding: 1px 3px;
+          border-radius: 3px;
         }
         
         .suggestion-badge {
@@ -1765,16 +1805,16 @@ export class UnifiedSelectorEnhanced {
         
         .option-help {
           position: absolute;
-          top: 4px;
-          right: 4px;
-          width: 16px;
-          height: 16px;
+          top: 3px;
+          right: 3px;
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
           background: rgba(139, 152, 165, 0.2);
           border: none;
           color: #8b98a5;
           cursor: help;
-          font-size: 10px;
+          font-size: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1790,19 +1830,19 @@ export class UnifiedSelectorEnhanced {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 0;
+          padding: 8px 0;
           border-top: 1px solid rgba(139, 152, 165, 0.1);
-          margin-top: 16px;
+          margin-top: 12px;
         }
         
         .step-nav-btn {
-          padding: 8px 16px;
+          padding: 6px 12px;
           background: rgba(139, 152, 165, 0.2);
           border: none;
-          border-radius: 20px;
+          border-radius: 16px;
           color: #e7e9ea;
           cursor: pointer;
-          font-size: 13px;
+          font-size: 11px;
           transition: all 0.2s;
         }
         
@@ -1838,11 +1878,11 @@ export class UnifiedSelectorEnhanced {
         
         .step-indicator {
           color: #8b98a5;
-          font-size: 12px;
+          font-size: 10px;
         }
         
         .selector-footer {
-          padding: 12px 16px;
+          padding: 8px 12px;
           border-top: 1px solid rgba(139, 152, 165, 0.2);
           background: rgba(0, 0, 0, 0.2);
           display: flex;
@@ -1852,17 +1892,17 @@ export class UnifiedSelectorEnhanced {
         
         .footer-actions {
           display: flex;
-          gap: 8px;
+          gap: 6px;
         }
         
         .action-btn {
-          padding: 6px 12px;
+          padding: 4px 8px;
           background: rgba(139, 152, 165, 0.2);
           border: none;
-          border-radius: 12px;
+          border-radius: 8px;
           color: #e7e9ea;
           cursor: pointer;
-          font-size: 12px;
+          font-size: 10px;
           transition: all 0.2s;
         }
         
@@ -1876,13 +1916,13 @@ export class UnifiedSelectorEnhanced {
         }
         
         .generate-btn {
-          padding: 8px 20px;
+          padding: 6px 16px;
           background: rgba(139, 152, 165, 0.3);
           border: none;
-          border-radius: 20px;
+          border-radius: 16px;
           color: #8b98a5;
           cursor: not-allowed;
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 600;
           transition: all 0.2s;
         }
@@ -1926,7 +1966,7 @@ export class UnifiedSelectorEnhanced {
         @media (max-width: 600px) {
           .selector-container {
             width: 95vw;
-            max-height: 90vh;
+            max-height: 85vh;
           }
           
           .selector-tabs {
@@ -1938,11 +1978,11 @@ export class UnifiedSelectorEnhanced {
           }
           
           .progress-bar {
-            padding: 0 10px;
+            padding: 0 8px;
           }
           
           .step-label {
-            font-size: 9px;
+            font-size: 8px;
           }
         }
         
@@ -2152,9 +2192,10 @@ export class UnifiedSelectorEnhanced {
           border-radius: 8px;
           cursor: pointer;
         }
-      </style>
     `;
   }
+  
+
   
   // ... (implement remaining helper methods from original)
   
@@ -2210,7 +2251,8 @@ export class UnifiedSelectorEnhanced {
   
   private render(): void {
     if (!this.container) return;
-    this.container.innerHTML = this.getStyles() + this.renderContent();
+    // Don't re-inject styles - they're already in document head
+    this.container.innerHTML = this.renderContent();
     this.attachEventListeners();
     this.updateWarnings();
   }
@@ -2672,7 +2714,7 @@ export class UnifiedSelectorEnhanced {
     }
     
     // Center horizontally but keep within viewport
-    const selectorWidth = 560; // width from CSS
+    const selectorWidth = 420; // width from CSS
     let leftPos = buttonRect.left + (buttonRect.width / 2) - (selectorWidth / 2);
     
     // Ensure it stays within viewport bounds
@@ -2713,3 +2755,6 @@ export class UnifiedSelectorEnhanced {
     window.addEventListener('scroll', this.scrollHandler, true);
   }
 }
+
+// Make this the default export to help with chunk loading
+export default UnifiedSelectorEnhanced;

@@ -107,32 +107,15 @@ export class ArsenalModeUI {
 
     // Category tabs
     const tabs = document.createElement('div');
-    tabs.className = 'arsenal-tabs';
-    tabs.style.cssText = `
-      display: flex;
-      padding: 0 16px;
-      gap: 8px;
-      border-bottom: 1px solid #38444D;
-      overflow-x: auto;
-    `;
+    tabs.className = 'arsenal-mode-popup__tabs';
 
     // Content area
     const content = document.createElement('div');
-    content.className = 'arsenal-content';
-    content.style.cssText = `
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    `;
+    content.className = 'arsenal-mode-popup__content';
 
     // Loading indicator
     const loading = document.createElement('div');
-    loading.className = 'arsenal-loading';
-    loading.style.cssText = `
-      text-align: center;
-      color: #8899A6;
-      padding: 40px;
-    `;
+    loading.className = 'arsenal-mode-popup__loading';
     loading.textContent = 'Loading arsenal...';
     content.appendChild(loading);
 
@@ -159,24 +142,35 @@ export class ArsenalModeUI {
     if (!this.popup) return;
 
     const rect = textarea.getBoundingClientRect();
-    const popupHeight = 600;
-    const popupWidth = 500;
+    const popupWidth = 480;
+    const popupHeight = Math.min(window.innerHeight * 0.6, 400);
 
-    // Position above or below textarea based on available space
-    let top = rect.top - popupHeight - 10;
-    if (top < 10) {
-      top = rect.bottom + 10;
+    // Calculate available space
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    // Position above or below based on available space
+    let top: number;
+    if (spaceBelow >= popupHeight + 10 || spaceBelow > spaceAbove) {
+      // Position below
+      top = rect.bottom + 8;
+    } else {
+      // Position above
+      top = rect.top - popupHeight - 8;
     }
+
+    // Ensure it stays within viewport vertically
+    top = Math.max(10, Math.min(top, window.innerHeight - popupHeight - 10));
 
     // Center horizontally relative to textarea
     let left = rect.left + (rect.width - popupWidth) / 2;
-    if (left < 10) left = 10;
-    if (left + popupWidth > window.innerWidth - 10) {
-      left = window.innerWidth - popupWidth - 10;
-    }
+    
+    // Ensure it stays within viewport horizontally
+    left = Math.max(10, Math.min(left, window.innerWidth - popupWidth - 10));
 
     this.popup.style.top = `${top}px`;
     this.popup.style.left = `${left}px`;
+    this.popup.style.maxHeight = `${popupHeight}px`;
   }
 
   /**
@@ -185,8 +179,8 @@ export class ArsenalModeUI {
   private async loadReplies(): Promise<void> {
     if (!this.popup) return;
 
-    const content = this.popup.querySelector('.arsenal-content');
-    const tabs = this.popup.querySelector('.arsenal-tabs');
+    const content = this.popup.querySelector('.arsenal-mode-popup__content');
+    const tabs = this.popup.querySelector('.arsenal-mode-popup__tabs');
     if (!content || !tabs) return;
 
     // Get categories
@@ -196,19 +190,8 @@ export class ArsenalModeUI {
     tabs.innerHTML = '';
     categories.forEach((category, index) => {
       const tab = document.createElement('button');
-      tab.className = 'arsenal-tab';
+      tab.className = index === 0 ? 'arsenal-mode-popup__tab arsenal-mode-popup__tab--active' : 'arsenal-mode-popup__tab';
       tab.dataset.categoryId = category.id;
-      tab.style.cssText = `
-        background: ${index === 0 ? '#1DA1F2' : 'transparent'};
-        border: none;
-        color: ${index === 0 ? '#FFFFFF' : '#8899A6'};
-        padding: 8px 16px;
-        border-radius: 20px;
-        cursor: pointer;
-        font-size: 14px;
-        white-space: nowrap;
-        transition: all 0.2s;
-      `;
       tab.innerHTML = `${category.icon || category.emoji || ''} ${category.name}`;
       
       tab.onclick = () => this.selectCategory(category.id);
@@ -228,24 +211,30 @@ export class ArsenalModeUI {
     if (!this.popup) return;
 
     // Update tab styles
-    const tabs = this.popup.querySelectorAll('.arsenal-tab');
+    const tabs = this.popup.querySelectorAll('.arsenal-mode-popup__tab');
     tabs.forEach(tab => {
       const isActive = tab.getAttribute('data-category-id') === categoryId;
-      (tab as HTMLElement).style.backgroundColor = isActive ? '#1DA1F2' : 'transparent';
-      (tab as HTMLElement).style.color = isActive ? '#FFFFFF' : '#8899A6';
+      if (isActive) {
+        tab.classList.add('arsenal-mode-popup__tab--active');
+      } else {
+        tab.classList.remove('arsenal-mode-popup__tab--active');
+      }
     });
 
     // Load category replies
-    const content = this.popup.querySelector('.arsenal-content');
+    const content = this.popup.querySelector('.arsenal-mode-popup__content');
     if (!content) return;
 
     const replies = await this.arsenalService.getRepliesByCategory(categoryId);
     
     if (replies.length === 0) {
       content.innerHTML = `
-        <div style="text-align: center; color: #8899A6; padding: 40px;">
-          <p>No replies in this category yet.</p>
-          <p style="font-size: 12px; margin-top: 10px;">Generate some replies to build your arsenal!</p>
+        <div class="arsenal-mode-popup__empty">
+          <div class="arsenal-mode-popup__empty-emoji">📭</div>
+          <div class="arsenal-mode-popup__empty-text">
+            <p>No replies in this category yet.</p>
+            <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Generate some replies to build your arsenal!</p>
+          </div>
         </div>
       `;
       return;
@@ -256,7 +245,7 @@ export class ArsenalModeUI {
     const grid = document.createElement('div');
     grid.style.cssText = `
       display: grid;
-      gap: 12px;
+      gap: 8px;
     `;
 
     replies.forEach(reply => {
@@ -272,52 +261,28 @@ export class ArsenalModeUI {
    */
   private createReplyCard(reply: any): HTMLElement {
     const card = document.createElement('div');
-    card.className = 'arsenal-reply-card';
-    card.style.cssText = `
-      background: #192734;
-      border: 1px solid #38444D;
-      border-radius: 12px;
-      padding: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      position: relative;
-    `;
+    card.className = 'arsenal-mode-popup__reply-card';
 
     // Reply text
     const text = document.createElement('div');
-    text.style.cssText = `
-      color: #FFFFFF;
-      font-size: 14px;
-      line-height: 1.4;
-      margin-bottom: 8px;
-    `;
+    text.className = 'arsenal-mode-popup__reply-text';
     text.textContent = reply.text;
 
     // Metadata
     const meta = document.createElement('div');
-    meta.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      color: #8899A6;
-    `;
+    meta.className = 'arsenal-mode-popup__reply-stats';
 
     const usage = document.createElement('span');
     usage.textContent = `Used ${reply.usageCount} times`;
 
     const actions = document.createElement('div');
-    actions.style.cssText = `display: flex; gap: 8px;`;
+    actions.className = 'arsenal-mode-popup__reply-actions';
 
     // Favorite button
     const favBtn = document.createElement('button');
-    favBtn.style.cssText = `
-      background: none;
-      border: none;
-      color: ${reply.isFavorite ? '#E0245E' : '#8899A6'};
-      cursor: pointer;
-      padding: 4px;
-    `;
+    favBtn.className = reply.isFavorite ? 
+      'arsenal-mode-popup__reply-action arsenal-mode-popup__reply-action--favorite' : 
+      'arsenal-mode-popup__reply-action';
     favBtn.innerHTML = reply.isFavorite ? '❤️' : '🤍';
     favBtn.onclick = (e) => {
       e.stopPropagation();
@@ -330,16 +295,6 @@ export class ArsenalModeUI {
 
     card.appendChild(text);
     card.appendChild(meta);
-
-    // Hover effect
-    card.onmouseover = () => {
-      card.style.backgroundColor = '#1E2732';
-      card.style.borderColor = '#1DA1F2';
-    };
-    card.onmouseout = () => {
-      card.style.backgroundColor = '#192734';
-      card.style.borderColor = '#38444D';
-    };
 
     // Click to use
     card.onclick = () => this.useReply(reply);

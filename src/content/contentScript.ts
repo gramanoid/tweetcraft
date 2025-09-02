@@ -12,7 +12,6 @@ import { templateSuggester } from '@/services/templateSuggester';
 import { TEMPLATES } from './presetTemplates';
 import { TONES } from './toneSelector';
 import { imageAttachment } from './imageAttachment';
-import { arsenalModeUI } from './arsenalMode';
 import { APP_VERSION } from '@/config/version';
 import { HypeFuryPlatform, HYPEFURY_SELECTORS } from '@/platforms/hypefury';
 import { ProgressiveEnhancement } from '@/utils/progressiveEnhancement';
@@ -27,6 +26,8 @@ class SmartReplyContentScript {
   private port: chrome.runtime.Port | null = null;
   private static readonly VERSION = APP_VERSION;
   private isDestroyed = false;
+  private arsenalLoaded = false;
+  private arsenalListener: EventListener | null = null;
   
   // Store event listener references for proper cleanup
   private eventListeners: Array<() => void> = [];
@@ -56,10 +57,8 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    // Initialize Arsenal Mode UI (ensures event listeners are set up)
-    if (arsenalModeUI) {
-      console.log('%c⚔️ Arsenal Mode initialized', 'color: #1DA1F2');
-    }
+    // Set up lazy Arsenal Mode loader on demand (Alt+A)
+    this.setupArsenalLazyLoader();
     
     // Initialize vision service first
     try {
@@ -100,7 +99,7 @@ class SmartReplyContentScript {
     
     // Detect platform
     const platform = HypeFuryPlatform.isHypeFury() ? 'HypeFury' : 'Twitter/X';
-    console.log(`%c🚀 TweetCraft v0.0.8 - ${platform}`, 'color: #1DA1F2; font-weight: bold');
+    console.log(`%c🚀 TweetCraft v${SmartReplyContentScript.VERSION} - ${platform}`, 'color: #1DA1F2; font-weight: bold');
     
     // Apply platform-specific styles if on HypeFury
     if (HypeFuryPlatform.isHypeFury()) {
@@ -140,6 +139,30 @@ class SmartReplyContentScript {
     } else {
       this.startObserving();
     }
+  }
+
+  private setupArsenalLazyLoader(): void {
+    if (this.arsenalListener) return;
+    this.arsenalListener = (async (event: Event) => {
+      // Only handle once before module sets up its own listeners
+      if (!this.arsenalLoaded) {
+        try {
+          const mod = await import('./arsenalMode');
+          this.arsenalLoaded = true;
+          console.log('%c⚔️ Arsenal module loaded on demand', 'color: #1DA1F2');
+          const textarea = DOMUtils.findWithFallback('replyTextarea') as HTMLElement | null;
+          // Open immediately if requested
+          const ui = (mod as any).arsenalModeUI;
+          if (ui && typeof ui.open === 'function') {
+            ui.open(textarea || undefined);
+          }
+          // After load, the module's own event listener will handle future events
+        } catch (e) {
+          console.warn('Failed to load Arsenal module', e);
+        }
+      }
+    }) as EventListener;
+    document.addEventListener('tweetcraft:open-arsenal', this.arsenalListener, true);
   }
 
   private setupKeyboardShortcutListener(): void {
@@ -1037,12 +1060,21 @@ class SmartReplyContentScript {
       
       // Monitor textarea for changes to update button mode
       const updateButtonMode = () => {
+        const textContent = DOMUtils.getTextFromTextarea(textarea);
         const currentHasText = DOMUtils.hasUserText(textarea);
         const currentMode = button.getAttribute('data-mode');
         const shouldBeRewrite = currentHasText;
         const isRewrite = currentMode === 'rewrite';
         
+        // Only log when there's actually a change to reduce noise
         if (shouldBeRewrite !== isRewrite) {
+          console.log('%c🔍 Button Mode Check:', 'color: #9146FF; font-weight: bold');
+          console.log('%c  Text content:', 'color: #657786', `"${textContent}"`);
+          console.log('%c  Text length:', 'color: #657786', textContent.length);
+          console.log('%c  Has user text:', 'color: #657786', currentHasText);
+          console.log('%c  Current mode:', 'color: #657786', currentMode);
+          console.log('%c  Should be rewrite:', 'color: #657786', shouldBeRewrite);
+          
           // Mode needs to change
           console.log('%c🔄 Button mode change:', 'color: #9146FF', shouldBeRewrite ? 'REWRITE' : 'GENERATE');
           
@@ -1250,13 +1282,15 @@ class SmartReplyContentScript {
         console.log('%c✅ AI BUTTON POSITIONING', 'color: #17BF63; font-weight: bold; font-size: 14px');
         console.log('%c  Tweet button found:', 'color: #657786', !!tweetButton);
         console.log('%c  Other toolbar items:', 'color: #657786', !!toolbarItems);
-        console.log('%c  Inserting before tweet button', 'color: #657786');
-        
+
         if (toolbarItems) {
-          // Insert after the toolbar items but before the tweet button
-          toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
+          // Prefer placing inside the toolbar items group (left side),
+          // so our button doesn't hug the right next to the Post button.
+          console.log('%c  Inserting inside toolbar items group', 'color: #657786');
+          toolbarItems.appendChild(buttonContainer);
         } else {
-          // Just insert before the tweet button
+          // Fallback: insert before the tweet button
+          console.log('%c  Inserting before tweet button (fallback)', 'color: #657786');
           toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
         }
         

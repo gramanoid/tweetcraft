@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.11-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.13-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -127,6 +127,31 @@
 
 **Personalized:**
 - **Custom** ✨ - Your own style
+
+## 🐛 Recent Fixes (v0.0.13)
+
+### Critical Bug Fixes
+- ✅ Fixed event listener attachment timing - now properly attaches after DOM insertion
+- ✅ Fixed AI Reply button moving to the right when popup opens
+- ✅ Fixed missing Generate button at end of 5-step flow
+- ✅ Fixed popup not opening when button clicked
+- ✅ Fixed browser compatibility with `:has()` CSS selector
+- ✅ Fixed `isReplyPage` detection logic
+- ✅ Fixed TypeScript type safety issues
+- ✅ Fixed CSP violations with proper message passing
+
+### Performance Improvements
+- ✅ Implemented TTL-based caching with 1-hour expiration
+- ✅ Added LRU cache for keyword extraction (100 entries max)
+- ✅ Optimized DOM queries with fallback strategies
+- ✅ Reduced animation duration for snappier UI
+
+### UI/UX Enhancements
+- ✅ Made popup 35% more compact (480px width, 60vh height)
+- ✅ Reduced all padding and spacing by ~50%
+- ✅ Smaller font sizes for better information density
+- ✅ Added visual Generate button with gradient and pulse animation
+- ✅ Improved tab button styling and responsiveness
 
 ## 📦 Installation
 
@@ -305,6 +330,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.11** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
+**TweetCraft v0.0.13** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
 
 Made with ❤️ by the TweetCraft team

@@ -4,19 +4,19 @@
 
 .arsenal-mode-popup {
   position: fixed;
-  width: 500px;
-  max-height: 600px;
+  width: 480px;
+  max-height: 60vh;
   background: #15202B;
   border: 1px solid #38444D;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   z-index: 10000;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 
   &__header {
-    padding: 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid #38444D;
     display: flex;
     justify-content: space-between;
@@ -26,8 +26,8 @@
   &__title {
     margin: 0;
     color: #FFFFFF;
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 15px;
+    font-weight: 600;
   }
 
   &__close-btn {
@@ -53,19 +53,19 @@
 
   &__tabs {
     display: flex;
-    padding: 8px 16px;
-    gap: 8px;
+    padding: 6px 12px;
+    gap: 6px;
     border-bottom: 1px solid #38444D;
   }
 
   &__tab {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: none;
     border: 1px solid transparent;
-    border-radius: 20px;
+    border-radius: 16px;
     color: #8899A6;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.2s;
 
     &:hover {
@@ -83,18 +83,18 @@
   &__content {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 10px;
   }
 
   &__search {
     width: 100%;
-    padding: 10px 16px;
+    padding: 8px 12px;
     background: #192734;
     border: 1px solid #38444D;
-    border-radius: 20px;
+    border-radius: 16px;
     color: #FFFFFF;
-    font-size: 14px;
-    margin-bottom: 16px;
+    font-size: 13px;
+    margin-bottom: 10px;
 
     &::placeholder {
       color: #8899A6;
@@ -131,9 +131,9 @@
   &__reply-card {
     background: #192734;
     border: 1px solid #38444D;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 8px;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 6px;
     cursor: pointer;
     transition: all 0.2s;
 

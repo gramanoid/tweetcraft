@@ -55,7 +55,18 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*"],
+      "resources": [
+        "icons/*",
+        "*.js",
+        "*.css",
+        "content/*",
+        "utils/*",
+        "services/*",
+        "config/*",
+        "ui/*",
+        "platforms/*",
+        "types/*"
+      ],
       "matches": [
         "https://twitter.com/*",
         "https://x.com/*",
