@@ -719,7 +719,11 @@ export class UnifiedSelectorEnhanced {
     const canGoBack = this.currentStep > 1;
     const canGoForward = this.currentStep < this.TOTAL_STEPS;
     const currentSelection = this.getCurrentStepSelection();
-    const canProceed = currentSelection !== null || !canGoForward;
+    const isLastStep = this.currentStep === this.TOTAL_STEPS;
+    const allSelectionsComplete = this.isReadyToGenerate();
+    
+    // Can proceed to next step if current selection is made, OR we're on last step and all selections are complete
+    const canProceed = currentSelection !== null || (isLastStep && allSelectionsComplete);
     
     return `
       <div class="step-navigation">
@@ -729,9 +733,9 @@ export class UnifiedSelectorEnhanced {
         <div class="step-indicator">
           Step ${this.currentStep} of ${this.TOTAL_STEPS}
         </div>
-        <button class="step-nav-btn next ${!canProceed ? 'disabled' : ''}" 
+        <button class="step-nav-btn next ${!canProceed ? 'disabled' : ''} ${isLastStep && allSelectionsComplete ? 'generate-ready' : ''}" 
                 ${!canProceed ? 'disabled' : ''}>
-          ${canGoForward ? 'Next →' : '✓ Generate'}
+          ${isLastStep ? (allSelectionsComplete ? '✨ Generate Reply' : 'Complete Selection') : 'Next →'}
         </button>
       </div>
     `;
@@ -1288,14 +1292,14 @@ export class UnifiedSelectorEnhanced {
         .selector-container {
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 16px;
-          width: 600px;
+          border-radius: 12px;
+          width: 480px;
           max-width: 95vw;
-          max-height: 80vh;
+          max-height: 60vh;
           display: flex;
           flex-direction: column;
           box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-          animation: slideIn 0.3s ease;
+          animation: slideIn 0.2s ease;
         }
         
         @keyframes slideIn {
@@ -1310,7 +1314,7 @@ export class UnifiedSelectorEnhanced {
         }
         
         .selector-header {
-          padding: 12px 16px;
+          padding: 6px 10px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: rgba(0, 0, 0, 0.3);
         }
@@ -1323,17 +1327,17 @@ export class UnifiedSelectorEnhanced {
         
         .selector-tabs {
           display: flex;
-          gap: 8px;
+          gap: 3px;
         }
         
         .tab-btn {
-          padding: 6px 12px;
+          padding: 3px 6px;
           background: transparent;
           border: 1px solid transparent;
-          border-radius: 20px;
+          border-radius: 12px;
           color: #8b98a5;
           cursor: pointer;
-          font-size: 13px;
+          font-size: 11px;
           transition: all 0.2s;
         }
         
@@ -1809,6 +1813,18 @@ export class UnifiedSelectorEnhanced {
         .step-nav-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+        
+        .step-nav-btn.generate-ready {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          font-weight: bold;
+          animation: pulse 2s infinite;
+        }
+        
+        .step-nav-btn.generate-ready:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         
         .step-nav-btn.next:not(:disabled) {
