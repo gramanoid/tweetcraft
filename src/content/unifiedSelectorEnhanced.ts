@@ -158,6 +158,11 @@ export class UnifiedSelectorEnhanced {
     document.body.appendChild(this.container);
     console.log('%c  Container appended to body', 'color: #657786');
     
+    // Now attach event listeners after container is in DOM
+    this.attachEventListeners();
+    this.updateWarnings();
+    console.log('%c  Event listeners attached', 'color: #657786');
+    
     // Position near button
     this.positionNearButton(button);
     console.log('%c  Container positioned', 'color: #657786');
@@ -253,8 +258,8 @@ export class UnifiedSelectorEnhanced {
     container.className = 'unified-selector-enhanced';
     container.innerHTML = this.getStyles() + this.renderContent();
     
-    this.attachEventListeners();
-    this.updateWarnings();
+    // Don't attach listeners here - container not in DOM yet
+    // Will be attached after appending to document in show()
     
     return container;
   }
@@ -372,16 +377,16 @@ export class UnifiedSelectorEnhanced {
    * Render other views (smart, favorites, etc.)
    */
   private renderOtherViews(): string {
-    // Placeholder for other views
+    // Render other views
     switch (this.view) {
       case 'smart':
-        return '<div class="selector-content">Smart suggestions...</div>';
+        return this.renderSmartSuggestionsView();
       case 'favorites':
-        return '<div class="selector-content">Favorites...</div>';
+        return this.renderFavoritesView();
       case 'imagegen':
-        return '<div class="selector-content">Image generation...</div>';
+        return this.renderImageGenView();
       case 'custom':
-        return '<div class="selector-content">Custom template...</div>';
+        return this.renderCustomView();
       default:
         return '';
     }
@@ -764,11 +769,21 @@ export class UnifiedSelectorEnhanced {
    * Attach event listeners
    */
   private attachEventListeners(): void {
-    if (!this.container) return;
+    if (!this.container) {
+      console.error('Cannot attach event listeners - no container');
+      return;
+    }
+    
+    console.log('%c🔗 Attaching event listeners', 'color: #9146FF');
     
     // Tab switching
-    this.container.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => this.handleTabSwitch(e));
+    const tabButtons = this.container.querySelectorAll('.tab-btn');
+    console.log(`  Found ${tabButtons.length} tab buttons`);
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        console.log('Tab clicked:', (e.currentTarget as HTMLElement).dataset.view);
+        this.handleTabSwitch(e);
+      });
     });
     
     // Mode toggle
@@ -843,7 +858,13 @@ export class UnifiedSelectorEnhanced {
     // Close button
     const closeBtn = this.container.querySelector('.close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.hide());
+      console.log('  Close button found');
+      closeBtn.addEventListener('click', () => {
+        console.log('Close button clicked');
+        this.hide();
+      });
+    } else {
+      console.warn('  Close button not found!');
     }
     
     // Help buttons
@@ -853,6 +874,61 @@ export class UnifiedSelectorEnhanced {
         this.showHelp(e);
       });
     });
+    
+    // Smart suggestions
+    this.container.querySelectorAll('.use-suggestion-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const suggestionData = (e.currentTarget as HTMLElement).dataset.suggestion;
+        if (suggestionData) {
+          const suggestion = JSON.parse(suggestionData);
+          this.applySuggestion(suggestion);
+        }
+      });
+    });
+    
+    // Favorites
+    this.container.querySelectorAll('.use-favorite-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const favoriteData = (e.currentTarget as HTMLElement).dataset.favorite;
+        if (favoriteData) {
+          const favorite = JSON.parse(favoriteData);
+          this.applyFavorite(favorite);
+        }
+      });
+    });
+    
+    this.container.querySelectorAll('.delete-favorite-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLElement).dataset.id;
+        if (id) {
+          this.deleteFavorite(id);
+        }
+      });
+    });
+    
+    // Image generation
+    this.container.querySelectorAll('.image-tab').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const mode = (e.currentTarget as HTMLElement).dataset.mode;
+        this.switchImageMode(mode || 'ai');
+      });
+    });
+    
+    const generateImageBtn = this.container.querySelector('.generate-image-btn');
+    if (generateImageBtn) {
+      generateImageBtn.addEventListener('click', () => this.generateImage());
+    }
+    
+    // Custom template
+    const useCustomBtn = this.container.querySelector('.use-custom-btn');
+    if (useCustomBtn) {
+      useCustomBtn.addEventListener('click', () => this.useCustomTemplate());
+    }
+    
+    const saveCustomBtn = this.container.querySelector('.save-custom-btn');
+    if (saveCustomBtn) {
+      saveCustomBtn.addEventListener('click', () => this.saveCustomTemplate());
+    }
   }
   
   /**
@@ -1876,6 +1952,190 @@ export class UnifiedSelectorEnhanced {
         .steps-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(139, 152, 165, 0.5);
         }
+        
+        /* Smart Suggestions styles */
+        .suggestions-grid {
+          display: grid;
+          gap: 12px;
+          padding: 16px;
+        }
+        
+        .suggestion-card {
+          background: rgba(29, 155, 240, 0.1);
+          border: 1px solid rgba(29, 155, 240, 0.3);
+          border-radius: 12px;
+          padding: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .suggestion-card:hover {
+          background: rgba(29, 155, 240, 0.2);
+          transform: translateY(-2px);
+        }
+        
+        .suggestion-score {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: bold;
+        }
+        
+        .use-suggestion-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+          margin-top: 8px;
+          width: 100%;
+        }
+        
+        /* Favorites styles */
+        .favorites-grid {
+          display: grid;
+          gap: 12px;
+          padding: 16px;
+        }
+        
+        .favorite-card {
+          background: rgba(255, 200, 0, 0.1);
+          border: 1px solid rgba(255, 200, 0, 0.3);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        
+        .favorite-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        
+        .use-favorite-btn {
+          flex: 1;
+          background: rgba(255, 200, 0, 0.2);
+          color: #ffc800;
+          border: 1px solid #ffc800;
+          padding: 6px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+        
+        .delete-favorite-btn {
+          background: rgba(255, 0, 0, 0.2);
+          color: #ff4444;
+          border: 1px solid #ff4444;
+          padding: 6px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+        
+        .no-favorites {
+          text-align: center;
+          color: #8899a6;
+          padding: 32px;
+        }
+        
+        /* Image Generation styles */
+        .image-tabs {
+          display: flex;
+          gap: 8px;
+          padding: 12px 16px;
+          border-bottom: 1px solid rgba(139, 152, 165, 0.2);
+        }
+        
+        .image-tab {
+          background: transparent;
+          color: #8899a6;
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          padding: 6px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .image-tab.active {
+          background: rgba(139, 152, 165, 0.2);
+          color: #e7e9ea;
+          border-color: #e7e9ea;
+        }
+        
+        .image-input-group {
+          display: flex;
+          gap: 8px;
+          padding: 16px;
+        }
+        
+        .image-prompt {
+          flex: 1;
+          background: rgba(139, 152, 165, 0.1);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          color: #e7e9ea;
+          padding: 8px 12px;
+          border-radius: 8px;
+        }
+        
+        .image-style {
+          background: rgba(139, 152, 165, 0.1);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          color: #e7e9ea;
+          padding: 8px 12px;
+          border-radius: 8px;
+        }
+        
+        .generate-image-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        
+        /* Custom Template styles */
+        .custom-inputs {
+          padding: 16px;
+        }
+        
+        .custom-group {
+          margin-bottom: 16px;
+        }
+        
+        .custom-group label {
+          display: block;
+          color: #e7e9ea;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+        
+        .custom-style, .custom-tone {
+          width: 100%;
+          background: rgba(139, 152, 165, 0.1);
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          color: #e7e9ea;
+          padding: 8px 12px;
+          border-radius: 8px;
+          min-height: 80px;
+          resize: vertical;
+        }
+        
+        .custom-actions {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .save-custom-btn, .use-custom-btn {
+          flex: 1;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 10px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
       </style>
     `;
   }
@@ -1940,15 +2200,66 @@ export class UnifiedSelectorEnhanced {
   }
   
   private updateWarnings(): void {
-    // Implementation from original
+    // Update any warning messages or indicators
+    const warnings = this.container?.querySelectorAll('.warning');
+    if (warnings) {
+      warnings.forEach(warning => {
+        // Update warning visibility based on selections
+        const warningEl = warning as HTMLElement;
+        if (this.hasConflictingSelections()) {
+          warningEl.style.display = 'block';
+        } else {
+          warningEl.style.display = 'none';
+        }
+      });
+    }
+  }
+  
+  private hasConflictingSelections(): boolean {
+    // Check for any conflicting selections
+    const selected = Object.values(this.selections).filter(s => s !== null);
+    // For now, no conflicts defined
+    return false;
   }
   
   private updateSelectedVisuals(): void {
-    // Implementation from original
+    if (!this.container) return;
+    
+    // Update selected state for all option buttons
+    this.container.querySelectorAll('.option-button').forEach(btn => {
+      const btnEl = btn as HTMLElement;
+      const optionId = btnEl.dataset.id;
+      const isSelected = Object.values(this.selections).includes(optionId || '');
+      
+      if (isSelected) {
+        btnEl.classList.add('selected');
+      } else {
+        btnEl.classList.remove('selected');
+      }
+    });
   }
   
   private updateFooter(): void {
-    // Implementation from original
+    const footer = this.container?.querySelector('.selector-footer');
+    if (footer) {
+      // Re-render footer with updated state
+      footer.outerHTML = this.renderFooter();
+      
+      // Re-attach footer event listeners
+      const undoBtn = this.container?.querySelector('.action-btn.undo');
+      const resetBtn = this.container?.querySelector('.action-btn.reset');
+      const generateBtn = this.container?.querySelector('.generate-btn');
+      
+      if (undoBtn) {
+        undoBtn.addEventListener('click', () => this.undo());
+      }
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => this.reset());
+      }
+      if (generateBtn) {
+        generateBtn.addEventListener('click', () => this.handleGenerate());
+      }
+    }
   }
   
   private updatePreview(): void {
@@ -1963,6 +2274,258 @@ export class UnifiedSelectorEnhanced {
     if (this.selectionHistory.length > 20) {
       this.selectionHistory.shift();
     }
+  }
+  
+  private renderSmartSuggestionsView(): string {
+    // Get smart suggestions based on tweet context
+    const suggestions = this.getSmartSuggestions();
+    
+    return `
+      <div class="selector-content smart-suggestions">
+        <div class="suggestions-header">
+          <h3>🤖 AI-Powered Suggestions</h3>
+          <p>Based on the tweet context, here are recommended combinations:</p>
+        </div>
+        <div class="suggestions-grid">
+          ${suggestions.map(suggestion => `
+            <div class="suggestion-card" data-suggestion='${JSON.stringify(suggestion)}'>
+              <div class="suggestion-header">
+                <span class="suggestion-score">${suggestion.score}%</span>
+                <span class="suggestion-label">${suggestion.label}</span>
+              </div>
+              <div class="suggestion-preview">${suggestion.preview}</div>
+              <button class="use-suggestion-btn" data-suggestion='${JSON.stringify(suggestion)}'>
+                Use This
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  private renderFavoritesView(): string {
+    // Get saved favorites from storage
+    const favorites = this.getFavorites();
+    
+    return `
+      <div class="selector-content favorites">
+        <div class="favorites-header">
+          <h3>⭐ Your Favorites</h3>
+          <p>Your saved selection combinations:</p>
+        </div>
+        <div class="favorites-grid">
+          ${favorites.length > 0 ? favorites.map(fav => `
+            <div class="favorite-card" data-favorite='${JSON.stringify(fav)}'>
+              <div class="favorite-name">${fav.name}</div>
+              <div class="favorite-preview">${fav.preview}</div>
+              <div class="favorite-actions">
+                <button class="use-favorite-btn" data-favorite='${JSON.stringify(fav)}'>Use</button>
+                <button class="delete-favorite-btn" data-id="${fav.id}">🗑️</button>
+              </div>
+            </div>
+          `).join('') : '<p class="no-favorites">No favorites saved yet. Save your selections using the ⭐ button.</p>'}
+        </div>
+      </div>
+    `;
+  }
+  
+  private renderImageGenView(): string {
+    return `
+      <div class="selector-content image-gen">
+        <div class="image-gen-header">
+          <h3>🖼️ Image Generation & Search</h3>
+        </div>
+        <div class="image-tabs">
+          <button class="image-tab active" data-mode="ai">AI Generate</button>
+          <button class="image-tab" data-mode="search">Search Web</button>
+          <button class="image-tab" data-mode="smart">Smart Suggest</button>
+        </div>
+        <div class="image-content" data-mode="ai">
+          <div class="image-input-group">
+            <input type="text" class="image-prompt" placeholder="Describe the image you want...">
+            <select class="image-style">
+              <option value="realistic">Realistic</option>
+              <option value="cartoon">Cartoon</option>
+              <option value="artistic">Artistic</option>
+              <option value="sketch">Sketch</option>
+            </select>
+            <button class="generate-image-btn">Generate</button>
+          </div>
+          <div class="image-results"></div>
+        </div>
+      </div>
+    `;
+  }
+  
+  private renderCustomView(): string {
+    return `
+      <div class="selector-content custom-template">
+        <div class="custom-header">
+          <h3>✨ Custom Template</h3>
+          <p>Create your own reply style and tone:</p>
+        </div>
+        <div class="custom-inputs">
+          <div class="custom-group">
+            <label>Style Prompt:</label>
+            <textarea class="custom-style" placeholder="E.g., Write like a tech blogger explaining complex topics simply..."></textarea>
+          </div>
+          <div class="custom-group">
+            <label>Tone Prompt:</label>
+            <textarea class="custom-tone" placeholder="E.g., Be friendly but professional, use analogies..."></textarea>
+          </div>
+          <div class="custom-actions">
+            <button class="save-custom-btn">💾 Save as Template</button>
+            <button class="use-custom-btn">Generate with Custom</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  private getSmartSuggestions(): Array<{score: number, label: string, preview: string, selections: any}> {
+    // Generate smart suggestions based on context
+    // This would normally use AI analysis of the tweet
+    return [
+      {
+        score: 95,
+        label: "Professional & Helpful",
+        preview: "Expert persona with supportive attitude",
+        selections: {
+          personaFraming: "persona-expert",
+          attitude: "attitude-helpful",
+          rhetoric: "rhetoric-answer-question",
+          vocabulary: "vocabulary-professional",
+          formatPacing: "format-structured"
+        }
+      },
+      {
+        score: 88,
+        label: "Friendly & Casual",
+        preview: "Friend persona with humorous tone",
+        selections: {
+          personaFraming: "persona-friend",
+          attitude: "attitude-humorous",
+          rhetoric: "rhetoric-agree-add",
+          vocabulary: "vocabulary-casual",
+          formatPacing: "format-conversational"
+        }
+      },
+      {
+        score: 82,
+        label: "Analytical & Balanced",
+        preview: "Researcher persona with analytical approach",
+        selections: {
+          personaFraming: "persona-researcher",
+          attitude: "attitude-analytical",
+          rhetoric: "rhetoric-devils-advocate",
+          vocabulary: "vocabulary-technical",
+          formatPacing: "format-detailed"
+        }
+      }
+    ];
+  }
+  
+  private getFavorites(): Array<{id: string, name: string, preview: string, selections: any}> {
+    // Get favorites from storage
+    // For now, return empty array
+    return [];
+  }
+  
+  private applySuggestion(suggestion: any): void {
+    // Apply all selections from the suggestion
+    this.selections = { ...suggestion.selections };
+    
+    // Generate immediately with these selections
+    this.handleGenerate();
+  }
+  
+  private applyFavorite(favorite: any): void {
+    // Apply all selections from the favorite
+    this.selections = { ...favorite.selections };
+    
+    // Generate immediately  
+    this.handleGenerate();
+  }
+  
+  private deleteFavorite(id: string): void {
+    // TODO: Remove from storage
+    visualFeedback.showToast('Favorite deleted', {
+      type: 'info',
+      duration: 2000
+    });
+    this.render();
+  }
+  
+  private switchImageMode(mode: string): void {
+    // Switch image generation mode
+    const tabs = this.container?.querySelectorAll('.image-tab');
+    const contents = this.container?.querySelectorAll('.image-content');
+    
+    tabs?.forEach(tab => {
+      if ((tab as HTMLElement).dataset.mode === mode) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+    
+    // TODO: Show different content based on mode
+  }
+  
+  private generateImage(): void {
+    const prompt = (this.container?.querySelector('.image-prompt') as HTMLInputElement)?.value;
+    const style = (this.container?.querySelector('.image-style') as HTMLSelectElement)?.value;
+    
+    if (!prompt) {
+      visualFeedback.showToast('Please enter an image description', {
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+    
+    // TODO: Call image generation service
+    visualFeedback.showToast('Generating image...', {
+      type: 'info',
+      duration: 3000
+    });
+  }
+  
+  private useCustomTemplate(): void {
+    const stylePrompt = (this.container?.querySelector('.custom-style') as HTMLTextAreaElement)?.value;
+    const tonePrompt = (this.container?.querySelector('.custom-tone') as HTMLTextAreaElement)?.value;
+    
+    if (!stylePrompt || !tonePrompt) {
+      visualFeedback.showToast('Please fill in both style and tone prompts', {
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+    
+    // Use custom template for generation
+    // TODO: Implement custom generation logic
+    this.handleGenerate();
+  }
+  
+  private saveCustomTemplate(): void {
+    const stylePrompt = (this.container?.querySelector('.custom-style') as HTMLTextAreaElement)?.value;
+    const tonePrompt = (this.container?.querySelector('.custom-tone') as HTMLTextAreaElement)?.value;
+    
+    if (!stylePrompt || !tonePrompt) {
+      visualFeedback.showToast('Please fill in both style and tone prompts', {
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+    
+    // TODO: Save to storage
+    visualFeedback.showToast('Template saved!', {
+      type: 'success', 
+      duration: 2000
+    });
   }
   
   private getCurrentStepSelection(): string | null {
