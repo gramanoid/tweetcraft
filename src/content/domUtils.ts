@@ -82,6 +82,17 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
   toolbar: {
     primary: '[data-testid="toolBar"]',
     fallbacks: [
+      // New Twitter/X selectors (2024)
+      'div[data-testid="tweetButtonInline"]',
+      'div:has(> button[data-testid="tweetButton"])',
+      'div:has(> button[data-testid="tweetButtonInline"])',
+      // Reply composition toolbar patterns
+      'div:has(> button[aria-label*="Post" i][role="button"])',
+      'div:has(> div[aria-label*="Add emoji" i])',
+      // Structure-based patterns for reply toolbars
+      '[contenteditable="true"][role="textbox"] ~ div > div[role="group"]',
+      '[contenteditable="true"][role="textbox"] + div div[role="group"]',
+      // Legacy patterns
       '[role="group"]:has(button[data-testid="reply"])',
       '[role="group"]:has(svg[data-testid="reply"])',
       '[role="group"]:has(button[aria-label*="reply" i])',

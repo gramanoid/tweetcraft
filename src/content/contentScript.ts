@@ -794,18 +794,24 @@ class SmartReplyContentScript {
 
     // CRITICAL: Only process toolbars that are in reply/compose contexts
     // Check if this toolbar is associated with a reply or compose action
+    let textarea: HTMLElement | null = null;
+    
     const isReplyContext = this.isReplyToolbar(toolbarElement);
-    if (!isReplyContext) {
-      // This is a regular tweet toolbar (like, retweet, etc.) - ignore it
-      // Already marked as processed above
-      return;
+    if (isReplyContext) {
+      console.log('%c🎯 Reply toolbar detected', 'color: #17BF63; font-weight: bold');
+      textarea = DOMUtils.findClosestTextarea(toolbarElement) as HTMLElement;
+    } else {
+      // Try alternative detection: look for nearby textarea
+      const nearbyTextarea = this.findNearbyTextarea(toolbarElement);
+      if (nearbyTextarea) {
+        console.log('%c🎯 Found toolbar near textarea, treating as reply toolbar', 'color: #17BF63');
+        textarea = nearbyTextarea as HTMLElement;
+      } else {
+        // Not a reply toolbar, skip
+        return;
+      }
     }
-
-    console.log('%c🎯 Reply toolbar detected', 'color: #17BF63; font-weight: bold');
-    // Already marked as processed above
-
-    // Now we know this is a reply context, so a textarea SHOULD exist
-    const textarea = DOMUtils.findClosestTextarea(toolbarElement);
+    
     if (!textarea) {
       // This is unexpected in a reply context, but handle gracefully
       console.warn('TweetCraft: Reply toolbar found but no textarea available yet');
@@ -821,18 +827,73 @@ class SmartReplyContentScript {
   }
 
   /**
+   * Find a textarea near the toolbar element
+   */
+  private findNearbyTextarea(element: Element): Element | null {
+    // Look for textarea in various relative positions
+    const parent = element.parentElement;
+    if (!parent) return null;
+    
+    // Check siblings
+    const textarea = parent.querySelector('[contenteditable="true"][role="textbox"]');
+    if (textarea) return textarea;
+    
+    // Check parent's siblings
+    const grandParent = parent.parentElement;
+    if (grandParent) {
+      const textarea2 = grandParent.querySelector('[contenteditable="true"][role="textbox"]');
+      if (textarea2) return textarea2;
+    }
+    
+    // Check within a reasonable distance up the tree
+    let current: Element | null = element.parentElement;
+    let levels = 5;
+    while (current && levels > 0) {
+      const textarea3 = current.querySelector('[contenteditable="true"][role="textbox"]');
+      if (textarea3) return textarea3;
+      current = current.parentElement;
+      levels--;
+    }
+    
+    return null;
+  }
+
+  /**
    * Determine if a toolbar is in a reply/compose context
    */
   private isReplyToolbar(toolbarElement: Element): boolean {
     // Strategy: Look for specific indicators of a reply composition toolbar
     // vs a tweet's action bar (reply, retweet, like buttons)
     
-    // 1. Check if toolbar contains a "Reply" button (submit button for replies)
-    // This is different from the reply action button in tweets
-    const hasReplySubmitButton = toolbarElement.querySelector('div[data-testid="tweetButton"], div[data-testid="tweetButtonInline"], button[data-testid="tweetButton"], button[data-testid="tweetButtonInline"]');
-    if (hasReplySubmitButton) {
-      // This is definitely a reply composition toolbar
-      return true;
+    // 1. Check if toolbar contains a "Post" or "Reply" button (submit button for replies)
+    // Updated for new Twitter/X UI changes
+    const postButtonSelectors = [
+      'button[data-testid="tweetButton"]',
+      'button[data-testid="tweetButtonInline"]', 
+      'div[data-testid="tweetButton"]',
+      'div[data-testid="tweetButtonInline"]',
+      'button[aria-label*="Post" i]',
+      'button span:has-text("Post")',
+      'button span:has-text("Reply")'
+    ];
+    
+    for (const selector of postButtonSelectors) {
+      try {
+        if (toolbarElement.querySelector(selector)) {
+          return true;
+        }
+      } catch (e) {
+        // Some selectors might not be supported
+      }
+    }
+    
+    // Also check if button text contains "Post" or "Reply"
+    const buttons = toolbarElement.querySelectorAll('button[role="button"]');
+    for (const button of buttons) {
+      const text = button.textContent?.trim().toLowerCase() || '';
+      if (text === 'post' || text === 'reply' || text.includes('post')) {
+        return true;
+      }
     }
     
     // 2. Check if we're in a reply modal or compose modal
@@ -1879,12 +1940,20 @@ class SmartReplyContentScript {
    * Attempt initial injection with retries for hard refresh scenarios
    */
   private attemptInitialInjection(): void {
-    // Check if we're on a reply-capable page
+    // Be more aggressive - try on any Twitter/X page
+    const isTwitterPage = window.location.hostname.includes('twitter.com') || 
+                         window.location.hostname.includes('x.com');
+    
+    if (!isTwitterPage) {
+      return;
+    }
+    
+    // Check if we're on a reply-capable page (but be permissive)
     const isStatusPage = window.location.pathname.includes('/status/');
-    const hasTweets = document.querySelector('article[data-testid="tweet"]') !== null;
+    const hasTweets = document.querySelector('article[data-testid="tweet"], article[role="article"]') !== null;
     const isComposePage = window.location.pathname.includes('/compose/');
     const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-    const isReplyPage = isStatusPage || hasTweets || isComposePage || isHomePage;
+    const isReplyPage = true; // Always try to inject
     
     console.log('%c🎯 ATTEMPT INITIAL INJECTION', 'color: #17BF63; font-weight: bold');
     console.log('%c  Page type:', 'color: #657786', {
@@ -1933,7 +2002,32 @@ class SmartReplyContentScript {
       console.log('%c  ✅ Injected buttons:', 'color: #17BF63', injectedCount);
       // Reset retry count on success
       this.initialRetryCount = 0;
-    } else if (this.initialRetryCount < this.maxInitialRetries) {
+    } else {
+      // Fallback: Try to find textareas directly and inject buttons near them
+      console.log('%c  No toolbars found, trying textarea-based injection', 'color: #FFA500');
+      const textareas = document.querySelectorAll('[contenteditable="true"][role="textbox"]');
+      console.log('%c  Found textareas:', 'color: #657786', textareas.length);
+      
+      textareas.forEach(textarea => {
+        // Check if this textarea already has a button
+        const parent = textarea.parentElement;
+        if (parent && !parent.querySelector('.smart-reply-btn')) {
+          // Try to find or create a suitable toolbar container
+          let toolbarContainer = parent.querySelector('[role="group"]');
+          if (!toolbarContainer) {
+            // Look for any div that might be a toolbar
+            toolbarContainer = parent.querySelector('div:has(button)');
+          }
+          
+          if (toolbarContainer && !this.processedToolbars.has(toolbarContainer)) {
+            console.log('%c  Processing textarea with makeshift toolbar', 'color: #657786');
+            this.handleToolbarAdded(toolbarContainer);
+          }
+        }
+      });
+    }
+    
+    if (this.initialRetryCount < this.maxInitialRetries) {
       // Retry with exponential backoff
       this.initialRetryCount++;
       const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
