@@ -169,6 +169,66 @@ export class DOMUtils {
   static readonly TWEET_TEXT_SELECTOR = SELECTOR_CHAINS.tweetText.primary;
   static readonly ORIGINAL_TWEET_SELECTOR = SELECTOR_CHAINS.originalTweet.primary;
   
+  /**
+   * Check if a selector is supported by the browser
+   */
+  private static isSelectorSupported(selector: string): boolean {
+    if (typeof CSS !== 'undefined' && CSS.supports) {
+      try {
+        return CSS.supports(`selector(${selector})`);
+      } catch {
+        // CSS.supports might not support selector() syntax
+        // Try to use the selector directly
+        try {
+          document.querySelector(selector);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+    
+    // Fallback: try the selector
+    try {
+      document.querySelector(selector);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
+   * Query selector with :has() fallback
+   */
+  private static querySelectorWithFallback(selector: string, parent: Element | Document = document): Element | null {
+    // Check if selector contains :has()
+    if (selector.includes(':has(')) {
+      if (!this.isSelectorSupported(selector)) {
+        // Extract the :has() content and implement fallback
+        const hasMatch = selector.match(/^(.+?):has\((.+?)\)(.*)$/);
+        if (hasMatch) {
+          const [, base, hasContent, rest] = hasMatch;
+          const baseSelector = base + rest;
+          const elements = parent.querySelectorAll(baseSelector);
+          
+          for (const element of elements) {
+            if (element.querySelector(hasContent)) {
+              return element;
+            }
+          }
+          return null;
+        }
+      }
+    }
+    
+    // Use the selector directly if supported or doesn't contain :has()
+    try {
+      return parent.querySelector(selector);
+    } catch {
+      return null;
+    }
+  }
+  
   // Track selector performance
   private static selectorStats = new Map<string, { primary: number; fallback: number; failed: number }>();
   private static lastReportTime = Date.now();
@@ -191,7 +251,7 @@ export class DOMUtils {
     if (parent) {
       element = domCache.query(parent, chain.primary);
     } else {
-      element = searchRoot.querySelector(chain.primary);
+      element = this.querySelectorWithFallback(chain.primary, searchRoot);
     }
     
     if (element) {
@@ -201,20 +261,25 @@ export class DOMUtils {
     
     // Try fallback selectors
     for (let i = 0; i < chain.fallbacks.length; i++) {
-      if (parent) {
-        element = domCache.query(parent, chain.fallbacks[i]);
-      } else {
-        element = searchRoot.querySelector(chain.fallbacks[i]);
-      }
-      
-      if (element) {
-        stats.fallback++;
-        // Log when fallback is used (only first time or every 10 uses)
-        if (stats.fallback === 1 || stats.fallback % 10 === 0) {
-          console.log(`%c⚠️ DOM Resilience: Using fallback #${i + 1} for ${selectorType}`, 'color: #FFA500');
-          console.log(`%c  Fallback selector: ${chain.fallbacks[i]}`, 'color: #657786');
+      try {
+        if (parent) {
+          element = domCache.query(parent, chain.fallbacks[i]);
+        } else {
+          element = this.querySelectorWithFallback(chain.fallbacks[i], searchRoot);
         }
-        return element;
+        
+        if (element) {
+          stats.fallback++;
+          // Log when fallback is used (only first time or every 10 uses)
+          if (stats.fallback === 1 || stats.fallback % 10 === 0) {
+            console.log(`%c⚠️ DOM Resilience: Using fallback #${i + 1} for ${selectorType}`, 'color: #FFA500');
+            console.log(`%c  Fallback selector: ${chain.fallbacks[i]}`, 'color: #657786');
+          }
+          return element;
+        }
+      } catch (e) {
+        // Selector might be invalid, continue to next
+        continue;
       }
     }
     
@@ -266,7 +331,7 @@ export class DOMUtils {
       const chain = SELECTOR_CHAINS[selectorType as keyof typeof SELECTOR_CHAINS];
       
       // Test primary
-      let element = document.querySelector(chain.primary);
+      let element = this.querySelectorWithFallback(chain.primary);
       if (element) {
         results[selectorType] = '✅ Primary';
       } else {
@@ -274,13 +339,14 @@ export class DOMUtils {
         let fallbackIndex = -1;
         for (let i = 0; i < chain.fallbacks.length; i++) {
           try {
-            element = document.querySelector(chain.fallbacks[i]);
+            element = this.querySelectorWithFallback(chain.fallbacks[i]);
             if (element) {
               fallbackIndex = i;
               break;
             }
           } catch (e) {
             // Selector might be invalid (e.g., :has() not supported)
+            continue;
           }
         }
         

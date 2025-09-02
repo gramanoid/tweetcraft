@@ -827,6 +827,36 @@ class SmartReplyContentScript {
   }
 
   /**
+   * Check if a selector with :has() is supported
+   */
+  private isSelectorSupported(selector: string): boolean {
+    // Check if CSS.supports is available and if the selector is supported
+    if (typeof CSS !== 'undefined' && CSS.supports) {
+      try {
+        return CSS.supports(`selector(${selector})`);
+      } catch {
+        // CSS.supports might not support selector() syntax in older browsers
+        return false;
+      }
+    }
+    
+    // Fallback: try to use the selector and see if it throws
+    try {
+      document.querySelector(selector);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if an element has a child matching a selector (fallback for :has())
+   */
+  private elementHasChild(element: Element, childSelector: string): boolean {
+    return element.querySelector(childSelector) !== null;
+  }
+
+  /**
    * Find a textarea near the toolbar element
    */
   private findNearbyTextarea(element: Element): Element | null {
@@ -872,18 +902,28 @@ class SmartReplyContentScript {
       'button[data-testid="tweetButtonInline"]', 
       'div[data-testid="tweetButton"]',
       'div[data-testid="tweetButtonInline"]',
-      'button[aria-label*="Post" i]',
-      'button span:has-text("Post")',
-      'button span:has-text("Reply")'
+      'button[aria-label*="Post" i]'
     ];
     
+    // Check simple selectors first
     for (const selector of postButtonSelectors) {
       try {
         if (toolbarElement.querySelector(selector)) {
           return true;
         }
       } catch (e) {
-        // Some selectors might not be supported
+        // Some selectors might not be supported (e.g., case-insensitive attribute)
+        // Continue to next selector
+      }
+    }
+    
+    // Handle :has-text() pseudo-selector separately (not standard CSS)
+    // Check button text content directly instead
+    const buttonsWithText = toolbarElement.querySelectorAll('button span');
+    for (const span of buttonsWithText) {
+      const text = span.textContent?.toLowerCase() || '';
+      if (text === 'post' || text === 'reply') {
+        return true;
       }
     }
     
@@ -1962,12 +2002,18 @@ class SmartReplyContentScript {
       return;
     }
     
-    // Check if we're on a reply-capable page (but be permissive)
+    // Check if we're on a reply-capable page
     const isStatusPage = window.location.pathname.includes('/status/');
     const hasTweets = document.querySelector('article[data-testid="tweet"], article[role="article"]') !== null;
     const isComposePage = window.location.pathname.includes('/compose/');
     const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-    const isReplyPage = true; // Always try to inject
+    
+    // Check for reply-specific DOM elements
+    const hasReplyTextarea = document.querySelector('[contenteditable="true"][role="textbox"]') !== null;
+    const hasReplyButton = document.querySelector('[data-testid="tweetButton"], [data-testid="tweetButtonInline"], button[aria-label*="Post" i]') !== null;
+    
+    // Only inject if we're on a page that likely has reply capabilities
+    const isReplyPage = isStatusPage || hasTweets || isComposePage || isHomePage || hasReplyTextarea || hasReplyButton;
     
     console.log('%c🎯 ATTEMPT INITIAL INJECTION', 'color: #17BF63; font-weight: bold');
     console.log('%c  Page type:', 'color: #657786', {
@@ -2030,7 +2076,19 @@ class SmartReplyContentScript {
           let toolbarContainer = parent.querySelector('[role="group"]');
           if (!toolbarContainer) {
             // Look for any div that might be a toolbar
-            toolbarContainer = parent.querySelector('div:has(button)');
+            // Check for :has() support
+            if (this.isSelectorSupported('div:has(button)')) {
+              toolbarContainer = parent.querySelector('div:has(button)');
+            } else {
+              // Fallback: find divs that contain buttons
+              const divs = parent.querySelectorAll('div');
+              for (const div of divs) {
+                if (div.querySelector('button')) {
+                  toolbarContainer = div;
+                  break;
+                }
+              }
+            }
           }
           
           if (toolbarContainer && !this.processedToolbars.has(toolbarContainer)) {
