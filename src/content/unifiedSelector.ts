@@ -3,7 +3,9 @@
  * Matrix-based selection UI for combining templates and tones
  */
 
-import { Template, Tone, TEMPLATES, TONES } from '@/config/templatesAndTones';
+import { Template, Personality, TEMPLATES, PERSONALITIES } from '@/config/templatesAndTones';
+// Type alias for backward compatibility
+type Tone = Personality;
 import { visualFeedback } from '@/ui/visualFeedback';
 import { templateSuggester } from '@/services/templateSuggester';
 import { DOMUtils } from '@/content/domUtils';
@@ -19,15 +21,22 @@ export interface SelectionResult {
 export class UnifiedSelector {
   private container: HTMLElement | null = null;
   private selectedTemplate: Template | null = null;
-  private selectedTone: Tone | null = null;
+  private selectedPersonality: Personality | null = null;
+  // Backward compatibility alias
+  private get selectedTone(): Personality | null { return this.selectedPersonality; }
+  private set selectedTone(value: Personality | null) { this.selectedPersonality = value; }
   private onSelectCallback: ((result: SelectionResult) => void) | null = null;
-  private favoriteTemplates: Set<string> = new Set();
-  private favoriteTones: Set<string> = new Set();
+  private favoriteRhetoric: Set<string> = new Set();
+  // Backward compatibility alias
+  private get favoriteTemplates(): Set<string> { return this.favoriteRhetoric; }
+  private favoritePersonalities: Set<string> = new Set();
+  // Backward compatibility alias
+  private get favoriteTones(): Set<string> { return this.favoritePersonalities; }
   private view: 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
-  private smartSuggestions: { templates: Template[], tones: Tone[] } = { templates: [], tones: [] };
+  private smartSuggestions: { templates: Template[], personalities: Personality[] } = { templates: [], personalities: [] };
   private smartSuggestionsScores: any[] = [];
   private customTemplatesLoaded: Promise<void> | null = null;
 
@@ -206,7 +215,7 @@ export class UnifiedSelector {
     if (!this.container) return;
 
     const templates = TEMPLATES;
-    const tones = TONES;
+    const personalities = PERSONALITIES;
     
     this.container.innerHTML = `
       <div class="selector-header">
@@ -230,15 +239,15 @@ export class UnifiedSelector {
         <button class="close-btn" aria-label="Close">×</button>
       </div>
       
-      ${this.renderViewContent(templates, tones)}
+      ${this.renderViewContent(templates, personalities)}
       
       <div class="selector-footer">
         <div class="selection-info">
           ${this.selectedTemplate ? `<span class="selected-template">${this.selectedTemplate.emoji} ${this.selectedTemplate.name}</span>` : ''}
-          ${this.selectedTone ? `<span class="selected-tone">${this.selectedTone.emoji} ${this.selectedTone.label}</span>` : ''}
+          ${this.selectedPersonality ? `<span class="selected-personality">${this.selectedPersonality.emoji} ${this.selectedPersonality.label}</span>` : ''}
         </div>
-        <button class="generate-btn ${this.selectedTemplate && this.selectedTone ? 'active' : ''}" 
-                ${!this.selectedTemplate || !this.selectedTone ? 'disabled' : ''}>
+        <button class="generate-btn ${this.selectedTemplate && this.selectedPersonality ? 'active' : ''}" 
+                ${!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : ''}>
           Generate Reply
         </button>
       </div>
@@ -250,63 +259,63 @@ export class UnifiedSelector {
   /**
    * Render content based on current view
    */
-  private renderViewContent(templates: Template[], tones: Tone[]): string {
+  private renderViewContent(templates: Template[], personalities: Personality[]): string {
     switch (this.view) {
       case 'smart':
-        return this.renderSmartSuggestionsView(templates, tones);
+        return this.renderSmartSuggestionsView(templates, personalities);
       case 'favorites':
-        return this.renderFavoritesView(templates, tones);
+        return this.renderFavoritesView(templates, personalities);
       case 'imagegen':
         return this.renderImageGenView();
       case 'custom':
-        return this.renderCustomView(templates, tones);
+        return this.renderCustomView(templates, personalities);
       default:
-        return this.renderGridView(templates, tones);
+        return this.renderGridView(templates, personalities);
     }
   }
 
   /**
    * Render grid view (all templates and tones)
    */
-  private renderGridView(templates: Template[], tones: Tone[]): string {
+  private renderGridView(templates: Template[], personalities: Personality[]): string {
     return `
       <div class="selector-content grid-view">
-        <div class="templates-section">
-          <h3>Templates</h3>
-          <div class="template-grid">
-            ${templates.map(template => `
+        <div class="personalities-section">
+          <h3>Personality</h3>
+          <div class="personality-grid">
+            ${personalities.map(personality => `
               <div class="item-wrapper">
-                <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
-                        data-template="${template.id}"
-                        title="${template.description}">
-                  <span class="template-emoji">${template.emoji}</span>
-                  <span class="template-name">${template.name}</span>
+                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
+                        data-personality="${personality.id}"
+                        title="${personality.description}">
+                  <span class="personality-emoji">${personality.emoji}</span>
+                  <span class="personality-label">${personality.label}</span>
                 </button>
-                <button class="star-btn ${this.favoriteTemplates.has(template.id) ? 'active' : ''}" 
-                        data-template-star="${template.id}" 
-                        title="${this.favoriteTemplates.has(template.id) ? 'Remove from favorites' : 'Add to favorites'}">
-                  ${this.favoriteTemplates.has(template.id) ? '⭐' : '☆'}
+                <button class="star-btn ${this.favoritePersonalities.has(personality.id) ? 'active' : ''}" 
+                        data-personality-star="${personality.id}" 
+                        title="${this.favoritePersonalities.has(personality.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoritePersonalities.has(personality.id) ? '⭐' : '☆'}
                 </button>
               </div>
             `).join('')}
           </div>
         </div>
         
-        <div class="tones-section">
-          <h3>Tones</h3>
-          <div class="tone-grid">
-            ${tones.map(tone => `
+        <div class="rhetoric-section">
+          <h3>Rhetoric</h3>
+          <div class="rhetoric-grid">
+            ${templates.map(template => `
               <div class="item-wrapper">
-                <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                        data-tone="${tone.id}"
-                        title="${tone.description}">
-                  <span class="tone-emoji">${tone.emoji}</span>
-                  <span class="tone-label">${tone.label}</span>
+                <button class="rhetoric-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                        data-rhetoric="${template.id}"
+                        title="${template.description}">
+                  <span class="rhetoric-emoji">${template.emoji}</span>
+                  <span class="rhetoric-name">${template.name}</span>
                 </button>
-                <button class="star-btn ${this.favoriteTones.has(tone.id) ? 'active' : ''}" 
-                        data-tone-star="${tone.id}" 
-                        title="${this.favoriteTones.has(tone.id) ? 'Remove from favorites' : 'Add to favorites'}">
-                  ${this.favoriteTones.has(tone.id) ? '⭐' : '☆'}
+                <button class="star-btn ${this.favoriteTemplates.has(template.id) ? 'active' : ''}" 
+                        data-rhetoric-star="${template.id}" 
+                        title="${this.favoriteTemplates.has(template.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoriteTemplates.has(template.id) ? '⭐' : '☆'}
                 </button>
               </div>
             `).join('')}
@@ -319,15 +328,15 @@ export class UnifiedSelector {
   /**
    * Render smart suggestions view
    */
-  private renderSmartSuggestionsView(templates: Template[], tones: Tone[]): string {
+  private renderSmartSuggestionsView(templates: Template[], personalities: Personality[]): string {
     // Use smart suggestions with scores if available
     const suggestedTemplates = this.smartSuggestions.templates.length > 0 
       ? this.smartSuggestions.templates 
       : templates.slice(0, 6); // Fallback to first 6 templates
     
-    const suggestedTones = this.smartSuggestions.tones.length > 0
-      ? this.smartSuggestions.tones
-      : tones.slice(0, 6); // Fallback to first 6 tones
+    const suggestedPersonalities = this.smartSuggestions.personalities.length > 0
+      ? this.smartSuggestions.personalities
+      : personalities.slice(0, 6); // Fallback to first 6 personalities
     
     // Get scores from smartSuggestionsScores if available
     const scores = (this as any).smartSuggestionsScores || [];
@@ -342,14 +351,14 @@ export class UnifiedSelector {
         <div class="smart-suggestions-list">
           ${scores.length > 0 ? scores.slice(0, 6).map((score: any, _index: number) => {
             const template = TEMPLATES.find(t => t.id === score.templateId);
-            const tone = TONES.find(t => t.id === score.toneId);
-            if (!template || !tone) return '';
+            const personality = PERSONALITIES.find(p => p.id === (score.personalityId || score.toneId));
+            if (!template || !personality) return '';
             
             return `
-              <div class="suggestion-card" data-template="${template.id}" data-tone="${tone.id}">
+              <div class="suggestion-card" data-template="${template.id}" data-personality="${personality.id}">
                 <div class="suggestion-header">
                   <span class="suggestion-combo">
-                    ${template.emoji} ${template.name} + ${tone.emoji} ${tone.label}
+                    ${template.emoji} ${template.name} + ${personality.emoji} ${personality.label}
                   </span>
                   <span class="suggestion-score" title="AI confidence score based on context analysis">
                     <span class="score-icon">⚡</span>
@@ -375,8 +384,8 @@ export class UnifiedSelector {
               </div>
             `;
           }).join('') : `
-            <div class="templates-section">
-              <h3>Suggested Templates</h3>
+            <div class="rhetoric-section">
+              <h3>Suggested Rhetoric</h3>
               <div class="template-grid">
                 ${suggestedTemplates.map(template => `
                   <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
@@ -389,15 +398,15 @@ export class UnifiedSelector {
               </div>
             </div>
             
-            <div class="tones-section">
-              <h3>Suggested Tones</h3>
-              <div class="tone-grid">
-                ${suggestedTones.map(tone => `
-                  <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                          data-tone="${tone.id}"
-                          title="${tone.description}">
-                    <span class="tone-emoji">${tone.emoji}</span>
-                    <span class="tone-label">${tone.label}</span>
+            <div class="personalities-section">
+              <h3>Suggested Personality</h3>
+              <div class="personality-grid">
+                ${suggestedPersonalities.map(personality => `
+                  <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
+                          data-personality="${personality.id}"
+                          title="${personality.description}">
+                    <span class="personality-emoji">${personality.emoji}</span>
+                    <span class="personality-label">${personality.label}</span>
                   </button>
                 `).join('')}
               </div>
@@ -411,16 +420,16 @@ export class UnifiedSelector {
   /**
    * Render favorites view
    */
-  private renderFavoritesView(templates: Template[], tones: Tone[]): string {
+  private renderFavoritesView(templates: Template[], personalities: Personality[]): string {
     const favoriteTemplatesList = templates.filter(t => this.favoriteTemplates.has(t.id));
-    const favoriteTonesList = tones.filter(t => this.favoriteTones.has(t.id));
+    const favoritePersonalitiesList = personalities.filter(p => this.favoritePersonalities.has(p.id));
     
-    if (favoriteTemplatesList.length === 0 && favoriteTonesList.length === 0) {
+    if (favoriteTemplatesList.length === 0 && favoritePersonalitiesList.length === 0) {
       return `
         <div class="selector-content favorites-view">
           <div class="empty-state">
             <p>No favorites yet!</p>
-            <p>Star your favorite templates and tones to see them here.</p>
+            <p>Star your favorite rhetoric and personalities to see them here.</p>
           </div>
         </div>
       `;
@@ -429,8 +438,8 @@ export class UnifiedSelector {
     return `
       <div class="selector-content favorites-view">
         ${favoriteTemplatesList.length > 0 ? `
-          <div class="templates-section">
-            <h3>Favorite Templates</h3>
+          <div class="rhetoric-section">
+            <h3>Favorite Rhetoric</h3>
             <div class="template-grid">
               ${favoriteTemplatesList.map(template => `
                 <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
@@ -444,16 +453,16 @@ export class UnifiedSelector {
           </div>
         ` : ''}
         
-        ${favoriteTonesList.length > 0 ? `
-          <div class="tones-section">
-            <h3>Favorite Tones</h3>
-            <div class="tone-grid">
-              ${favoriteTonesList.map(tone => `
-                <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                        data-tone="${tone.id}"
-                        title="${tone.description}">
-                  <span class="tone-emoji">${tone.emoji}</span>
-                  <span class="tone-label">${tone.label}</span>
+        ${favoritePersonalitiesList.length > 0 ? `
+          <div class="personalities-section">
+            <h3>Favorite Personality</h3>
+            <div class="personality-grid">
+              ${favoritePersonalitiesList.map(personality => `
+                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
+                        data-personality="${personality.id}"
+                        title="${personality.description}">
+                  <span class="personality-emoji">${personality.emoji}</span>
+                  <span class="personality-label">${personality.label}</span>
                 </button>
               `).join('')}
             </div>
@@ -466,15 +475,15 @@ export class UnifiedSelector {
   /**
    * Render custom view
    */
-  private renderCustomView(templates: Template[], tones: Tone[]): string {
+  private renderCustomView(templates: Template[], personalities: Personality[]): string {
     const customTemplates = templates.filter(t => t.id.startsWith('custom_'));
-    const customTones = tones.filter(t => t.id.startsWith('custom_'));
+    const customPersonalities = personalities.filter(p => p.id.startsWith('custom_'));
     
-    if (customTemplates.length === 0 && customTones.length === 0) {
+    if (customTemplates.length === 0 && customPersonalities.length === 0) {
       return `
         <div class="selector-content custom-view">
           <div class="empty-state">
-            <p>No custom templates or tones yet!</p>
+            <p>No custom rhetoric or personalities yet!</p>
             <button class="create-custom-btn">Create Custom Template</button>
           </div>
         </div>
@@ -484,8 +493,8 @@ export class UnifiedSelector {
     return `
       <div class="selector-content custom-view">
         ${customTemplates.length > 0 ? `
-          <div class="templates-section">
-            <h3>Custom Templates</h3>
+          <div class="rhetoric-section">
+            <h3>Custom Rhetoric</h3>
             <div class="template-grid">
               ${customTemplates.map(template => `
                 <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
@@ -499,16 +508,16 @@ export class UnifiedSelector {
           </div>
         ` : ''}
         
-        ${customTones.length > 0 ? `
-          <div class="tones-section">
-            <h3>Custom Tones</h3>
-            <div class="tone-grid">
-              ${customTones.map(tone => `
-                <button class="tone-btn ${this.selectedTone?.id === tone.id ? 'selected' : ''}"
-                        data-tone="${tone.id}"
-                        title="${tone.description}">
-                  <span class="tone-emoji">${tone.emoji}</span>
-                  <span class="tone-label">${tone.label}</span>
+        ${customPersonalities.length > 0 ? `
+          <div class="personalities-section">
+            <h3>Custom Personality</h3>
+            <div class="personality-grid">
+              ${customPersonalities.map(personality => `
+                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
+                        data-personality="${personality.id}"
+                        title="${personality.description}">
+                  <span class="personality-emoji">${personality.emoji}</span>
+                  <span class="personality-label">${personality.label}</span>
                 </button>
               `).join('')}
             </div>
@@ -540,7 +549,16 @@ export class UnifiedSelector {
       });
     });
 
-    // Template selection
+    // Rhetoric selection (new buttons)
+    this.container.querySelectorAll('.rhetoric-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rhetoricId = (e.currentTarget as HTMLElement).dataset.rhetoric!;
+        this.selectTemplate(rhetoricId);
+      });
+    });
+    
+    // Template selection (backward compatibility)
     this.container.querySelectorAll('.template-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
@@ -549,7 +567,17 @@ export class UnifiedSelector {
       });
     });
     
-    // Template star buttons
+    // Rhetoric star buttons (new)
+    this.container.querySelectorAll('[data-rhetoric-star]').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const rhetoricId = (e.currentTarget as HTMLElement).dataset.rhetoricStar!;
+        await this.toggleFavoriteTemplate(rhetoricId);
+      });
+    });
+    
+    // Template star buttons (backward compatibility)
     this.container.querySelectorAll('[data-template-star]').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -564,28 +592,28 @@ export class UnifiedSelector {
       (card as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
-        const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
+        const personalityId = (e.currentTarget as HTMLElement).dataset.personality!;
         this.selectTemplate(templateId);
-        this.selectTone(toneId);
+        this.selectPersonality(personalityId);
       });
     });
 
-    // Tone selection
-    this.container.querySelectorAll('.tone-btn').forEach(btn => {
+    // Personality selection
+    this.container.querySelectorAll('.personality-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
-        const toneId = (e.currentTarget as HTMLElement).dataset.tone!;
-        this.selectTone(toneId);
+        const personalityId = (e.currentTarget as HTMLElement).dataset.personality!;
+        this.selectPersonality(personalityId);
       });
     });
     
-    // Tone star buttons
-    this.container.querySelectorAll('[data-tone-star]').forEach(btn => {
+    // Personality star buttons
+    this.container.querySelectorAll('[data-personality-star]').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
-        const toneId = (e.currentTarget as HTMLElement).dataset.toneStar!;
-        await this.toggleFavoriteTone(toneId);
+        const personalityId = (e.currentTarget as HTMLElement).dataset.personalityStar!;
+        await this.toggleFavoritePersonality(personalityId);
       });
     });
 
@@ -686,9 +714,9 @@ export class UnifiedSelector {
         .map(id => TEMPLATES.find(t => t.id === id))
         .filter(Boolean) as Template[];
       
-      const suggestedTones = Array.from(toneIds)
-        .map(id => TONES.find(t => t.id === id))
-        .filter(Boolean) as Tone[];
+      const suggestedPersonalities = Array.from(toneIds)
+        .map(id => PERSONALITIES.find(p => p.id === id))
+        .filter(Boolean) as Personality[];
       
       // Ensure we have at least 6 suggestions
       if (suggestedTemplates.length < 6) {
@@ -699,18 +727,18 @@ export class UnifiedSelector {
         suggestedTemplates.push(...additionalTemplates);
       }
       
-      if (suggestedTones.length < 6) {
-        const remaining = 6 - suggestedTones.length;
-        const additionalTones = TONES
-          .filter(t => !toneIds.has(t.id))
+      if (suggestedPersonalities.length < 6) {
+        const remaining = 6 - suggestedPersonalities.length;
+        const additionalPersonalities = PERSONALITIES
+          .filter(p => !toneIds.has(p.id))
           .slice(0, remaining);
-        suggestedTones.push(...additionalTones);
+        suggestedPersonalities.push(...additionalPersonalities);
       }
       
       // Store the suggestions
       this.smartSuggestions = {
         templates: suggestedTemplates.slice(0, 6),
-        tones: suggestedTones.slice(0, 6)
+        personalities: suggestedPersonalities.slice(0, 6)
       };
       
       console.log('%c🤖 Smart suggestions loaded:', 'color: #17BF63', this.smartSuggestions);
@@ -724,7 +752,7 @@ export class UnifiedSelector {
       // Fallback to popular choices
       this.smartSuggestions = {
         templates: TEMPLATES.slice(0, 6),
-        tones: TONES.slice(0, 6)
+        personalities: PERSONALITIES.slice(0, 6)
       };
       
       this.render();
@@ -745,13 +773,13 @@ export class UnifiedSelector {
   }
 
   /**
-   * Select a tone
+   * Select a personality
    */
-  private selectTone(toneId: string): void {
-    const tone = TONES.find(t => t.id === toneId) || null;
-    if (tone) {
-      this.selectedTone = tone;
-      console.log('%c🎭 Tone selected:', 'color: #9146FF', tone.label);
+  private selectPersonality(personalityId: string): void {
+    const personality = PERSONALITIES.find(p => p.id === personalityId) || null;
+    if (personality) {
+      this.selectedPersonality = personality;
+      console.log('%c🎭 Personality selected:', 'color: #9146FF', personality.label);
       this.updateUI();
       this.checkReadyToGenerate();
     }
@@ -763,14 +791,19 @@ export class UnifiedSelector {
   private updateUI(): void {
     if (!this.container) return;
 
-    // Update template buttons
+    // Update rhetoric buttons (new)
+    this.container.querySelectorAll('.rhetoric-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-rhetoric') === this.selectedTemplate?.id);
+    });
+    
+    // Update template buttons (backward compatibility)
     this.container.querySelectorAll('.template-btn').forEach(btn => {
       btn.classList.toggle('selected', btn.getAttribute('data-template') === this.selectedTemplate?.id);
     });
 
-    // Update tone buttons
-    this.container.querySelectorAll('.tone-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-tone') === this.selectedTone?.id);
+    // Update personality buttons
+    this.container.querySelectorAll('.personality-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-personality') === this.selectedPersonality?.id);
     });
 
     // Update selection info
@@ -857,21 +890,17 @@ export class UnifiedSelector {
   }
 
   /**
-   * Toggle favorite tone
+   * Toggle favorite personality
    */
-  private async toggleFavoriteTone(toneId: string): Promise<void> {
-    if (this.favoriteTones.has(toneId)) {
-      this.favoriteTones.delete(toneId);
-      // Remove from favorites
-      this.favoriteTones.delete(toneId);
+  private async toggleFavoritePersonality(personalityId: string): Promise<void> {
+    if (this.favoritePersonalities.has(personalityId)) {
+      this.favoritePersonalities.delete(personalityId);
       this.saveFavorites();
-      console.log('%c⭐ Removed from favorites:', 'color: #FFA500', toneId);
+      console.log('%c⭐ Removed from favorites:', 'color: #FFA500', personalityId);
     } else {
-      this.favoriteTones.add(toneId);
-      // Add to favorites
-      this.favoriteTones.add(toneId);
+      this.favoritePersonalities.add(personalityId);
       this.saveFavorites();
-      console.log('%c⭐ Added to favorites:', 'color: #FFA500', toneId);
+      console.log('%c⭐ Added to favorites:', 'color: #FFA500', personalityId);
     }
     this.render();
   }
@@ -882,7 +911,7 @@ export class UnifiedSelector {
   private saveFavorites(): void {
     const favorites = {
       favoriteTemplates: Array.from(this.favoriteTemplates),
-      favoriteTones: Array.from(this.favoriteTones)
+      favoritePersonalities: Array.from(this.favoritePersonalities)
     };
     localStorage.setItem('tweetcraft_favorites', JSON.stringify(favorites));
   }
@@ -896,8 +925,8 @@ export class UnifiedSelector {
       const stored = localStorage.getItem('tweetcraft_favorites');
       const prefs = stored ? JSON.parse(stored) : null;
       if (prefs) {
-        this.favoriteTemplates = new Set(prefs.favoriteTemplates || []);
-        this.favoriteTones = new Set(prefs.favoriteTones || []);
+        this.favoriteRhetoric = new Set(prefs.favoriteRhetoric || prefs.favoriteTemplates || []);
+        this.favoritePersonalities = new Set(prefs.favoritePersonalities || prefs.favoriteTones || []);
       }
     } catch (error) {
       console.error('Failed to load favorites:', error);
@@ -1330,12 +1359,12 @@ export class UnifiedSelector {
         }
         
         .templates-section,
-        .tones-section {
+        .personalities-section {
           flex: 1;
         }
         
         .templates-section h3,
-        .tones-section h3 {
+        .personalities-section h3 {
           margin: 0 0 10px 0;
           color: #e7e9ea;
           font-size: 15px;
@@ -1346,8 +1375,9 @@ export class UnifiedSelector {
         
         /* Removed template-category styles since we no longer use categories */
         
+        .rhetoric-grid,
         .template-grid,
-        .tone-grid {
+        .personality-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 4px;
@@ -1359,8 +1389,9 @@ export class UnifiedSelector {
           align-items: center;
         }
         
+        .rhetoric-btn,
         .template-btn,
-        .tone-btn {
+        .personality-btn {
           display: flex;
           align-items: center;
           gap: 4px;
@@ -1401,26 +1432,30 @@ export class UnifiedSelector {
           color: #ffd700;
         }
         
+        .rhetoric-btn:hover,
         .template-btn:hover,
-        .tone-btn:hover {
+        .personality-btn:hover {
           background: rgba(29, 155, 240, 0.15);
           border-color: rgba(29, 155, 240, 0.5);
           transform: translateY(-1px);
         }
         
+        .rhetoric-btn.selected,
         .template-btn.selected,
-        .tone-btn.selected {
+        .personality-btn.selected {
           background: rgba(29, 155, 240, 0.25);
           border-color: #1d9bf0;
         }
         
+        .rhetoric-emoji,
         .template-emoji,
-        .tone-emoji {
+        .personality-emoji {
           font-size: 16px;
         }
         
+        .rhetoric-name,
         .template-name,
-        .tone-label {
+        .personality-label {
           font-size: 12px;
           white-space: nowrap;
           overflow: hidden;

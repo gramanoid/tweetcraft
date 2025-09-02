@@ -54,7 +54,7 @@ export class SelectorAdapter {
           name: result.template.name,
           emoji: result.template.emoji,
           prompt: result.template.prompt,
-          category: result.template.category,
+          category: result.template.category as 'engagement' | 'value' | 'conversation' | 'humor' | 'debate' | 'viral',
           description: result.template.description || ''
         };
         
