@@ -26,6 +26,10 @@ interface Features {
     enabled: boolean;
     maxReplies?: number;
   };
+  replyCarousel?: {
+    enabled: boolean;
+    numberOfOptions?: number;
+  };
 }
 
 // Configuration constants
@@ -53,10 +57,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const addCustomToneBtn = document.getElementById('add-custom-tone') as HTMLButtonElement | null;
   const customTonesList = document.getElementById('custom-tones-list') as HTMLDivElement | null;
   
-  // Image understanding elements with null checks
+  // Feature toggle elements
   const imageUnderstandingCheckbox = document.getElementById('image-understanding') as HTMLInputElement | null;
   const visionSettingsDiv = document.getElementById('vision-settings') as HTMLDivElement | null;
   const visionModelSelect = document.getElementById('vision-model') as HTMLSelectElement | null;
+  const arsenalModeCheckbox = document.getElementById('arsenal-mode') as HTMLInputElement | null;
+  const smartSuggestionsCheckbox = document.getElementById('smart-suggestions') as HTMLInputElement | null;
+  const replyCarouselCheckbox = document.getElementById('reply-carousel') as HTMLInputElement | null;
+  
+  // Quick action buttons
+  const manageArsenalBtn = document.getElementById('manage-arsenal') as HTMLButtonElement | null;
+  const viewHistoryBtn = document.getElementById('view-history') as HTMLButtonElement | null;
+  const keyboardShortcutsBtn = document.getElementById('keyboard-shortcuts') as HTMLButtonElement | null;
   
   // Early return if critical elements are missing
   if (!modelSelect || !systemPromptInput) {
@@ -100,9 +112,11 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Loaded config:', config);
     }
     
-    // Load image understanding features
+    // Load all features
     if (result.features) {
       const features = result.features;
+      
+      // Image Understanding
       if (features.imageUnderstanding) {
         if (imageUnderstandingCheckbox) {
           imageUnderstandingCheckbox.checked = features.imageUnderstanding.enabled || false;
@@ -115,6 +129,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (visionModelSelect && features.imageUnderstanding.model) {
           visionModelSelect.value = features.imageUnderstanding.model;
         }
+      }
+      
+      // Arsenal Mode
+      if (arsenalModeCheckbox && features.arsenalMode) {
+        arsenalModeCheckbox.checked = features.arsenalMode.enabled || false;
+      }
+      
+      // Smart Suggestions
+      if (smartSuggestionsCheckbox && features.smartSuggestions) {
+        smartSuggestionsCheckbox.checked = features.smartSuggestions.enabled !== false; // Default to true
+      }
+      
+      // Reply Carousel
+      if (replyCarouselCheckbox && features.replyCarousel) {
+        replyCarouselCheckbox.checked = features.replyCarousel.enabled || false;
       }
     }
   });
@@ -150,9 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const temperature = parseFloat(temperatureInput?.value || '0.7');
       const replyLengthDefault = replyLengthSelect?.value || '';
       
-      // Get image understanding settings
+      // Get all feature settings
       const imageUnderstandingEnabled = imageUnderstandingCheckbox?.checked || false;
       const visionModel = visionModelSelect?.value || 'gemini-pro-vision';
+      const arsenalModeEnabled = arsenalModeCheckbox?.checked || false;
+      const smartSuggestionsEnabled = smartSuggestionsCheckbox?.checked !== false;
+      const replyCarouselEnabled = replyCarouselCheckbox?.checked || false;
         
         // Get existing config to preserve custom tones with error handling
         const existingConfig = await new Promise<{ config: StorageConfig; features: Features }>((resolve, reject) => {
@@ -187,6 +219,18 @@ document.addEventListener('DOMContentLoaded', () => {
             enabled: imageUnderstandingEnabled,
             model: visionModel,
             maxImagesPerRequest: MAX_IMAGES_PER_REQUEST
+          },
+          arsenalMode: {
+            enabled: arsenalModeEnabled,
+            maxReplies: 50
+          },
+          smartSuggestions: {
+            enabled: smartSuggestionsEnabled,
+            maxSuggestions: 3
+          },
+          replyCarousel: {
+            enabled: replyCarouselEnabled,
+            numberOfOptions: 3
           }
         };
         
@@ -389,5 +433,86 @@ document.addEventListener('DOMContentLoaded', () => {
       toneDiv.appendChild(deleteBtn);
       customTonesList.appendChild(toneDiv);
     });
+  }
+  
+  // Quick action buttons
+  if (manageArsenalBtn) {
+    manageArsenalBtn.addEventListener('click', () => {
+      // Open arsenal management page
+      chrome.tabs.create({ url: chrome.runtime.getURL('arsenal.html') });
+    });
+  }
+  
+  if (viewHistoryBtn) {
+    viewHistoryBtn.addEventListener('click', () => {
+      // Open reply history page
+      chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
+    });
+  }
+  
+  if (keyboardShortcutsBtn) {
+    keyboardShortcutsBtn.addEventListener('click', () => {
+      // Show keyboard shortcuts modal
+      showKeyboardShortcuts();
+    });
+  }
+  
+  function showKeyboardShortcuts() {
+    const shortcuts = [
+      { keys: 'Ctrl+Shift+T', action: 'Open TweetCraft selector' },
+      { keys: 'Ctrl+Shift+A', action: 'Open Arsenal Mode' },
+      { keys: 'Ctrl+Enter', action: 'Apply selected reply' },
+      { keys: 'Escape', action: 'Close selector/popup' }
+    ];
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      z-index: 10000;
+      max-width: 400px;
+    `;
+    
+    modal.innerHTML = `
+      <h3 style="margin: 0 0 16px 0;">Keyboard Shortcuts</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${shortcuts.map(s => `
+          <tr>
+            <td style="padding: 8px 16px 8px 0; font-family: monospace; font-size: 13px;">
+              <kbd style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${s.keys}</kbd>
+            </td>
+            <td style="padding: 8px 0; color: #666;">${s.action}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <button id="close-shortcuts" style="margin-top: 16px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+        Close
+      </button>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const closeBtn = modal.querySelector('#close-shortcuts');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        modal.remove();
+      });
+    }
+    
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', function closeModal(e) {
+        if (!modal.contains(e.target as Node)) {
+          modal.remove();
+          document.removeEventListener('click', closeModal);
+        }
+      });
+    }, 100);
   }
 });

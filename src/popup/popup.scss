@@ -1,12 +1,19 @@
 // Smart Reply Popup Styles
+@import '../styles/design-system';
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #ffffff;
-  color: #0f1419;
+  font-family: $font-family;
+  background-color: white;
+  color: $twitter-black;
   width: 400px;
   min-height: 500px;
+  
+  @include dark-mode {
+    background-color: $twitter-dark-bg;
+    color: white;
+  }
 }
 
 .popup-container {
@@ -17,21 +24,21 @@ body {
 }
 
 .popup-header {
-  padding: 20px;
-  background: linear-gradient(135deg, #1da1f2 0%, #0d8bd9 100%);
+  padding: $spacing-xl;
+  background: $brand-gradient;
   color: white;
   text-align: center;
   
   h1 {
-    margin: 0 0 5px 0;
+    margin: 0 0 $spacing-xs 0;
     font-size: 24px;
-    font-weight: 700;
+    font-weight: $font-weight-bold;
   }
   
   p {
     margin: 0;
     opacity: 0.9;
-    font-size: 14px;
+    font-size: $font-size-base;
   }
 }
 
@@ -347,6 +354,95 @@ body {
   }
 }
 
+// Feature toggles and badges
+.feature-toggle {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  background: rgba($brand-primary, 0.05);
+  border-radius: $radius-md;
+  transition: all $transition-base;
+  
+  &:hover {
+    background: rgba($brand-primary, 0.08);
+  }
+  
+  label {
+    cursor: pointer;
+    margin-bottom: $spacing-xs !important;
+  }
+  
+  small {
+    padding-left: 0 !important;
+  }
+}
+
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  position: relative;
+  appearance: none;
+  background: #ccd6dd;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all $transition-base;
+  
+  &:checked {
+    background: $brand-primary;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: all $transition-base;
+  }
+  
+  &:checked::after {
+    transform: translateX(20px);
+  }
+}
+
+.badge-new {
+  background: $success;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: $radius-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.badge-beta {
+  background: $info;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: $radius-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-sm;
+  
+  button {
+    @include button-secondary;
+    padding: $spacing-sm;
+    font-size: $font-size-small;
+    flex-direction: column;
+    gap: $spacing-xs;
+    
+    span {
+      font-size: 20px;
+    }
+  }
+}
+
 // Dark mode support
 @media (prefers-color-scheme: dark) {
   body {
@@ -443,5 +539,147 @@ body {
     &:hover {
       background: #536471;
     }
+  }
+}
+
+// Mobile Responsiveness
+@media (max-width: $breakpoint-sm) {
+  body {
+    width: 100vw;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+  
+  .popup-container {
+    max-height: none;
+    height: 100vh;
+  }
+  
+  .popup-header {
+    padding: $spacing-lg;
+    
+    h1 {
+      font-size: 20px;
+    }
+  }
+  
+  .popup-content {
+    padding: $spacing-lg;
+  }
+  
+  .setting-group {
+    margin-bottom: $spacing-xl;
+    
+    label {
+      font-size: $font-size-large;
+    }
+    
+    input[type="text"],
+    input[type="password"],
+    select,
+    textarea {
+      @include mobile-friendly;
+    }
+    
+    h3 {
+      font-size: $font-size-xlarge;
+      margin-bottom: $spacing-lg;
+    }
+  }
+  
+  .feature-toggle {
+    padding: $spacing-lg;
+    margin-bottom: $spacing-xl;
+    
+    label {
+      font-size: $font-size-large;
+    }
+    
+    small {
+      font-size: $font-size-base;
+    }
+  }
+  
+  .toggle-switch {
+    width: 51px;
+    height: 31px;
+    
+    &::after {
+      width: 27px;
+      height: 27px;
+    }
+    
+    &:checked::after {
+      transform: translateX(20px);
+    }
+  }
+  
+  .quick-actions {
+    grid-template-columns: 1fr;
+    gap: $spacing-md;
+    
+    button {
+      padding: $spacing-lg;
+      font-size: $font-size-base;
+      flex-direction: row;
+      justify-content: center;
+      min-height: 56px;
+      
+      span {
+        font-size: 24px;
+      }
+    }
+  }
+  
+  .popup-footer {
+    padding: $spacing-lg $spacing-xl;
+    
+    .btn-primary {
+      padding: $spacing-lg $spacing-xl;
+      font-size: $font-size-large;
+      min-height: 56px;
+    }
+  }
+  
+  // Model select row on mobile
+  .model-select-row {
+    flex-direction: column;
+    gap: $spacing-md;
+    
+    select {
+      width: 100%;
+    }
+    
+    .btn-secondary {
+      width: 100%;
+      padding: $spacing-md $spacing-lg;
+      min-height: 48px;
+    }
+  }
+  
+  // Custom tone inputs on mobile
+  #custom-tone-name,
+  #custom-tone-emoji {
+    font-size: $font-size-large;
+    min-height: 48px;
+  }
+  
+  #add-custom-tone {
+    width: 100%;
+    padding: $spacing-md $spacing-lg;
+    font-size: $font-size-large;
+    min-height: 48px;
+  }
+}
+
+// Tablet responsiveness
+@media (min-width: $breakpoint-sm) and (max-width: $breakpoint-md) {
+  body {
+    width: 100vw;
+    max-width: 600px;
+  }
+  
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

@@ -1,16 +1,17 @@
 /**
  * Arsenal Mode UI Styles
  */
+@import '../styles/design-system';
 
 .arsenal-mode-popup {
   position: fixed;
   width: 480px;
   max-height: 60vh;
-  background: #15202B;
-  border: 1px solid #38444D;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  z-index: 10000;
+  background: $twitter-dark-bg;
+  border: 1px solid $twitter-dark-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  z-index: $z-index-modal;
   overflow: hidden;
   display: flex;
   flex-direction: column;

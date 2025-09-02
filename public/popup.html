@@ -2,7 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
   <title>TweetCraft Settings</title>
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -83,20 +84,77 @@
         </div>
         
         <div class="setting-group">
-          <label style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="image-understanding" style="width: auto;" aria-controls="vision-settings" aria-expanded="false">
-            <span id="image-understanding-label">Enable Image Understanding <span style="color: #794BC4;">(Beta)</span></span>
-          </label>
-          <small>Analyze images in tweets for richer context. Uses vision models (may incur additional costs).</small>
-          <div id="vision-settings" style="margin-top: 10px; padding-left: 20px; display: none;" role="region" aria-labelledby="image-understanding-label">
-            <label for="vision-model">Vision Model:</label>
-            <select id="vision-model" style="width: 100%;">
-              <option value="gemini-pro-vision">Gemini Pro Vision (Most cost-effective)</option>
-              <option value="gpt-4-vision">GPT-4 Vision (Best quality)</option>
-              <option value="claude-3-haiku">Claude 3 Haiku (Fast)</option>
-              <option value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</option>
-            </select>
-            <small>Estimated cost: ~$0.001 per image with Gemini Pro</small>
+          <h3 style="margin-bottom: 12px; color: #536471;">Advanced Features</h3>
+          
+          <!-- Arsenal Mode -->
+          <div class="feature-toggle">
+            <label style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span>⚔️ Arsenal Mode</span>
+                <span class="badge-new">NEW</span>
+              </div>
+              <input type="checkbox" id="arsenal-mode" class="toggle-switch">
+            </label>
+            <small>Quick-select from your best pre-generated replies (Ctrl+Shift+A)</small>
+          </div>
+          
+          <!-- Smart Suggestions -->
+          <div class="feature-toggle">
+            <label style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span>💡 Smart Suggestions</span>
+              </div>
+              <input type="checkbox" id="smart-suggestions" class="toggle-switch" checked>
+            </label>
+            <small>Get AI-powered reply suggestions based on context</small>
+          </div>
+          
+          <!-- Reply Carousel -->
+          <div class="feature-toggle">
+            <label style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span>🎠 Multiple Reply Options</span>
+              </div>
+              <input type="checkbox" id="reply-carousel" class="toggle-switch">
+            </label>
+            <small>Generate 3 different reply options to choose from</small>
+          </div>
+          
+          <!-- Image Understanding -->
+          <div class="feature-toggle">
+            <label style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span>🖼️ Image Understanding</span>
+                <span class="badge-beta">BETA</span>
+              </div>
+              <input type="checkbox" id="image-understanding" class="toggle-switch" aria-controls="vision-settings" aria-expanded="false">
+            </label>
+            <small>Analyze images in tweets for richer context</small>
+            <div id="vision-settings" style="margin-top: 10px; padding-left: 20px; display: none;" role="region" aria-labelledby="image-understanding-label">
+              <label for="vision-model">Vision Model:</label>
+              <select id="vision-model" style="width: 100%;">
+                <option value="gemini-pro-vision">Gemini Pro Vision (Most cost-effective)</option>
+                <option value="gpt-4-vision">GPT-4 Vision (Best quality)</option>
+                <option value="claude-3-haiku">Claude 3 Haiku (Fast)</option>
+                <option value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</option>
+              </select>
+              <small>Estimated cost: ~$0.001 per image with Gemini Pro</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="setting-group">
+          <h3 style="margin-bottom: 12px; color: #536471;">Quick Actions</h3>
+          <div class="quick-actions">
+            <button id="manage-arsenal" class="btn-secondary">
+              <span>⚔️</span> Manage Arsenal
+            </button>
+            <button id="view-history" class="btn-secondary">
+              <span>📜</span> Reply History
+            </button>
+            <button id="keyboard-shortcuts" class="btn-secondary">
+              <span>⌨️</span> Shortcuts
+            </button>
           </div>
         </div>
       </main>

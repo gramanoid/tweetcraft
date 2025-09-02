@@ -1,47 +1,23 @@
 // Smart Reply Extension Styles
+@import '../styles/design-system';
+
 .smart-reply-container {
   position: relative;
   display: inline-block;
-  margin: 0 8px;
+  margin: 0 $spacing-sm;
   align-self: center;
   flex: 0 0 auto;
   width: auto;
   
   .smart-reply-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 9999px;
-    // Beautiful gradient from HypeFury
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    z-index: 1;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-    transform-origin: center center;
+    @include button-primary;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-base;
     
     svg {
       width: 16px;
       height: 16px;
       fill: currentColor;
-    }
-    
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      // Slightly brighten the gradient on hover
-      background: linear-gradient(135deg, #7788ee 0%, #8659a9 100%);
-    }
-    
-    &:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
     }
     
     &.loading {
@@ -54,18 +30,12 @@
     }
     
     &.error {
-      border-color: rgb(244, 63, 94);
-      color: rgb(244, 63, 94);
-      background-color: rgba(244, 63, 94, 0.1);
-    }
-    
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+      background: rgba($error, 0.1);
+      color: $error;
+      border: 1px solid $error;
+      box-shadow: none;
     }
   }
-  
-  
 }
 
 // Dropdown styles - at root level for better specificity
