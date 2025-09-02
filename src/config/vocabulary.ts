@@ -7,90 +7,109 @@ export interface VocabularyStyle {
   id: string;
   label: string;
   description: string;
+  emoji: string;
   systemPrompt: string;
   examples?: string[];
 }
 
 export const VOCABULARY_STYLES: Record<string, VocabularyStyle> = {
-  // Placeholder vocabulary styles - to be replaced with actual templates
-  simple: {
-    id: 'simple',
-    label: 'Simple',
-    description: 'Basic, everyday language',
-    systemPrompt: 'Use simple, everyday words that anyone can understand. Avoid jargon and complex vocabulary.',
+  plain_english: {
+    id: 'plain_english',
+    label: 'Plain English',
+    description: 'Simple, short, and concrete words',
+    emoji: '📎',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Use simple, short, and concrete words. Avoid jargon and complex sentences.',
     examples: ['easy words', 'common phrases', 'plain English']
   },
   
-  sophisticated: {
-    id: 'sophisticated',
-    label: 'Sophisticated',
-    description: 'Elevated, refined language',
-    systemPrompt: 'Use sophisticated vocabulary with nuanced word choices. Include refined expressions and elegant phrasing.',
-    examples: ['eloquent', 'articulate', 'refined diction']
+  corporate_pr: {
+    id: 'corporate_pr',
+    label: 'Corporate/PR',
+    description: 'Cautious, reputation-aware language',
+    emoji: '🏢',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Use cautious, reputation-aware language. The tone should be official and brand-safe.',
+    examples: ['stakeholders', 'synergy', 'moving forward']
   },
   
-  technical: {
-    id: 'technical',
-    label: 'Technical',
-    description: 'Industry-specific terminology',
-    systemPrompt: 'Use technical terms and industry jargon appropriately. Be precise with technical vocabulary.',
-    examples: ['specialized terms', 'technical jargon', 'industry language']
-  },
-  
-  casual: {
-    id: 'casual',
-    label: 'Casual',
-    description: 'Conversational, informal language',
-    systemPrompt: 'Use casual, conversational language with contractions and informal expressions.',
-    examples: ["gonna", "wanna", "y'all"]
-  },
-  
-  academic: {
-    id: 'academic',
-    label: 'Academic',
-    description: 'Scholarly, formal language',
-    systemPrompt: 'Use academic vocabulary with formal structure. Include scholarly terms and precise language.',
+  academic_scholarly: {
+    id: 'academic_scholarly',
+    label: 'Academic/Scholarly',
+    description: 'Precise terminology and formal structure',
+    emoji: '🎓',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Use precise terminology, nuanced language, and a formal, scholarly structure.',
     examples: ['furthermore', 'consequently', 'hypothesis']
   },
   
-  slang: {
-    id: 'slang',
-    label: 'Slang/Internet',
-    description: 'Modern internet and slang terms',
-    systemPrompt: 'Use modern internet slang, abbreviations, and trendy expressions.',
-    examples: ['fr fr', 'no cap', 'bussin']
+  technical_engineer: {
+    id: 'technical_engineer',
+    label: 'Technical/Engineer',
+    description: 'Systems, constraints, and first principles',
+    emoji: '🛠️',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Focus on systems, constraints, trade-offs, and first principles. Use technical but clear language.',
+    examples: ['architecture', 'optimization', 'scalability']
   },
   
-  poetic: {
-    id: 'poetic',
-    label: 'Poetic',
-    description: 'Metaphorical, artistic language',
-    systemPrompt: 'Use poetic language with metaphors, imagery, and artistic expression.',
-    examples: ['metaphors', 'vivid imagery', 'lyrical phrases']
+  journalistic: {
+    id: 'journalistic',
+    label: 'Journalistic',
+    description: 'Inverted pyramid structure with attribution',
+    emoji: '📰',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Structure it with the most important information first (inverted pyramid) and attribute any claims.',
+    examples: ['according to', 'sources say', 'reports indicate']
   },
   
-  minimalist: {
-    id: 'minimalist',
-    label: 'Minimalist',
-    description: 'Sparse, essential words only',
-    systemPrompt: 'Use minimal words. Be extremely concise. Every word must earn its place.',
-    examples: ['few words', 'essential only', 'bare minimum']
+  marketing_hype: {
+    id: 'marketing_hype',
+    label: 'Marketing/Hype',
+    description: 'Benefits, outcomes, and excitement',
+    emoji: '📣',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Focus on benefits, positive outcomes, and social proof. Build excitement.',
+    examples: ['game-changer', 'revolutionary', 'transform your']
   },
   
-  verbose: {
-    id: 'verbose',
-    label: 'Verbose',
-    description: 'Elaborate, detailed language',
-    systemPrompt: 'Use elaborate vocabulary with detailed explanations and extensive descriptions.',
-    examples: ['elaborate descriptions', 'extensive details', 'rich vocabulary']
+  legal_compliance: {
+    id: 'legal_compliance',
+    label: 'Legal/Compliance',
+    description: 'Disclaimers and carefully hedged language',
+    emoji: '🧾',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Include disclaimers, qualifiers, and carefully hedged language to minimize liability.',
+    examples: ['allegedly', 'may constitute', 'not legal advice']
   },
   
-  professional: {
-    id: 'professional',
-    label: 'Professional',
-    description: 'Business-appropriate language',
-    systemPrompt: 'Use professional business vocabulary. Maintain formal but accessible language.',
-    examples: ['leverage', 'implement', 'strategic']
+  internet_genz: {
+    id: 'internet_genz',
+    label: 'Internet/Gen Z',
+    description: 'Current slang, memes, and casual style',
+    emoji: '😎',
+    systemPrompt: 'Rewrite this core idea `[User\'s Core Idea]` as a reply to `[Original Tweet Text]`. Use current slang, memes, and casual punctuation (e.g., lowercase, emojis). The tone should be very informal.',
+    examples: ['fr fr', 'no cap', 'bussin', 'slay']
+  },
+  
+  storyteller_narrative: {
+    id: 'storyteller_narrative',
+    label: 'Storyteller/Narrative',
+    description: 'Anecdotes and story format',
+    emoji: '📚',
+    systemPrompt: 'Frame this core idea `[User\'s Core Idea]` as a short anecdote or story in reply to `[Original Tweet Text]`. Start with \'That reminds me of a time...\' or a similar hook.',
+    examples: ['Once upon a time', 'That reminds me', 'Let me tell you']
+  },
+  
+  shitposter_meme: {
+    id: 'shitposter_meme',
+    label: 'Shitposter/Meme-Lord',
+    description: 'Absurdist, ironic, or surreal',
+    emoji: '🤡',
+    systemPrompt: 'Generate an absurdist, ironic, or non-sequitur reply to this tweet: `[Original Tweet Text]` based on the idea `[User\'s Core Idea]`. It should feel like an inside joke or a surreal meme.',
+    examples: ['based', 'ratio + L', 'sir this is a wendys']
+  },
+  
+  fan_stanspeak: {
+    id: 'fan_stanspeak',
+    label: 'Fan/Stanspeak',
+    description: 'Effusively positive fan language',
+    emoji: '💖',
+    systemPrompt: 'Generate an effusively positive and hyperbolic reply to this tweet: `[Original Tweet Text]`. Use fan community slang (e.g., \'literally shaking,\' \'ATE,\' \'the blueprint\') to praise the subject.',
+    examples: ['literally shaking', 'ATE and left no crumbs', 'the blueprint', 'mother is mothering']
   }
 };
 
@@ -114,8 +133,8 @@ export function getAllVocabularyStyles(): VocabularyStyle[] {
 export function getVocabularyPrompt(vocabularyId: string): string {
   const style = getVocabularyStyle(vocabularyId);
   if (!style) {
-    console.warn(`Vocabulary style '${vocabularyId}' not found, using simple as default`);
-    return VOCABULARY_STYLES.simple.systemPrompt;
+    console.warn(`Vocabulary style '${vocabularyId}' not found, using plain_english as default`);
+    return VOCABULARY_STYLES.plain_english.systemPrompt;
   }
   return style.systemPrompt;
 }

@@ -36,7 +36,7 @@ export function buildFourPartPrompt(request: ReplyGenerationRequest): PromptComp
   console.log('%c  Prompt:', 'color: #17BF63', personalityPrompt.substring(0, 100) + '...');
   
   // Part 2: VOCABULARY - How it's written
-  const vocabularyId = request.vocabulary || 'simple';
+  const vocabularyId = request.vocabulary || 'plain_english';
   const vocabularyPrompt = getVocabularyPrompt(vocabularyId);
   
   console.log('%c📍 PART 2: VOCABULARY (How it\'s written)', 'color: #9146FF; font-weight: bold');

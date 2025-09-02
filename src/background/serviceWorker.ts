@@ -556,7 +556,7 @@ class SmartReplyServiceWorker {
           console.log('%c⚠️ Filling missing components with defaults', 'color: #FFA500');
           // Fill in defaults for missing components
           request.personality = request.personality || 'neutral';
-          request.vocabulary = request.vocabulary || 'simple';
+          request.vocabulary = request.vocabulary || 'plain_english';
           request.rhetoric = request.rhetoric || 'factual';
           request.lengthPacing = request.lengthPacing || 'standard';
         }
