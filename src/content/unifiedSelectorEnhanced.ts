@@ -93,6 +93,12 @@ const OPTION_EXAMPLES: { [key: string]: string } = {
 };
 
 export class UnifiedSelectorEnhanced {
+  // Debug flag - set to false for production builds
+  private readonly debug: boolean = process.env.NODE_ENV !== 'production';
+  
+  // UI Constants
+  static readonly SELECTOR_WIDTH = 420;
+  
   private container: HTMLElement | null = null;
   private selections: SelectionMap = {
     personaFraming: null,
@@ -128,8 +134,10 @@ export class UnifiedSelectorEnhanced {
    * Show the unified selector
    */
   async show(button: HTMLElement, onSelect: (result: FiveStepSelectionResult) => void): Promise<void> {
-    console.log('%c🎨 UnifiedSelectorEnhanced.show() called', 'color: #17BF63; font-weight: bold');
-    console.log('%c  Button:', 'color: #657786', button);
+    if (this.debug) {
+      console.log('%c🎨 UnifiedSelectorEnhanced.show() called', 'color: #17BF63; font-weight: bold');
+      console.log('%c  Button:', 'color: #657786', button);
+    }
     
     this.onSelectCallback = onSelect;
     
@@ -146,14 +154,16 @@ export class UnifiedSelectorEnhanced {
     this.anchorButton = button;
     
     // Create and show new selector
-    console.log('%c  Creating UI...', 'color: #657786');
+    if (this.debug) console.log('%c  Creating UI...', 'color: #657786');
     this.container = this.createUI();
-    console.log('%c  Container created:', 'color: #657786', this.container);
-    console.log('%c  Container class:', 'color: #657786', this.container?.className || 'none');
-    console.log('%c  Container children:', 'color: #657786', this.container?.children.length || 0);
+    if (this.debug) {
+      console.log('%c  Container created:', 'color: #657786', this.container);
+      console.log('%c  Container class:', 'color: #657786', this.container?.className || 'none');
+      console.log('%c  Container children:', 'color: #657786', this.container?.children.length || 0);
+    }
     
     // Check the actual DOM structure
-    if (this.container) {
+    if (this.debug && this.container) {
       const firstChild = this.container.firstElementChild;
       console.log('%c  First child tag:', 'color: #657786', firstChild?.tagName || 'none');
       console.log('%c  First child class:', 'color: #657786', firstChild?.className || 'none');
@@ -164,15 +174,15 @@ export class UnifiedSelectorEnhanced {
     }
     
     if (!this.container) {
-      console.error('%c❌ Failed to create container!', 'color: #DC3545');
+      if (this.debug) console.error('%c❌ Failed to create container!', 'color: #DC3545');
       return;
     }
     
     // Verify styles are injected
     const stylesExist = document.getElementById('tweetcraft-unified-selector-styles');
-    console.log('%c  Styles element exists:', 'color: #657786', !!stylesExist);
+    if (this.debug) console.log('%c  Styles element exists:', 'color: #657786', !!stylesExist);
     
-    if (stylesExist) {
+    if (this.debug && stylesExist) {
       // Check if styles are actually applied
       const styleContent = stylesExist.textContent || '';
       console.log('%c  Style content length:', 'color: #657786', styleContent.length);
@@ -180,21 +190,21 @@ export class UnifiedSelectorEnhanced {
     }
     
     if (!stylesExist) {
-      console.warn('%c⚠️ Styles not found, re-injecting...', 'color: #FFA500');
+      if (this.debug) console.warn('%c⚠️ Styles not found, re-injecting...', 'color: #FFA500');
       this.injectStyles();
     }
     
     document.body.appendChild(this.container);
-    console.log('%c  Container appended to body', 'color: #657786');
+    if (this.debug) console.log('%c  Container appended to body', 'color: #657786');
     
     // Now attach event listeners after container is in DOM
     this.attachEventListeners();
     this.updateWarnings();
-    console.log('%c  Event listeners attached', 'color: #657786');
+    if (this.debug) console.log('%c  Event listeners attached', 'color: #657786');
     
     // Position near button
     this.positionNearButton(button);
-    console.log('%c  Container positioned', 'color: #657786');
+    if (this.debug) console.log('%c  Container positioned', 'color: #657786');
     
     // Show with animation
     requestAnimationFrame(() => {
@@ -286,32 +296,36 @@ export class UnifiedSelectorEnhanced {
     const container = document.createElement('div');
     container.className = 'unified-selector-enhanced';
     
-    console.log('%c🎨 Creating UI container...', 'color: #9146FF');
+    if (this.debug) console.log('%c🎨 Creating UI container...', 'color: #9146FF');
     
     // Inject styles into document head once
     this.injectStyles();
     
     // Get the rendered content
     const content = this.renderContent();
-    console.log('%c  Content length:', 'color: #657786', content.length);
-    console.log('%c  Content preview:', 'color: #657786', content.substring(0, 200) + '...');
+    if (this.debug) {
+      console.log('%c  Content length:', 'color: #657786', content.length);
+      console.log('%c  Content preview:', 'color: #657786', content.substring(0, 200) + '...');
+    }
     
     try {
       // Create a temporary div to hold the HTML
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
       
-      console.log('%c  TempDiv children:', 'color: #657786', tempDiv.children.length);
+      if (this.debug) console.log('%c  TempDiv children:', 'color: #657786', tempDiv.children.length);
       
       // Move all child nodes from tempDiv to container
       while (tempDiv.firstChild) {
         container.appendChild(tempDiv.firstChild);
       }
       
-      console.log('%c  Container children:', 'color: #657786', container.children.length);
-      console.log('%c✅ UI created successfully', 'color: #17BF63');
+      if (this.debug) {
+        console.log('%c  Container children:', 'color: #657786', container.children.length);
+        console.log('%c✅ UI created successfully', 'color: #17BF63');
+      }
     } catch (error) {
-      console.error('%c❌ Error creating UI:', 'color: #DC3545', error);
+      if (this.debug) console.error('%c❌ Error creating UI:', 'color: #DC3545', error);
       // Fallback: set text content to show something
       container.textContent = 'Error: Failed to render TweetCraft UI. Please refresh the page.';
     }
@@ -338,13 +352,39 @@ export class UnifiedSelectorEnhanced {
     
     try {
       document.head.appendChild(styleElement);
-      console.log('%c🎨 Unified selector styles injected', 'color: #9146FF');
-    } catch (error) {
-      console.error('%c❌ Failed to inject styles:', 'color: #DC3545', error);
-      // Fallback: inject styles directly into the container
-      const styleEl = document.createElement('style');
-      styleEl.textContent = this.getStylesCSS();
-      document.body.appendChild(styleEl);
+      if (this.debug) console.log('%c🎨 Unified selector styles injected to head', 'color: #9146FF');
+    } catch (headError) {
+      if (this.debug) console.error('%c⚠️ Failed to inject styles to head:', 'color: #FFA500', headError);
+      
+      // Fallback 1: Try to insert into documentElement
+      try {
+        if (document.documentElement.firstChild) {
+          document.documentElement.insertBefore(styleElement, document.documentElement.firstChild);
+        } else {
+          document.documentElement.appendChild(styleElement);
+        }
+        if (this.debug) console.log('%c🎨 Unified selector styles injected to documentElement', 'color: #9146FF');
+      } catch (docError) {
+        if (this.debug) console.error('%c⚠️ Failed to inject styles to documentElement:', 'color: #FFA500', docError);
+        
+        // Fallback 2: Try constructable stylesheets if supported
+        if ('adoptedStyleSheets' in document) {
+          try {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(this.getStylesCSS());
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            if (this.debug) console.log('%c🎨 Unified selector styles injected via adoptedStyleSheets', 'color: #9146FF');
+          } catch (sheetError) {
+            // Final fallback: log error and warn user
+            console.error('%c❌ Failed to inject styles - UI may not display correctly:', 'color: #DC3545', sheetError);
+            console.error('%c❌ CSP or other restrictions prevent style injection', 'color: #DC3545');
+          }
+        } else {
+          // Browser doesn't support constructable stylesheets
+          console.error('%c❌ Failed to inject styles - UI may not display correctly', 'color: #DC3545');
+          console.error('%c❌ CSP or other restrictions prevent style injection', 'color: #DC3545');
+        }
+      }
     }
   }
   
@@ -1376,7 +1416,7 @@ export class UnifiedSelectorEnhanced {
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 10px;
-          width: 420px;
+          width: ${UnifiedSelectorEnhanced.SELECTOR_WIDTH}px;
           max-width: 95vw;
           max-height: 55vh;
           display: flex;
@@ -2294,6 +2334,13 @@ export class UnifiedSelectorEnhanced {
   
   private render(): void {
     if (!this.container) return;
+    
+    // Check if container is still attached to the document
+    if (!this.container.isConnected) {
+      if (this.debug) console.warn('%c⚠️ Container is not connected to DOM, skipping render', 'color: #FFA500');
+      return;
+    }
+    
     // Don't re-inject styles - they're already in document head
     
     // Create a temporary div to hold the HTML
@@ -2767,7 +2814,7 @@ export class UnifiedSelectorEnhanced {
     }
     
     // Center horizontally but keep within viewport
-    const selectorWidth = 420; // width from CSS
+    const selectorWidth = UnifiedSelectorEnhanced.SELECTOR_WIDTH;
     let leftPos = buttonRect.left + (buttonRect.width / 2) - (selectorWidth / 2);
     
     // Ensure it stays within viewport bounds

@@ -16,10 +16,15 @@ module.exports = {
         exclude: /node_modules/,
       },
       {
-        test: /\.s?css$/,
+        test: /\.scss$/,
         use: [
           MiniCssExtractPlugin.loader,
-          'css-loader',
+          {
+            loader: 'css-loader',
+            options: {
+              importLoaders: 1
+            }
+          },
           {
             loader: 'sass-loader',
             options: {
@@ -27,6 +32,13 @@ module.exports = {
               api: 'modern'
             }
           }
+        ],
+      },
+      {
+        test: /\.css$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader'
         ],
       },
     ],

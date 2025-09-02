@@ -7,6 +7,14 @@ import { ArsenalService } from '@/services/arsenalService';
 import { DOMUtils } from './domUtils';
 import './arsenalMode.scss';
 
+// UI String Constants
+const UI_STRINGS = {
+  EMPTY_STATE: {
+    TITLE: 'No replies in this category yet.',
+    SUBTITLE: 'Generate some replies to build your arsenal!'
+  }
+} as const;
+
 export class ArsenalModeUI {
   private arsenalService: ArsenalService;
   private popup: HTMLElement | null = null;
@@ -232,8 +240,8 @@ export class ArsenalModeUI {
         <div class="arsenal-mode-popup__empty">
           <div class="arsenal-mode-popup__empty-emoji">📭</div>
           <div class="arsenal-mode-popup__empty-text">
-            <p>No replies in this category yet.</p>
-            <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Generate some replies to build your arsenal!</p>
+            <p>${UI_STRINGS.EMPTY_STATE.TITLE}</p>
+            <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">${UI_STRINGS.EMPTY_STATE.SUBTITLE}</p>
           </div>
         </div>
       `;

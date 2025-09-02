@@ -12,7 +12,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-step AI selection system, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.13
+**TweetCraft** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+
+### Current Version
+- **v0.0.13**
+
+### Supported Platforms
+- Twitter/X (full feature support)
+- HypeFury (full feature parity)
+
+### AI & Integration Features
+- OpenRouter integration
+- Unified 5-step AI selection system
+- Smart suggestions with AI scoring
+- Image generation (AI + web search)
+
+### Content Generation
+- Template+tone system (15+ templates, 12 tones)
+- Custom templates with separate Style/Tone prompts
+- Thread context awareness
+
+### UI/UX Features
+- Arsenal Mode (474 lines, IndexedDB storage)
+- Comprehensive keyboard shortcuts (384 lines)
+
+### Engineering & Resilience
+- Advanced network resilience
+- Race condition prevention
+- Multi-stage loading states
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -383,7 +410,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `FETCH_MODELS` - Retrieves available models list
 - `GENERATE_REPLY` - Main reply generation endpoint
 - `GET_LAST_TONE` / `SET_LAST_TONE` - Tone preference persistence
-- `GET_STORAGE` / `SET_STORAGE` - Generic storage access for CSP compliance (v0.0.13)
+- `STORAGE_GET` / `STORAGE_SET` - Generic storage access for CSP compliance (v0.0.13)
 
 ## Performance Optimizations
 
@@ -405,7 +432,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 
 ### CSP Compliance Fixes
 - **Message Passing Pattern**: All chrome.storage calls now use service worker
-- **GET_STORAGE/SET_STORAGE Handlers**: Added to service worker for CSP compliance
+- **STORAGE_GET/STORAGE_SET Handlers**: Added to service worker for CSP compliance
 - **Enhanced Button Finding**: 4-strategy fallback system for reliable DOM queries
 - **TypeScript Type Safety**: Fixed all type mismatches and null safety issues
 

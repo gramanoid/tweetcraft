@@ -4,7 +4,7 @@
  */
 
 import { TemplateSelector } from './templateSelector';
-import { UnifiedSelectorEnhanced } from './unifiedSelectorEnhanced';
+import { UnifiedSelectorEnhanced, FiveStepSelectionResult } from './unifiedSelectorEnhanced';
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
 
@@ -65,7 +65,7 @@ export class SelectorAdapter {
     
     if (this.useUnifiedSelector && this.unifiedSelector) {
       // Use unified selector with five-step system - no lazy loading
-      this.unifiedSelector.show(button, (result: any) => {
+      this.unifiedSelector.show(button, (result: FiveStepSelectionResult) => {
         // Create a lightweight synthetic template and tone
         const template: PresetTemplate = {
           id: 'five-step-combined',

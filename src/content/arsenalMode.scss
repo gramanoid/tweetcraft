@@ -237,5 +237,73 @@
   .arsenal-mode-popup {
     width: 95vw;
     max-width: 500px;
+    max-height: 85vh; // More height on mobile
+
+    &__header {
+      padding: 12px 16px; // Increased from 10px 12px
+    }
+
+    &__title {
+      font-size: 16px; // Increased from 15px
+    }
+
+    &__tabs {
+      padding: 8px 16px; // Increased from 6px 12px
+      gap: 8px; // Increased from 6px
+    }
+
+    &__tab {
+      padding: 8px 16px; // Increased from 6px 12px
+      font-size: 14px; // Increased from 13px
+      min-height: 44px; // Touch-friendly height
+    }
+
+    &__content {
+      padding: 16px; // Increased from 10px
+    }
+
+    &__search {
+      padding: 12px 16px; // Increased from 8px 12px
+      font-size: 16px; // Increased from 13px for better readability
+      margin-bottom: 16px; // Increased from 10px
+      min-height: 48px; // Touch-friendly height
+    }
+
+    &__reply-card {
+      padding: 16px; // Increased from 10px
+      margin-bottom: 12px; // Increased from 6px
+    }
+
+    &__reply-badges {
+      gap: 8px; // Increased from 6px
+    }
+
+    &__reply-badge {
+      padding: 4px 12px; // Increased from 2px 8px
+      font-size: 13px; // Increased from 12px
+    }
+
+    &__reply-action {
+      padding: 8px; // Increased from 4px
+      font-size: 20px; // Increased from 16px
+      min-width: 44px; // Touch-friendly size
+      min-height: 44px;
+    }
+
+    &__reply-text {
+      font-size: 15px; // Increased from 14px
+      line-height: 1.5; // Increased from 1.4
+      margin-bottom: 12px; // Increased from 8px
+    }
+
+    &__footer {
+      padding: 16px 20px; // Increased padding
+    }
+
+    &__generate-btn {
+      padding: 12px 24px; // Increased from 8px 16px
+      font-size: 16px; // Increased from 14px
+      min-height: 48px; // Touch-friendly height
+    }
   }
 }
