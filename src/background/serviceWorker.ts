@@ -2,7 +2,26 @@ import { StorageService } from '@/services/storage';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
-import { logger } from '@/utils/logger';
+import { 
+  ExtensionMessage, 
+  MessageResponse, 
+  MessageType,
+  GenerateReplyMessage,
+  isGetConfigMessage,
+  isSetConfigMessage,
+  isGetApiKeyMessage,
+  isSetApiKeyMessage,
+  isValidateApiKeyMessage,
+  isClearDataMessage,
+  isGetLastToneMessage,
+  isSetLastToneMessage,
+  isGenerateReplyMessage,
+  isGetStorageMessage,
+  isSetStorageMessage,
+  isTestApiKeyMessage,
+  isFetchModelsMessage
+} from '@/types/messages';
+import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -33,7 +52,7 @@ class SmartReplyServiceWorker {
 
     // Handle extension installation
     chrome.runtime.onInstalled.addListener((details) => {
-      this.handleInstalled(details);
+      void this.handleInstalled(details);
     });
 
     // Handle extension startup
@@ -42,8 +61,8 @@ class SmartReplyServiceWorker {
     });
 
     // Handle messages from content scripts or popup
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      this.handleMessage(message, sender, sendResponse);
+    chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+      void this.handleMessage(message as ExtensionMessage, sender, sendResponse);
       return true; // Keep the message channel open for async responses
     });
   }
@@ -102,7 +121,7 @@ class SmartReplyServiceWorker {
     }
   }
 
-  private async handleUpdate(previousVersion?: string): Promise<void> {
+  private handleUpdate(previousVersion?: string): void {
     // Handle any version-specific migration logic here
     console.log('Smart Reply: Handling update from version', previousVersion);
     
@@ -113,63 +132,78 @@ class SmartReplyServiceWorker {
   }
 
   private async handleMessage(
-    message: any,
+    message: ExtensionMessage,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: any) => void
+    sendResponse: (response: MessageResponse) => void
   ): Promise<void> {
     try {
       switch (message.type) {
-        case 'GET_CONFIG': {
-          const config = await StorageService.getConfig();
-          sendResponse({ success: true, config });
+        case MessageType.GET_CONFIG: {
+          if (isGetConfigMessage(message)) {
+            const config = await StorageService.getConfig();
+            sendResponse({ success: true, data: config });
+          }
           break;
         }
 
-        case 'SET_CONFIG':
-          await StorageService.setConfig(message.config);
-          sendResponse({ success: true });
+        case MessageType.SET_CONFIG:
+          if (isSetConfigMessage(message)) {
+            await StorageService.setConfig(message.config);
+            sendResponse({ success: true });
+          }
           break;
 
-        case 'GET_API_KEY': {
-          const apiKey = await StorageService.getApiKey();
-          sendResponse({ success: true, apiKey });
-          break;
-        }
-
-        case 'SET_API_KEY':
-          await StorageService.setApiKey(message.apiKey);
-          sendResponse({ success: true });
-          break;
-
-        case 'VALIDATE_API_KEY':
-          // This could be implemented to validate the API key
-          // For now, just return success
-          sendResponse({ success: true, valid: true });
-          break;
-
-        case 'CLEAR_DATA':
-          await StorageService.clearAllData();
-          sendResponse({ success: true });
-          break;
-
-        case 'GET_LAST_TONE': {
-          const lastTone = await StorageService.getLastTone();
-          sendResponse({ success: true, lastTone });
+        case MessageType.GET_API_KEY: {
+          if (isGetApiKeyMessage(message)) {
+            const apiKey = await StorageService.getApiKey();
+            sendResponse({ success: true, data: apiKey });
+          }
           break;
         }
 
-        case 'SET_LAST_TONE':
-          await StorageService.setLastTone(message.tone);
-          sendResponse({ success: true });
+        case MessageType.SET_API_KEY:
+          if (isSetApiKeyMessage(message)) {
+            await StorageService.setApiKey(message.apiKey);
+            sendResponse({ success: true });
+          }
           break;
 
-        case 'PING':
-          sendResponse({ success: true, message: 'Service worker is active' });
+        case MessageType.VALIDATE_API_KEY:
+          if (isValidateApiKeyMessage(message)) {
+            // This could be implemented to validate the API key
+            // For now, just return success
+            sendResponse({ success: true, data: { valid: true } });
+          }
           break;
 
-        case 'GET_STORAGE': {
-          // Get generic storage items with validation
-          const storageKeys = message.keys || null;
+        case MessageType.CLEAR_DATA:
+          if (isClearDataMessage(message)) {
+            await StorageService.clearAllData();
+            sendResponse({ success: true });
+          }
+          break;
+
+        case MessageType.GET_LAST_TONE: {
+          if (isGetLastToneMessage(message)) {
+            const lastTone = await StorageService.getLastTone();
+            sendResponse({ success: true, data: lastTone });
+          }
+          break;
+        }
+
+        case MessageType.SET_LAST_TONE:
+          if (isSetLastToneMessage(message)) {
+            await StorageService.setLastTone(message.tone);
+            sendResponse({ success: true });
+          }
+          break;
+
+        // Note: PING not in MessageType enum - should be added if needed
+
+        case MessageType.GET_STORAGE: {
+          if (isGetStorageMessage(message)) {
+            // Get generic storage items with validation
+            const storageKeys = message.keys || null;
           
           // Validate keys parameter
           if (storageKeys !== null && 
@@ -201,19 +235,21 @@ class SmartReplyServiceWorker {
             }
           }
           
-          chrome.storage.local.get(storageKeys, (data) => {
-            if (chrome.runtime.lastError) {
-              sendResponse({ success: false, error: chrome.runtime.lastError.message });
-            } else {
-              sendResponse({ success: true, data });
-            }
-          });
+            chrome.storage.local.get(storageKeys, (data) => {
+              if (chrome.runtime.lastError) {
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+              } else {
+                sendResponse({ success: true, data });
+              }
+            });
+          }
           break;
         }
 
-        case 'SET_STORAGE': {
-          // Set generic storage items with validation
-          const dataToStore = message.data || {};
+        case MessageType.SET_STORAGE: {
+          if (isSetStorageMessage(message)) {
+            // Set generic storage items with validation
+            const dataToStore = message.data || {};
           
           // Validate data is a plain object
           if (typeof dataToStore !== 'object' || dataToStore === null || Array.isArray(dataToStore)) {
@@ -267,23 +303,21 @@ class SmartReplyServiceWorker {
             break;
           }
           
-          chrome.storage.local.set(dataToStore, () => {
-            if (chrome.runtime.lastError) {
-              sendResponse({ success: false, error: chrome.runtime.lastError.message });
-            } else {
-              sendResponse({ success: true });
-            }
-          });
+            chrome.storage.local.set(dataToStore, () => {
+              if (chrome.runtime.lastError) {
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+              } else {
+                sendResponse({ success: true });
+              }
+            });
+          }
           break;
         }
 
-        case 'ANALYZE_IMAGES': {
-          // Handle vision API calls for image analysis
-          this.handleAnalyzeImages(message, sendResponse);
-          break;
-        }
+        // Note: ANALYZE_IMAGES not in MessageType enum - should be added if needed
         
-        case 'TEST_API_KEY': {
+        case MessageType.TEST_API_KEY: {
+          if (isTestApiKeyMessage(message)) {
           // Test API key using shared utility
           const testApiKey = message.apiKey;
           if (!testApiKey) {
@@ -291,44 +325,48 @@ class SmartReplyServiceWorker {
             break;
           }
           
-          this.fetchFromOpenRouter('models', testApiKey)
-            .then(response => {
-              if (response.ok) {
-                console.log('%c✅ API key test successful', 'color: #17BF63');
-                sendResponse({ success: true });
-              } else {
-                console.warn(`%c❌ API key test failed: ${response.status}`, 'color: #DC3545');
+            void this.fetchFromOpenRouter('models', testApiKey)
+              .then(response => {
+                if (response.ok) {
+                  console.log('%c✅ API key test successful', 'color: #17BF63');
+                  sendResponse({ success: true });
+                } else {
+                  console.warn(`%c❌ API key test failed: ${response.status}`, 'color: #DC3545');
+                  sendResponse({ 
+                    success: false, 
+                    error: `Error ${response.status}: ${response.statusText}` 
+                  });
+                }
+              })
+              .catch(error => {
+                console.error('%c❌ Smart Reply: API key test failed:', 'color: #DC3545; font-weight: bold', error);
                 sendResponse({ 
                   success: false, 
-                  error: `Error ${response.status}: ${response.statusText}` 
+                  error: 'Network error: Could not connect to OpenRouter' 
                 });
-              }
-            })
-            .catch(error => {
-              console.error('%c❌ Smart Reply: API key test failed:', 'color: #DC3545; font-weight: bold', error);
-              sendResponse({ 
-                success: false, 
-                error: 'Network error: Could not connect to OpenRouter' 
               });
-            });
+          }
           break;
         }
 
-        case 'GENERATE_REPLY':
-          // Handle reply generation in service worker
-          this.handleGenerateReply(message, sendResponse);
+        case MessageType.GENERATE_REPLY:
+          if (isGenerateReplyMessage(message)) {
+            // Handle reply generation in service worker
+            void this.handleGenerateReply(message, sendResponse);
+          }
           break;
 
-        case 'FETCH_MODELS': {
-          // Fetch available models using shared utility
-          const fetchApiKey = message.apiKey;
-          if (!fetchApiKey) {
-            sendResponse({ success: false, error: 'No API key provided' });
-            break;
-          }
+        case MessageType.FETCH_MODELS: {
+          if (isFetchModelsMessage(message)) {
+            // Fetch available models using shared utility
+            const fetchApiKey = await StorageService.getApiKey();
+            if (!fetchApiKey) {
+              sendResponse({ success: false, error: 'No API key found in storage' });
+              break;
+            }
           
-          this.fetchFromOpenRouter('models', fetchApiKey)
-            .then(response => {
+            void this.fetchFromOpenRouter('models', fetchApiKey)
+              .then(response => {
               if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
               }
@@ -367,7 +405,7 @@ class SmartReplyServiceWorker {
                   return a.name.localeCompare(b.name);
                 });
               
-              sendResponse({ success: true, models });
+              sendResponse({ success: true, data: models });
             } else {
               sendResponse({ success: false, error: 'Invalid response from OpenRouter' });
             }
@@ -379,11 +417,12 @@ class SmartReplyServiceWorker {
               error: 'Network error: Could not fetch models from OpenRouter' 
             });
           });
+          }
           break;
         }
 
         default:
-          console.warn('Smart Reply: Unknown message type:', message.type);
+          console.warn('Smart Reply: Unknown message type:', (message as any).type);
           sendResponse({ success: false, error: 'Unknown message type' });
       }
     } catch (error) {
@@ -631,10 +670,10 @@ class SmartReplyServiceWorker {
   }
 
   private async buildMessages(
-    request: any,
-    context: any,
-    config: any
-  ) {
+    request: ReplyGenerationRequest,
+    context: TwitterContext,
+    config: Partial<AppConfig>
+  ): Promise<Array<{role: string; content: string}>> {
     console.log('%c🔨 BUILDING MESSAGES', 'color: #9146FF; font-weight: bold');
     console.log('%c────────────────────────────────', 'color: #E1E8ED');
     
@@ -669,9 +708,11 @@ class SmartReplyServiceWorker {
       // Check if it's a custom tone from user settings
       else if (config.customTones?.find((tone: any) => tone.id === request.tone)) {
         const customTone = config.customTones.find((tone: any) => tone.id === request.tone);
-        console.log('%c  Type: User Custom Tone', 'color: #9146FF');
-        console.log('%c  Modifier:', 'color: #657786', customTone.promptModifier);
-        systemPrompt += ' ' + customTone.promptModifier;
+        if (customTone) {
+          console.log('%c  Type: User Custom Tone', 'color: #9146FF');
+          console.log('%c  Modifier:', 'color: #657786', customTone.promptModifier);
+          systemPrompt += ' ' + customTone.promptModifier;
+        }
       }
       // Otherwise treat it as a combined template+tone instruction
       else {
@@ -734,12 +775,12 @@ class SmartReplyServiceWorker {
         
         const contextMode = config.contextMode || 'single'; // Default to single for simplicity
         
-        if (contextMode === 'thread' && context.threadContext?.length > 0) {
+        if (contextMode === 'thread' && context.threadContext && context.threadContext.length > 0) {
           console.log('%c  Context Mode: Thread', 'color: #657786');
           console.log('%c  Thread Length:', 'color: #657786', context.threadContext.length + ' additional tweets');
           
           userPrompt = 'Here is a Twitter conversation thread:\n\n';
-          context.threadContext.forEach((tweet: any, index: number) => {
+          context.threadContext.forEach((tweet, index) => {
             console.log(`%c  Tweet ${index + 1}:`, 'color: #657786', tweet.text.substring(0, 50) + '...');
             userPrompt += `${tweet.author}: ${tweet.text}\n`;
           });
