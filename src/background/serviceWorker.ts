@@ -2,6 +2,7 @@ import { StorageService } from '@/services/storage';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
+import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
 import { 
   ExtensionMessage, 
   MessageResponse, 
@@ -506,8 +507,8 @@ class SmartReplyServiceWorker {
 
   // Handle reply generation with OpenRouter API
   private async handleGenerateReply(
-    message: any,
-    sendResponse: (response?: any) => void
+    message: GenerateReplyMessage,
+    sendResponse: (response: MessageResponse) => void
   ): Promise<void> {
     console.log('%c🚀 SERVICE WORKER: GENERATE REPLY', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
     console.log('%c════════════════════════════════', 'color: #2E3236');
@@ -540,8 +541,40 @@ class SmartReplyServiceWorker {
         return;
       }
 
-      // Build messages for OpenRouter
-      const messages = await this.buildMessages(request, context, config);
+      // Check if using new 4-part structure
+      const has4PartStructure = request.personality || request.vocabulary || request.rhetoric || request.lengthPacing;
+      
+      let messages;
+      let promptComponents;
+      
+      if (has4PartStructure) {
+        console.log('%c🎨 Using NEW 4-PART PROMPT STRUCTURE', 'color: #FFD700; font-weight: bold; font-size: 14px');
+        
+        // Validate components
+        const validation = validatePromptComponents(request);
+        if (!validation.isValid) {
+          console.log('%c⚠️ Filling missing components with defaults', 'color: #FFA500');
+          // Fill in defaults for missing components
+          request.personality = request.personality || 'neutral';
+          request.vocabulary = request.vocabulary || 'simple';
+          request.rhetoric = request.rhetoric || 'factual';
+          request.lengthPacing = request.lengthPacing || 'standard';
+        }
+        
+        // Build 4-part prompt
+        promptComponents = buildFourPartPrompt(request);
+        logPromptComponents(promptComponents);
+        
+        // Create messages with 4-part structure
+        messages = [
+          { role: 'system', content: promptComponents.combined },
+          { role: 'user', content: this.buildUserPrompt(request, context) }
+        ];
+      } else {
+        console.log('%c📝 Using LEGACY prompt structure', 'color: #657786');
+        // Fall back to legacy message building
+        messages = await this.buildMessages(request, context, config);
+      }
       
       // Get temperature based on tone (if provided) or use config/default
       const temperature = this.getTemperatureForRequest(request, config);
@@ -650,10 +683,16 @@ class SmartReplyServiceWorker {
       console.log('%c  Reply:', 'color: #17BF63', cleanedReply);
       console.log('%c════════════════════════════════', 'color: #2E3236');
       
-      sendResponse({
+      // Include prompt components in response for debugging
+      const responseData: MessageResponse = {
         success: true,
-        reply: cleanedReply
-      });
+        data: {
+          reply: cleanedReply,
+          promptComponents: promptComponents
+        }
+      };
+      
+      sendResponse(responseData);
 
     } catch (error: any) {
       console.error('%c💥 EXCEPTION IN SERVICE WORKER', 'color: #DC3545; font-weight: bold; font-size: 14px');
@@ -818,6 +857,44 @@ class SmartReplyServiceWorker {
   }
 
   // Use shared cleanupReply function from textUtils
+  /**
+   * Build user prompt from request and context
+   */
+  private buildUserPrompt(request: ReplyGenerationRequest, context: TwitterContext): string {
+    let userPrompt = '';
+    
+    // For rewrite mode
+    if (request.isRewriteMode && request.existingText) {
+      userPrompt = `Rewrite this tweet: "${request.existingText}"`;
+      if (context.tweetText) {
+        userPrompt += `\n\nContext: Replying to: "${context.tweetText}"`;
+      }
+      return userPrompt;
+    }
+    
+    // For regular reply mode
+    if (context.tweetText) {
+      userPrompt = `Reply to this tweet: "${context.tweetText}"`;
+    } else {
+      userPrompt = 'Write a tweet.';
+    }
+    
+    // Add thread context if available
+    if (context.threadContext && context.threadContext.length > 0) {
+      userPrompt += '\n\nThread context:\n';
+      context.threadContext.slice(-3).forEach(tweet => {
+        userPrompt += `@${tweet.author}: ${tweet.text}\n`;
+      });
+    }
+    
+    // Add author context
+    if (context.authorHandle) {
+      userPrompt += `\n\nYou are replying to @${context.authorHandle}`;
+    }
+    
+    return userPrompt;
+  }
+  
   private cleanupReply(reply: string): string {
     return cleanupReply(reply);
   }

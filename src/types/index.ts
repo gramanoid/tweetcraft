@@ -24,15 +24,28 @@ export interface ReplyGenerationRequest {
   tone?: string;
   customPrompt?: string;
   model?: string;
-  replyLength?: 'short' | 'medium' | 'long'; // New: Reply length preset
+  replyLength?: 'short' | 'medium' | 'long'; // Deprecated - use lengthPacing instead
   isRewriteMode?: boolean; // New: Whether to rewrite existing text
   existingText?: string; // New: The text to rewrite
+  // New 4-part structure components
+  personality?: string; // Who is talking
+  vocabulary?: string; // How it's written
+  rhetoric?: string; // Approach to topic
+  lengthPacing?: string; // How long/short is the reply
 }
 
 export interface ReplyGenerationResponse {
   success: boolean;
   reply?: string;
   error?: string;
+  // Debug info for 4-part structure
+  promptComponents?: {
+    personality?: string;
+    vocabulary?: string;
+    rhetoric?: string;
+    lengthPacing?: string;
+    combined?: string;
+  };
 }
 
 export interface ThreadTweet {
