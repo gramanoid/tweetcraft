@@ -1103,7 +1103,8 @@ class SmartReplyContentScript {
         e.stopImmediatePropagation(); // Stop all other handlers
         
         // Visual feedback for button click
-        visualFeedback.pulse(button, '#1d9bf0');
+        // Temporarily disabled - may be causing button position shift
+        // visualFeedback.pulse(button, '#1d9bf0');
         
         // Check if a tone was set (e.g., from keyboard shortcut)
         const presetTone = button.getAttribute('data-tone');
