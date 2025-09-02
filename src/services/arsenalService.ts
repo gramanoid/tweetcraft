@@ -4,9 +4,25 @@
  */
 
 import { TEMPLATES } from '@/content/presetTemplates';
-import { TONES } from '@/content/toneSelector';
+import { REPLY_OPTIONS } from '@/config/templatesAndTones';
 import type { PresetTemplate } from '@/content/presetTemplates';
-import type { ToneOption } from '@/content/toneSelector';
+
+// ToneOption interface since we removed toneSelector.ts
+interface ToneOption {
+  id: string;
+  emoji: string;
+  label: string;
+  description: string;
+  systemPrompt: string;
+}
+
+// Create TONES array from REPLY_OPTIONS for backward compatibility
+const TONES: ToneOption[] = [
+  { id: 'professional', emoji: '💼', label: 'Professional', description: 'Professional and formal', systemPrompt: 'Use a professional, formal tone' },
+  { id: 'casual', emoji: '😊', label: 'Casual', description: 'Friendly and relaxed', systemPrompt: 'Use a casual, friendly tone' },
+  { id: 'witty', emoji: '😄', label: 'Witty', description: 'Humorous and clever', systemPrompt: 'Use a witty, humorous tone' }
+];
+
 import arsenalRepliesData from '@/data/arsenalReplies.json';
 
 interface ArsenalReply {

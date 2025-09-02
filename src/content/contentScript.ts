@@ -10,8 +10,15 @@ import { selectorAdapter } from './selectorAdapter';
 import { visualFeedback } from '@/ui/visualFeedback';
 import { templateSuggester } from '@/services/templateSuggester';
 import { TEMPLATES } from './presetTemplates';
-import { TONES } from './toneSelector';
+import { REPLY_OPTIONS } from '@/config/templatesAndTones';
 import { imageAttachment } from './imageAttachment';
+
+// Create TONES array for backward compatibility
+const TONES = [
+  { id: 'professional', emoji: '💼', label: 'Professional', description: 'Professional and formal', systemPrompt: 'Use a professional, formal tone' },
+  { id: 'casual', emoji: '😊', label: 'Casual', description: 'Friendly and relaxed', systemPrompt: 'Use a casual, friendly tone' },
+  { id: 'witty', emoji: '😄', label: 'Witty', description: 'Humorous and clever', systemPrompt: 'Use a witty, humorous tone' }
+];
 import { APP_VERSION } from '@/config/version';
 import { HypeFuryPlatform, HYPEFURY_SELECTORS } from '@/platforms/hypefury';
 import { ProgressiveEnhancement } from '@/utils/progressiveEnhancement';

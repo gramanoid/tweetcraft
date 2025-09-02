@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **TweetCraft** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Current Version
-- **v0.0.13**
+- **v0.0.15.1**
 
 ### Supported Platforms
 - Twitter/X (full feature support)
@@ -184,7 +184,7 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.13 - Latest Updates)
+## Current Features (v0.0.15.1 - Latest Updates)
 
 ### Five-Step AI Selection System (NEW!)
 The unified selector now features a revolutionary 5-step personality system:
@@ -198,7 +198,7 @@ The unified selector now features a revolutionary 5-step personality system:
 - **Progressive Mode** - Step-by-step guidance through each dimension
 - **All-at-Once Mode** - See all options on one screen for power users
 
-### UI/UX Improvements (v0.0.13)
+### UI/UX Improvements (v0.0.15.1)
 - **Compact Popup Design** - 35% smaller (480px × 60vh) for better screen usage
 - **Reduced Padding** - All spacing reduced by ~50% for information density
 - **Fixed Button Positioning** - AI Reply button no longer shifts when clicked
@@ -206,7 +206,7 @@ The unified selector now features a revolutionary 5-step personality system:
 - **Enhanced Event Handling** - Fixed timing issues with DOM attachment
 - **Smart Tab System** - Five specialized tabs with full functionality
 
-## Current Features (v0.0.13)
+## Current Features (v0.0.15.1)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -244,7 +244,7 @@ if (isHypeFury) {
 - **Memory Manager** (`src/utils/memoryManager.ts`) - WeakMap/WeakSet with comprehensive cleanup
 - **Error Handler** (`src/utils/errorHandler.ts`) - Comprehensive recovery workflows
 
-### Unified AI Reply Interface (v0.0.13 - Enhanced)
+### Unified AI Reply Interface (v0.0.15.1 - Enhanced)
 - **Five-tab Interface**: All Templates, Smart Suggestions, Favorites, Image Gen, Custom
 - **Smart Suggestions Tab**: 
   - AI-powered scoring of template/tone combinations
@@ -274,7 +274,7 @@ if (isHypeFury) {
 - **Auto-close on Generation**: Popup automatically dismisses after successful reply generation
 - **Dark Mode Native**: Optimized for Twitter/X dark theme
 
-### Image Integration (Phase D - Enhanced in v0.0.13)
+### Image Integration (Phase D - Enhanced in v0.0.15.1)
 - **AI Image Generation**: Uses OpenRouter API with Google Gemini Flash model
   - Retry logic with exponential backoff (3 retries, 1s/2s/3s delays)
   - Improved error handling with detailed validation of API responses
@@ -305,7 +305,7 @@ if (isHypeFury) {
 - **Context-Aware Rewriting**: Maintains context of what the user is replying to
 - **Improved Positioning**: AI Rewrite button now appears correctly before the tweet button
 
-### Security Improvements (v0.0.13)
+### Security Improvements (v0.0.15.1)
 - **AES-GCM Encryption**: API keys now encrypted using Web Crypto API
 - **Secure Storage**: Enhanced storage mechanisms for sensitive data
 - **Improved Error Handling**: Better validation and sanitization of API responses
@@ -333,7 +333,7 @@ if (isHypeFury) {
 8. **CSP Compliance**: All storage operations use message passing pattern through service worker
 9. **Platform Testing**: Test on both twitter.com and x.com domains
 
-## Recent Changes (v0.0.13 - December 2024)
+## Recent Changes (v0.0.15.1 - December 2024)
 
 ### 🎯 Major New Features
 - **Five-Step AI Selection System** - Revolutionary personality customization
@@ -368,7 +368,7 @@ if (isHypeFury) {
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Fixed in v0.0.13
+### Fixed in v0.0.15.1
 - ✅ Event listener timing issues
 - ✅ Button position shifting
 - ✅ Missing Generate button in 5-step flow
@@ -410,7 +410,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `FETCH_MODELS` - Retrieves available models list
 - `GENERATE_REPLY` - Main reply generation endpoint
 - `GET_LAST_TONE` / `SET_LAST_TONE` - Tone preference persistence
-- `STORAGE_GET` / `STORAGE_SET` - Generic storage access for CSP compliance (v0.0.13)
+- `STORAGE_GET` / `STORAGE_SET` - Generic storage access for CSP compliance (v0.0.15.1)
 
 ## Performance Optimizations
 
@@ -428,7 +428,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Debounced operations** to reduce CPU usage
 - **LRU Cache** for keyword extraction (100 entries max)
 
-## Code Quality Improvements (v0.0.13 - Latest Fixes)
+## Code Quality Improvements (v0.0.15.1 - Latest Fixes)
 
 ### CSP Compliance Fixes
 - **Message Passing Pattern**: All chrome.storage calls now use service worker
@@ -436,7 +436,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Enhanced Button Finding**: 4-strategy fallback system for reliable DOM queries
 - **TypeScript Type Safety**: Fixed all type mismatches and null safety issues
 
-## Code Quality Improvements (v0.0.13 - Post-CodeRabbit)
+## Code Quality Improvements (v0.0.15.1 - Post-CodeRabbit)
 
 ### Enhanced Error Handling
 - **API Response Validation**: Comprehensive validation of OpenRouter API responses

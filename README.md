@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.13-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.15.1-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -128,7 +128,7 @@
 **Personalized:**
 - **Custom** ✨ - Your own style
 
-## 🐛 Recent Fixes (v0.0.13)
+## 🐛 Recent Updates (v0.0.15.1)
 
 ### Critical Bug Fixes
 - ✅ Fixed event listener attachment timing - now properly attaches after DOM insertion
@@ -330,6 +330,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.13** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
+**TweetCraft v0.0.15.1** - Comprehensive AI reply assistant with unified design system, consolidated selectors, mobile responsiveness, and comprehensive E2E testing 🚀
 
 Made with ❤️ by the TweetCraft team

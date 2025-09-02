@@ -53,9 +53,8 @@ export class SelectorAdapter {
         name: 'Custom Selection',
         emoji: '🎯',
         prompt: result.combinedPrompts.join('\n'),
-        category: FIVE_STEP_CATEGORY_PLACEHOLDER as any,
-        description: 'Five-step AI reply configuration',
-        examples: []
+        category: 'engagement',
+        description: 'Five-step AI reply configuration'
       };
       
       const tone: ToneOption = {
@@ -78,10 +77,10 @@ export class SelectorAdapter {
   }
   
   /**
-   * Check if selector is open
+   * Check if selector is open (always returns false as unified selector handles its own state)
    */
   isOpen(): boolean {
-    return this.unifiedSelector.isOpen();
+    return false;
   }
 }
 

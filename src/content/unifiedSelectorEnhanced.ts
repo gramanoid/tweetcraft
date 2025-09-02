@@ -1,5 +1,5 @@
 /**
- * Enhanced Five-Step AI Reply System Selector (v0.0.13)
+ * Enhanced Five-Step AI Reply System Selector (v0.0.15.1)
  * Implements all 9 UX improvements for better user experience
  */
 
