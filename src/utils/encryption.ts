@@ -3,6 +3,8 @@
  * Uses Web Crypto API for secure encryption
  */
 
+import { logger } from '@/utils/logger';
+
 interface MigrationLock {
   lockId: string;
   timestamp: number;
@@ -86,7 +88,7 @@ export class EncryptionService {
       
       return { ciphertext, iv: ivBase64, salt: saltBase64 };
     } catch (error) {
-      console.error('Encryption failed:', error);
+      logger.error('Encryption failed:', error);
       throw new Error('Failed to encrypt data');
     }
   }
@@ -120,7 +122,7 @@ export class EncryptionService {
       const decoder = new TextDecoder();
       return decoder.decode(decrypted);
     } catch (error) {
-      console.error('Decryption failed:', error);
+      logger.error('Decryption failed:', error);
       throw new Error('Failed to decrypt data');
     }
   }
@@ -158,7 +160,7 @@ export class EncryptionService {
           const verifiedLock = verification[lockKey] as MigrationLock;
           
           if (verifiedLock && verifiedLock.holder === holder) {
-            console.log(`Migration lock acquired: ${lockId}`);
+            logger.log(`Migration lock acquired: ${lockId}`);
             return lockId;
           }
         }
@@ -170,12 +172,12 @@ export class EncryptionService {
           delay = Math.min(delay * this.LOCK_BACKOFF_MULTIPLIER, 500); // Cap at 500ms
         }
       } catch (error) {
-        console.error('Error acquiring migration lock:', error);
+        logger.error('Error acquiring migration lock:', error);
         retries++;
       }
     }
     
-    console.warn('Failed to acquire migration lock after retries');
+    logger.warn('Failed to acquire migration lock after retries');
     return null;
   }
   
@@ -190,10 +192,10 @@ export class EncryptionService {
       // Only release if we own the lock
       if (existingLock && existingLock.lockId === lockId) {
         await chrome.storage.local.remove(lockKey);
-        console.log(`Migration lock released: ${lockId}`);
+        logger.log(`Migration lock released: ${lockId}`);
       }
     } catch (error) {
-      console.error('Error releasing migration lock:', error);
+      logger.error('Error releasing migration lock:', error);
     }
   }
   
@@ -213,7 +215,7 @@ export class EncryptionService {
           const lock = storage[key] as MigrationLock;
           if (lock && (now - lock.timestamp) > this.LOCK_TIMEOUT_MS) {
             keysToRemove.push(key);
-            console.log(`Cleaning up expired migration lock: ${lock.lockId}`);
+            logger.log(`Cleaning up expired migration lock: ${lock.lockId}`);
           }
         }
       }
@@ -221,10 +223,10 @@ export class EncryptionService {
       // Remove expired locks
       if (keysToRemove.length > 0) {
         await chrome.storage.local.remove(keysToRemove);
-        console.log(`Cleaned up ${keysToRemove.length} expired migration locks`);
+        logger.log(`Cleaned up ${keysToRemove.length} expired migration locks`);
       }
     } catch (error) {
-      console.error('Error cleaning up expired locks:', error);
+      logger.error('Error cleaning up expired locks:', error);
     }
   }
   
@@ -251,7 +253,7 @@ export class EncryptionService {
     // Check if there's already a migration in progress for this key
     const existingMigration = this.migrationInProgress.get(migrationKey);
     if (existingMigration) {
-      console.log('Migration already in progress, waiting for completion...');
+      logger.log('Migration already in progress, waiting for completion...');
       return existingMigration;
     }
     
@@ -266,18 +268,18 @@ export class EncryptionService {
         
         if (!lockId) {
           // Could not acquire lock after timeout, check if migration was completed
-          console.warn('Could not acquire migration lock, checking if migration was completed...');
+          logger.warn('Could not acquire migration lock, checking if migration was completed...');
           const recheckStored = await chrome.storage.local.get([`${storageKey}_encrypted`]);
           const recheckedData = recheckStored[`${storageKey}_encrypted`];
           
           if (recheckedData && recheckedData.salt) {
             // Migration was completed by another process
-            console.log('Migration was completed by another process');
+            logger.log('Migration was completed by another process');
             return await this.decrypt(recheckedData.ciphertext, recheckedData.iv, recheckedData.salt);
           }
           
           // Fall back to reading with legacy salt (non-fatal path)
-          console.warn('Falling back to legacy decryption without migration');
+          logger.warn('Falling back to legacy decryption without migration');
           const legacySalt = btoa('tweetcraft-v1-salt');
           return await this.decrypt(ciphertext, iv, legacySalt);
         }
@@ -288,18 +290,18 @@ export class EncryptionService {
         
         if (currentData && currentData.salt) {
           // Migration was already completed
-          console.log('Migration already completed, using new format');
+          logger.log('Migration already completed, using new format');
           return await this.decrypt(currentData.ciphertext, currentData.iv, currentData.salt);
         }
         
         // Perform the actual migration
-        console.log('Performing legacy key migration with lock protection...');
+        logger.log('Performing legacy key migration with lock protection...');
         const legacySalt = btoa('tweetcraft-v1-salt');
         const decryptedKey = await this.decrypt(ciphertext, iv, legacySalt);
         
         // Re-encrypt with new random salt
         await this.storeApiKey(decryptedKey, storageKey);
-        console.log('Successfully migrated API key to secure encryption format');
+        logger.log('Successfully migrated API key to secure encryption format');
         
         return decryptedKey;
       } finally {
@@ -336,14 +338,14 @@ export class EncryptionService {
           return await this.decrypt(ciphertext, iv, salt);
         } else {
           // Legacy format - needs migration with lock protection
-          console.warn('Legacy encryption format detected, initiating secure migration...');
+          logger.warn('Legacy encryption format detected, initiating secure migration...');
           return await this.performLegacyMigration(ciphertext, iv, storageKey);
         }
       }
       
       // Fall back to unencrypted (legacy)
       if (stored[storageKey]) {
-        console.log('Found unencrypted API key, migrating to encrypted storage...');
+        logger.log('Found unencrypted API key, migrating to encrypted storage...');
         
         // Use simpler lock for unencrypted migration
         const lockKey = `${this.MIGRATION_LOCK_KEY}_unencrypted_${storageKey}`;
@@ -377,7 +379,7 @@ export class EncryptionService {
       
       return null;
     } catch (error) {
-      console.error('Failed to retrieve API key:', error);
+      logger.error('Failed to retrieve API key:', error);
       return null;
     }
   }

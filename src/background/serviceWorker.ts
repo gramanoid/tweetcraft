@@ -1,6 +1,8 @@
 import { StorageService } from '@/services/storage';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
+import { cleanupReply } from '@/utils/textUtils';
+import { logger } from '@/utils/logger';
 
 class SmartReplyServiceWorker {
   constructor() {
@@ -774,27 +776,9 @@ class SmartReplyServiceWorker {
     return messages;
   }
 
+  // Use shared cleanupReply function from textUtils
   private cleanupReply(reply: string): string {
-    // Remove common artifacts and meta text
-    let cleaned = reply
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim();
-    
-    // Remove common meta-text patterns
-    const metaPatterns = [
-      /^(A |An )?(balanced |measured |witty |professional |casual |supportive |contrarian |thoughtful )?(reply|response)( could be| might be)?:?\s*/i,
-      /^Here('s| is) (a |an )?(reply|response)?:?\s*/i,
-      /^(Reply|Response):?\s*/i,
-      /^You could (say|reply|respond with):?\s*/i,
-    ];
-    
-    for (const pattern of metaPatterns) {
-      cleaned = cleaned.replace(pattern, '');
-    }
-    
-    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
-    return cleaned || reply;
+    return cleanupReply(reply);
   }
 
   // Handle image analysis requests from vision service

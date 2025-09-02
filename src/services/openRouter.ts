@@ -9,6 +9,8 @@ import { StorageService } from './storage';
 import { CacheService } from './cache';
 import { URLCleaner } from '@/utils/urlCleaner';
 import { requestOptimizer } from './requestOptimizer';
+import { cleanupReply } from '@/utils/textUtils';
+import { logger } from '@/utils/logger';
 
 export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';
@@ -499,29 +501,9 @@ export class OpenRouterService {
     return messages;
   }
 
+  // Use shared cleanupReply function from textUtils
   private static cleanupReply(reply: string): string {
-    // Remove common artifacts and meta text
-    let cleaned = reply
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim();
-    
-    // Remove common meta-text patterns
-    const metaPatterns = [
-      /^(A |An )?(balanced |measured |witty |professional |casual |supportive |contrarian |thoughtful )?(reply|response)( could be| might be)?:?\s*/i,
-      /^Here(\'s| is) (a |an )?(reply|response):?\s*/i,
-      /^(Reply|Response):?\s*/i,
-      /^You could (say|reply|respond with):?\s*/i,
-    ];
-    
-    for (const pattern of metaPatterns) {
-      cleaned = cleaned.replace(pattern, '');
-    }
-    
-    // Remove quotes that might have been added around the actual reply
-    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
-    
-    return cleaned;
+    return cleanupReply(reply);
   }
 
   static async validateApiKey(apiKey: string): Promise<boolean> {
