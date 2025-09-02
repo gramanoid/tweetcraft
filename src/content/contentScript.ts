@@ -1,4 +1,4 @@
-import { DOMUtils } from './domUtils';
+import { DOMUtils, DOMCache } from './domUtils';
 // OpenRouter service now handled by service worker
 import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
@@ -1811,14 +1811,26 @@ class SmartReplyContentScript {
     
     console.log('%c🗑️ Smart Reply: Content script destroyed', 'color: #DC3545; font-weight: bold');
     
-    // Clean up all timers
+    // Clean up all timers with error handling
     console.log(`%c  Cleaning up ${this.timers.size} timers`, 'color: #657786');
-    this.timers.forEach(timerId => clearTimeout(timerId));
+    this.timers.forEach(timerId => {
+      try {
+        clearTimeout(timerId);
+      } catch (error) {
+        console.error('Error clearing timer:', error);
+      }
+    });
     this.timers.clear();
     
-    // Clean up all intervals
+    // Clean up all intervals with error handling
     console.log(`%c  Cleaning up ${this.intervals.size} intervals`, 'color: #657786');
-    this.intervals.forEach(intervalId => clearInterval(intervalId));
+    this.intervals.forEach(intervalId => {
+      try {
+        clearInterval(intervalId);
+      } catch (error) {
+        console.error('Error clearing interval:', error);
+      }
+    });
     this.intervals.clear();
     
     // Clean up all stored event listeners
@@ -1882,8 +1894,17 @@ class SmartReplyContentScript {
       button.parentNode?.replaceChild(newButton, button);
     });
     
-    // Clear processed toolbars
+    // Clear processed toolbars - recreate WeakSet to ensure proper cleanup
     this.processedToolbars = new WeakSet<Element>();
+    
+    // Clear DOM cache to prevent memory leaks
+    if (DOMCache) {
+      try {
+        DOMCache.invalidate();
+      } catch (error) {
+        console.error('Error clearing DOM cache:', error);
+      }
+    }
     
     // Unregister this instance
     if ((window as any).__smartReplyInstance === this) {

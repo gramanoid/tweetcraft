@@ -1,5 +1,6 @@
 // Super simple popup to test if scripts work at all
 import './popup.scss';
+import { MessageType } from '@/types/messages';
 
 // TypeScript interfaces for storage
 interface StorageConfig {
@@ -275,11 +276,10 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         // Fetch models through service worker
         const response = await chrome.runtime.sendMessage({
-          type: 'FETCH_MODELS',
-          apiKey: apiKey
+          type: MessageType.FETCH_MODELS
         });
         
-        if (response?.success && response?.models) {
+        if (response?.success && response?.data) {
           // Clear existing options
           modelSelect.innerHTML = '';
           
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const savedModel = savedResult.smartReply_config?.model;
           
           // Add fetched models
-          response.models.forEach((model: any) => {
+          response.data.forEach((model: any) => {
             const option = document.createElement('option');
             option.value = model.id;
             option.textContent = `${model.name} (${model.context_length} tokens, $${model.pricing?.prompt || 0}/${model.pricing?.completion || 0})`;
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Show model info
           const modelInfo = document.getElementById('model-info');
           if (modelInfo) {
-            modelInfo.textContent = `Found ${response.models.length} models`;
+            modelInfo.textContent = `Found ${response.data.length} models`;
             modelInfo.style.color = 'green';
           }
         } else {

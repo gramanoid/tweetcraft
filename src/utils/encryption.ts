@@ -18,10 +18,11 @@ export class EncryptionService {
   
   // Migration lock configuration
   private static readonly MIGRATION_LOCK_KEY = 'tweetcraft_migration_lock';
-  private static readonly LOCK_TIMEOUT_MS = 5000; // 5 seconds max lock hold time
+  private static readonly LOCK_TIMEOUT_MS = 30000; // 30 seconds max lock hold time (increased for slow systems)
   private static readonly LOCK_RETRY_DELAY_MS = 100; // Initial retry delay
-  private static readonly LOCK_MAX_RETRIES = 30; // Max 3 seconds of retrying
+  private static readonly LOCK_MAX_RETRIES = 50; // Increased retries
   private static readonly LOCK_BACKOFF_MULTIPLIER = 1.2; // Exponential backoff
+  private static readonly DEADLOCK_DETECTION_MS = 60000; // 60 seconds deadlock detection
   
   // In-memory migration status to prevent duplicate work within same runtime
   private static migrationInProgress = new Map<string, Promise<string>>();
@@ -162,11 +163,21 @@ export class EncryptionService {
   private static async acquireMigrationLock(lockKey: string): Promise<string | null> {
     const lockId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const holder = `${chrome.runtime.id}_${lockId}`;
+    const startTime = Date.now();
     let retries = 0;
     let delay = this.LOCK_RETRY_DELAY_MS;
     
     while (retries < this.LOCK_MAX_RETRIES) {
       try {
+        // Deadlock detection
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime > this.DEADLOCK_DETECTION_MS) {
+          logger.error('Deadlock detected in migration lock acquisition');
+          // Force release the lock to break deadlock
+          await this.forceReleaseLock(lockKey);
+          throw new Error('Migration deadlock detected - lock forcefully released');
+        }
+        
         // Check existing lock
         const result = await chrome.storage.local.get(lockKey);
         const existingLock = result[lockKey] as MigrationLock | undefined;
@@ -189,7 +200,7 @@ export class EncryptionService {
           const verifiedLock = verification[lockKey] as MigrationLock;
           
           if (verifiedLock && verifiedLock.holder === holder) {
-            logger.log(`Migration lock acquired: ${lockId}`);
+            logger.log(`Migration lock acquired: ${lockId} after ${elapsedTime}ms`);
             return lockId;
           }
         }
@@ -225,6 +236,18 @@ export class EncryptionService {
       }
     } catch (error) {
       logger.error('Error releasing migration lock:', error);
+    }
+  }
+  
+  /**
+   * Force release a lock (used for deadlock recovery)
+   */
+  private static async forceReleaseLock(lockKey: string): Promise<void> {
+    try {
+      await chrome.storage.local.remove(lockKey);
+      logger.warn(`Migration lock forcefully released: ${lockKey}`);
+    } catch (error) {
+      logger.error('Error force releasing migration lock:', error);
     }
   }
   

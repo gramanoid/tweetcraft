@@ -3,6 +3,15 @@ import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
 import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
+import type { 
+  ExtensionMessage as OpenRouterExtensionMessage,
+  StorageData,
+  FetchModelsResponse,
+  TestApiKeyResponse,
+  GenerateReplyResponse,
+  GenerateImageResponse,
+  OpenRouterModel
+} from '@/types/openrouter';
 import { 
   ExtensionMessage, 
   MessageResponse, 
@@ -61,9 +70,26 @@ class SmartReplyServiceWorker {
       console.log('Smart Reply: Extension started');
     });
 
-    // Handle messages from content scripts or popup
+    // Handle messages from content scripts or popup with proper error handling
     chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-      void this.handleMessage(message as ExtensionMessage, sender, sendResponse);
+      // Wrap in Promise to ensure proper response handling
+      this.handleMessage(message as ExtensionMessage, sender, sendResponse)
+        .then(result => {
+          // Send successful response
+          if (!chrome.runtime.lastError) {
+            sendResponse(result);
+          }
+        })
+        .catch(error => {
+          // Send error response
+          console.error('Service worker message handling error:', error);
+          if (!chrome.runtime.lastError) {
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error occurred'
+            });
+          }
+        });
       return true; // Keep the message channel open for async responses
     });
   }
@@ -359,65 +385,8 @@ class SmartReplyServiceWorker {
 
         case MessageType.FETCH_MODELS: {
           if (isFetchModelsMessage(message)) {
-            // Fetch available models using shared utility
-            const fetchApiKey = await StorageService.getApiKey();
-            if (!fetchApiKey) {
-              sendResponse({ success: false, error: 'No API key found in storage' });
-              break;
-            }
-          
-            void this.fetchFromOpenRouter('models', fetchApiKey)
-              .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-              }
-              return response.json();
-            })
-            .then(data => {
-              console.log(`%c📋 Fetched ${data.data?.length || 0} models`, 'color: #1DA1F2');
-            if (data.data && Array.isArray(data.data)) {
-              // Sort and prioritize popular models
-              const priorityModels = [
-                'openai/gpt-4o',
-                'openai/gpt-4o-mini', 
-                'anthropic/claude-3.5-sonnet',
-                'anthropic/claude-3-opus',
-                'google/gemini-pro-1.5',
-                'meta-llama/llama-3.1-70b-instruct'
-              ];
-              
-              const models = data.data
-                .filter((model: any) => model.id && model.name)
-                .map((model: any) => ({
-                  id: model.id,
-                  name: model.name,
-                  context_length: model.context_length || 'N/A',
-                  pricing: {
-                    prompt: model.pricing?.prompt || 0,
-                    completion: model.pricing?.completion || 0
-                  }
-                }))
-                .sort((a: any, b: any) => {
-                  const aIndex = priorityModels.indexOf(a.id);
-                  const bIndex = priorityModels.indexOf(b.id);
-                  if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                  if (aIndex !== -1) return -1;
-                  if (bIndex !== -1) return 1;
-                  return a.name.localeCompare(b.name);
-                });
-              
-              sendResponse({ success: true, data: models });
-            } else {
-              sendResponse({ success: false, error: 'Invalid response from OpenRouter' });
-            }
-          })
-          .catch(error => {
-            console.error('TweetCraft: Failed to fetch models:', error);
-            sendResponse({ 
-              success: false, 
-              error: 'Network error: Could not fetch models from OpenRouter' 
-            });
-          });
+            // Handle fetch models asynchronously
+            void this.handleFetchModels(sendResponse);
           }
           break;
         }
@@ -704,6 +673,86 @@ class SmartReplyServiceWorker {
       sendResponse({
         success: false,
         error: 'Failed to generate reply. Please try again.'
+      });
+    }
+  }
+
+  /**
+   * Handle fetching models from OpenRouter
+   */
+  private async handleFetchModels(
+    sendResponse: (response: MessageResponse) => void
+  ): Promise<void> {
+    try {
+      // Get API key from storage
+      const fetchApiKey = await StorageService.getApiKey();
+      if (!fetchApiKey) {
+        sendResponse({ success: false, error: 'No API key found. Please configure your OpenRouter API key.' });
+        return;
+      }
+
+      console.log('%c📋 Fetching models from OpenRouter...', 'color: #1DA1F2; font-weight: bold');
+      
+      // Fetch models from OpenRouter
+      const response = await this.fetchFromOpenRouter('models', fetchApiKey);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch models:', response.status, errorText);
+        
+        if (response.status === 401) {
+          sendResponse({ success: false, error: 'Invalid API key. Please check your OpenRouter API key.' });
+        } else if (response.status === 429) {
+          sendResponse({ success: false, error: 'Rate limit exceeded. Please try again later.' });
+        } else {
+          sendResponse({ success: false, error: `Failed to fetch models: ${response.statusText}` });
+        }
+        return;
+      }
+
+      const data = await response.json() as { data?: OpenRouterModel[] };
+      console.log(`%c✅ Fetched ${data.data?.length || 0} models`, 'color: #17BF63');
+      
+      if (data.data && Array.isArray(data.data)) {
+        // Sort and prioritize popular models
+        const priorityModels = [
+          'openai/gpt-4o',
+          'openai/gpt-4o-mini',
+          'anthropic/claude-3.5-sonnet',
+          'anthropic/claude-3-opus',
+          'google/gemini-pro-1.5',
+          'meta-llama/llama-3.1-70b-instruct'
+        ];
+        
+        const models = data.data
+          .filter((model) => model.id && model.name)
+          .map((model) => ({
+            id: model.id,
+            name: model.name,
+            context_length: model.context_length || 0,
+            pricing: {
+              prompt: model.pricing?.prompt || 0,
+              completion: model.pricing?.completion || 0
+            }
+          }))
+          .sort((a, b) => {
+            const aIndex = priorityModels.indexOf(a.id);
+            const bIndex = priorityModels.indexOf(b.id);
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            return a.name.localeCompare(b.name);
+          });
+        
+        sendResponse({ success: true, data: models });
+      } else {
+        sendResponse({ success: false, error: 'Invalid response format from OpenRouter' });
+      }
+    } catch (error) {
+      console.error('Error fetching models:', error);
+      sendResponse({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to fetch models from OpenRouter'
       });
     }
   }

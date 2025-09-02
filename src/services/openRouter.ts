@@ -139,12 +139,8 @@ export class OpenRouterService {
       if (!bypassCache) {
         // Check cache size limit to prevent memory leak
         if (this.requestCache.size >= this.REQUEST_CACHE_MAX_SIZE) {
-          // Remove oldest entry (first in map)
-          const oldestKey = this.requestCache.keys().next().value;
-          if (oldestKey !== undefined) {
-            this.requestCache.delete(oldestKey);
-            console.log(`%c🧹 Request cache limit reached, removed oldest entry`, 'color: #FFA500');
-          }
+          // Clean up old entries more aggressively
+          this.cleanupOldCacheEntries();
         }
         
         this.requestCache.set(requestKey, requestPromise);
@@ -176,6 +172,22 @@ export class OpenRouterService {
       tweetText: context.tweetText?.substring(0, 100) || '' // First 100 chars for context
     };
     return JSON.stringify(keyData);
+  }
+
+  /**
+   * Clean up old cache entries to prevent memory leak
+   */
+  private static cleanupOldCacheEntries(): void {
+    const entriesToRemove = Math.floor(this.REQUEST_CACHE_MAX_SIZE * 0.2); // Remove 20% of entries
+    const iterator = this.requestCache.entries();
+    
+    for (let i = 0; i < entriesToRemove; i++) {
+      const { value, done } = iterator.next();
+      if (done || !value) break;
+      this.requestCache.delete(value[0]);
+    }
+    
+    console.log(`%c🧹 Cleaned up ${entriesToRemove} old cache entries`, 'color: #FFA500');
   }
 
   /**

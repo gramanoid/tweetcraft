@@ -440,9 +440,12 @@ class SmartReplyPopup {
   }
 
   private validateApiKeyFormat(apiKey: string): boolean {
-    // OpenRouter API keys typically start with 'sk-or-' followed by alphanumeric chars
-    const pattern = /^sk-or-[a-zA-Z0-9]{40,}$/;
-    return pattern.test(apiKey);
+    // OpenRouter API keys can be:
+    // - Legacy format: sk-or-[alphanumeric chars]
+    // - New format: sk-or-v1-[hex chars]
+    const legacyPattern = /^sk-or-[a-zA-Z0-9]{40,}$/;
+    const newPattern = /^sk-or-v1-[a-fA-F0-9]{64}$/;
+    return legacyPattern.test(apiKey) || newPattern.test(apiKey);
   }
 
   private showMessage(message: string, type: 'info' | 'success' | 'warning' | 'error'): void {

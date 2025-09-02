@@ -6,12 +6,36 @@ class DOMCache {
   private cache = new WeakMap<Element, Map<string, Element | null>>();
   private queryCount = 0;
   private cacheHits = 0;
+  private mutationObserver: MutationObserver | null = null;
+  private observedElements = new WeakSet<Element>();
+  
+  constructor() {
+    // Set up mutation observer for auto-invalidation
+    this.mutationObserver = new MutationObserver((mutations) => {
+      // Invalidate cache for mutated elements
+      mutations.forEach(mutation => {
+        const target = mutation.target as Element;
+        if (this.cache.has(target)) {
+          this.cache.delete(target);
+        }
+      });
+    });
+  }
   
   query(parent: Element, selector: string): Element | null {
     this.queryCount++;
     
     if (!this.cache.has(parent)) {
       this.cache.set(parent, new Map());
+      // Start observing this parent for mutations if not already
+      if (!this.observedElements.has(parent) && this.mutationObserver) {
+        this.mutationObserver.observe(parent, {
+          childList: true,
+          subtree: true,
+          attributes: true
+        });
+        this.observedElements.add(parent);
+      }
     }
     
     const cache = this.cache.get(parent)!;
@@ -53,10 +77,29 @@ class DOMCache {
       hitRate: this.queryCount > 0 ? Math.round((this.cacheHits / this.queryCount) * 100) : 0
     };
   }
+  
+  destroy(): void {
+    // Stop observing all elements
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = null;
+    }
+    
+    // Clear all caches
+    this.cache = new WeakMap();
+    this.observedElements = new WeakSet();
+    this.queryCount = 0;
+    this.cacheHits = 0;
+    
+    console.log('%c🗑️ DOM cache destroyed', 'color: #DC3545; font-weight: bold');
+  }
 }
 
 // Global DOM cache instance
 const domCache = new DOMCache();
+
+// Export for external access (e.g., cleanup)
+export { domCache as DOMCache };
 
 // Centralized selector configuration with fallback chains
 interface SelectorChain {
