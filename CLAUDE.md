@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.11
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.12
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -256,7 +256,7 @@ if (isHypeFury) {
 - **Context-Aware Rewriting**: Maintains context of what the user is replying to
 - **Improved Positioning**: AI Rewrite button now appears correctly before the tweet button
 
-### Security Improvements (v0.0.11)
+### Security Improvements (v0.0.12)
 - **AES-GCM Encryption**: API keys now encrypted using Web Crypto API
 - **Secure Storage**: Enhanced storage mechanisms for sensitive data
 - **Improved Error Handling**: Better validation and sanitization of API responses
@@ -292,7 +292,7 @@ if (isHypeFury) {
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.11)
+### Recently Fixed (v0.0.12)
 - ✅ ChunkLoadError in image generation - Fixed with message passing pattern
 - ✅ Missing "Generating..." loading state - Fixed with enhanced button finding
 - ✅ 48 ESLint errors - All critical errors resolved
