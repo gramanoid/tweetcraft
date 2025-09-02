@@ -74,7 +74,14 @@ document.addEventListener('DOMContentLoaded', () => {
         customStylePromptInput.value = config.customStylePrompt;
       }
       if (config.model && modelSelect) {
+        // Set the saved model value
         modelSelect.value = config.model;
+        // If the saved model doesn't exist in the dropdown (e.g., first load with default options),
+        // check if we need to fetch models
+        const modelExists = Array.from(modelSelect.options).some(opt => opt.value === config.model);
+        if (!modelExists) {
+          console.log('Saved model not in dropdown, may need to fetch models:', config.model);
+        }
       }
       if (config.temperature !== undefined && temperatureInput) {
         temperatureInput.value = config.temperature.toString();
@@ -133,6 +140,37 @@ document.addEventListener('DOMContentLoaded', () => {
     temperatureInput.addEventListener('input', () => {
       if (temperatureValue) {
         temperatureValue.textContent = temperatureInput.value;
+      }
+    });
+  }
+  
+  // Auto-save model selection when changed
+  if (modelSelect) {
+    modelSelect.addEventListener('change', async () => {
+      const selectedModel = modelSelect.value;
+      console.log('Model changed to:', selectedModel);
+      
+      // Get existing config
+      const result = await new Promise<{ smartReply_config?: StorageConfig }>((resolve) => {
+        chrome.storage.sync.get(['smartReply_config'], resolve);
+      });
+      
+      const config = result.smartReply_config || {};
+      config.model = selectedModel;
+      
+      // Save the updated config
+      await chrome.storage.sync.set({ smartReply_config: config });
+      console.log('Model selection saved:', selectedModel);
+      
+      // Show brief success indicator
+      const statusDiv = document.getElementById('status-message');
+      if (statusDiv) {
+        statusDiv.textContent = 'Model saved!';
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = 'green';
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 2000);
       }
     });
   }
@@ -245,6 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
           // Clear existing options
           modelSelect.innerHTML = '';
           
+          // Get saved model before clearing options
+          const savedResult = await new Promise<{ smartReply_config?: StorageConfig }>((resolve) => {
+            chrome.storage.sync.get(['smartReply_config'], resolve);
+          });
+          const savedModel = savedResult.smartReply_config?.model;
+          
           // Add fetched models
           response.models.forEach((model: any) => {
             const option = document.createElement('option');
@@ -254,11 +298,33 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           
           // Restore previously selected model if it exists
-          chrome.storage.sync.get(['smartReply_config'], (result: { smartReply_config?: StorageConfig }) => {
-            if (result.smartReply_config?.model) {
-              modelSelect.value = result.smartReply_config.model;
+          if (savedModel) {
+            // Check if the saved model exists in the fetched list
+            const modelExists = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
+            if (modelExists) {
+              modelSelect.value = savedModel;
+              console.log('Restored saved model:', savedModel);
+            } else {
+              console.log('Saved model not found in fetched list:', savedModel);
+              // Save the first available model as default
+              if (modelSelect.options.length > 0) {
+                const firstModel = modelSelect.options[0].value;
+                modelSelect.value = firstModel;
+                // Update saved config with new model
+                const config = savedResult.smartReply_config || {};
+                config.model = firstModel;
+                await chrome.storage.sync.set({ smartReply_config: config });
+              }
             }
-          });
+          } else if (modelSelect.options.length > 0) {
+            // No saved model, select the first one
+            const firstModel = modelSelect.options[0].value;
+            modelSelect.value = firstModel;
+            // Save it
+            const config = savedResult.smartReply_config || {};
+            config.model = firstModel;
+            await chrome.storage.sync.set({ smartReply_config: config });
+          }
           
           // Show model info
           const modelInfo = document.getElementById('model-info');
