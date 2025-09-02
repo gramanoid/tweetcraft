@@ -674,8 +674,35 @@ export class DOMUtils {
    */
   static getTextFromTextarea(textarea: HTMLElement): string {
     // For Twitter's contentEditable divs, we need to get innerText
-    // Remove any zero-width spaces and trim
-    const text = (textarea.innerText || textarea.textContent || '')
+    // BUT we need to ensure we're only getting text from the actual input area
+    // and not from any injected buttons or UI elements
+    
+    // First check if this is actually a contentEditable element
+    if (textarea.getAttribute('contenteditable') !== 'true') {
+      console.warn('%c⚠️ getTextFromTextarea called on non-contenteditable element', 'color: #FFA500', textarea);
+      return '';
+    }
+    
+    // For Twitter, the actual text is usually in spans with data-text="true"
+    const textSpans = textarea.querySelectorAll('span[data-text="true"]');
+    if (textSpans.length > 0) {
+      const text = Array.from(textSpans)
+        .map(span => span.textContent || '')
+        .join('')
+        .replace(/\u200B/g, '') // Remove zero-width spaces
+        .replace(/\u00A0/g, ' ') // Replace non-breaking spaces with regular spaces
+        .trim();
+      return text;
+    }
+    
+    // Fallback: get innerText but exclude any child elements that might be buttons
+    // Clone the element to avoid modifying the DOM
+    const clone = textarea.cloneNode(true) as HTMLElement;
+    
+    // Remove any elements that might be injected UI (buttons, etc)
+    clone.querySelectorAll('.smart-reply-container, .smart-reply-button, button').forEach(el => el.remove());
+    
+    const text = (clone.innerText || clone.textContent || '')
       .replace(/\u200B/g, '') // Remove zero-width spaces
       .replace(/\u00A0/g, ' ') // Replace non-breaking spaces with regular spaces
       .trim();

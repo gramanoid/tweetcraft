@@ -149,7 +149,19 @@ export class UnifiedSelectorEnhanced {
     console.log('%c  Creating UI...', 'color: #657786');
     this.container = this.createUI();
     console.log('%c  Container created:', 'color: #657786', this.container);
-    console.log('%c  Container HTML length:', 'color: #657786', this.container?.innerHTML?.length || 0);
+    console.log('%c  Container class:', 'color: #657786', this.container?.className || 'none');
+    console.log('%c  Container children:', 'color: #657786', this.container?.children.length || 0);
+    
+    // Check the actual DOM structure
+    if (this.container) {
+      const firstChild = this.container.firstElementChild;
+      console.log('%c  First child tag:', 'color: #657786', firstChild?.tagName || 'none');
+      console.log('%c  First child class:', 'color: #657786', firstChild?.className || 'none');
+      
+      // Check if content is being rendered as text
+      const textContent = this.container.textContent?.substring(0, 100) || '';
+      console.log('%c  Container text preview:', 'color: #657786', textContent + '...');
+    }
     
     if (!this.container) {
       console.error('%c❌ Failed to create container!', 'color: #DC3545');
@@ -158,7 +170,14 @@ export class UnifiedSelectorEnhanced {
     
     // Verify styles are injected
     const stylesExist = document.getElementById('tweetcraft-unified-selector-styles');
-    console.log('%c  Styles injected:', 'color: #657786', !!stylesExist);
+    console.log('%c  Styles element exists:', 'color: #657786', !!stylesExist);
+    
+    if (stylesExist) {
+      // Check if styles are actually applied
+      const styleContent = stylesExist.textContent || '';
+      console.log('%c  Style content length:', 'color: #657786', styleContent.length);
+      console.log('%c  Has .unified-selector-enhanced styles:', 'color: #657786', styleContent.includes('.unified-selector-enhanced'));
+    }
     
     if (!stylesExist) {
       console.warn('%c⚠️ Styles not found, re-injecting...', 'color: #FFA500');
