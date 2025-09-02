@@ -277,7 +277,7 @@ export class ConfigurationManager {
     }
 
     // Combine template prompt with tone system prompt
-    const combined = `${template.prompt} ${tone.systemPrompt} ${REPLY_CONFIG.globalInstructions}`;
+    const combined = `${template.prompt} ${tone.systemPrompt}`;
 
     // Cache the result (with LRU eviction)
     if (this.combinedPromptCache.size >= this.MAX_CACHE_SIZE) {
@@ -433,7 +433,7 @@ export class ConfigurationManager {
       userPreferences: await this.getUserPreferences(),
       apiKey: storedConfig.smartReply_apiKey,
       model: storedConfig.model || 'gpt-4o-mini',
-      systemPrompt: storedConfig.systemPrompt || REPLY_CONFIG.globalInstructions,
+      systemPrompt: storedConfig.systemPrompt || 'You are an expert at crafting engaging Twitter replies.',
       temperature: storedConfig.temperature || 0.7
     };
 

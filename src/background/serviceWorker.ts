@@ -655,28 +655,29 @@ class SmartReplyServiceWorker {
       console.log('%c🎯 FIVE-STEP SELECTIONS', 'color: #E1AD01; font-weight: bold');
       console.log('%c  Selections:', 'color: #657786', request.selections);
       
-      // Get all options flat for easy lookup
-      const allOptionsFlat: any[] = [];
-      allOptionsFlat.push(...REPLY_OPTIONS.personaFraming);
-      Object.values(REPLY_OPTIONS.attitude).forEach((subgroup: any) => {
-        allOptionsFlat.push(...subgroup);
-      });
-      Object.values(REPLY_OPTIONS.rhetoric).forEach((subgroup: any) => {
-        allOptionsFlat.push(...subgroup);
-      });
-      Object.values(REPLY_OPTIONS.vocabulary).forEach((subgroup: any) => {
-        allOptionsFlat.push(...subgroup);
-      });
-      allOptionsFlat.push(...REPLY_OPTIONS.formatPacing);
-      
-      // Build combined prompt from selections
+      // Build combined prompt from selections using category-specific lookups
       const categoryOrder = ['personaFraming', 'attitude', 'rhetoric', 'vocabulary', 'formatPacing'];
       const instructions: string[] = [];
       
       for (const category of categoryOrder) {
         const selectedId = request.selections[category];
         if (selectedId) {
-          const selectedOption = allOptionsFlat.find(opt => opt.id === selectedId);
+          let selectedOption = null;
+          
+          // Look up option in the appropriate category only
+          if (category === 'personaFraming') {
+            selectedOption = REPLY_OPTIONS.personaFraming.find(opt => opt.id === selectedId);
+          } else if (category === 'formatPacing') {
+            selectedOption = REPLY_OPTIONS.formatPacing.find(opt => opt.id === selectedId);
+          } else if (category === 'attitude' || category === 'rhetoric' || category === 'vocabulary') {
+            // These categories have subgroups
+            const categoryData = REPLY_OPTIONS[category as keyof typeof REPLY_OPTIONS] as any;
+            for (const subgroup of Object.values(categoryData)) {
+              selectedOption = (subgroup as any[]).find(opt => opt.id === selectedId);
+              if (selectedOption) break;
+            }
+          }
+          
           if (selectedOption && selectedOption.prompt) {
             instructions.push(selectedOption.prompt);
             console.log(`%c  ${category}:`, 'color: #9146FF', selectedOption.label);

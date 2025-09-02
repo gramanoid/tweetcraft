@@ -12,11 +12,19 @@ export interface ImageResult {
   height?: number;
 }
 
+export type ImageSize = '256x256' | '512x512' | '1024x1024';
+
 export interface ImageGenerationOptions {
   prompt: string;
   style?: 'realistic' | 'cartoon' | 'artistic' | 'sketch';
-  size?: '256x256' | '512x512' | '1024x1024';
+  size?: ImageSize;
   model?: 'dall-e-2' | 'dall-e-3' | 'stable-diffusion' | 'gemini';
+}
+
+// Type guard for image size validation
+export function isValidImageSize(size: unknown): size is ImageSize {
+  return typeof size === 'string' && 
+    ['256x256', '512x512', '1024x1024'].includes(size);
 }
 
 export interface ImageSearchOptions {

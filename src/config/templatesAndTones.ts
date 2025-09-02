@@ -561,7 +561,17 @@ export const REPLY_OPTIONS: ReplyOptionsStructure = {
       label: '💬 Single Word/Emoji', 
       description: 'Ultra-short reaction',
       prompt: "Generate a single-word or single-emoji reaction.",
-      incompatibleWith: ['rhetoric-step-by-step', 'rhetoric-pros-cons', 'rhetoric-share-experience', 'rhetoric-add-context', 'rhetoric-agree-add', 'rhetoric-polite-challenge', 'rhetoric-find-disagreement', 'rhetoric-compare-contrast', 'vocab-storyteller', 'format-mini-thread', 'format-statement-question', 'format-bulleted-list', 'format-stream-consciousness', 'format-single-sentence']
+      // Only truly structurally incompatible items that require multiple words/sentences
+      incompatibleWith: [
+        'rhetoric-step-by-step',     // Requires numbered list
+        'rhetoric-pros-cons',         // Requires listing multiple items
+        'rhetoric-share-experience',  // Requires narrative/story
+        'vocab-storyteller',          // Requires narrative format
+        'format-mini-thread',         // Requires multiple tweets
+        'format-statement-question',  // Requires statement AND question
+        'format-bulleted-list',       // Requires multiple list items
+        'format-stream-consciousness' // Requires long-form text
+      ]
     },
     { 
       id: 'format-statement-question', 
@@ -656,6 +666,7 @@ export function getTone(id: string): Tone | undefined {
 
 export const REPLY_CONFIG = {
   maxLength: { short: 50, medium: 150, long: 280 },
-  temperatureByTone: { default: 0.7 },
-  globalInstructions: ''
+  temperatureByTone: { default: 0.7 }
+  // globalInstructions removed - unused in the five-step system
+  // Previously intended for global prompt additions but superseded by category-specific prompts
 };

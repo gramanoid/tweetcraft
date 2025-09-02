@@ -7,28 +7,17 @@ import { REPLY_OPTIONS, ReplyOption, ReplyOptionsStructure } from '@/config/temp
 import { visualFeedback } from '@/ui/visualFeedback';
 import { DOMUtils } from '@/content/domUtils';
 import { imageService } from '@/services/imageService';
+import { SelectionMap } from '@/types';
 
 export interface FiveStepSelectionResult {
-  selections: {
-    personaFraming: string | null;
-    attitude: string | null;
-    rhetoric: string | null;
-    vocabulary: string | null;
-    formatPacing: string | null;
-  };
+  selections: SelectionMap;
   combinedPrompts: string[];
   temperature: number;
 }
 
 export class UnifiedSelector {
   private container: HTMLElement | null = null;
-  private selections: {
-    personaFraming: string | null;
-    attitude: string | null;
-    rhetoric: string | null;
-    vocabulary: string | null;
-    formatPacing: string | null;
-  } = {
+  private selections: SelectionMap = {
     personaFraming: null,
     attitude: null,
     rhetoric: null,
@@ -41,6 +30,7 @@ export class UnifiedSelector {
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
   private view: 'all' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'all';
+  private flatOptionsCache: ReplyOption[] | null = null;
 
   constructor() {
     // Initialize
@@ -354,6 +344,11 @@ export class UnifiedSelector {
    * Get all options in a flat array
    */
   private getAllOptionsFlat(): ReplyOption[] {
+    // Return cached result if available
+    if (this.flatOptionsCache) {
+      return this.flatOptionsCache;
+    }
+    
     const flat: ReplyOption[] = [];
     
     // Add persona & framing
@@ -376,6 +371,9 @@ export class UnifiedSelector {
     
     // Add format & pacing
     flat.push(...REPLY_OPTIONS.formatPacing);
+    
+    // Cache the result
+    this.flatOptionsCache = flat;
     
     return flat;
   }
@@ -450,8 +448,9 @@ export class UnifiedSelector {
    * Check if ready to generate
    */
   private isReadyToGenerate(): boolean {
-    // At least one selection is required to generate
-    return Object.values(this.selections).some(v => v !== null);
+    // Require at least 2 selections from different categories to generate
+    const selectedCount = Object.values(this.selections).filter(v => v !== null).length;
+    return selectedCount >= 2;
   }
 
   /**

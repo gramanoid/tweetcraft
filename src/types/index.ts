@@ -19,6 +19,14 @@ export interface TonePreset {
   emoji: string;
 }
 
+// Five-step category types
+export type FiveStepCategory = 'personaFraming' | 'attitude' | 'rhetoric' | 'vocabulary' | 'formatPacing';
+
+// Selection map for five-step system
+export type SelectionMap = {
+  [K in FiveStepCategory]: string | null;
+};
+
 export interface ReplyGenerationRequest {
   originalTweet?: string;
   tone?: string;
@@ -27,13 +35,7 @@ export interface ReplyGenerationRequest {
   replyLength?: 'short' | 'medium' | 'long'; // New: Reply length preset
   isRewriteMode?: boolean; // New: Whether to rewrite existing text
   existingText?: string; // New: The text to rewrite
-  selections?: { // New: Five-step selections
-    personaFraming: string | null;
-    attitude: string | null;
-    rhetoric: string | null;
-    vocabulary: string | null;
-    formatPacing: string | null;
-  };
+  selections?: SelectionMap; // New: Five-step selections using typed map
 }
 
 export interface ReplyGenerationResponse {

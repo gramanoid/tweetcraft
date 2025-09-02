@@ -8,6 +8,10 @@ import { UnifiedSelectorEnhanced, FiveStepSelectionResult } from './unifiedSelec
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
 
+// Constant for the five-step placeholder category
+// Used to identify when selections come from the five-step system rather than legacy templates
+const FIVE_STEP_CATEGORY_PLACEHOLDER = 'five-step-mode' as const;
+
 // Use PresetTemplate for both preset and custom templates
 type CustomTemplate = PresetTemplate;
 
@@ -65,7 +69,7 @@ export class SelectorAdapter {
           name: 'Custom Selection',
           emoji: '🎯',
           prompt: '', // Empty - prompts are in selections
-          category: 'value' as any, // Using 'value' as a placeholder for five-step
+          category: FIVE_STEP_CATEGORY_PLACEHOLDER as any, // Placeholder category for five-step mode
           description: 'Five-step AI reply configuration'
         };
         

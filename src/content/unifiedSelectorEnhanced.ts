@@ -7,15 +7,10 @@ import { REPLY_OPTIONS, ReplyOption, ReplyOptionsStructure } from '@/config/temp
 import { visualFeedback } from '@/ui/visualFeedback';
 import { DOMUtils } from '@/content/domUtils';
 import { imageService } from '@/services/imageService';
+import { SelectionMap } from '@/types';
 
 export interface FiveStepSelectionResult {
-  selections: {
-    personaFraming: string | null;
-    attitude: string | null;
-    rhetoric: string | null;
-    vocabulary: string | null;
-    formatPacing: string | null;
-  };
+  selections: SelectionMap;
   combinedPrompts: string[];
   temperature: number;
 }
@@ -99,13 +94,7 @@ const OPTION_EXAMPLES: { [key: string]: string } = {
 
 export class UnifiedSelectorEnhanced {
   private container: HTMLElement | null = null;
-  private selections: {
-    personaFraming: string | null;
-    attitude: string | null;
-    rhetoric: string | null;
-    vocabulary: string | null;
-    formatPacing: string | null;
-  } = {
+  private selections: SelectionMap = {
     personaFraming: null,
     attitude: null,
     rhetoric: null,
@@ -128,6 +117,7 @@ export class UnifiedSelectorEnhanced {
   private anchorButton: HTMLElement | null = null;
   private view: 'all' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'all';
   private tweetContext: string = '';
+  private flatOptionsCache: ReplyOption[] | null = null;
 
   constructor() {
     // Load saved preferences
@@ -1993,6 +1983,11 @@ export class UnifiedSelectorEnhanced {
   }
   
   private getAllOptionsFlat(): ReplyOption[] {
+    // Return cached result if available
+    if (this.flatOptionsCache) {
+      return this.flatOptionsCache;
+    }
+    
     const flat: ReplyOption[] = [];
     
     flat.push(...REPLY_OPTIONS.personaFraming);
@@ -2010,6 +2005,9 @@ export class UnifiedSelectorEnhanced {
     });
     
     flat.push(...REPLY_OPTIONS.formatPacing);
+    
+    // Cache the result
+    this.flatOptionsCache = flat;
     
     return flat;
   }
