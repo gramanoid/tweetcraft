@@ -1,4 +1,4 @@
-# TweetCraft Enhancement Roadmap - v0.0.12+
+# TweetCraft Enhancement Roadmap - v0.0.11+
 
 ## 🎯 Core Philosophy: BUILD FOR CONSUMERS, NOT ENTERPRISES
 - **Simple over Complex**: Direct implementations that work reliably
@@ -366,11 +366,11 @@ These existing implementations work well despite their complexity:
 
 ## 📅 RELEASE TIMELINE
 
-### v0.0.12 (Completed)
-**Focus**: Bug fixes, UI polish, and technical improvements
+### v0.0.11 (Current Version - Completed)
+**Focus**: Unified AI interface, bug fixes, UI polish
 - ✅ All planned features completed
 
-### v0.0.13 (Next Week - Core Features & UX)
+### v0.0.12 (Next Version - Core Features & UX)
 **Focus**: Essential features + UX refinements
 - AI Tweet Creation from topics (NEW)
 - Image Understanding for Context (COMPLETE - just needs activation)
@@ -463,7 +463,7 @@ Every feature must have:
 ---
 
 **Last Updated**: January 2025  
-**Current Version**: v0.0.12-dev Bug Fixes & UI Polish  
-**Next Release**: v0.0.12 Bug Fixes & UI Polish  
+**Current Version**: v0.0.11 - Unified AI Interface  
+**Next Release**: v0.0.12 - Core Features & UX  
 
 **Remember**: We're building the best AI reply assistant for individual Twitter/X users, not an enterprise social media management platform. Every feature should make a regular user's Twitter experience better, faster, and more enjoyable.

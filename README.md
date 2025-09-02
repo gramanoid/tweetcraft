@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.12-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.11-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.12)**
+### ✅ **Currently Working (v0.0.11)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
@@ -305,6 +305,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.12-dev** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
+**TweetCraft v0.0.11** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
 
 Made with ❤️ by the TweetCraft team

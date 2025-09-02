@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.12
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.11
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -157,7 +157,7 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.12 - Latest Fixes)
+## Current Features (v0.0.11 - Latest Fixes)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -292,7 +292,7 @@ if (isHypeFury) {
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.12)
+### Recently Fixed (v0.0.11)
 - ✅ ChunkLoadError in image generation - Fixed with message passing pattern
 - ✅ Missing "Generating..." loading state - Fixed with enhanced button finding
 - ✅ 48 ESLint errors - All critical errors resolved
@@ -334,7 +334,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `FETCH_MODELS` - Retrieves available models list
 - `GENERATE_REPLY` - Main reply generation endpoint
 - `GET_LAST_TONE` / `SET_LAST_TONE` - Tone preference persistence
-- `GET_STORAGE` / `SET_STORAGE` - Generic storage access for CSP compliance (v0.0.12)
+- `GET_STORAGE` / `SET_STORAGE` - Generic storage access for CSP compliance (v0.0.11)
 
 ## Performance Optimizations
 
@@ -352,7 +352,7 @@ When BulkCraft is integrated from its separate branch, it will add:
 - **Debounced operations** to reduce CPU usage
 - **LRU Cache** for keyword extraction (100 entries max)
 
-## Code Quality Improvements (v0.0.12 - Latest Fixes)
+## Code Quality Improvements (v0.0.11 - Latest Fixes)
 
 ### CSP Compliance Fixes
 - **Message Passing Pattern**: All chrome.storage calls now use service worker
