@@ -34,7 +34,8 @@ class SmartReplyContentScript {
   
   // Configurable cleanup interval
   private cleanupIntervalMs: number = 3000; // Default to 3 seconds
-  private cleanupIntervalId: ReturnType<typeof setTimeout> | null = null;
+  private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
+  private navigationTimerId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Check if another instance already exists
@@ -194,6 +195,12 @@ class SmartReplyContentScript {
         console.log('%c  URL:', 'color: #657786', window.location.href);
         console.log('%c  Clearing processed toolbars...', 'color: #657786');
         
+        // Clear any pending navigation timers
+        if (this.navigationTimerId) {
+          clearTimeout(this.navigationTimerId);
+          this.navigationTimerId = null;
+        }
+        
         // Clear processed toolbars for the new page
         this.processedToolbars = new WeakSet<Element>();
         
@@ -201,13 +208,13 @@ class SmartReplyContentScript {
         this.initialRetryCount = 0;
         
         // Give the new page time to load - increased delay for Twitter's dynamic loading
-        setTimeout(() => {
+        this.navigationTimerId = setTimeout(() => {
           if (!this.isDestroyed) {
             console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
             this.attemptInitialInjection();
             
             // Also trigger a manual scan after a bit more delay
-            setTimeout(() => {
+            this.navigationTimerId = setTimeout(() => {
               if (!this.isDestroyed) {
                 this.manualToolbarScan();
               }
@@ -1788,6 +1795,12 @@ class SmartReplyContentScript {
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
       this.cleanupIntervalId = null;
+    }
+    
+    // Clear navigation timer
+    if (this.navigationTimerId) {
+      clearTimeout(this.navigationTimerId);
+      this.navigationTimerId = null;
     }
     
     // Disconnect observer

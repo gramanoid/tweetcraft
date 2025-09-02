@@ -15,7 +15,7 @@ export class OpenRouterService {
   private static readonly HEADERS = {
     'Content-Type': 'application/json',
     'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.6'
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
   };
   
   // Enhanced rate limiting and optimization
@@ -29,6 +29,7 @@ export class OpenRouterService {
   // Request deduplication - cache identical requests for 30 seconds
   private static requestCache = new Map<string, Promise<ReplyGenerationResponse>>();
   private static readonly REQUEST_CACHE_TTL = 30000; // 30 seconds
+  private static readonly REQUEST_CACHE_MAX_SIZE = 100; // Maximum cache entries to prevent memory leak
   
   // Intelligent batching - batch similar requests within 200ms
   private static batchQueue: Array<{
@@ -39,7 +40,7 @@ export class OpenRouterService {
     timestamp: number;
     signal?: AbortSignal;
   }> = [];
-  private static batchTimer: NodeJS.Timeout | null = null;
+  private static batchTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly BATCH_WINDOW = 200; // 200ms batching window
   
   // Performance metrics
@@ -70,6 +71,9 @@ export class OpenRouterService {
     downlink: 0, // Connection speed
     effectiveType: '4g' as '4g' | '3g' | '2g' | 'slow-2g'
   };
+  
+  // Cleanup interval ID for managed resource cleanup
+  private static cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
   // Initialize network monitoring (call once at startup)
   static {
@@ -131,6 +135,16 @@ export class OpenRouterService {
       
       // Cache the promise to prevent duplicate requests (unless bypassing cache)
       if (!bypassCache) {
+        // Check cache size limit to prevent memory leak
+        if (this.requestCache.size >= this.REQUEST_CACHE_MAX_SIZE) {
+          // Remove oldest entry (first in map)
+          const oldestKey = this.requestCache.keys().next().value;
+          if (oldestKey !== undefined) {
+            this.requestCache.delete(oldestKey);
+            console.log(`%c🧹 Request cache limit reached, removed oldest entry`, 'color: #FFA500');
+          }
+        }
+        
         this.requestCache.set(requestKey, requestPromise);
         
         // Clean up cache after TTL
@@ -707,8 +721,8 @@ export class OpenRouterService {
       }
     }
     
-    // Clean up old queued requests periodically
-    setInterval(() => this.cleanupQueuedRequests(), 60000); // Every minute
+    // Clean up old queued requests periodically with managed interval
+    this.cleanupIntervalId = setInterval(() => this.cleanupQueuedRequests(), 60000); // Every minute
     
     console.log('%c  ✅ Network monitoring initialized', 'color: #17BF63; font-weight: bold');
     console.log('%c  Initial status:', 'color: #657786', {
@@ -1001,5 +1015,31 @@ export class OpenRouterService {
       queuedRequestsCount: this.queuedRequests.length,
       adaptiveTimeout: this.getAdaptiveTimeout()
     };
+  }
+  
+  /**
+   * Cleanup static resources (intervals, timers, caches)
+   */
+  static cleanup(): void {
+    // Clear cleanup interval
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+      console.log('%c🧹 OpenRouterService: Cleanup interval cleared', 'color: #FFA500');
+    }
+    
+    // Clear batch timer if active
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    
+    // Clear request cache to free memory
+    this.requestCache.clear();
+    
+    // Clear queued requests
+    this.queuedRequests = [];
+    
+    console.log('%c✅ OpenRouterService: All resources cleaned up', 'color: #17BF63');
   }
 }

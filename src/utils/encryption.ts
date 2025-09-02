@@ -133,11 +133,15 @@ export class EncryptionService {
         if (salt) {
           return await this.decrypt(ciphertext, iv, salt);
         } else {
-          // Legacy format - migrate on next save
-          console.warn('Legacy encryption format detected, will migrate on next save');
-          // For legacy, use a fixed salt derived from the storage key
+          // Legacy format - migrate immediately to secure format
+          console.warn('Legacy encryption format detected, migrating to secure format...');
+          // For legacy, use a fixed salt for one-time decryption only
           const legacySalt = btoa('tweetcraft-v1-salt');
-          return await this.decrypt(ciphertext, iv, legacySalt);
+          const decryptedKey = await this.decrypt(ciphertext, iv, legacySalt);
+          // CRITICAL: Re-encrypt with new random salt immediately
+          await this.storeApiKey(decryptedKey, storageKey);
+          console.log('Successfully migrated API key to secure encryption format');
+          return decryptedKey;
         }
       }
       

@@ -549,11 +549,16 @@ export class DOMUtils {
     } catch (error) {
       console.error('Failed to set textarea value:', error);
       
-      // Fallback: Try the simpler innerHTML approach for contentEditable
+      // Fallback: Try the simpler approach for contentEditable with proper sanitization
       try {
         const innerDiv = textarea.querySelector('div');
         if (innerDiv) {
-          innerDiv.innerHTML = `<span data-text="true">${text}</span>`;
+          // Create span element safely without innerHTML to prevent XSS
+          const span = document.createElement('span');
+          span.setAttribute('data-text', 'true');
+          span.textContent = text; // Use textContent to prevent HTML injection
+          innerDiv.innerHTML = ''; // Clear existing content
+          innerDiv.appendChild(span);
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
       } catch (fallbackError) {
