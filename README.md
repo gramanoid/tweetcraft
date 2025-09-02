@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.11-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.12-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,16 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.11)**
+### ✅ **Currently Working (v0.0.12)**
+
+#### 🎯 Performance & Reliability Improvements (NEW)
+- **📊 Performance Monitoring** - Real-time memory leak detection, DOM health tracking, operation timing
+- **🛡️ Error Boundaries** - Comprehensive error handling with automatic recovery strategies
+- **⚡ Bundle Optimization** - Reduced from 274KB to 174KB (36% reduction) with lazy loading
+- **🔧 DOM Resilience** - Enhanced with 4+ fallback strategies and mutation observer recovery
+- **🚦 API Deduplication** - Centralized API service with request caching and batching
+- **✅ Test Coverage** - Jest testing framework with 29 passing tests
+- **🔄 CI/CD Pipeline** - GitHub Actions for automated testing, security scanning, and releases
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com

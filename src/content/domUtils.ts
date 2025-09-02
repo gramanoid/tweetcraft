@@ -1,5 +1,7 @@
 import { TwitterContext } from '@/types';
 import { URLCleaner } from '@/utils/urlCleaner';
+import { DOMResilience } from '@/utils/domResilience';
+import { logger } from '@/utils/logger';
 
 // Performance Optimization Suite: DOM Query Caching
 class DOMCache {
@@ -161,6 +163,47 @@ export class DOMUtils {
   // Track selector performance
   private static selectorStats = new Map<string, { primary: number; fallback: number; failed: number }>();
   private static lastReportTime = Date.now();
+  
+  /**
+   * Enhanced DOM finding with resilience system
+   * Use this for critical elements that must be found
+   */
+  static async findWithResilience(selectorType: keyof typeof SELECTOR_CHAINS, options: {
+    parent?: Element;
+    waitForElement?: boolean;
+    timeout?: number;
+  } = {}): Promise<Element | null> {
+    const chain = SELECTOR_CHAINS[selectorType];
+    
+    // Convert to DOMResilience strategies
+    const strategies = [
+      {
+        name: 'primary',
+        selector: chain.primary
+      },
+      ...chain.fallbacks.map((selector, index) => ({
+        name: `fallback-${index + 1}`,
+        selector
+      }))
+    ];
+    
+    // Use DOMResilience for robust querying
+    const element = await DOMResilience.queryWithFallbacks(strategies, {
+      parent: options.parent || document,
+      cache: !options.parent,
+      retries: 2,
+      waitForElement: options.waitForElement || false,
+      timeout: options.timeout || 3000
+    });
+    
+    if (element) {
+      logger.debug(`Found ${selectorType} using resilience system`);
+    } else {
+      logger.warn(`Failed to find ${selectorType} with resilience system`);
+    }
+    
+    return element;
+  }
 
   /**
    * Resilient selector finder with automatic fallback
@@ -252,7 +295,7 @@ export class DOMUtils {
     
     // Test each selector chain
     Object.keys(SELECTOR_CHAINS).forEach(selectorType => {
-      const chain = SELECTOR_CHAINS[selectorType as keyof typeof SELECTOR_CHAINS];
+      const chain = SELECTOR_CHAINS[selectorType];
       
       // Test primary
       let element = document.querySelector(chain.primary);
@@ -720,7 +763,7 @@ export class DOMUtils {
     button.classList.add('loading');
     
     // Try to find span element first
-    let span = button.querySelector('span');
+    const span = button.querySelector('span');
     if (span) {
       span.textContent = `${stage}...`;
     } else {

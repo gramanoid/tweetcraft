@@ -1925,7 +1925,7 @@ export class UnifiedSelector {
     // Create elements using DOM API to prevent XSS
     results.forEach(img => {
       // Validate URL protocol
-      let url = img.url;
+      const url = img.url;
       try {
         const urlObj = new URL(url);
         if (!['https:', 'http:', 'data:'].includes(urlObj.protocol)) {

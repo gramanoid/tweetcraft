@@ -29,6 +29,7 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
+    chunkFilename: '[name].chunk.js',
     path: path.resolve(__dirname, '../dist'),
     clean: true,
   },
@@ -44,12 +45,39 @@ module.exports = {
   ],
   optimization: {
     splitChunks: {
-      chunks: 'all',
+      chunks: 'async',
+      minSize: 20000,
+      minRemainingSize: 0,
+      minChunks: 1,
+      maxAsyncRequests: 30,
+      maxInitialRequests: 30,
+      enforceSizeThreshold: 50000,
       cacheGroups: {
         vendor: {
           test: /[\\/]node_modules[\\/]/,
           name: 'vendors',
-          chunks: 'all',
+          priority: 10,
+          reuseExistingChunk: true,
+        },
+        arsenal: {
+          test: /[\\/]src[\\/]services[\\/]arsenalService/,
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+        imageService: {
+          test: /[\\/]src[\\/]services[\\/]imageService/,
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+        unifiedSelector: {
+          test: /[\\/]src[\\/]content[\\/]unifiedSelector/,
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+        templateSuggester: {
+          test: /[\\/]src[\\/]services[\\/]templateSuggester/,
+          priority: 20,
+          reuseExistingChunk: true,
         },
       },
     },

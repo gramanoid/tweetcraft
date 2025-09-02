@@ -8,21 +8,29 @@ import { globalAsyncManager } from '@/utils/asyncOperationManager';
 import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
 import { selectorAdapter } from './selectorAdapter';
 import { visualFeedback } from '@/ui/visualFeedback';
-import { templateSuggester } from '@/services/templateSuggester';
+// Immediate imports - core functionality
 import { TEMPLATES } from './presetTemplates';
 import { TONES } from './toneSelector';
-import { imageAttachment } from './imageAttachment';
-import { arsenalModeUI } from './arsenalMode';
 import { APP_VERSION } from '@/config/version';
 import { HypeFuryPlatform, HYPEFURY_SELECTORS } from '@/platforms/hypefury';
 import { ProgressiveEnhancement } from '@/utils/progressiveEnhancement';
 import { ContextRecovery } from '@/utils/contextRecovery';
 import { ContextExtractor, TweetContext } from '@/utils/contextExtractor';
-import { visionService, VisionService } from '@/services/visionService';
+import { PerformanceMonitor } from '@/utils/performanceMonitor';
+import { ErrorBoundary, withErrorBoundary } from '@/utils/errorBoundary';
+
+// Lazy loaded imports - heavy features
+import { LazyLoader } from '@/services/lazyLoader';
+const templateSuggester: any = null;
+const imageAttachment: any = null;
+let arsenalModeUI: any = null;
+let visionService: any = null;
 import './contentScript.scss';
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
+  private observerReconnectTimer: NodeJS.Timeout | null = null;
+  private observerDisconnectCount = 0;
   private processedToolbars = new WeakSet<Element>();
   private port: chrome.runtime.Port | null = null;
   private static readonly VERSION = APP_VERSION;
@@ -57,22 +65,36 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
     
-    // Initialize Arsenal Mode UI (ensures event listeners are set up)
-    if (arsenalModeUI) {
-      console.log('%c⚔️ Arsenal Mode initialized', 'color: #1DA1F2');
+    // Lazy load Arsenal Mode UI when needed
+    if (!arsenalModeUI) {
+      LazyLoader.loadArsenalService().then(service => {
+        arsenalModeUI = service;
+        console.log('%c⚔️ Arsenal Mode lazy loaded', 'color: #1DA1F2');
+      }).catch(err => {
+        console.warn('Failed to load Arsenal Mode:', err);
+      });
     }
     
-    // Initialize vision service first
-    try {
-      await visionService.initialize();
-      console.log('%c👁️ Vision service initialized', 'color: #794BC4');
-    } catch (error) {
-      console.warn('Failed to initialize vision service:', error);
+    // Lazy load vision service when needed
+    if (!visionService) {
+      import('@/services/visionService').then(module => {
+        visionService = module.visionService;
+        visionService.initialize();
+        console.log('%c👁️ Vision service lazy loaded', 'color: #794BC4');
+      }).catch(error => {
+        console.warn('Failed to load vision service:', error);
+      });
     }
     
     // Initialize Progressive Enhancement System
     const capabilities = await ProgressiveEnhancement.init();
     console.log('%c🔍 Progressive Enhancement initialized', 'color: #9146FF; font-weight: bold', capabilities);
+    
+    // Initialize error boundary
+    ErrorBoundary.initialize();
+    
+    // Start performance monitoring
+    PerformanceMonitor.start();
     
     // Initialize Context Recovery System
     ContextRecovery.init({
@@ -374,6 +396,46 @@ class SmartReplyContentScript {
   private maxInitialRetries = 10;
   private initialRetryDelay = 500;
 
+  /**
+   * Recover mutation observer if it gets disconnected
+   */
+  private recoverMutationObserver(): void {
+    if (this.isDestroyed) return;
+    
+    this.observerDisconnectCount++;
+    
+    // If observer disconnected too many times, something is wrong
+    if (this.observerDisconnectCount > 5) {
+      console.error('Mutation observer disconnected too many times, stopping recovery');
+      return;
+    }
+    
+    console.log(`%c🔄 Recovering mutation observer (attempt ${this.observerDisconnectCount})`, 'color: #FFA500');
+    
+    // Clear existing timer
+    if (this.observerReconnectTimer) {
+      clearTimeout(this.observerReconnectTimer);
+    }
+    
+    // Reconnect with exponential backoff
+    const delay = Math.min(1000 * Math.pow(2, this.observerDisconnectCount - 1), 10000);
+    
+    this.observerReconnectTimer = setTimeout(() => {
+      if (this.isDestroyed) return;
+      
+      // Restart observation
+      this.startObserving();
+      
+      // Reset count after successful reconnection
+      setTimeout(() => {
+        if (this.observer) {
+          this.observerDisconnectCount = 0;
+          console.log('%c✅ Mutation observer recovered successfully', 'color: #17BF63');
+        }
+      }, 1000);
+    }, delay);
+  }
+
   private startObserving(): void {
     // Handle HypeFury differently
     if (HypeFuryPlatform.isHypeFury()) {
@@ -557,7 +619,7 @@ class SmartReplyContentScript {
     
     // Filter to only include textareas that are visible and likely for replies
     const replyTextareas = Array.from(allTextareas).filter(textarea => {
-      const elem = textarea as HTMLTextAreaElement;
+      const elem = textarea;
       
       // Log details for debugging
       const placeholder = elem.placeholder || '';
@@ -589,7 +651,7 @@ class SmartReplyContentScript {
       // Log first few textareas for debugging
       allTextareas.forEach((ta, i) => {
         if (i < 3) {
-          const elem = ta as HTMLTextAreaElement;
+          const elem = ta;
           console.log(`  Textarea ${i}: placeholder="${elem.placeholder}", height=${elem.offsetHeight}, width=${elem.offsetWidth}`);
         }
       });
@@ -1066,8 +1128,9 @@ class SmartReplyContentScript {
       // const imageButton = null; // imageAttachment.createButton(textarea, '');
       
       // Set callback for when image is selected (keeping for potential future use)
-      imageAttachment.onSelect((image) => {
-        if (image) {
+      if (imageAttachment) {
+        imageAttachment.onSelect((image: any) => {
+          if (image) {
           console.log('%c🖼️ IMAGE SELECTED', 'color: #9146FF; font-weight: bold; font-size: 14px');
           console.log('%c  URL:', 'color: #657786', image.url);
           console.log('%c  Alt:', 'color: #657786', image.alt);
@@ -1086,8 +1149,9 @@ class SmartReplyContentScript {
             indicator.textContent = '🖼️';
             button.appendChild(indicator);
           }
-        }
-      });
+          }
+        });
+      }
       
       // Create Arsenal Mode button
       const arsenalButton = this.createArsenalButton(textarea);
@@ -1414,13 +1478,13 @@ class SmartReplyContentScript {
     }, 100);
   }
 
-  private async generateReply(
+  private generateReply = withErrorBoundary(async (
     textarea: HTMLElement, 
     context: { tweetId?: string; tweetText: string; threadContext?: string[]; authorHandle?: string }, 
     tone?: string,
     bypassCache: boolean = false,
     isRewriteMode: boolean = false
-  ): Promise<void> {
+  ): Promise<void> => {
     // Save state before generating
     ContextRecovery.saveState({
       timestamp: Date.now(),
@@ -1447,7 +1511,7 @@ class SmartReplyContentScript {
       // Re-throw other errors to be handled by the UI
       throw error;
     }
-  }
+  }, 'contentScript', 'generateReply');
 
   private async performReplyGeneration(
     textarea: HTMLElement, 
@@ -1457,6 +1521,7 @@ class SmartReplyContentScript {
     _bypassCache: boolean = false,
     isRewriteMode: boolean = false
   ): Promise<void> {
+    const startTime = performance.now();
     // Find the button to show loading state
     // Check if we're on HypeFury to use the correct class name
     const isHypeFury = window.location.hostname === 'app.hypefury.com';
@@ -1593,11 +1658,13 @@ class SmartReplyContentScript {
             
             if (needsVision && imageUrls.length > 0) {
               // Analyze images with vision service
-              const visionResult = await visionService.analyzeImages(imageUrls, context.tweetText);
+              const visionResult = visionService ? await visionService.analyzeImages(imageUrls, context.tweetText) : null;
               
-              if (visionResult.success) {
+              if (visionResult && visionResult.success) {
                 // Format the vision context for inclusion in prompt
-                visualContext = VisionService.formatVisionContext(visionResult);
+                // Use the loaded visionService module
+                visualContext = visionService && visionService.formatVisionContext ? 
+                  visionService.formatVisionContext(visionResult) : '';
                 console.log('%c✅ Visual context added to prompt', 'color: #17BF63');
               } else {
                 console.warn('Vision analysis failed:', visionResult.error);
@@ -1711,6 +1778,9 @@ class SmartReplyContentScript {
         
         // Store the listener for cleanup
         textarea.setAttribute('data-smart-reply-listener', 'true');
+        
+        // Measure performance
+        PerformanceMonitor.measureTiming('generateReply', startTime);
       } else {
         // Hide loading and show error
         visualFeedback.hideLoading();
@@ -1814,6 +1884,9 @@ class SmartReplyContentScript {
     
     // Cleanup Context Recovery
     ContextRecovery.destroy();
+    
+    // Stop performance monitoring
+    PerformanceMonitor.stop();
     
     // Disconnect port
     if (this.port) {

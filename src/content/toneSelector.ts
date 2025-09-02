@@ -565,23 +565,23 @@ export class ToneSelector {
    * Handle keyboard navigation
    */
   private handleKeyboardNavigation(e: KeyboardEvent): void {
-    const toneButtons = Array.from(this.container?.querySelectorAll('.tone-btn') || []) as HTMLElement[];
+    const toneButtons = Array.from(this.container?.querySelectorAll('.tone-btn') || []);
     const currentIndex = toneButtons.findIndex(btn => btn.classList.contains('active'));
     
     switch (e.key) {
       case 'ArrowRight': {
         e.preventDefault();
         const nextIndex = (currentIndex + 1) % toneButtons.length;
-        toneButtons[nextIndex]?.click();
-        toneButtons[nextIndex]?.focus();
+        (toneButtons[nextIndex] as HTMLElement)?.click();
+        (toneButtons[nextIndex] as HTMLElement)?.focus();
         break;
       }
         
       case 'ArrowLeft': {
         e.preventDefault();
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : toneButtons.length - 1;
-        toneButtons[prevIndex]?.click();
-        toneButtons[prevIndex]?.focus();
+        (toneButtons[prevIndex] as HTMLElement)?.click();
+        (toneButtons[prevIndex] as HTMLElement)?.focus();
         break;
       }
         

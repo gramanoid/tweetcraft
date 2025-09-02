@@ -1,4 +1,5 @@
 import { StorageService } from '@/services/storage';
+import { UnifiedApiService } from '@/services/unifiedApiService';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
@@ -320,65 +321,27 @@ class SmartReplyServiceWorker {
           break;
 
         case 'FETCH_MODELS': {
-          // Fetch available models using shared utility
-          const fetchApiKey = message.apiKey;
+          // Fetch models directly (no deduplication needed for this)
+          const fetchApiKey = message.apiKey || await StorageService.getApiKey();
           if (!fetchApiKey) {
             sendResponse({ success: false, error: 'No API key provided' });
             break;
           }
           
+          // Use the existing fetchFromOpenRouter method
           this.fetchFromOpenRouter('models', fetchApiKey)
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-              }
-              return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
               console.log(`%c📋 Fetched ${data.data?.length || 0} models`, 'color: #1DA1F2');
-            if (data.data && Array.isArray(data.data)) {
-              // Sort and prioritize popular models
-              const priorityModels = [
-                'openai/gpt-4o',
-                'openai/gpt-4o-mini', 
-                'anthropic/claude-3.5-sonnet',
-                'anthropic/claude-3-opus',
-                'google/gemini-pro-1.5',
-                'meta-llama/llama-3.1-70b-instruct'
-              ];
-              
-              const models = data.data
-                .filter((model: any) => model.id && model.name)
-                .map((model: any) => ({
-                  id: model.id,
-                  name: model.name,
-                  context_length: model.context_length || 'N/A',
-                  pricing: {
-                    prompt: model.pricing?.prompt || 0,
-                    completion: model.pricing?.completion || 0
-                  }
-                }))
-                .sort((a: any, b: any) => {
-                  const aIndex = priorityModels.indexOf(a.id);
-                  const bIndex = priorityModels.indexOf(b.id);
-                  if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                  if (aIndex !== -1) return -1;
-                  if (bIndex !== -1) return 1;
-                  return a.name.localeCompare(b.name);
-                });
-              
-              sendResponse({ success: true, models });
-            } else {
-              sendResponse({ success: false, error: 'Invalid response from OpenRouter' });
-            }
-          })
-          .catch(error => {
-            console.error('TweetCraft: Failed to fetch models:', error);
-            sendResponse({ 
-              success: false, 
-              error: 'Network error: Could not fetch models from OpenRouter' 
+              sendResponse({ success: true, models: data.data || [] });
+            })
+            .catch(error => {
+              console.error('TweetCraft: Failed to fetch models:', error);
+              sendResponse({ 
+                success: false, 
+                error: 'Network error: Could not fetch models from OpenRouter' 
+              });
             });
-          });
           break;
         }
 
@@ -544,7 +507,34 @@ class SmartReplyServiceWorker {
       });
       console.log('%c  Reply Length Preset:', 'color: #657786', request.replyLength || 'auto');
 
+      // Use UnifiedApiService for deduplication
       const startTime = Date.now();
+      
+      // Generate reply using unified service
+      const replyText = await UnifiedApiService.generateReply({
+        context: messages[1].content,
+        tone: request.tone || 'balanced',
+        template: request.template,
+        customPrompt: systemPrompt,
+        model: request.model || config.model || 'openai/gpt-4o',
+        temperature
+      });
+      
+      const endTime = Date.now();
+      
+      console.log('%c✅ REPLY GENERATED', 'color: #17BF63; font-weight: bold');
+      console.log('%c  Response Time:', 'color: #657786', `${endTime - startTime}ms`);
+      console.log('%c  Reply:', 'color: #1DA1F2', replyText);
+      
+      sendResponse({
+        success: true,
+        reply: replyText
+      });
+      
+      return;
+      
+      // Original direct API call (now replaced by UnifiedApiService)
+      /*
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -615,6 +605,7 @@ class SmartReplyServiceWorker {
         success: true,
         reply: cleanedReply
       });
+      */
 
     } catch (error: any) {
       console.error('%c💥 EXCEPTION IN SERVICE WORKER', 'color: #DC3545; font-weight: bold; font-size: 14px');

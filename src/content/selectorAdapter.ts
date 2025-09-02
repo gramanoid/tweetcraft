@@ -4,9 +4,9 @@
  */
 
 import { TemplateSelector } from './templateSelector';
-import { UnifiedSelector } from './unifiedSelector';
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
+import { LazyLoader } from '@/services/lazyLoader';
 
 // Use PresetTemplate for both preset and custom templates
 type CustomTemplate = PresetTemplate;
@@ -14,16 +14,34 @@ type CustomTemplate = PresetTemplate;
 export class SelectorAdapter {
   private useUnifiedSelector: boolean;
   private templateSelector: TemplateSelector | null = null;
-  private unifiedSelector: UnifiedSelector | null = null;
+  private unifiedSelector: any = null;
+  private unifiedSelectorModule: any = null;
   
   constructor() {
     // Check feature flag from storage or default to unified
     this.useUnifiedSelector = this.checkFeatureFlag();
     
     if (this.useUnifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
+      // Lazy load unified selector when needed
+      this.loadUnifiedSelector();
     } else {
       this.templateSelector = new TemplateSelector();
+    }
+  }
+  
+  /**
+   * Lazy load the unified selector
+   */
+  private async loadUnifiedSelector(): Promise<void> {
+    if (!this.unifiedSelectorModule) {
+      try {
+        this.unifiedSelectorModule = await LazyLoader.loadUnifiedSelector();
+        this.unifiedSelector = new this.unifiedSelectorModule.UnifiedSelector();
+      } catch (error) {
+        console.warn('Failed to load unified selector, falling back to template selector:', error);
+        this.useUnifiedSelector = false;
+        this.templateSelector = new TemplateSelector();
+      }
     }
   }
   
@@ -41,33 +59,38 @@ export class SelectorAdapter {
   /**
    * Show the selector (unified or traditional)
    */
-  show(
+  async show(
     button: HTMLElement,
-    callback: (template: PresetTemplate | CustomTemplate, tone: ToneOption) => void
-  ): void {
-    if (this.useUnifiedSelector && this.unifiedSelector) {
-      // Use unified selector
-      this.unifiedSelector.show(button, (result) => {
-        // Convert unified result to traditional format
-        const template: PresetTemplate = {
-          id: result.template.id,
-          name: result.template.name,
-          emoji: result.template.emoji,
-          prompt: result.template.prompt,
-          category: result.template.category,
-          description: result.template.description || ''
-        };
-        
-        const tone: ToneOption = {
-          id: result.tone.id,
-          emoji: result.tone.emoji,
-          label: result.tone.label,
-          description: result.tone.description,
-          systemPrompt: result.tone.systemPrompt
-        };
-        
-        callback(template, tone);
-      });
+    callback: (template: PresetTemplate  , tone: ToneOption) => void
+  ): Promise<void> {
+    if (this.useUnifiedSelector) {
+      // Ensure unified selector is loaded
+      await this.loadUnifiedSelector();
+      
+      if (this.unifiedSelector) {
+        // Use unified selector
+        this.unifiedSelector.show(button, (result: any) => {
+          // Convert unified result to traditional format
+          const template: PresetTemplate = {
+            id: result.template.id,
+            name: result.template.name,
+            emoji: result.template.emoji,
+            prompt: result.template.prompt,
+            category: result.template.category,
+            description: result.template.description || ''
+          };
+          
+          const tone: ToneOption = {
+            id: result.tone.id,
+            emoji: result.tone.emoji,
+            label: result.tone.label,
+            description: result.tone.description,
+            systemPrompt: result.tone.systemPrompt
+          };
+          
+          callback(template, tone);
+        });
+      }
     } else if (this.templateSelector) {
       // Use traditional two-popup flow
       this.templateSelector.show(button, callback);
@@ -88,7 +111,7 @@ export class SelectorAdapter {
   /**
    * Enable unified selector
    */
-  enableUnifiedSelector(): void {
+  async enableUnifiedSelector(): Promise<void> {
     localStorage.setItem('tweetcraft_unified_selector', 'true');
     this.useUnifiedSelector = true;
     
@@ -97,10 +120,8 @@ export class SelectorAdapter {
       this.templateSelector = null;
     }
     
-    // Initialize unified selector
-    if (!this.unifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
-    }
+    // Load unified selector if not already loaded
+    await this.loadUnifiedSelector();
   }
   
   /**

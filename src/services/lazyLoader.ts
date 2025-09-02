@@ -1,8 +1,10 @@
 /**
  * Lazy Loading Service for TweetCraft
  * Efficient loading of templates and resources on demand
+ * Implements code splitting for bundle size optimization
  */
 
+import { logger } from '@/utils/logger';
 import { Template, Tone } from '@/config/templatesAndTones';
 import { configManager } from '@/config/configurationManager';
 
@@ -18,6 +20,10 @@ interface LoadingState {
   totalChunks: number;
   loadedItems: Set<string>;
 }
+
+// Cache for dynamically loaded modules
+const moduleCache = new Map<string, any>();
+const loadingPromises = new Map<string, Promise<any>>();
 
 export class LazyLoader {
   private config: LoaderConfig = {
@@ -38,7 +44,7 @@ export class LazyLoader {
 
   constructor() {
     this.initializeObserver();
-    console.log('%c⚡ LazyLoader initialized', 'color: #1DA1F2; font-weight: bold');
+    logger.log('⚡ LazyLoader initialized');
   }
 
   /**
@@ -72,7 +78,7 @@ export class LazyLoader {
     container: HTMLElement,
     renderCallback: (templates: Template[]) => void
   ): Promise<void> {
-    console.log('%c⚡ Loading templates lazily', 'color: #1DA1F2', `${templates.length} total`);
+    logger.log('⚡ Loading templates lazily', `${templates.length} total`);
     
     this.loadingState.isLoading = true;
     this.loadingState.totalChunks = Math.ceil(templates.length / this.config.chunkSize);
@@ -96,7 +102,7 @@ export class LazyLoader {
     }
 
     this.loadingState.isLoading = false;
-    console.log('%c⚡ All templates loaded', 'color: #17BF63');
+    logger.log('⚡ All templates loaded');
   }
 
   /**
@@ -107,7 +113,7 @@ export class LazyLoader {
     container: HTMLElement,
     renderCallback: (tones: Tone[]) => void
   ): Promise<void> {
-    console.log('%c⚡ Loading tones lazily', 'color: #1DA1F2', `${tones.length} total`);
+    logger.log('⚡ Loading tones lazily', `${tones.length} total`);
 
     // Tones are usually fewer, load in 2 chunks
     const midPoint = Math.ceil(tones.length / 2);
@@ -151,7 +157,7 @@ export class LazyLoader {
         this.markAsLoaded(chunk.map(item => item.id));
         this.loadingState.loadedChunks.add(chunkIndex);
         
-        console.log(`%c⚡ Loaded chunk ${chunkIndex + 1}/${this.loadingState.totalChunks}`, 'color: #657786');
+        logger.debug(`⚡ Loaded chunk ${chunkIndex + 1}/${this.loadingState.totalChunks}`);
         resolve();
       };
 
@@ -226,7 +232,7 @@ export class LazyLoader {
     const itemId = element.dataset.lazyId;
     if (!itemId || this.isLoaded(itemId)) return;
 
-    console.log('%c⚡ Loading element', 'color: #1DA1F2', itemId);
+    logger.debug('⚡ Loading element', itemId);
 
     // Add loading state
     element.classList.add('loading');
@@ -250,7 +256,7 @@ export class LazyLoader {
    * Preload items based on user behavior
    */
   async preloadBasedOnBehavior(favoriteIds: string[]): Promise<void> {
-    console.log('%c⚡ Preloading favorites', 'color: #1DA1F2', favoriteIds.length);
+    logger.log('⚡ Preloading favorites', favoriteIds.length);
     
     this.config.priorityItems = favoriteIds;
     
@@ -273,7 +279,7 @@ export class LazyLoader {
     }
     
     this.loadingState.isLoading = false;
-    console.log('%c⚡ Cancelled pending loads', 'color: #FFA500');
+    logger.log('⚡ Cancelled pending loads');
   }
 
   /**
@@ -297,7 +303,140 @@ export class LazyLoader {
     this.loadingState.loadedItems.clear();
     this.loadingState.loadedChunks.clear();
     
-    console.log('%c⚡ LazyLoader destroyed', 'color: #FFA500');
+    logger.log('⚡ LazyLoader destroyed');
+  }
+
+  /**
+   * Dynamically load Arsenal Service
+   */
+  static async loadArsenalService() {
+    const key = 'arsenalService';
+    
+    if (moduleCache.has(key)) {
+      return moduleCache.get(key);
+    }
+
+    if (loadingPromises.has(key)) {
+      return loadingPromises.get(key);
+    }
+
+    const loadPromise = import(
+      /* webpackChunkName: "arsenal" */
+      /* webpackMode: "lazy" */
+      '@/services/arsenalService'
+    ).then(module => {
+      const service = new module.ArsenalService();
+      moduleCache.set(key, service);
+      loadingPromises.delete(key);
+      logger.log('Arsenal Service loaded dynamically');
+      return service;
+    }).catch(error => {
+      logger.error('Failed to load Arsenal Service:', error);
+      loadingPromises.delete(key);
+      throw error;
+    });
+
+    loadingPromises.set(key, loadPromise);
+    return loadPromise;
+  }
+
+  /**
+   * Dynamically load Image Service
+   */
+  static async loadImageService() {
+    const key = 'imageService';
+    
+    if (moduleCache.has(key)) {
+      return moduleCache.get(key);
+    }
+
+    if (loadingPromises.has(key)) {
+      return loadingPromises.get(key);
+    }
+
+    const loadPromise = import(
+      /* webpackChunkName: "image" */
+      /* webpackMode: "lazy" */
+      '@/services/imageService'
+    ).then(module => {
+      moduleCache.set(key, module);
+      loadingPromises.delete(key);
+      logger.log('Image Service loaded dynamically');
+      return module;
+    }).catch(error => {
+      logger.error('Failed to load Image Service:', error);
+      loadingPromises.delete(key);
+      throw error;
+    });
+
+    loadingPromises.set(key, loadPromise);
+    return loadPromise;
+  }
+
+  /**
+   * Dynamically load Template Suggester
+   */
+  static async loadTemplateSuggester() {
+    const key = 'templateSuggester';
+    
+    if (moduleCache.has(key)) {
+      return moduleCache.get(key);
+    }
+
+    if (loadingPromises.has(key)) {
+      return loadingPromises.get(key);
+    }
+
+    const loadPromise = import(
+      /* webpackChunkName: "suggester" */
+      /* webpackMode: "lazy" */
+      '@/services/templateSuggester'
+    ).then(module => {
+      moduleCache.set(key, module.templateSuggester);
+      loadingPromises.delete(key);
+      logger.log('Template Suggester loaded dynamically');
+      return module.templateSuggester;
+    }).catch(error => {
+      logger.error('Failed to load Template Suggester:', error);
+      loadingPromises.delete(key);
+      throw error;
+    });
+
+    loadingPromises.set(key, loadPromise);
+    return loadPromise;
+  }
+
+  /**
+   * Dynamically load Unified Selector
+   */
+  static async loadUnifiedSelector() {
+    const key = 'unifiedSelector';
+    
+    if (moduleCache.has(key)) {
+      return moduleCache.get(key);
+    }
+
+    if (loadingPromises.has(key)) {
+      return loadingPromises.get(key);
+    }
+
+    const loadPromise = import(
+      /* webpackChunkName: "selector" */
+      /* webpackMode: "lazy" */
+      '@/content/unifiedSelector'
+    ).then(module => {
+      moduleCache.set(key, module);
+      loadingPromises.delete(key);
+      logger.log('Unified Selector loaded dynamically');
+      return module;
+    }).catch(error => {
+      logger.error('Failed to load Unified Selector:', error);
+      loadingPromises.delete(key);
+      throw error;
+    });
+
+    loadingPromises.set(key, loadPromise);
+    return loadPromise;
   }
 }
 

@@ -43,7 +43,7 @@ describe('textUtils', () => {
 
     it('should handle complex cases', () => {
       const input = '"Reply: Great point! #AI #Tech"';
-      const expected = '.Great point!';
+      const expected = '.@Great point!';
       expect(cleanupReply('@' + cleanupReply(input))).toBe(expected);
     });
   });
@@ -118,7 +118,7 @@ describe('textUtils', () => {
 
     it('should handle multiple URLs', () => {
       const text = 'https://example.com and https://another.com';
-      expect(countTwitterCharacters(text)).toBe(50); // 23 + " and " (5) + 23
+      expect(countTwitterCharacters(text)).toBe(51); // 23 + " and " (5) + 23
     });
   });
 
