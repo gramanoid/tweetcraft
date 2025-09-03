@@ -47,10 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement | null;
   
   
-  // Image understanding elements with null checks
-  const imageUnderstandingCheckbox = document.getElementById('image-understanding') as HTMLInputElement | null;
-  const visionSettingsDiv = document.getElementById('vision-settings') as HTMLDivElement | null;
-  const visionModelSelect = document.getElementById('vision-model') as HTMLSelectElement | null;
   
   // Early return if critical elements are missing
   if (!modelSelect || !systemPromptInput) {
@@ -152,33 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Loaded config:', config);
     }
     
-    // Load image understanding features - default to enabled
-    if (imageUnderstandingCheckbox) {
-      // Default to true if no features config exists
-      const imageEnabled = result.features?.imageUnderstanding?.enabled !== false; // Default to true
-      imageUnderstandingCheckbox.checked = imageEnabled;
-      
-      // Show/hide vision settings based on checkbox
-      if (visionSettingsDiv) {
-        visionSettingsDiv.style.display = imageUnderstandingCheckbox.checked ? 'block' : 'none';
-        imageUnderstandingCheckbox.setAttribute('aria-expanded', imageUnderstandingCheckbox.checked ? 'true' : 'false');
-      }
-      
-      // Set vision model if available
-      if (visionModelSelect && result.features?.imageUnderstanding?.model) {
-        visionModelSelect.value = result.features.imageUnderstanding.model;
-      }
-    }
   });
   
-  // Handle image understanding checkbox toggle
-  if (imageUnderstandingCheckbox && visionSettingsDiv) {
-    imageUnderstandingCheckbox.addEventListener('change', () => {
-      const isChecked = imageUnderstandingCheckbox.checked;
-      visionSettingsDiv.style.display = isChecked ? 'block' : 'none';
-      imageUnderstandingCheckbox.setAttribute('aria-expanded', isChecked ? 'true' : 'false');
-    });
-  }
   
   // Handle temperature slider
   if (temperatureInput) {
@@ -235,9 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const temperature = parseFloat(temperatureInput?.value || '0.7');
       const replyLengthDefault = replyLengthSelect?.value || '';
       
-      // Get image understanding settings
-      const imageUnderstandingEnabled = imageUnderstandingCheckbox?.checked || false;
-      const visionModel = visionModelSelect?.value || 'gemini-pro-vision';
         
         // Get existing config to preserve custom tones with error handling
         const existingConfig = await new Promise<{ config: StorageConfig; features: Features }>((resolve, reject) => {
@@ -264,12 +232,12 @@ document.addEventListener('DOMContentLoaded', () => {
           replyLengthDefault: replyLengthDefault || undefined
         };
         
-        // Save features settings
+        // Save features settings with image understanding enabled by default
         const features: Features = {
           ...existingConfig.features,
           imageUnderstanding: {
-            enabled: imageUnderstandingEnabled,
-            model: visionModel,
+            enabled: true, // Always enabled by default
+            model: 'gemini-pro-vision', // Default model
             maxImagesPerRequest: MAX_IMAGES_PER_REQUEST
           }
         };
