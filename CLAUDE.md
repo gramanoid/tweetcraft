@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), **enhanced AI suggestions with descriptive scoring**, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), **10 quick personas with compact grid layout**, custom templates with separate Style/Tone prompts, **Smart Defaults & Quick Generate system**, collapsible UX, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts with Space bar quick generation, **usage-based persona sorting**, **enhanced pattern recognition**, advanced network resilience, race condition prevention, multi-stage loading states, **comprehensive anti-meta-commentary AI restrictions**, **unified visual feedback system**, and **perfect cross-category consistency**. Current version: 0.0.15
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), **strategic prompt architecture with centralized construction**, **enhanced AI suggestions with descriptive scoring**, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), **10 quick personas with compact grid layout**, custom templates with separate Style/Tone prompts and **temperature control**, **Smart Defaults & Quick Generate system**, collapsible UX, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts with Space bar quick generation, **usage-based persona sorting**, **enhanced pattern recognition**, advanced network resilience, race condition prevention, multi-stage loading states, **comprehensive anti-meta-commentary AI restrictions**, **unified visual feedback system**, and **perfect cross-category consistency**. Current version: 0.0.16
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -36,10 +36,11 @@ Located in `bulkcraft/` directory with its own npm package structure (v0.1.0).
 ## Current Development State
 
 The repository is currently in active development with several modified files:
-- Modified files: CLAUDE.md, TODO.md, public/popup.html, src/popup/popup-simple.ts, src/types/messages.ts, src/background/serviceWorker.ts, src/services/visionService.ts, src/services/templateSuggester.ts, .env
+- Modified files: CLAUDE.md, TODO.md, src/content/contentScript.ts, src/content/unifiedSelector.ts, src/services/openRouter.ts
+- New files: src/services/promptArchitecture.ts (Strategic prompt construction), docs/PROMPT_ARCHITECTURE.md (Architecture documentation)
 - New untracked files: src/services/smartDefaults.ts (Smart Defaults system)
 - Git branch: feature/custom-tab-ux-improvements (use for PRs)
-- Version: 0.0.15 (with latest major improvements: **Streamlined extension popup**, **LLM-first Smart tab**, **comprehensive usage analytics**, **backend-only image understanding**, and **environment-based configuration**)
+- Version: 0.0.16 (with latest major improvements: **Strategic prompt architecture**, **Custom temperature controls**, **Centralized prompt construction**, **Tab-specific configurations**, and **Comprehensive validation**)
 
 **IMPORTANT**: The codebase contains a hardcoded OpenRouter API key in `src/config/apiConfig.ts`. This is for personal use only and should never be committed to public repositories.
 
@@ -100,20 +101,22 @@ Manual testing checklist:
 - **Content Script** (`src/content/contentScript.ts`) - Twitter DOM manipulation with singleton pattern to prevent multiple instances
 - **Popup** (`src/popup/popup-simple.ts`) - **Streamlined extension popup** with only 5 essential settings
 - **Storage** (`src/services/storage.ts`) - Chrome storage API wrapper for API keys and settings
-- **OpenRouter Service** (`src/services/openRouter.ts`) - AI model integration
+- **OpenRouter Service** (`src/services/openRouter.ts`) - AI model integration with prompt architecture
+- **Prompt Architecture** (`src/services/promptArchitecture.ts`) - **NEW**: Centralized strategic prompt construction for all tabs
 - **Platform Support** (`src/platforms/`) - Multi-platform compatibility (Twitter/X, HypeFury)
 
 ### Key Architectural Patterns
 1. **Singleton Content Script**: Uses `__smartReplyInstance` global to prevent duplicate instances
-2. **DOM Cache Utility**: Performance optimization with WeakMap-based caching for frequently accessed elements
-3. **Memory Management**: WeakSet for DOM references, comprehensive cleanup on navigation
-4. **Debounced Operations**: 100ms debounce for DOM mutations to reduce CPU usage
-5. **Template + Tone System**: Separate selection of reply structure (templates) and personality (tones)
-6. **Session Caching**: Reduces API calls by caching responses in session storage
-7. **Network Resilience**: Offline queuing, adaptive timeouts based on connection quality (3G/4G/5G aware)
-8. **Request Optimization**: Deduplication, intelligent batching, and performance metrics tracking
-9. **AsyncOperationManager**: Prevents race conditions with AbortController coordination
-10. **Multi-Platform Support**: Adapter pattern for Twitter/X and HypeFury integration
+2. **Strategic Prompt Architecture**: Centralized prompt construction with tab-specific configurations
+3. **DOM Cache Utility**: Performance optimization with WeakMap-based caching for frequently accessed elements
+4. **Memory Management**: WeakSet for DOM references, comprehensive cleanup on navigation
+5. **Debounced Operations**: 100ms debounce for DOM mutations to reduce CPU usage
+6. **Template + Tone System**: Separate selection of reply structure (templates) and personality (tones)
+7. **Session Caching**: Reduces API calls by caching responses in session storage
+8. **Network Resilience**: Offline queuing, adaptive timeouts based on connection quality (3G/4G/5G aware)
+9. **Request Optimization**: Deduplication, intelligent batching, and performance metrics tracking
+10. **AsyncOperationManager**: Prevents race conditions with AbortController coordination
+11. **Multi-Platform Support**: Adapter pattern for Twitter/X and HypeFury integration
 
 ### Build System (Webpack)
 - Configuration in `build/` directory with common/dev/prod configs
@@ -194,7 +197,7 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔄 RESET USAGE` - Usage counter reset operations
 - `🤖 LLM ANALYSIS` - AI-powered template suggestions and scoring
 
-## Current Features (v0.0.15 - Latest Update: Streamlined Extension Popup + LLM-First Smart Tab + Comprehensive Analytics)
+## Current Features (v0.0.15 - Latest Update: Complete Prompt Architecture + Streamlined Extension Popup + LLM-First Smart Tab)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -223,9 +226,10 @@ if (isHypeFury) {
 ```
 
 ### Core System Components
+- **Prompt Architecture** (`src/services/promptArchitecture.ts`) - **NEW**: Comprehensive prompt construction system for all tabs
 - **Arsenal Mode** (`src/services/arsenalService.ts`) - IndexedDB with 6 categories, usage tracking, favorites
-- **Smart Defaults System** (`src/services/smartDefaults.ts`) - **NEW**: Usage pattern learning and Quick Generate functionality
-- **Usage Tracker** (`src/services/usageTracker.ts`) - **NEW**: Comprehensive analytics and pattern recognition
+- **Smart Defaults System** (`src/services/smartDefaults.ts`) - Usage pattern learning and Quick Generate functionality
+- **Usage Tracker** (`src/services/usageTracker.ts`) - Comprehensive analytics and pattern recognition
 - **Keyboard Shortcuts System** (`src/utils/keyboardShortcuts.ts`) - Alt+1-9 for tones, Alt+Q/R/T/S/C/E for actions, Space for Quick Generate
 - **Loading State Manager** (`src/utils/loadingStateManager.ts`) - Multi-stage progress with animations and cancel support
 - **DOM Resilience System** (`src/utils/domCache.ts`) - 4+ fallback levels per selector with WeakMap caching
@@ -265,7 +269,8 @@ if (isHypeFury) {
   - Step 4: 6 length & pacing options (Drive-By, One-Two Punch, Mini-Thread, etc.)
 - **Custom Tab**: 
   - **Inline template creation** with collapsible form interface
-  - **Three-field system**: Style, Tone, and Length instructions (unlimited characters)
+  - **Four-field system**: Style, Tone, Length instructions, and **Temperature control**
+  - **Temperature slider**: Per-template creativity control (0.1 = focused, 1.0 = creative) that overrides system-wide setting
   - **Comprehensive template management**: Edit, delete, preview, and favorite saved templates
   - **Advanced features**: Import/export templates, bulk operations, template sharing
   - **Enhanced UI**: Template cards with preview snippets, action buttons, search functionality
@@ -313,6 +318,25 @@ if (isHypeFury) {
 - **Dark mode UI**: Matches Twitter/X interface
 - **Seamless flow**: Selections saved between popup opens
 
+### Strategic Prompt Architecture (NEW in v0.0.16)
+- **Prompt Architecture Service** (`src/services/promptArchitecture.ts`): 
+  - Centralized prompt construction for all 6 tabs
+  - Master system prompt for expert Twitter reply writing
+  - Tab-specific prompt configurations (Personas, All, Smart, Favorites, Image Gen, Custom)
+  - Temperature override mechanism for Custom templates
+  - Anti-disclosure instructions to prevent AI from revealing its nature
+  - Context mode support (none, single, thread) for different reply scenarios
+- **Comprehensive Documentation** (`docs/PROMPT_ARCHITECTURE.md`):
+  - Detailed prompt structure definition for each tab
+  - Temperature control hierarchy (System-wide default vs Custom override)
+  - Implementation examples and usage patterns
+- **Tab Configuration Mapping**:
+  - **PERSONAS**: System prompt + persona configuration + anti-disclosure
+  - **ALL**: System prompt + 4-part selection + anti-disclosure
+  - **SMART/FAVORITES**: Same structure as ALL tab
+  - **IMAGE GEN**: No prompts applied (functional only)
+  - **CUSTOM**: System prompt + style/tone/length + temperature override + anti-disclosure
+
 ### Smart Defaults & Quick Generate System (NEW in v0.0.15 - Issue #2 Resolution)
 - **Smart Defaults Service** (`src/services/smartDefaults.ts`): 
   - Tracks user selection patterns and usage frequency
@@ -349,6 +373,7 @@ if (isHypeFury) {
   - Key should be moved to environment variables or secure storage for production distribution
 
 ### Technical Features
+- **Strategic Prompt Architecture**: Centralized prompt construction with tab-specific configurations and temperature controls
 - **Thread Context Extraction**: Analyzes up to 4 tweets for context-aware replies
 - **LLM-First Smart Suggestions**: AI analysis drives template scoring with confidence scoring, reasoning chains, and comprehensive context analysis
 - **Image Understanding**: Fully functional vision analysis using OpenRouter vision models (default: Gemini Pro Vision) - **BACKEND-ONLY, ENABLED BY DEFAULT**
@@ -394,7 +419,19 @@ See [TODO.md](TODO.md) for the comprehensive UX/UI improvement plan including:
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.15 - Latest Session: Major Overhaul)
+### Recently Fixed (v0.0.16 - Strategic Prompt Architecture)
+- ✅ **Strategic Prompt Architecture Implementation** - Complete centralized prompt construction system with:
+  - Master system prompt for expert Twitter reply writing across all tabs
+  - Tab-specific prompt configurations for Personas, All, Smart, Favorites, and Custom
+  - Temperature override mechanism for Custom templates with UI slider
+  - Anti-disclosure instructions preventing AI from revealing its nature
+  - Context mode support (none, single, thread) for different scenarios
+  - Comprehensive logging for debugging prompt construction
+- ✅ **Custom Tab Temperature Control** - Added temperature slider (0.1-1.0) for per-template creativity control
+- ✅ **Prompt Architecture Integration** - Fully integrated into OpenRouter.ts with proper tab identification
+- ✅ **Documentation Updates** - Created comprehensive PROMPT_ARCHITECTURE.md with detailed structure definitions
+
+### Previously Fixed (v0.0.15 - Latest Session: Major Overhaul)
 - ✅ **Streamlined Extension Popup** - Simplified to only 5 essential settings: Model, System Prompt (Your Identity), Default Reply Length, Temperature, Context Mode
 - ✅ **Backend-Only Image Understanding** - Moved all image understanding configuration to backend (.env), always enabled by default, removed frontend toggles
 - ✅ **Environment-Based Configuration** - Added comprehensive .env file with API keys, model defaults, vision settings, and feature toggles
@@ -528,8 +565,9 @@ When BulkCraft is integrated from its separate branch, it will add:
 ### Key Files and Their Purpose
 - `src/content/contentScript.ts` - Main content script, singleton pattern, button injection
 - `src/content/domUtils.ts` - Twitter DOM manipulation, text insertion (DO NOT MODIFY insertion logic)
-- `src/content/unifiedSelector.ts` - **ENHANCED**: 6-tab unified AI interface with personas grid overhaul and AI suggestions improvements
-- `src/services/openRouter.ts` - **ENHANCED**: OpenRouter API integration with comprehensive logging and vision model support
+- `src/content/unifiedSelector.ts` - **ENHANCED**: 6-tab unified AI interface with personas grid overhaul, AI suggestions improvements, and Custom temperature control
+- `src/services/openRouter.ts` - **ENHANCED**: OpenRouter API integration with prompt architecture, comprehensive logging and vision model support
+- `src/services/promptArchitecture.ts` - **NEW**: Centralized strategic prompt construction for all tabs with temperature controls
 - `src/services/imageService.ts` - AI image generation and web search
 - `src/services/templateSuggester.ts` - **COMPLETELY TRANSFORMED**: LLM-first Smart suggestions with AI-driven scoring, confidence analysis, and reasoning chains
 - `src/services/visionService.ts` - **NEW**: Complete vision analysis pipeline with OpenRouter integration and detailed logging
@@ -540,7 +578,8 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `public/popup.html` - **SIMPLIFIED**: Clean popup interface with Model, System Prompt, Reply Length, Temperature, Context Mode
 - `.env` - **NEW**: Environment-based configuration with API keys, model defaults, vision settings, and feature toggles
 - `src/config/apiConfig.ts` - **CRITICAL**: Contains hardcoded OpenRouter API key
-- `src/config/templatesAndTones.ts` - Template and tone definitions (deprecated - see modular configs)
+- `src/config/templatesAndTones.ts` - Template and tone definitions with temperature field (deprecated - see modular configs)
+- `docs/PROMPT_ARCHITECTURE.md` - **NEW**: Comprehensive documentation of strategic prompt structure for all tabs
 - `src/config/personalities.ts` - 24 personality options for template system
 - `src/config/vocabulary.ts` - 11 vocabulary styles
 - `src/config/rhetoric.ts` - 15 rhetoric approaches

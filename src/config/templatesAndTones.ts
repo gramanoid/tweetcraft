@@ -21,6 +21,7 @@ export interface Template {
   stylePrompt?: string;
   tonePrompt?: string;
   lengthPrompt?: string;
+  temperature?: number; // Custom temperature override for templates
 }
 
 // Re-export from personalities file

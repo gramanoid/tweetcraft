@@ -940,6 +940,22 @@ export class UnifiedSelector {
                 rows="4"></textarea>
             </div>
             
+            <div class="form-group">
+              <label for="custom-temperature-field">Temperature: <span id="custom-temp-value">0.7</span></label>
+              <div class="field-description">Control creativity (0.1 = focused, 1.0 = creative)</div>
+              <input 
+                type="range" 
+                id="custom-temperature-field" 
+                min="0.1" 
+                max="1.0" 
+                step="0.1" 
+                value="0.7" />
+              <div class="temperature-labels">
+                <span style="float: left; font-size: 11px; color: #8899A6;">← Focused</span>
+                <span style="float: right; font-size: 11px; color: #8899A6;">Creative →</span>
+              </div>
+            </div>
+            
             <div class="form-group template-name-row">
               <label for="custom-name-field">Template Name</label>
               <div class="name-save-row">
@@ -984,6 +1000,10 @@ export class UnifiedSelector {
                     <div class="preview-field">
                       <strong>Length:</strong> <span class="preview-text">${this.truncateText(template.lengthPrompt || '', 60)}</span>
                     </div>
+                    ${template.temperature !== undefined ? `
+                    <div class="preview-field">
+                      <strong>Temperature:</strong> <span class="preview-text">${template.temperature}</span>
+                    </div>` : ''}
                   </div>
                 </div>
               `).join('')}
@@ -1185,6 +1205,15 @@ export class UnifiedSelector {
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
         this.handleSaveCustomTemplate();
+      });
+    }
+
+    // Temperature slider event listener
+    const tempSlider = this.container.querySelector('#custom-temperature-field') as HTMLInputElement;
+    const tempValue = this.container.querySelector('#custom-temp-value');
+    if (tempSlider && tempValue) {
+      tempSlider.addEventListener('input', () => {
+        tempValue.textContent = tempSlider.value;
       });
     }
 
@@ -1868,6 +1897,18 @@ export class UnifiedSelector {
             <textarea id="custom-tone" rows="4" placeholder="Define the tone and personality (e.g., 'Be professional but approachable, use clear language, avoid jargon')"></textarea>
           </div>
           <div class="form-group">
+            <label>Length Instructions</label>
+            <textarea id="custom-length" rows="3" placeholder="Specify desired length and pacing (e.g., 'Keep concise - 1-2 sentences max')"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Temperature: <span id="modal-temp-value">0.7</span></label>
+            <input type="range" id="custom-temperature" min="0.1" max="1.0" step="0.1" value="0.7" />
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #8899A6;">
+              <span>← Focused</span>
+              <span>Creative →</span>
+            </div>
+          </div>
+          <div class="form-group">
             <label>Category</label>
             <select id="custom-category">
               <option value="custom">Custom</option>
@@ -2028,12 +2069,23 @@ export class UnifiedSelector {
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
     modal.querySelector('.btn-cancel')?.addEventListener('click', closeModal);
     
+    // Temperature slider event listener in modal
+    const modalTempSlider = modal.querySelector('#custom-temperature') as HTMLInputElement;
+    const modalTempValue = modal.querySelector('#modal-temp-value');
+    if (modalTempSlider && modalTempValue) {
+      modalTempSlider.addEventListener('input', () => {
+        modalTempValue.textContent = modalTempSlider.value;
+      });
+    }
+    
     modal.querySelector('.btn-save')?.addEventListener('click', async () => {
       const name = (modal.querySelector('#custom-name') as HTMLInputElement)?.value.trim();
       const emoji = (modal.querySelector('#custom-emoji') as HTMLInputElement)?.value.trim() || '✨';
       const description = (modal.querySelector('#custom-description') as HTMLInputElement)?.value.trim();
       const stylePrompt = (modal.querySelector('#custom-style') as HTMLTextAreaElement)?.value.trim();
       const tonePrompt = (modal.querySelector('#custom-tone') as HTMLTextAreaElement)?.value.trim();
+      const lengthPrompt = (modal.querySelector('#custom-length') as HTMLTextAreaElement)?.value.trim();
+      const temperature = parseFloat((modal.querySelector('#custom-temperature') as HTMLInputElement)?.value || '0.7');
       const category = (modal.querySelector('#custom-category') as HTMLSelectElement)?.value || 'custom';
       
       if (!name || !stylePrompt || !tonePrompt) {
@@ -2042,7 +2094,7 @@ export class UnifiedSelector {
       }
       
       // Combine the prompts
-      const combinedPrompt = `${stylePrompt}\n\n${tonePrompt}`;
+      const combinedPrompt = `${stylePrompt}\n\n${tonePrompt}${lengthPrompt ? `\n\n${lengthPrompt}` : ''}`;
       
       // Create custom template
       const customTemplate: Template = {
@@ -2051,7 +2103,11 @@ export class UnifiedSelector {
         emoji,
         description: description || `Custom template: ${name}`,
         prompt: combinedPrompt,
-        category: category as any
+        category: category as any,
+        stylePrompt,
+        tonePrompt,
+        lengthPrompt,
+        temperature
       };
       
       // Save to storage
@@ -2173,6 +2229,7 @@ export class UnifiedSelector {
     const toneField = this.container?.querySelector('#custom-tone-field') as HTMLTextAreaElement;
     const lengthField = this.container?.querySelector('#custom-length-field') as HTMLTextAreaElement;
     const nameField = this.container?.querySelector('#custom-name-field') as HTMLInputElement;
+    const temperatureField = this.container?.querySelector('#custom-temperature-field') as HTMLInputElement;
     
     if (!styleField || !toneField || !lengthField || !nameField) return;
     
@@ -2180,6 +2237,7 @@ export class UnifiedSelector {
     const tone = toneField.value.trim();
     const length = lengthField.value.trim();
     const name = nameField.value.trim();
+    const temperature = temperatureField ? parseFloat(temperatureField.value) : 0.7;
     
     // Validation
     if (!name) {
@@ -2216,7 +2274,8 @@ export class UnifiedSelector {
       prompt: `${style}\n\nTone: ${tone}\n\nLength: ${length}`,
       stylePrompt: style,
       tonePrompt: tone,
-      lengthPrompt: length
+      lengthPrompt: length,
+      temperature
     };
     
     // Save template

@@ -12,6 +12,7 @@ import { requestOptimizer } from './requestOptimizer';
 import { cleanupReply } from '@/utils/textUtils';
 import { logger } from '@/utils/logger';
 import { API_CONFIG } from '@/config/apiConfig';
+import { PromptArchitecture, PromptConfiguration } from './promptArchitecture';
 
 export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';
@@ -321,7 +322,16 @@ export class OpenRouterService {
       }
 
       const messages = await this.buildMessages(request, context, config);
-      const temperature = config.temperature || 0.7;
+      
+      // Get temperature from PromptArchitecture (handles custom overrides)
+      const promptConfig: PromptConfiguration = {
+        systemPrompt: config.systemPrompt || '',
+        temperature: config.temperature || 0.7,
+        contextMode: config.contextMode || 'thread',
+        tabType: request.tabType || 'all',
+        customConfig: request.customConfig
+      };
+      const temperature = PromptArchitecture.getTemperature(promptConfig);
       
       // Adaptive timeout based on connection quality
       const adaptiveTimeout = this.getAdaptiveTimeout();
@@ -418,115 +428,69 @@ export class OpenRouterService {
   ) {
     const messages = [];
 
-    // System prompt with user's style
-    let systemPrompt = config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.';
-    
-    // Debug logging for prompt building
-    console.log('%c🎨 PROMPT CONSTRUCTION', 'color: #E1AD01; font-weight: bold; font-size: 14px');
-    console.log('%c  Base System Prompt:', 'color: #657786');
-    console.log(`%c    "${config.systemPrompt || 'You are a helpful social media user who writes engaging, authentic replies to tweets.'}"`, 'color: #8899a6');
-    
-    // Log the tone/template instruction received
-    console.log('%c  Template + Tone Instruction:', 'color: #657786');
-    console.log(`%c    "${request.tone || 'none'}"`, 'color: #1DA1F2');
-    
-    // Add tone modifier if specified
-    if (request.tone) {
-      // First check if it's a preset tone
-      if (config.tonePresets) {
-        const tonePreset = config.tonePresets.find((preset: any) => preset.id === request.tone);
-        if (tonePreset) {
-          console.log(`%c  Tone modifier from presets: "${tonePreset.promptModifier}"`, 'color: #794BC4; font-style: italic');
-          systemPrompt += ' ' + tonePreset.promptModifier;
-        } else {
-          // If not in presets, it's our combined template+tone prompt
-          console.log(`%c  Combined Template+Tone added to prompt`, 'color: #9146FF; font-style: italic');
-          systemPrompt += ' ' + request.tone;
-        }
-      } else {
-        // No presets configured, just use the tone as-is
-        console.log(`%c  Template+Tone instruction added to prompt`, 'color: #9146FF; font-style: italic');
-        systemPrompt += ' ' + request.tone;
+    // Build prompt configuration for PromptArchitecture
+    const promptConfig: PromptConfiguration = {
+      systemPrompt: config.systemPrompt || '',
+      temperature: config.temperature || 0.7,
+      contextMode: config.contextMode || 'thread',
+      replyLength: config.replyLengthDefault,
+      tabType: request.tabType || 'all', // Default to 'all' if not specified
+      context: {
+        tweetText: context.tweetText,
+        authorHandle: context.authorHandle,
+        threadContext: context.threadContext,
+        images: context.images
       }
+    };
+
+    // Handle tab-specific configurations
+    if (request.tabType === 'personas' && request.personaConfig) {
+      promptConfig.personaConfig = request.personaConfig;
+    } else if (request.tabType === 'all' && request.allTabConfig) {
+      promptConfig.allTabConfig = request.allTabConfig;
+    } else if (request.tabType === 'custom' && request.customConfig) {
+      promptConfig.customConfig = request.customConfig;
+    } else if (request.tabType === 'smart' && request.allTabConfig) {
+      // Smart tab uses ALL tab config
+      promptConfig.allTabConfig = request.allTabConfig;
+    } else if (request.tabType === 'favorites' && request.allTabConfig) {
+      // Favorites tab uses ALL tab config
+      promptConfig.allTabConfig = request.allTabConfig;
     }
 
-    // Add context awareness instruction
-    if (config.contextAware && context.isReply) {
-      systemPrompt += ' Analyze the original tweet and write a contextually relevant reply.';
-    }
-
-    systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
-    systemPrompt += ' CRITICAL: You are responding as a human Twitter/X user. Write ONLY the reply text itself. NEVER reveal you are an AI or explain your methodology. NEVER include meta-commentary like "Note: This response maintains neutrality by..." or "This approach uses..." or numbered explanations of your strategy. Do not break character or explain your reasoning. Respond naturally as if you are a real person engaging in conversation.';
-
-    // Log the final system prompt
-    console.log('%c  📋 FINAL SYSTEM PROMPT:', 'color: #17BF63; font-weight: bold');
-    console.log(`%c    "${systemPrompt}"`, 'color: #17BF63');
-    console.log('%c════════════════════════════════', 'color: #2E3236');
-
-    messages.push({
-      role: 'system' as const,
-      content: systemPrompt
-    });
-
-    // User message with context
-    let userPrompt = '';
+    // Use PromptArchitecture to build system prompt
+    const systemPrompt = PromptArchitecture.buildSystemPrompt(promptConfig);
     
+    // Log prompt architecture details
+    PromptArchitecture.logPromptArchitecture(promptConfig, systemPrompt, '', config.temperature || 0.7);
+    
+    // For backward compatibility: if tone is still passed in old format, add it to system prompt
+    if (request.tone && !request.tabType) {
+      // Legacy support for old tone-based requests
+      console.log('%c⚠️ Legacy tone request detected, adding to prompt', 'color: #FFA500');
+      const legacySystemPrompt = systemPrompt + ' ' + request.tone;
+      messages.push({
+        role: 'system' as const,
+        content: legacySystemPrompt
+      });
+    } else {
+      // Use new architecture-based system prompt
+      messages.push({
+        role: 'system' as const,
+        content: systemPrompt
+      });
+    }
+
+    // Build user prompt using PromptArchitecture
+    let userPrompt = PromptArchitecture.buildUserPrompt(promptConfig);
+    
+    // Allow custom prompt override for special cases
     if (request.customPrompt) {
       userPrompt = request.customPrompt;
-    } else if (context.isReply && context.tweetText) {
-      const contextMode = config.contextMode || 'thread'; // Default to thread
-      
-      // Handle different context modes
-      if (contextMode === 'thread' && context.threadContext && context.threadContext.length > 0) {
-        userPrompt = 'Here is a Twitter conversation thread:\n\n';
-        
-        // Log the thread context tweets
-        console.log('%c🧵 Thread Context Mode', 'color: #17BF63; font-weight: bold; font-size: 14px');
-        console.log(`%c  Total context: ${context.threadContext.length + 1} tweets (original + ${context.threadContext.length} additional)`, 'color: #657786');
-        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
-        
-        console.log('%c  📚 Additional Context Tweets:', 'color: #794BC4; font-weight: bold');
-        context.threadContext.forEach((tweet, index) => {
-          console.log(`%c  📝 Context Tweet ${index + 1}`, 'color: #1DA1F2; font-weight: bold');
-          console.log(`%c     Author: ${tweet.author}`, 'color: #657786');
-          console.log(`%c     Text: "${tweet.text.substring(0, 100)}${tweet.text.length > 100 ? '...' : ''}"`, 'color: #FFFFFF');
-          userPrompt += `${tweet.author}: ${tweet.text}\n`;
-        });
-        
-        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
-        console.log('%c  📍 Original Tweet (replying to)', 'color: #E1AD01; font-weight: bold');
-        
-        // Add the tweet we're directly replying to
-        if (context.authorHandle) {
-          console.log(`%c     Author: @${context.authorHandle}`, 'color: #657786');
-          console.log(`%c     Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
-          userPrompt += `@${context.authorHandle}: ${context.tweetText}\n\n`;
-        } else {
-          console.log(`%c     Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
-          userPrompt += `Latest tweet: ${context.tweetText}\n\n`;
-        }
-        console.log('%c  ─────────────────────────────────────', 'color: #E1E8ED');
-        
-        userPrompt += 'Write a contextually relevant reply that continues this conversation naturally.';
-        console.log('%c  Mode: THREAD REPLY (4 tweets context)', 'background: #17BF63; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
-      } else if (contextMode === 'single' || (contextMode === 'thread' && !context.threadContext)) {
-        userPrompt = `Write a reply to this tweet: "${context.tweetText}"`;
-        console.log('%c📝 Single Tweet Context', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
-        console.log(`%c  Text: "${context.tweetText?.substring(0, 100)}${(context.tweetText?.length || 0) > 100 ? '...' : ''}"`, 'color: #FFFFFF');
-        console.log('%c  Mode: SINGLE REPLY', 'background: #1DA1F2; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
-      } else if (contextMode === 'none') {
-        userPrompt = 'Write an engaging tweet reply.';
-        console.log('%c💬 Generic Reply', 'color: #657786; font-weight: bold; font-size: 14px');
-        console.log('%c  Mode: NO CONTEXT', 'background: #657786; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
-      }
-    } else {
-      userPrompt = 'Write an engaging tweet.';
     }
 
-    // Summary log
-    console.log('%c📤 Request Summary', 'color: #794BC4; font-weight: bold; font-size: 14px');
-    console.log(`%c  Prompt length: ${userPrompt.length} characters`, 'color: #657786');
-    console.log('%c═══════════════════════════════════════', 'color: #E1E8ED; font-weight: bold');
+    // Update logging in PromptArchitecture
+    PromptArchitecture.logPromptArchitecture(promptConfig, systemPrompt, userPrompt, config.temperature || 0.7);
 
     messages.push({
       role: 'user' as const,

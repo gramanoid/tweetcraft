@@ -32,6 +32,28 @@ export interface ReplyGenerationRequest {
   vocabulary?: string; // How it's written
   rhetoric?: string; // Approach to topic
   lengthPacing?: string; // How long/short is the reply
+  
+  // Prompt Architecture fields
+  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom';
+  personaConfig?: {
+    personality: string;
+    vocabulary: string;
+    rhetoricMove: string;
+    lengthPacing: string;
+    systemPrompt: string;
+  };
+  allTabConfig?: {
+    personality: string;
+    vocabulary: string;
+    rhetoric: string;
+    lengthPacing: string;
+  };
+  customConfig?: {
+    style: string;
+    tone: string;
+    length: string;
+    temperature?: number;
+  };
 }
 
 export interface ReplyGenerationResponse {
