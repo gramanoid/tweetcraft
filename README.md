@@ -23,13 +23,15 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.17 - Latest: Visual Hierarchy + Enhanced UX)**
+### ✅ **Currently Working (v0.0.17 - Latest: Compact Mode + Section Indicators)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
 
 #### 🎨 **NEW: Visual Hierarchy & Enhanced UX (v0.0.17)**
+- **Section Completion Indicators** - Visual checkmarks (✓) show completed sections with progress bar
+- **Compact Mode Density** - 4-column layout with reduced padding (8px) for maximum visibility
 - **Category Color Coding** - Visual distinction with 4 colors for rhetoric, 5 for personalities
 - **Frequency-based Prominence** - Popular options scale 1.03x with bolder fonts
 - **Smart Dimming** - Rarely-used items at 85% opacity until hover
@@ -39,6 +41,8 @@
 - **Persistent Selection Bar** - Shows current selections across all tabs
 - **Quick Presets Section** - Top 3 most-used combinations as single-click buttons
 - **Smart Defaults Button** - Applies intelligent defaults based on usage patterns
+- **Real-time Progress Updates** - Section indicators update instantly as selections are made
+- **Pulse Animation** - Sections needing selection have subtle pulsing glow effect
 
 #### 🎭 **Enhanced Personas Tab** 
 - **Compact 5-column grid** showing all 10 personas simultaneously (massive space efficiency improvement)

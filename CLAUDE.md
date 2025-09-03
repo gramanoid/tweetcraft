@@ -254,6 +254,18 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
    - Batch API requests when possible
    - Monitor memory usage
 
+## Recent Changes (v0.0.17)
+
+### UI/UX Enhancements
+- ✅ Section Completion Indicators with checkmarks and progress bar
+- ✅ Compact Mode with 4-column layout and reduced padding (8px)
+- ✅ Visual hierarchy with category-based color coding
+- ✅ Popup size memory via localStorage
+- ✅ Fixed Vision API with updated OpenRouter model IDs
+- ✅ Real-time indicator updates for section completions
+- ✅ Progress bar showing "X of 4 sections complete"
+- ✅ Pulse animation for sections needing selection
+
 ## Known Issues
 
 - Service worker shows "Inactive" in Chrome extensions page (normal for Manifest V3)

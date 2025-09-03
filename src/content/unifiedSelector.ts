@@ -74,11 +74,13 @@ export class UnifiedSelector {
   private get favoriteTones(): Set<string> { return this.favoritePersonalities; }
   private favoriteVocabulary: Set<string> = new Set();
   private favoriteLengthPacing: Set<string> = new Set();
-  private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
+  private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' | 'expanded' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
   private smartSuggestions: { templates: Template[], personalities: Personality[] } = { templates: [], personalities: [] };
+  private expandedViewTransparency: number = 0.95;
+  private expandedViewDocked: 'left' | 'right' | 'none' = 'none';
   private smartSuggestionsScores: any[] = [];
   private customTemplatesLoaded: Promise<void> | null = null;
   private quickGenerateButton: HTMLElement | null = null;
@@ -490,6 +492,9 @@ export class UnifiedSelector {
           </button>
         </div>
         <div class="header-actions">
+          <button class="expanded-view-toggle-btn" title="Expanded View (Show all options)">
+            <span class="expanded-view-icon">${this.view === 'expanded' ? '⊟' : '⊞'}</span>
+          </button>
           <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with last used settings (Space)">
             <span class="quick-generate-icon">⚡</span>
             <span class="quick-generate-text">Quick Generate</span>
@@ -615,6 +620,8 @@ export class UnifiedSelector {
         return this.renderImageGenView();
       case 'custom':
         return this.renderCustomView(templates, personalities);
+      case 'expanded':
+        return this.renderExpandedView(templates, personalities);
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -977,6 +984,210 @@ export class UnifiedSelector {
   }
 
   /**
+   * Render suggested favorites when the tab is empty
+   */
+  private renderFavoriteSuggestions(templates: Template[], personalities: Personality[]): string {
+    // Get dismissed suggestions
+    const dismissedKey = 'tweetcraft_dismissed_suggestions';
+    const dismissed = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    
+    // Get top 5 most used combinations and filter out dismissed ones
+    const allTopCombinations = usageTracker.getTopCombinations(10); // Get more in case some are dismissed
+    const topCombinations = allTopCombinations.filter(combo => {
+      const comboKey = `${combo.personalityId}_${combo.vocabularyId}_${combo.rhetoricId}_${combo.lengthPacingId}`;
+      return !dismissed.includes(comboKey);
+    }).slice(0, 5);
+    
+    // Get top used templates and personalities separately
+    const stats = usageTracker.getStats();
+    const topTemplates: { template: Template; count: number }[] = [];
+    const topPersonalities: { personality: Personality; count: number }[] = [];
+    
+    // Get top 3 templates
+    if (stats.templateUsage) {
+      templates.forEach(t => {
+        const count = stats.templateUsage?.get(createTemplateId(t.id)) || 0;
+        if (count > 0) {
+          topTemplates.push({ template: t, count });
+        }
+      });
+      topTemplates.sort((a, b) => b.count - a.count);
+      topTemplates.splice(3); // Keep only top 3
+    }
+    
+    // Get top 3 personalities
+    if (stats.personalityUsage) {
+      personalities.forEach(p => {
+        const count = stats.personalityUsage?.get(p.id) || 0;
+        if (count > 0) {
+          topPersonalities.push({ personality: p, count });
+        }
+      });
+      topPersonalities.sort((a, b) => b.count - a.count);
+      topPersonalities.splice(3); // Keep only top 3
+    }
+    
+    // If no usage data, show default suggestions
+    const hasUsageData = topCombinations.length > 0 || topTemplates.length > 0 || topPersonalities.length > 0;
+    
+    return `
+      <div class="selector-content favorites-view">
+        <div class="favorites-suggestions">
+          <div class="suggestions-header">
+            <h3>🌟 Suggested Favorites</h3>
+            <p class="suggestions-subtitle">${hasUsageData ? 'Based on your usage patterns' : 'Popular starting points'}</p>
+          </div>
+          
+          ${topCombinations.length > 0 ? `
+            <div class="suggested-combinations">
+              <h4>Top Combinations</h4>
+              <div class="combination-suggestions">
+                ${topCombinations.map((combo, index) => {
+                  const [templateId, personalityId] = combo.combination.split(':');
+                  const template = templates.find(t => t.id === templateId);
+                  const personality = personalities.find(p => p.id === personalityId);
+                  
+                  if (!template || !personality) return '';
+                  
+                  return `
+                    <div class="suggestion-card combination-suggestion" 
+                         data-template="${templateId}"
+                         data-personality="${personalityId}">
+                      <div class="suggestion-rank">#${index + 1}</div>
+                      <div class="suggestion-content">
+                        <div class="suggestion-icons">
+                          ${template.emoji} + ${personality.emoji}
+                        </div>
+                        <div class="suggestion-names">
+                          ${template.name} + ${personality.label}
+                        </div>
+                        <div class="suggestion-usage">Used ${combo.count} times</div>
+                      </div>
+                      <div class="suggestion-actions">
+                        <button class="accept-suggestion-btn" 
+                                data-accept-template="${templateId}"
+                                data-accept-personality="${personalityId}"
+                                title="Add to favorites">
+                          ⭐ Add
+                        </button>
+                        <button class="dismiss-suggestion-btn"
+                                data-dismiss-combo="${combo.combination}"
+                                title="Hide this suggestion">
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          ${!hasUsageData ? `
+            <div class="default-suggestions">
+              <div class="suggestion-group">
+                <h4>Recommended Templates</h4>
+                <div class="template-grid">
+                  ${templates.slice(0, 3).map(template => `
+                    <div class="suggestion-card template-suggestion">
+                      <button class="template-btn"
+                              data-template="${template.id}"
+                              title="${template.description}">
+                        <span class="template-emoji">${template.emoji}</span>
+                        <span class="template-name">${template.name}</span>
+                      </button>
+                      <button class="accept-suggestion-btn solo" 
+                              data-accept-template="${template.id}"
+                              title="Add to favorites">
+                        ⭐
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div class="suggestion-group">
+                <h4>Recommended Personalities</h4>
+                <div class="personality-grid">
+                  ${personalities.slice(0, 3).map(personality => `
+                    <div class="suggestion-card personality-suggestion">
+                      <button class="personality-btn"
+                              data-personality="${personality.id}"
+                              title="${personality.description}">
+                        <span class="personality-emoji">${personality.emoji}</span>
+                        <span class="personality-label">${personality.label}</span>
+                      </button>
+                      <button class="accept-suggestion-btn solo" 
+                              data-accept-personality="${personality.id}"
+                              title="Add to favorites">
+                        ⭐
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          ` : `
+            <div class="individual-suggestions">
+              ${topTemplates.length > 0 ? `
+                <div class="suggestion-group">
+                  <h4>Most Used Templates</h4>
+                  <div class="template-grid">
+                    ${topTemplates.map(({ template, count }) => `
+                      <div class="suggestion-card template-suggestion">
+                        <button class="template-btn"
+                                data-template="${template.id}"
+                                title="${template.description}">
+                          <span class="template-emoji">${template.emoji}</span>
+                          <span class="template-name">${template.name}</span>
+                          <span class="usage-badge">${count}×</span>
+                        </button>
+                        <button class="accept-suggestion-btn solo" 
+                                data-accept-template="${template.id}"
+                                title="Add to favorites">
+                          ⭐
+                        </button>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              
+              ${topPersonalities.length > 0 ? `
+                <div class="suggestion-group">
+                  <h4>Most Used Personalities</h4>
+                  <div class="personality-grid">
+                    ${topPersonalities.map(({ personality, count }) => `
+                      <div class="suggestion-card personality-suggestion">
+                        <button class="personality-btn"
+                                data-personality="${personality.id}"
+                                title="${personality.description}">
+                          <span class="personality-emoji">${personality.emoji}</span>
+                          <span class="personality-label">${personality.label}</span>
+                          <span class="usage-badge">${count}×</span>
+                        </button>
+                        <button class="accept-suggestion-btn solo" 
+                                data-accept-personality="${personality.id}"
+                                title="Add to favorites">
+                          ⭐
+                        </button>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `}
+          
+          <div class="suggestions-footer">
+            <p class="suggestions-hint">💡 Click items to select, click ⭐ to save as favorite</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * Convert numeric score to descriptive label
    */
   private getScoreLabel(score: number): { label: string; icon: string; color: string } {
@@ -1119,15 +1330,9 @@ export class UnifiedSelector {
     const favoriteTemplatesList = templates.filter(t => this.favoriteTemplates.has(t.id));
     const favoritePersonalitiesList = personalities.filter(p => this.favoritePersonalities.has(p.id));
     
+    // Auto-populate with suggestions when favorites is empty
     if (favoriteTemplatesList.length === 0 && favoritePersonalitiesList.length === 0) {
-      return `
-        <div class="selector-content favorites-view">
-          <div class="empty-state">
-            <p>No favorites yet!</p>
-            <p>Star your favorite rhetoric and personalities to see them here.</p>
-          </div>
-        </div>
-      `;
+      return this.renderFavoriteSuggestions(templates, personalities);
     }
     
     return `
@@ -1287,6 +1492,132 @@ export class UnifiedSelector {
               <button class="bulk-action-btn reset-btn">🔄 Reset All</button>
             </div>
           ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render expanded view - shows all options at once for power users
+   */
+  private renderExpandedView(templates: Template[], personalities: Personality[]): string {
+    // Apply transparency if in expanded mode
+    if (this.container) {
+      this.container.style.opacity = this.expandedViewTransparency.toString();
+    }
+
+    return `
+      <div class="selector-content expanded-view" ${this.expandedViewDocked !== 'none' ? `data-docked="${this.expandedViewDocked}"` : ''}>
+        <!-- Expanded View Controls -->
+        <div class="expanded-controls">
+          <div class="control-group">
+            <label>Transparency:</label>
+            <input type="range" class="transparency-slider" min="0.7" max="1" step="0.05" value="${this.expandedViewTransparency}">
+            <span class="transparency-value">${Math.round(this.expandedViewTransparency * 100)}%</span>
+          </div>
+          <div class="control-group">
+            <label>Dock:</label>
+            <button class="dock-btn ${this.expandedViewDocked === 'left' ? 'active' : ''}" data-dock="left">◀ Left</button>
+            <button class="dock-btn ${this.expandedViewDocked === 'none' ? 'active' : ''}" data-dock="none">⬜ Float</button>
+            <button class="dock-btn ${this.expandedViewDocked === 'right' ? 'active' : ''}" data-dock="right">Right ▶</button>
+          </div>
+        </div>
+
+        <!-- All Options Grid -->
+        <div class="expanded-grid">
+          <!-- Personalities Section -->
+          <div class="expanded-section">
+            <h4>🎭 Personalities</h4>
+            <div class="expanded-options-grid">
+              ${personalities.map(p => `
+                <button class="expanded-option personality-option ${this.selectedPersonality?.id === p.id ? 'selected' : ''}"
+                        data-expanded-personality="${p.id}"
+                        title="${p.description}">
+                  <span class="option-emoji">${p.emoji}</span>
+                  <span class="option-label">${p.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Vocabulary Section -->
+          <div class="expanded-section">
+            <h4>📝 Vocabulary</h4>
+            <div class="expanded-options-grid">
+              ${vocabularyStyles.map(v => `
+                <button class="expanded-option vocabulary-option ${this.selectedVocabulary?.id === v.id ? 'selected' : ''}"
+                        data-expanded-vocabulary="${v.id}"
+                        title="${v.description}">
+                  <span class="option-emoji">${v.emoji}</span>
+                  <span class="option-label">${v.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Rhetoric Section -->
+          <div class="expanded-section">
+            <h4>💭 Rhetoric</h4>
+            <div class="expanded-options-grid">
+              ${rhetoricOptions.map(r => `
+                <button class="expanded-option rhetoric-option ${this.selectedTemplate?.id === r.id ? 'selected' : ''}"
+                        data-expanded-rhetoric="${r.id}"
+                        title="${r.description}">
+                  <span class="option-emoji">${r.emoji}</span>
+                  <span class="option-label">${r.name}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Length & Pacing Section -->
+          <div class="expanded-section">
+            <h4>⏱️ Length & Pacing</h4>
+            <div class="expanded-options-grid">
+              ${lengthPacingOptions.map(l => `
+                <button class="expanded-option length-option ${this.selectedLengthPacing?.id === l.id ? 'selected' : ''}"
+                        data-expanded-length="${l.id}"
+                        title="${l.description}">
+                  <span class="option-label">${l.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Quick Personas Section -->
+          <div class="expanded-section">
+            <h4>🚀 Quick Personas</h4>
+            <div class="expanded-options-grid">
+              ${QUICK_PERSONAS.map(persona => `
+                <button class="expanded-option persona-quick ${this.selectedPersona?.id === persona.id ? 'selected' : ''}"
+                        data-expanded-persona="${persona.id}"
+                        title="${persona.description}">
+                  <span class="option-emoji">${persona.emoji}</span>
+                  <span class="option-label">${persona.name}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Templates Section -->
+          <div class="expanded-section">
+            <h4>📋 Templates</h4>
+            <div class="expanded-options-grid">
+              ${templates.map(t => `
+                <button class="expanded-option template-option ${this.selectedTemplate?.id === t.id ? 'selected' : ''}"
+                        data-expanded-template="${t.id}"
+                        title="${t.description}">
+                  <span class="option-emoji">${t.emoji}</span>
+                  <span class="option-label">${t.name}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Keyboard Navigation Helper -->
+        <div class="keyboard-helper">
+          <span>💡 Use Tab/Shift+Tab to navigate, Space/Enter to select, Esc to close expanded view</span>
         </div>
       </div>
     `;
@@ -1510,6 +1841,93 @@ export class UnifiedSelector {
       });
     }
 
+    // Expanded view toggle button
+    const expandedViewToggle = this.container.querySelector('.expanded-view-toggle-btn');
+    if (expandedViewToggle) {
+      expandedViewToggle.addEventListener('click', () => {
+        this.view = this.view === 'expanded' ? 'grid' : 'expanded';
+        // Save preference for session
+        sessionStorage.setItem('tweetcraft-expanded-view', this.view);
+        this.render();
+      });
+    }
+
+    // Expanded view controls
+    if (this.view === 'expanded') {
+      // Transparency slider
+      const transparencySlider = this.container.querySelector('.transparency-slider') as HTMLInputElement;
+      if (transparencySlider) {
+        transparencySlider.addEventListener('input', (e) => {
+          this.expandedViewTransparency = parseFloat((e.target as HTMLInputElement).value);
+          if (this.container) {
+            this.container.style.opacity = this.expandedViewTransparency.toString();
+          }
+          const valueSpan = this.container?.querySelector('.transparency-value');
+          if (valueSpan) {
+            valueSpan.textContent = `${Math.round(this.expandedViewTransparency * 100)}%`;
+          }
+        });
+      }
+
+      // Dock buttons
+      this.container.querySelectorAll('.dock-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const dock = (e.currentTarget as HTMLElement).dataset.dock as 'left' | 'right' | 'none';
+          this.expandedViewDocked = dock;
+          this.applyDockStyle();
+          this.render();
+        });
+      });
+
+      // Expanded view option selections
+      this.container.querySelectorAll('.expanded-option').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const el = e.currentTarget as HTMLElement;
+          
+          // Handle different option types
+          if (el.dataset.expandedPersonality) {
+            const personality = PERSONALITIES.find(p => p.id === el.dataset.expandedPersonality);
+            if (personality) {
+              this.selectedPersonality = personality;
+            }
+          } else if (el.dataset.expandedVocabulary) {
+            const vocab = vocabularyStyles.find(v => v.id === el.dataset.expandedVocabulary);
+            if (vocab) {
+              this.selectedVocabulary = vocab;
+            }
+          } else if (el.dataset.expandedRhetoric) {
+            const rhetoric = rhetoricOptions.find(r => r.id === el.dataset.expandedRhetoric);
+            if (rhetoric) {
+              this.selectedTemplate = rhetoric;
+            }
+          } else if (el.dataset.expandedLength) {
+            const length = lengthPacingOptions.find(l => l.id === el.dataset.expandedLength);
+            if (length) {
+              this.selectedLengthPacing = length;
+            }
+          } else if (el.dataset.expandedPersona) {
+            const persona = QUICK_PERSONAS.find(p => p.id === el.dataset.expandedPersona);
+            if (persona) {
+              this.selectedPersona = persona;
+            }
+          } else if (el.dataset.expandedTemplate) {
+            const template = TEMPLATES.find(t => t.id === el.dataset.expandedTemplate);
+            if (template) {
+              this.selectedTemplate = template;
+            }
+          }
+          
+          // Update UI
+          this.render();
+          this.updateUI();
+        });
+      });
+
+      // Keyboard navigation for expanded view
+      this.setupExpandedViewKeyboardNavigation();
+    }
+
     // Quick Generate button
     const quickGenerateBtn = this.container.querySelector('.quick-generate-btn');
     if (quickGenerateBtn) {
@@ -1585,6 +2003,24 @@ export class UnifiedSelector {
         this.handleImageGenerate();
       });
     }
+
+    // Accept suggestion buttons in Favorites tab
+    this.container.querySelectorAll('[data-suggestion-accept]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt((e.currentTarget as HTMLElement).dataset.suggestionAccept!);
+        this.acceptSuggestion(index);
+      });
+    });
+
+    // Dismiss suggestion buttons in Favorites tab
+    this.container.querySelectorAll('[data-suggestion-dismiss]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt((e.currentTarget as HTMLElement).dataset.suggestionDismiss!);
+        this.dismissSuggestion(index);
+      });
+    });
 
     // Enter key on image search input
     const searchInput = this.container.querySelector('.image-search-input') as HTMLInputElement;
@@ -2202,6 +2638,109 @@ export class UnifiedSelector {
   }
 
   /**
+   * Accept a suggested favorite combination
+   */
+  private acceptSuggestion(index: number): void {
+    const topCombinations = usageTracker.getTopCombinations(5);
+    
+    if (index < topCombinations.length) {
+      const combo = topCombinations[index];
+      
+      // Add to favorites
+      if (combo.personalityId) this.favoritePersonalities.add(combo.personalityId);
+      if (combo.vocabularyId) this.favoriteVocabulary.add(combo.vocabularyId);
+      if (combo.rhetoricId) this.favoriteRhetoric.add(combo.rhetoricId);
+      if (combo.lengthPacingId) this.favoriteLengthPacing.add(combo.lengthPacingId);
+      
+      this.saveFavorites();
+      
+      // Track acceptance
+      usageTracker.trackTemplateSelection('favorite-suggestion' as any, 'favorite');
+      
+      console.log('%c⭐ Accepted suggestion:', 'color: #17BF63', combo);
+      
+      // Show success feedback
+      if (this.anchorButton) {
+        visualFeedback.showSuccess(this.anchorButton, 'Added to favorites!');
+      }
+      
+      this.render();
+    } else {
+      // Handle default suggestions
+      const defaultIndex = index - topCombinations.length;
+      const defaults = [
+        { personalityId: 'supportive', vocabularyId: 'accessible', rhetoricId: 'empathetic', lengthPacingId: 'balanced' },
+        { personalityId: 'thought-leader', vocabularyId: 'academic', rhetoricId: 'data-driven', lengthPacingId: 'comprehensive' },
+        { personalityId: 'funny', vocabularyId: 'casual', rhetoricId: 'humorous', lengthPacingId: 'punchy' },
+        { personalityId: 'contrarian', vocabularyId: 'provocative', rhetoricId: 'challenging', lengthPacingId: 'rapid' },
+        { personalityId: 'teacher', vocabularyId: 'simple', rhetoricId: 'educational', lengthPacingId: 'methodical' }
+      ];
+      
+      if (defaultIndex >= 0 && defaultIndex < defaults.length) {
+        const combo = defaults[defaultIndex];
+        
+        // Add to favorites
+        if (combo.personalityId) this.favoritePersonalities.add(combo.personalityId);
+        if (combo.vocabularyId) this.favoriteVocabulary.add(combo.vocabularyId);
+        if (combo.rhetoricId) this.favoriteRhetoric.add(combo.rhetoricId);
+        if (combo.lengthPacingId) this.favoriteLengthPacing.add(combo.lengthPacingId);
+        
+        this.saveFavorites();
+        
+        console.log('%c⭐ Accepted default suggestion:', 'color: #17BF63', combo);
+        
+        // Show success feedback
+        if (this.anchorButton) {
+          visualFeedback.showSuccess(this.anchorButton, 'Added to favorites!');
+        }
+        
+        this.render();
+      }
+    }
+  }
+
+  /**
+   * Dismiss a suggested favorite combination
+   */
+  private dismissSuggestion(index: number): void {
+    // Store dismissed suggestions in localStorage
+    const dismissedKey = 'tweetcraft_dismissed_suggestions';
+    const dismissed = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+    
+    const topCombinations = usageTracker.getTopCombinations(5);
+    
+    if (index < topCombinations.length) {
+      const combo = topCombinations[index];
+      const comboKey = `${combo.personalityId}_${combo.vocabularyId}_${combo.rhetoricId}_${combo.lengthPacingId}`;
+      
+      if (!dismissed.includes(comboKey)) {
+        dismissed.push(comboKey);
+        localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+      }
+      
+      console.log('%c🚫 Dismissed suggestion:', 'color: #FFA500', combo);
+    } else {
+      // Handle default suggestions
+      const defaultIndex = index - topCombinations.length;
+      const dismissKey = `default_${defaultIndex}`;
+      
+      if (!dismissed.includes(dismissKey)) {
+        dismissed.push(dismissKey);
+        localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+      }
+      
+      console.log('%c🚫 Dismissed default suggestion:', 'color: #FFA500', defaultIndex);
+    }
+    
+    // Show feedback
+    if (this.anchorButton) {
+      visualFeedback.showInfo(this.anchorButton, 'Suggestion dismissed');
+    }
+    
+    this.render();
+  }
+
+  /**
    * Save favorites to storage
    */
   private saveFavorites(): void {
@@ -2209,7 +2748,8 @@ export class UnifiedSelector {
       favoriteTemplates: Array.from(this.favoriteTemplates),
       favoritePersonalities: Array.from(this.favoritePersonalities),
       favoriteVocabulary: Array.from(this.favoriteVocabulary),
-      favoriteLengthPacing: Array.from(this.favoriteLengthPacing)
+      favoriteLengthPacing: Array.from(this.favoriteLengthPacing),
+      favoriteRhetoric: Array.from(this.favoriteRhetoric)
     };
     localStorage.setItem('tweetcraft_favorites', JSON.stringify(favorites));
   }
@@ -3423,6 +3963,26 @@ export class UnifiedSelector {
           gap: 8px;
         }
         
+        .expanded-view-toggle-btn {
+          display: flex;
+          align-items: center;
+          padding: 5px 8px;
+          background: transparent;
+          border: 1px solid #38444d;
+          border-radius: 8px;
+          color: #8b98a5;
+          font-size: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-right: 8px;
+        }
+
+        .expanded-view-toggle-btn:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: #1d9bf0;
+          color: #1d9bf0;
+        }
+
         .quick-generate-btn {
           display: flex;
           align-items: center;
@@ -3514,6 +4074,144 @@ export class UnifiedSelector {
           overflow-y: auto;
           padding: 6px;
           background: #15202b;
+        }
+
+        /* Expanded View Styles */
+        .expanded-view {
+          padding: 16px;
+        }
+
+        .expanded-controls {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px;
+          background: rgba(21, 32, 43, 0.95);
+          border-radius: 8px;
+          margin-bottom: 16px;
+          border: 1px solid #38444d;
+        }
+
+        .control-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .control-group label {
+          color: #8b98a5;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .transparency-slider {
+          width: 100px;
+        }
+
+        .transparency-value {
+          color: #e7e9ea;
+          font-size: 12px;
+          min-width: 35px;
+        }
+
+        .dock-btn {
+          padding: 4px 8px;
+          background: transparent;
+          border: 1px solid #38444d;
+          color: #8b98a5;
+          border-radius: 6px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .dock-btn:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: #1d9bf0;
+          color: #1d9bf0;
+        }
+
+        .dock-btn.active {
+          background: #1d9bf0;
+          border-color: #1d9bf0;
+          color: white;
+        }
+
+        .expanded-grid {
+          display: grid;
+          gap: 16px;
+        }
+
+        .expanded-section {
+          background: rgba(21, 32, 43, 0.95);
+          border: 1px solid #38444d;
+          border-radius: 12px;
+          padding: 12px;
+        }
+
+        .expanded-section h4 {
+          margin: 0 0 12px 0;
+          color: #e7e9ea;
+          font-size: 14px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .expanded-options-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+          gap: 8px;
+        }
+
+        .expanded-option {
+          padding: 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid #38444d;
+          border-radius: 8px;
+          color: #e7e9ea;
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          text-align: center;
+        }
+
+        .expanded-option:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: #1d9bf0;
+          transform: translateY(-1px);
+        }
+
+        .expanded-option.selected {
+          background: #1d9bf0;
+          border-color: #1d9bf0;
+          color: white;
+        }
+
+        .expanded-option:focus {
+          outline: 2px solid #1d9bf0;
+          outline-offset: 2px;
+        }
+
+        .keyboard-helper {
+          margin-top: 12px;
+          padding: 8px;
+          background: rgba(139, 152, 165, 0.1);
+          border-radius: 8px;
+          text-align: center;
+          color: #8b98a5;
+          font-size: 11px;
+        }
+
+        .selector-content.expanded-view[data-docked="left"],
+        .selector-content.expanded-view[data-docked="right"] {
+          height: 100%;
+          overflow-y: auto;
         }
         
         .grid-view {
@@ -5177,6 +5875,110 @@ export class UnifiedSelector {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Apply dock style for expanded view
+   */
+  private applyDockStyle(): void {
+    if (!this.container) return;
+    
+    // Reset styles
+    this.container.style.position = 'fixed';
+    this.container.style.width = '';
+    this.container.style.left = '';
+    this.container.style.right = '';
+    this.container.style.top = '0';
+    this.container.style.height = '100vh';
+    
+    if (this.expandedViewDocked === 'left') {
+      this.container.style.left = '0';
+      this.container.style.width = '400px';
+      this.container.style.boxShadow = '4px 0 20px rgba(0, 0, 0, 0.3)';
+    } else if (this.expandedViewDocked === 'right') {
+      this.container.style.right = '0';
+      this.container.style.width = '400px';
+      this.container.style.boxShadow = '-4px 0 20px rgba(0, 0, 0, 0.3)';
+    } else {
+      // Float mode - center it
+      this.container.style.left = '50%';
+      this.container.style.transform = 'translateX(-50%)';
+      this.container.style.width = '90%';
+      this.container.style.maxWidth = '1200px';
+      this.container.style.height = 'auto';
+      this.container.style.maxHeight = '90vh';
+      this.container.style.top = '5vh';
+    }
+  }
+
+  /**
+   * Setup keyboard navigation for expanded view
+   */
+  private setupExpandedViewKeyboardNavigation(): void {
+    if (!this.container) return;
+    
+    const options = this.container.querySelectorAll('.expanded-option');
+    let currentIndex = 0;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (this.view !== 'expanded') return;
+      
+      switch(e.key) {
+        case 'Tab':
+          // Use Tab/Shift+Tab for navigation
+          if (e.shiftKey) {
+            currentIndex = Math.max(0, currentIndex - 1);
+          } else {
+            currentIndex = Math.min(options.length - 1, currentIndex + 1);
+          }
+          (options[currentIndex] as HTMLElement)?.focus();
+          e.preventDefault();
+          break;
+          
+        case 'Enter':
+        case ' ':
+          // Select the focused option
+          (options[currentIndex] as HTMLElement)?.click();
+          e.preventDefault();
+          break;
+          
+        case 'Escape':
+          // Exit expanded view
+          this.view = 'grid';
+          this.render();
+          break;
+          
+        case 'ArrowUp':
+        case 'ArrowDown':
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          // Grid navigation
+          const cols = 6; // Approximate columns in grid
+          if (e.key === 'ArrowUp') {
+            currentIndex = Math.max(0, currentIndex - cols);
+          } else if (e.key === 'ArrowDown') {
+            currentIndex = Math.min(options.length - 1, currentIndex + cols);
+          } else if (e.key === 'ArrowLeft') {
+            currentIndex = Math.max(0, currentIndex - 1);
+          } else if (e.key === 'ArrowRight') {
+            currentIndex = Math.min(options.length - 1, currentIndex + 1);
+          }
+          (options[currentIndex] as HTMLElement)?.focus();
+          e.preventDefault();
+          break;
+      }
+    };
+    
+    // Add keyboard listener
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Store the handler so we can remove it later
+    (this.container as any).__expandedKeyHandler = handleKeyDown;
+    
+    // Focus the first option
+    if (options.length > 0) {
+      (options[0] as HTMLElement).focus();
+    }
   }
 
   /**
