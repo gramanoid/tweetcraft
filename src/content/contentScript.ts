@@ -130,7 +130,7 @@ class SmartReplyContentScript {
     
     // Detect platform
     const platform = HypeFuryPlatform.isHypeFury() ? 'HypeFury' : 'Twitter/X';
-    console.log(`%c🚀 TweetCraft v0.0.8 - ${platform}`, 'color: #1DA1F2; font-weight: bold');
+    console.log(`%c🚀 TweetCraft v0.0.18 - ${platform}`, 'color: #1DA1F2; font-weight: bold');
     
     // Apply platform-specific styles if on HypeFury
     if (HypeFuryPlatform.isHypeFury()) {
@@ -358,14 +358,19 @@ class SmartReplyContentScript {
           seenLocations.set(locationKey, button);
         }
       } else {
-        // Button without proper container - might be orphaned
-        console.log('%c  ⚠️ Found orphaned button (no reply container):', 'color: #FFA500', button);
-        console.log('%c    Is connected to DOM:', 'color: #657786', button.isConnected);
-        console.log('%c    Is visible:', 'color: #657786', (button as HTMLElement).offsetParent !== null);
+        // Button without a reply container - check if it's in a toolbar
+        const toolbar = button.closest('[role="group"], [data-testid="toolBar"], .css-175oi2r');
+        const isInToolbar = toolbar !== null;
+        const isConnected = button.isConnected;
+        const isVisible = (button as HTMLElement).offsetParent !== null;
         
-        // Remove if disconnected OR invisible
-        if (!button.isConnected || (button as HTMLElement).offsetParent === null) {
-          console.log('%c    🗑️ Removing orphaned/invisible button', 'color: #FFA500');
+        // Only consider it orphaned if it's not in a toolbar AND (disconnected OR invisible)
+        if (!isInToolbar && (!isConnected || !isVisible)) {
+          console.log('%c  ⚠️ Found truly orphaned button:', 'color: #FFA500', button);
+          console.log('%c    In toolbar:', 'color: #657786', isInToolbar);
+          console.log('%c    Is connected:', 'color: #657786', isConnected);
+          console.log('%c    Is visible:', 'color: #657786', isVisible);
+          console.log('%c    🗑️ Removing orphaned button', 'color: #FFA500');
           button.remove();
         }
       }
