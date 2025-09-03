@@ -16,6 +16,7 @@ import { imageService } from '@/services/imageService';
 import { smartDefaults, SmartDefaultsService } from '@/services/smartDefaults';
 import { usageTracker } from '@/services/usageTracker';
 import { createTemplateId } from '@/types/branded';
+import { logger } from '@/utils/logger';
 
 export interface SelectionResult {
   template: Template;
@@ -96,6 +97,37 @@ export class UnifiedSelector {
     if (!text) return 'Not specified';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  }
+  
+  /**
+   * Get saved size preferences from localStorage
+   */
+  private getSavedSize(): { width: number; height: number } {
+    try {
+      const saved = localStorage.getItem('tweetcraft-selector-size');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          width: Math.min(Math.max(parsed.width || 540, 480), 800),
+          height: Math.min(Math.max(parsed.height || 500, 400), window.innerHeight * 0.9)
+        };
+      }
+    } catch (e) {
+      logger.error('Failed to get saved size', e);
+    }
+    return { width: 540, height: 500 };
+  }
+  
+  /**
+   * Save size preferences to localStorage
+   */
+  private saveSize(width: number, height: number): void {
+    try {
+      localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ width, height }));
+      logger.log('Saved selector size', { width, height });
+    } catch (e) {
+      logger.error('Failed to save size', e);
+    }
   }
 
   /**
@@ -354,7 +386,34 @@ export class UnifiedSelector {
     this.render();
     this.applyStyles();
     
+    // Add resize observer to save size when user resizes
+    this.observeResize();
+    
     return this.container;
+  }
+  
+  /**
+   * Observe container resize and save size
+   */
+  private observeResize(): void {
+    if (!this.container) return;
+    
+    let resizeTimeout: NodeJS.Timeout;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Debounce to avoid excessive saves
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          const { width, height } = entry.contentRect;
+          this.saveSize(Math.round(width), Math.round(height));
+        }, 500);
+      }
+    });
+    
+    resizeObserver.observe(this.container);
+    
+    // Store observer for cleanup
+    (this.container as any)._resizeObserver = resizeObserver;
   }
 
   /**
@@ -728,10 +787,12 @@ export class UnifiedSelector {
           <div class="personality-grid selection-grid">
             ${personalities.map(personality => {
               const usageCount = this.getPersonalityUsageCount(personality.id);
+              const isFrequent = usageCount > 5;
               return `
               <div class="item-wrapper">
-                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
+                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''} ${isFrequent ? 'frequent' : ''}"
                         data-personality="${personality.id}"
+                        data-category="${personality.category}"
                         title="${personality.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="personality-emoji">${personality.emoji}</span>
                   <span class="personality-label">${personality.label}</span>
@@ -758,9 +819,10 @@ export class UnifiedSelector {
           <div class="vocabulary-grid selection-grid collapsible-content" id="vocabulary-content">
             ${vocabularyStyles.map(vocab => {
               const usageCount = this.getVocabularyUsageCount(vocab.id);
+              const isFrequent = usageCount > 5;
               return `
               <div class="item-wrapper">
-                <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''}"
+                <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''} ${isFrequent ? 'frequent' : ''}"
                         data-vocabulary="${vocab.id}"
                         title="${vocab.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="vocabulary-emoji">${vocab.emoji}</span>
@@ -784,10 +846,13 @@ export class UnifiedSelector {
           <div class="rhetoric-grid selection-grid">
             ${templates.map(template => {
               const usageCount = this.getTemplateUsageCount(template.id);
+              // Determine if this is a frequently used item
+              const isFrequent = usageCount > 5;
               return `
               <div class="item-wrapper">
-                <button class="rhetoric-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
+                <button class="rhetoric-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''} ${isFrequent ? 'frequent' : ''}"
                         data-rhetoric="${template.id}"
+                        data-category="${template.category}"
                         title="${template.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="rhetoric-emoji">${template.emoji}</span>
                   <span class="rhetoric-name">${template.name}</span>
@@ -814,9 +879,10 @@ export class UnifiedSelector {
           <div class="length-pacing-grid selection-grid collapsible-content" id="lengthPacing-content">
             ${lengthPacingStyles.map(pacing => {
               const usageCount = this.getLengthPacingUsageCount(pacing.id);
+              const isFrequent = usageCount > 5;
               return `
               <div class="item-wrapper">
-                <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''}"
+                <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''} ${isFrequent ? 'frequent' : ''}"
                         data-lengthpacing="${pacing.id}"
                         title="${pacing.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="length-pacing-emoji">${pacing.emoji}</span>
@@ -2181,10 +2247,10 @@ export class UnifiedSelector {
         if (lengthPacing) this.selectedLengthPacing = lengthPacing;
       }
     } else if (this.view === 'personas') {
-      // Try to find a matching persona
+      // Try to find a matching persona based on personality
       const personas = getAllQuickPersonas();
       const matchingPersona = personas.find(p => 
-        p.defaults?.personality === defaults.personality
+        p.personality === defaults.personality
       );
       
       if (matchingPersona) {
@@ -3028,6 +3094,9 @@ export class UnifiedSelector {
    * Apply styles
    */
   private applyStyles(): void {
+    // Get saved size preferences
+    const savedSize = this.getSavedSize();
+    
     if (!document.querySelector('#tweetcraft-unified-styles')) {
       const style = document.createElement('style');
       style.id = 'tweetcraft-unified-styles';
@@ -3037,17 +3106,38 @@ export class UnifiedSelector {
           background: #15202b;
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 12px;
-          width: 540px;
-          max-width: 92vw;
+          width: ${savedSize.width}px;
+          height: ${savedSize.height}px;
+          max-width: min(800px, 92vw);
           min-width: 480px;
-          max-height: 600px;
+          max-height: 90vh;
           min-height: 400px;
           display: flex;
+          resize: both;
+          overflow: auto;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           z-index: 10001;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
           overflow: hidden;
+        }
+        
+        /* Resize handle visual indicator */
+        .tweetcraft-unified-selector::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          width: 16px;
+          height: 16px;
+          cursor: se-resize;
+          background: linear-gradient(135deg, transparent 50%, rgba(139, 152, 165, 0.3) 50%);
+          border-radius: 0 0 12px 0;
+          pointer-events: none;
+        }
+        
+        .tweetcraft-unified-selector:hover::after {
+          background: linear-gradient(135deg, transparent 50%, rgba(29, 155, 240, 0.3) 50%);
         }
         
         /* Persistent selection bar */
@@ -3790,6 +3880,132 @@ export class UnifiedSelector {
           font-size: 12px;
           min-height: 32px;
           width: 100%;
+        }
+        
+        /* Category-based color coding for rhetoric buttons */
+        .rhetoric-btn[data-category="collaborative"] {
+          background: rgba(29, 155, 240, 0.05);
+          border-color: rgba(29, 155, 240, 0.3);
+        }
+        
+        .rhetoric-btn[data-category="collaborative"]:hover {
+          background: rgba(29, 155, 240, 0.15);
+          border-color: rgba(29, 155, 240, 0.6);
+          box-shadow: 0 2px 8px rgba(29, 155, 240, 0.2);
+        }
+        
+        .rhetoric-btn[data-category="clarifying"] {
+          background: rgba(0, 186, 124, 0.05);
+          border-color: rgba(0, 186, 124, 0.3);
+        }
+        
+        .rhetoric-btn[data-category="clarifying"]:hover {
+          background: rgba(0, 186, 124, 0.15);
+          border-color: rgba(0, 186, 124, 0.6);
+          box-shadow: 0 2px 8px rgba(0, 186, 124, 0.2);
+        }
+        
+        .rhetoric-btn[data-category="challenging"] {
+          background: rgba(255, 165, 0, 0.05);
+          border-color: rgba(255, 165, 0, 0.3);
+        }
+        
+        .rhetoric-btn[data-category="challenging"]:hover {
+          background: rgba(255, 165, 0, 0.15);
+          border-color: rgba(255, 165, 0, 0.6);
+          box-shadow: 0 2px 8px rgba(255, 165, 0, 0.2);
+        }
+        
+        .rhetoric-btn[data-category="online_native"] {
+          background: rgba(145, 70, 255, 0.05);
+          border-color: rgba(145, 70, 255, 0.3);
+        }
+        
+        .rhetoric-btn[data-category="online_native"]:hover {
+          background: rgba(145, 70, 255, 0.15);
+          border-color: rgba(145, 70, 255, 0.6);
+          box-shadow: 0 2px 8px rgba(145, 70, 255, 0.2);
+        }
+        
+        /* Category-based color coding for personality buttons */
+        .personality-btn[data-category="positive"] {
+          background: rgba(0, 186, 124, 0.05);
+          border-color: rgba(0, 186, 124, 0.3);
+        }
+        
+        .personality-btn[data-category="positive"]:hover {
+          background: rgba(0, 186, 124, 0.15);
+          border-color: rgba(0, 186, 124, 0.6);
+          box-shadow: 0 2px 8px rgba(0, 186, 124, 0.2);
+        }
+        
+        .personality-btn[data-category="neutral"] {
+          background: rgba(101, 119, 134, 0.05);
+          border-color: rgba(101, 119, 134, 0.3);
+        }
+        
+        .personality-btn[data-category="neutral"]:hover {
+          background: rgba(101, 119, 134, 0.15);
+          border-color: rgba(101, 119, 134, 0.6);
+          box-shadow: 0 2px 8px rgba(101, 119, 134, 0.2);
+        }
+        
+        .personality-btn[data-category="humorous"] {
+          background: rgba(255, 215, 0, 0.05);
+          border-color: rgba(255, 215, 0, 0.3);
+        }
+        
+        .personality-btn[data-category="humorous"]:hover {
+          background: rgba(255, 215, 0, 0.15);
+          border-color: rgba(255, 215, 0, 0.6);
+          box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
+        }
+        
+        .personality-btn[data-category="critical"] {
+          background: rgba(244, 33, 46, 0.05);
+          border-color: rgba(244, 33, 46, 0.3);
+        }
+        
+        .personality-btn[data-category="critical"]:hover {
+          background: rgba(244, 33, 46, 0.15);
+          border-color: rgba(244, 33, 46, 0.6);
+          box-shadow: 0 2px 8px rgba(244, 33, 46, 0.2);
+        }
+        
+        .personality-btn[data-category="naughty"] {
+          background: rgba(188, 42, 141, 0.05);
+          border-color: rgba(188, 42, 141, 0.3);
+        }
+        
+        .personality-btn[data-category="naughty"]:hover {
+          background: rgba(188, 42, 141, 0.15);
+          border-color: rgba(188, 42, 141, 0.6);
+          box-shadow: 0 2px 8px rgba(188, 42, 141, 0.2);
+        }
+        
+        /* Frequently used items are slightly larger and more prominent */
+        .rhetoric-btn.frequent,
+        .personality-btn.frequent,
+        .vocabulary-btn.frequent,
+        .length-pacing-btn.frequent {
+          transform: scale(1.03);
+          font-weight: 500;
+          border-width: 1.5px;
+        }
+        
+        /* Rarely used items are dimmed */
+        .rhetoric-btn:not(.frequent):not(.selected),
+        .personality-btn:not(.frequent):not(.selected),
+        .vocabulary-btn:not(.frequent):not(.selected),
+        .length-pacing-btn:not(.frequent):not(.selected) {
+          opacity: 0.85;
+        }
+        
+        .rhetoric-btn:not(.frequent):not(.selected):hover,
+        .personality-btn:not(.frequent):not(.selected):hover,
+        .vocabulary-btn:not(.frequent):not(.selected):hover,
+        .length-pacing-btn:not(.frequent):not(.selected):hover {
+          opacity: 1;
         }
         
         .star-btn {
