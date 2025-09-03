@@ -11,17 +11,7 @@ import { URLCleaner } from '@/utils/urlCleaner';
 import { requestOptimizer } from './requestOptimizer';
 import { cleanupReply } from '@/utils/textUtils';
 import { logger } from '@/utils/logger';
-
-// Hardcoded API configuration
-const API_CONFIG = {
-  OPENROUTER_API_KEY: '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',
-  BASE_URL: 'https://openrouter.ai/api/v1',
-  HEADERS: {
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
-  }
-};
+import { API_CONFIG } from '@/config/apiConfig';
 
 export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';

@@ -18,7 +18,9 @@ export enum MessageType {
   GET_STORAGE = 'GET_STORAGE',
   SET_STORAGE = 'SET_STORAGE',
   TEST_API_KEY = 'TEST_API_KEY',
-  FETCH_MODELS = 'FETCH_MODELS'
+  FETCH_MODELS = 'FETCH_MODELS',
+  RESET_USAGE_STATS = 'RESET_USAGE_STATS',
+  ANALYZE_IMAGES = 'ANALYZE_IMAGES'
 }
 
 // Base message interface
@@ -88,6 +90,16 @@ export interface FetchModelsMessage extends BaseMessage {
   type: MessageType.FETCH_MODELS;
 }
 
+export interface ResetUsageStatsMessage extends BaseMessage {
+  type: MessageType.RESET_USAGE_STATS;
+}
+
+export interface AnalyzeImagesMessage extends BaseMessage {
+  type: MessageType.ANALYZE_IMAGES;
+  modelId: string;
+  messages: any[];
+}
+
 // Union type of all messages
 export type ExtensionMessage = 
   | GetConfigMessage
@@ -102,7 +114,9 @@ export type ExtensionMessage =
   | GetStorageMessage
   | SetStorageMessage
   | TestApiKeyMessage
-  | FetchModelsMessage;
+  | FetchModelsMessage
+  | ResetUsageStatsMessage
+  | AnalyzeImagesMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -157,6 +171,16 @@ export function isTestApiKeyMessage(msg: any): msg is TestApiKeyMessage {
 
 export function isFetchModelsMessage(msg: any): msg is FetchModelsMessage {
   return msg?.type === MessageType.FETCH_MODELS;
+}
+
+export function isResetUsageStatsMessage(msg: any): msg is ResetUsageStatsMessage {
+  return msg?.type === MessageType.RESET_USAGE_STATS;
+}
+
+export function isAnalyzeImagesMessage(msg: any): msg is AnalyzeImagesMessage {
+  return msg?.type === MessageType.ANALYZE_IMAGES && 
+         typeof msg?.modelId === 'string' && 
+         Array.isArray(msg?.messages);
 }
 
 // Response types

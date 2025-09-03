@@ -36,6 +36,9 @@ interface UsageStats {
   eventsByType: Record<UsageEventType, number>;
   templateUsage: Map<TemplateId, number>;
   toneUsage: Map<ToneId, number>;
+  personalityUsage: Map<string, number>;
+  vocabularyUsage: Map<string, number>;
+  lengthPacingUsage: Map<string, number>;
   combinationUsage: Map<string, number>;
   successRate: number;
   averageResponseTime: number;
@@ -108,6 +111,13 @@ export class UsageTracker {
    */
   trackToneSelection(toneId: ToneId, intensity: number, source: 'manual' | 'suggestion' | 'favorite'): void {
     this.track('tone_selected', { toneId, intensity, source });
+  }
+
+  /**
+   * Track persona selection
+   */
+  trackPersonaSelection(personaId: string, source: 'manual' | 'suggestion' | 'favorite'): void {
+    this.track('template_selected', { templateId: personaId as TemplateId, source });
   }
 
   /**
@@ -188,6 +198,9 @@ export class UsageTracker {
       eventsByType: {} as Record<UsageEventType, number>,
       templateUsage: new Map(),
       toneUsage: new Map(),
+      personalityUsage: new Map(),
+      vocabularyUsage: new Map(),
+      lengthPacingUsage: new Map(),
       combinationUsage: new Map(),
       successRate: 0,
       averageResponseTime: 0,
@@ -211,6 +224,23 @@ export class UsageTracker {
       if (event.data.toneId) {
         const toneId = event.data.toneId as ToneId;
         stats.toneUsage.set(toneId, (stats.toneUsage.get(toneId) || 0) + 1);
+      }
+
+      // Track personality, vocabulary, and length pacing usage
+      // These would be tracked separately when implemented
+      if (event.data.personalityId) {
+        const personalityId = event.data.personalityId as string;
+        stats.personalityUsage.set(personalityId, (stats.personalityUsage.get(personalityId) || 0) + 1);
+      }
+      
+      if (event.data.vocabularyId) {
+        const vocabularyId = event.data.vocabularyId as string;
+        stats.vocabularyUsage.set(vocabularyId, (stats.vocabularyUsage.get(vocabularyId) || 0) + 1);
+      }
+      
+      if (event.data.lengthPacingId) {
+        const lengthPacingId = event.data.lengthPacingId as string;
+        stats.lengthPacingUsage.set(lengthPacingId, (stats.lengthPacingUsage.get(lengthPacingId) || 0) + 1);
       }
 
       // Track combination usage

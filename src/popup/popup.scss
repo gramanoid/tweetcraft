@@ -286,8 +286,14 @@ body {
   border-top: 1px solid #e1e8ed;
   background-color: #f7f9fa;
   
+  .footer-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
   .btn-primary {
-    width: 100%;
+    flex: 1;
     padding: 12px 24px;
     background: linear-gradient(135deg, #1da1f2 0%, #0d8bd9 100%);
     color: white;
@@ -305,6 +311,28 @@ body {
     
     &:active:not(:disabled) {
       transform: translateY(0);
+    }
+  }
+  
+  .reset-btn {
+    padding: 10px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+    
+    &:active:not(:disabled) {
+      transform: translateY(1px);
     }
     
     &:disabled {

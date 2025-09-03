@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), smart suggestions with AI scoring, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), 10 quick personas, custom templates with separate Style/Tone prompts, **Smart Defaults & Quick Generate system**, collapsible UX, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts with Space bar quick generation, advanced network resilience, race condition prevention, multi-stage loading states, **comprehensive anti-meta-commentary AI restrictions**, **unified visual feedback system**, and **perfect cross-category consistency**. Current version: 0.0.15
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), **enhanced AI suggestions with descriptive scoring**, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), **10 quick personas with compact grid layout**, custom templates with separate Style/Tone prompts, **Smart Defaults & Quick Generate system**, collapsible UX, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts with Space bar quick generation, **usage-based persona sorting**, **enhanced pattern recognition**, advanced network resilience, race condition prevention, multi-stage loading states, **comprehensive anti-meta-commentary AI restrictions**, **unified visual feedback system**, and **perfect cross-category consistency**. Current version: 0.0.15
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -36,10 +36,10 @@ Located in `bulkcraft/` directory with its own npm package structure (v0.1.0).
 ## Current Development State
 
 The repository is currently in active development with several modified files:
-- Modified files: CLAUDE.md, README.md, build config, popup components, services
-- New untracked files: .claude/, TODO.md, UXUI/, docs/API_KEY_SETUP.md, src/config/apiConfig.ts
-- Git branch: main (use for PRs)
-- Version: 0.0.14 (last commit: "Critical stability and performance fixes for production readiness")
+- Modified files: CLAUDE.md, TODO.md, public/popup.html, src/popup/popup-simple.ts, src/types/messages.ts, src/background/serviceWorker.ts, src/services/visionService.ts
+- New untracked files: src/services/smartDefaults.ts (Smart Defaults system)
+- Git branch: feature/custom-tab-ux-improvements (use for PRs)
+- Version: 0.0.15 (with latest improvements: Extension popup cleanup, LLM-first Smart tab, and fully functional image understanding)
 
 **IMPORTANT**: The codebase contains a hardcoded OpenRouter API key in `src/config/apiConfig.ts`. This is for personal use only and should never be committed to public repositories.
 
@@ -188,7 +188,7 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.15 - Latest Update with Smart Defaults)
+## Current Features (v0.0.15 - Latest Update: LLM-First Smart Tab + Extension Popup Cleanup)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -231,9 +231,11 @@ if (isHypeFury) {
 ### Unified AI Reply Interface (v0.0.14 - Latest Update)
 - **Six-tab Interface**: Personas, All, Smart, Favorites, Image Gen, Custom
 - **Smart Suggestions Tab**: 
-  - AI-powered scoring of template/tone combinations
-  - Shows top 6 suggestions with scores and reasoning
-  - Context-aware recommendations based on tweet content
+  - **Enhanced AI-powered scoring** with descriptive labels (Perfect Match, Excellent Fit, Great Choice, etc.)
+  - **Shows top 8 suggestions** with meaningful context explanations (up from 6)
+  - **Color-coded reason chips** with categories (Context, Favorites, Usage, Success, Timing, AI, Tone)
+  - **Refresh button** with smooth animation for generating new contextual suggestions
+  - **Advanced pattern recognition** with 11+ sophisticated rules for better context detection
 - **Image Generation Tab**: 
   - AI image generation using `google/gemini-2.5-flash-image-preview`
   - Web image search using `perplexity/sonar` model
@@ -241,9 +243,11 @@ if (isHypeFury) {
   - Direct URL insertion into tweets
   - No placeholder images - only real results
 - **Personas Tab**: 
-  - 10 pre-configured quick personas (The Debate Lord, The Chaos Muppet, etc.)
-  - Full personality descriptions with emojis
-  - One-click selection for complex combinations
+  - **Compact 5-column grid layout** showing all 10 personas simultaneously (space efficiency overhaul)
+  - **Usage-based intelligent sorting** with recent usage indicators and frequency counts
+  - **Hover tooltips** with full descriptions and usage statistics
+  - **Visual usage indicators**: count badges and recent usage dots for pattern recognition
+  - **Enhanced tracking integration** with main usage tracker service for analytics
 - **All Tab (4-part builder)**:
   - Step 1: 24 personalities (Friendly, Professional, Sarcastic, etc.)
   - Step 2: 11 vocabulary styles (Plain English, Corporate, Gen Z, etc.)
@@ -336,6 +340,9 @@ if (isHypeFury) {
 
 ### Technical Features
 - **Thread Context Extraction**: Analyzes up to 4 tweets for context-aware replies
+- **LLM-First Smart Suggestions**: AI analysis drives template scoring with confidence scoring, reasoning chains, and comprehensive context analysis
+- **Image Understanding**: Fully functional vision analysis using OpenRouter vision models (default: Gemini Pro Vision) - **ENABLED BY DEFAULT**
+- **Smart Defaults & Usage Tracking**: Comprehensive analytics with pattern recognition and intelligent fallbacks
 - **Advanced Caching**: Session-based response caching with deduplication
 - **Network Resilience**: Offline queuing, adaptive timeouts, connection quality detection
 - **Request Optimization**: Intelligent batching, request deduplication, performance metrics
@@ -373,12 +380,26 @@ See [TODO.md](TODO.md) for the comprehensive UX/UI improvement plan including:
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.15)
+### Recently Fixed (v0.0.15 - Latest Session)
+- ✅ **Extension Popup Cleanup** - Removed duplicate "Add Custom Tone" functionality (already available in AI Reply popup Custom tab)
+- ✅ **Reply Length Consistency** - Synchronized default reply length dropdown with AI Reply popup's 6-part system (One Word, Statement+Question, etc.)
+- ✅ **Image Understanding Activation** - Made image understanding enabled by default with proper configuration
+- ✅ **Vision Analysis Infrastructure** - Added complete ANALYZE_IMAGES message type, handler, and OpenRouter integration for vision models
+- ✅ **LLM-First Smart Tab** - Transformed Smart suggestions to be LLM-primary with confidence scoring, reasoning chains, and enhanced context analysis
+
+### Previous Fixes (v0.0.15 - Earlier)
 - ✅ **Personas Tab Generate Button** - Fixed issue where clicking persona cards didn't activate Generate button (updateUI() method now properly handles personas view)
 - ✅ **AI Self-Disclosure Prevention** - Enhanced system prompts to prevent AI from revealing its nature or explaining methodology in responses
 - ✅ **Quick Generate Smart Defaults** - Fixed ID mismatches between smartDefaults.ts and config files (hyphenated → underscored IDs)
 - ✅ **Collapsible UI Sections** - Enhanced toggleSection() method with window.getComputedStyle for reliable visibility detection
 - ✅ **Tab Layout Compactness** - Reduced tab padding/font sizes and added flex-shrink: 0 to prevent Custom tab from being cut off
+
+### Major UX Enhancements (v0.0.15)
+- ✅ **Personas Tab Layout Overhaul** - Complete redesign with 5-column compact grid, usage-based sorting, hover tooltips, and visual indicators
+- ✅ **AI Suggestions Enhancement** - Increased to 8 suggestions with descriptive labels, color-coded reason chips, refresh functionality, and enhanced pattern recognition
+- ✅ **Usage Tracking Integration** - Enhanced persona tracking with main usage tracker service for intelligent sorting and analytics
+- ✅ **Pattern Recognition Upgrade** - Enhanced from 8 to 11+ sophisticated regex patterns for better context detection in AI suggestions
+- ✅ **Scoring System Redesign** - Replaced confusing numeric scores with meaningful descriptive labels and visual categorization
 
 ### Previously Fixed (v0.0.14)
 - ✅ ChunkLoadError in image generation - Fixed with message passing pattern
@@ -423,6 +444,8 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `GENERATE_REPLY` - Main reply generation endpoint
 - `GET_LAST_TONE` / `SET_LAST_TONE` - Tone preference persistence
 - `GET_STORAGE` / `SET_STORAGE` - Generic storage access for CSP compliance (v0.0.11)
+- `RESET_USAGE_STATS` - Reset all usage tracking counters (v0.0.15)
+- `ANALYZE_IMAGES` - Vision analysis using OpenRouter vision models (v0.0.15)
 
 ## Performance Optimizations
 
@@ -479,12 +502,12 @@ When BulkCraft is integrated from its separate branch, it will add:
 ### Key Files and Their Purpose
 - `src/content/contentScript.ts` - Main content script, singleton pattern, button injection
 - `src/content/domUtils.ts` - Twitter DOM manipulation, text insertion (DO NOT MODIFY insertion logic)
-- `src/content/unifiedSelector.ts` - 6-tab unified AI interface implementation
+- `src/content/unifiedSelector.ts` - **ENHANCED**: 6-tab unified AI interface with personas grid overhaul and AI suggestions improvements
 - `src/services/openRouter.ts` - OpenRouter API integration with retry logic
 - `src/services/imageService.ts` - AI image generation and web search
-- `src/services/templateSuggester.ts` - Smart suggestions with AI scoring
-- `src/services/smartDefaults.ts` - **NEW**: Smart defaults and Quick Generate functionality
-- `src/services/usageTracker.ts` - Usage patterns tracking for smart defaults
+- `src/services/templateSuggester.ts` - **ENHANCED**: Smart suggestions with enhanced pattern recognition, descriptive scoring, and 8-suggestion capacity
+- `src/services/smartDefaults.ts` - Smart defaults and Quick Generate functionality
+- `src/services/usageTracker.ts` - **ENHANCED**: Usage patterns tracking with persona tracking support for intelligent sorting
 - `src/background/serviceWorker.ts` - Message handling, storage operations
 - `src/config/apiConfig.ts` - **CRITICAL**: Contains hardcoded OpenRouter API key
 - `src/config/templatesAndTones.ts` - Template and tone definitions (deprecated - see modular configs)

@@ -14,6 +14,8 @@ import { templateSuggester } from '@/services/templateSuggester';
 import { DOMUtils } from '@/content/domUtils';
 import { imageService } from '@/services/imageService';
 import { smartDefaults } from '@/services/smartDefaults';
+import { usageTracker } from '@/services/usageTracker';
+import { createTemplateId } from '@/types/branded';
 
 export interface SelectionResult {
   template: Template;
@@ -432,6 +434,9 @@ export class UnifiedSelector {
   private renderPersonasView(): string {
     const personas = getAllQuickPersonas();
     
+    // Sort personas by usage frequency (most used first)
+    const sortedPersonas = this.sortPersonasByUsage(personas);
+    
     return `
       <div class="selector-content personas-view">
         <div class="personas-info">
@@ -439,19 +444,142 @@ export class UnifiedSelector {
             🎭 Quick personas with pre-configured personality, vocabulary, rhetoric, and pacing
           </p>
         </div>
-        <div class="personas-grid">
-          ${personas.map(persona => `
-            <button class="persona-card ${this.selectedPersona?.id === persona.id ? 'selected' : ''}"
-                    data-persona="${persona.id}"
-                    title="${persona.description}">
-              <div class="persona-emoji">${persona.emoji}</div>
-              <div class="persona-name">${persona.name}</div>
-              <div class="persona-description">${persona.description}</div>
-            </button>
-          `).join('')}
+        <div class="personas-grid-compact">
+          ${sortedPersonas.map((persona, index) => {
+            const usageCount = this.getPersonaUsageCount(persona.id);
+            const isRecentlyUsed = this.isPersonaRecentlyUsed(persona.id);
+            return `
+              <button class="persona-card-compact ${this.selectedPersona?.id === persona.id ? 'selected' : ''}"
+                      data-persona="${persona.id}"
+                      title="${persona.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
+                <div class="persona-emoji">${persona.emoji}</div>
+                <div class="persona-name">${persona.name}</div>
+                ${usageCount > 0 ? `<div class="usage-indicator">${usageCount}</div>` : ''}
+                ${isRecentlyUsed ? '<div class="recent-indicator">•</div>' : ''}
+              </button>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Sort personas by usage frequency (most used first)
+   */
+  private sortPersonasByUsage(personas: any[]): any[] {
+    return [...personas].sort((a, b) => {
+      const usageA = this.getPersonaUsageCount(a.id);
+      const usageB = this.getPersonaUsageCount(b.id);
+      
+      // If usage counts are different, sort by usage
+      if (usageA !== usageB) {
+        return usageB - usageA;
+      }
+      
+      // If same usage, prioritize recently used
+      const recentA = this.isPersonaRecentlyUsed(a.id);
+      const recentB = this.isPersonaRecentlyUsed(b.id);
+      
+      if (recentA && !recentB) return -1;
+      if (!recentA && recentB) return 1;
+      
+      // Otherwise maintain original order
+      return 0;
+    });
+  }
+  
+  /**
+   * Get usage count for a persona
+   */
+  private getPersonaUsageCount(personaId: string): number {
+    try {
+      const stats = usageTracker.getStats();
+      return stats.templateUsage?.get(createTemplateId(personaId)) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Get usage count for a personality
+   */
+  private getPersonalityUsageCount(personalityId: string): number {
+    try {
+      const stats = usageTracker.getStats();
+      return stats.personalityUsage?.get(personalityId) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Get usage count for vocabulary
+   */
+  private getVocabularyUsageCount(vocabularyId: string): number {
+    try {
+      const stats = usageTracker.getStats();
+      return stats.vocabularyUsage?.get(vocabularyId) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Get usage count for a template (rhetoric)
+   */
+  private getTemplateUsageCount(templateId: string): number {
+    try {
+      const stats = usageTracker.getStats();
+      return stats.templateUsage?.get(createTemplateId(templateId)) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Get usage count for length & pacing
+   */
+  private getLengthPacingUsageCount(lengthPacingId: string): number {
+    try {
+      const stats = usageTracker.getStats();
+      return stats.lengthPacingUsage?.get(lengthPacingId) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+  
+  /**
+   * Check if persona was used recently (within last 24 hours)
+   */
+  private isPersonaRecentlyUsed(personaId: string): boolean {
+    try {
+      const recentSelections = JSON.parse(localStorage.getItem('tweetcraft_recent_personas') || '{}');
+      const lastUsed = recentSelections[personaId];
+      if (!lastUsed) return false;
+      
+      const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+      return lastUsed > twentyFourHoursAgo;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  /**
+   * Track persona usage
+   */
+  private trackPersonaUsage(personaId: string): void {
+    try {
+      // Track in usage tracker
+      usageTracker.trackPersonaSelection(personaId, 'manual');
+      
+      // Track recent usage
+      const recentSelections = JSON.parse(localStorage.getItem('tweetcraft_recent_personas') || '{}');
+      recentSelections[personaId] = Date.now();
+      localStorage.setItem('tweetcraft_recent_personas', JSON.stringify(recentSelections));
+    } catch (error) {
+      console.warn('Failed to track persona usage:', error);
+    }
   }
 
   /**
@@ -467,13 +595,16 @@ export class UnifiedSelector {
         <div class="part-section personalities-section">
           <h3><span class="part-number">1</span> Personality <span class="part-subtitle">(Who is talking)</span></h3>
           <div class="personality-grid selection-grid">
-            ${personalities.map(personality => `
+            ${personalities.map(personality => {
+              const usageCount = this.getPersonalityUsageCount(personality.id);
+              return `
               <div class="item-wrapper">
                 <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
                         data-personality="${personality.id}"
-                        title="${personality.description}">
+                        title="${personality.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="personality-emoji">${personality.emoji}</span>
                   <span class="personality-label">${personality.label}</span>
+                  ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ''}
                 </button>
                 <button class="star-btn ${this.favoritePersonalities.has(personality.id) ? 'active' : ''}" 
                         data-personality-star="${personality.id}" 
@@ -481,7 +612,8 @@ export class UnifiedSelector {
                   ${this.favoritePersonalities.has(personality.id) ? '⭐' : '☆'}
                 </button>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
         
@@ -493,13 +625,16 @@ export class UnifiedSelector {
             <span class="collapse-indicator">−</span>
           </h3>
           <div class="vocabulary-grid selection-grid collapsible-content" id="vocabulary-content">
-            ${vocabularyStyles.map(vocab => `
+            ${vocabularyStyles.map(vocab => {
+              const usageCount = this.getVocabularyUsageCount(vocab.id);
+              return `
               <div class="item-wrapper">
                 <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''}"
                         data-vocabulary="${vocab.id}"
-                        title="${vocab.description}">
+                        title="${vocab.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="vocabulary-emoji">${vocab.emoji}</span>
                   <span class="vocabulary-label">${vocab.label}</span>
+                  ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ''}
                 </button>
                 <button class="star-btn ${this.favoriteVocabulary?.has(vocab.id) ? 'active' : ''}" 
                         data-vocabulary-star="${vocab.id}" 
@@ -507,7 +642,8 @@ export class UnifiedSelector {
                   ${this.favoriteVocabulary?.has(vocab.id) ? '⭐' : '☆'}
                 </button>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
         
@@ -515,13 +651,16 @@ export class UnifiedSelector {
         <div class="part-section rhetoric-section">
           <h3><span class="part-number">3</span> Rhetoric <span class="part-subtitle">(Approach to topic)</span></h3>
           <div class="rhetoric-grid selection-grid">
-            ${templates.map(template => `
+            ${templates.map(template => {
+              const usageCount = this.getTemplateUsageCount(template.id);
+              return `
               <div class="item-wrapper">
                 <button class="rhetoric-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
                         data-rhetoric="${template.id}"
-                        title="${template.description}">
+                        title="${template.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="rhetoric-emoji">${template.emoji}</span>
                   <span class="rhetoric-name">${template.name}</span>
+                  ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ''}
                 </button>
                 <button class="star-btn ${this.favoriteTemplates.has(template.id) ? 'active' : ''}" 
                         data-rhetoric-star="${template.id}" 
@@ -529,7 +668,8 @@ export class UnifiedSelector {
                   ${this.favoriteTemplates.has(template.id) ? '⭐' : '☆'}
                 </button>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
         
@@ -541,13 +681,16 @@ export class UnifiedSelector {
             <span class="collapse-indicator">−</span>
           </h3>
           <div class="length-pacing-grid selection-grid collapsible-content" id="lengthPacing-content">
-            ${lengthPacingStyles.map(pacing => `
+            ${lengthPacingStyles.map(pacing => {
+              const usageCount = this.getLengthPacingUsageCount(pacing.id);
+              return `
               <div class="item-wrapper">
                 <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''}"
                         data-lengthpacing="${pacing.id}"
-                        title="${pacing.description}">
+                        title="${pacing.description}${usageCount > 0 ? ' • Used ' + usageCount + ' times' : ''}">
                   <span class="length-pacing-emoji">${pacing.emoji}</span>
                   <span class="length-pacing-label">${pacing.label}</span>
+                  ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ''}
                 </button>
                 <button class="star-btn ${this.favoriteLengthPacing?.has(pacing.id) ? 'active' : ''}" 
                         data-lengthpacing-star="${pacing.id}" 
@@ -555,11 +698,54 @@ export class UnifiedSelector {
                   ${this.favoriteLengthPacing?.has(pacing.id) ? '⭐' : '☆'}
                 </button>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Convert numeric score to descriptive label
+   */
+  private getScoreLabel(score: number): { label: string; icon: string; color: string } {
+    if (score >= 4.0) return { label: 'Perfect Match', icon: '🎯', color: '#17BF63' };
+    if (score >= 3.0) return { label: 'Excellent Fit', icon: '⭐', color: '#1DA1F2' };  
+    if (score >= 2.5) return { label: 'Great Choice', icon: '✨', color: '#1DA1F2' };
+    if (score >= 2.0) return { label: 'Good Fit', icon: '👍', color: '#657786' };
+    if (score >= 1.5) return { label: 'Worth Trying', icon: '💡', color: '#8B98A5' };
+    return { label: 'Possible Match', icon: '🤔', color: '#8B98A5' };
+  }
+
+  /**
+   * Enhance reason descriptions to be more user-friendly
+   */
+  private enhanceReasonDescription(reason: string): { text: string; icon: string; category: string } {
+    // Pattern matching reasons
+    if (reason.includes('Template matches context')) return { text: 'Perfect for this conversation', icon: '🎯', category: 'context' };
+    if (reason.includes('Tone suits context')) return { text: 'Right emotional tone', icon: '🎨', category: 'tone' };
+    
+    // User preference reasons  
+    if (reason.includes('Favorite template')) return { text: 'Your favorite approach', icon: '⭐', category: 'favorite' };
+    if (reason.includes('Favorite tone')) return { text: 'Your preferred style', icon: '⭐', category: 'favorite' };
+    
+    // Usage history reasons
+    if (reason.includes('Used') && reason.includes('times')) return { text: 'You use this often', icon: '🔄', category: 'usage' };
+    if (reason.includes('Success rate')) return { text: 'High success rate', icon: '📈', category: 'success' };
+    
+    // Context-specific reasons
+    if (reason.includes('Good for replies')) return { text: 'Great for replies', icon: '💬', category: 'context' };
+    if (reason.includes('Work hours')) return { text: 'Professional time', icon: '💼', category: 'timing' };
+    if (reason.includes('Evening hours')) return { text: 'Casual time', icon: '🌆', category: 'timing' };
+    if (reason.includes('Long thread')) return { text: 'Good for debates', icon: '🧵', category: 'context' };
+    
+    // AI analysis reasons
+    if (reason.includes('AI-detected intent match')) return { text: 'AI recommends this approach', icon: '🤖', category: 'ai' };
+    if (reason.includes('AI-detected tone match')) return { text: 'AI suggests this tone', icon: '🤖', category: 'ai' };
+    
+    // Fallback
+    return { text: reason, icon: '💡', category: 'general' };
   }
 
   /**
@@ -581,15 +767,22 @@ export class UnifiedSelector {
     return `
       <div class="selector-content smart-view">
         <div class="smart-info">
-          <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0 0 12px 0;">
-            🤖 AI-suggested combinations based on conversation context
-          </p>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
+            <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0;">
+              🤖 AI-suggested combinations based on conversation context
+            </p>
+            <button class="refresh-suggestions-btn" title="Get new suggestions">
+              <span style="font-size: 12px;">🔄</span>
+            </button>
+          </div>
         </div>
         <div class="smart-suggestions-list">
-          ${scores.length > 0 ? scores.slice(0, 6).map((score: any, _index: number) => {
+          ${scores.length > 0 ? scores.slice(0, 8).map((score: any, _index: number) => {
             const template = TEMPLATES.find(t => t.id === score.templateId);
             const personality = PERSONALITIES.find(p => p.id === (score.personalityId || score.toneId));
             if (!template || !personality) return '';
+            
+            const scoreInfo = this.getScoreLabel(score.score);
             
             return `
               <div class="suggestion-card" data-template="${template.id}" data-personality="${personality.id}">
@@ -597,25 +790,20 @@ export class UnifiedSelector {
                   <span class="suggestion-combo">
                     ${template.emoji} ${template.name} + ${personality.emoji} ${personality.label}
                   </span>
-                  <span class="suggestion-score" title="AI confidence score based on context analysis">
-                    <span class="score-icon">⚡</span>
-                    ${score.score.toFixed(1)}
+                  <span class="suggestion-score" title="AI confidence: ${scoreInfo.label}" style="color: ${scoreInfo.color}">
+                    <span class="score-icon">${scoreInfo.icon}</span>
+                    ${scoreInfo.label}
                   </span>
                 </div>
                 <div class="suggestion-preview">
                   ${template.description.length > 60 ? template.description.substring(0, 60) + '...' : template.description}
                 </div>
                 <div class="suggestion-reasons">
-                  ${score.reasons.map((reason: string, idx: number) => {
-                    // Enhance reason descriptions
-                    let enhancedReason = reason;
-                    if (reason.includes('Template matches')) enhancedReason = '🎯 ' + reason;
-                    else if (reason.includes('Tone suits')) enhancedReason = '🎨 ' + reason;
-                    else if (reason.includes('thread')) enhancedReason = '🧵 ' + reason;
-                    else if (reason.includes('viral')) enhancedReason = '🔥 ' + reason;
-                    else if (reason.includes('engagement')) enhancedReason = '💬 ' + reason;
-                    
-                    return idx < 3 ? `<span class="reason-chip" title="Why this combination works well">${enhancedReason}</span>` : '';
+                  ${score.reasons.slice(0, 3).map((reason: string) => {
+                    const enhanced = this.enhanceReasonDescription(reason);
+                    return `<span class="reason-chip reason-${enhanced.category}" title="${enhanced.text}">
+                      ${enhanced.icon} ${enhanced.text}
+                    </span>`;
                   }).join('')}
                 </div>
               </div>
@@ -835,7 +1023,7 @@ export class UnifiedSelector {
     });
 
     // Persona selection (quick personas)
-    this.container.querySelectorAll('.persona-card').forEach(btn => {
+    this.container.querySelectorAll('.persona-card, .persona-card-compact').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         const personaId = (e.currentTarget as HTMLElement).dataset.persona!;
@@ -907,6 +1095,16 @@ export class UnifiedSelector {
         const personalityId = (e.currentTarget as HTMLElement).dataset.personality!;
         this.selectTemplate(templateId);
         this.selectPersonality(personalityId);
+      });
+    });
+
+    // Refresh suggestions button
+    this.container.querySelectorAll('.refresh-suggestions-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        console.log('%c🔄 Refreshing suggestions', 'color: #1DA1F2; font-weight: bold');
+        this.loadSmartSuggestions();
       });
     });
 
@@ -1160,6 +1358,10 @@ export class UnifiedSelector {
     const persona = personas.find(p => p.id === personaId) || null;
     if (persona) {
       this.selectedPersona = persona;
+      
+      // Track persona usage
+      this.trackPersonaUsage(personaId);
+      
       console.log('%c👤 Persona selected:', 'color: #FFD700; font-weight: bold', persona.name);
       console.log('%c  Pre-configured:', 'color: #657786');
       console.log('%c    Personality:', 'color: #9146FF', persona.personality);
@@ -1217,7 +1419,7 @@ export class UnifiedSelector {
     if (!this.container) return;
 
     // Update persona cards
-    this.container.querySelectorAll('.persona-card').forEach(btn => {
+    this.container.querySelectorAll('.persona-card, .persona-card-compact').forEach(btn => {
       btn.classList.toggle('selected', btn.getAttribute('data-persona') === this.selectedPersona?.id);
     });
 
@@ -2813,6 +3015,147 @@ export class UnifiedSelector {
           color: #FFD700;
           font-weight: 500;
         }
+
+        /* Compact Personas Grid - Shows all 10 personas at once */
+        .personas-grid-compact {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 6px;
+          max-height: none;
+          margin: 0;
+        }
+        
+        .persona-card-compact {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(139, 152, 165, 0.2);
+          border-radius: 8px;
+          padding: 6px 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 3px;
+          position: relative;
+          min-height: 60px;
+        }
+        
+        .persona-card-compact:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: rgba(29, 155, 240, 0.3);
+          transform: translateY(-1px);
+        }
+        
+        /* Hover tooltip for full description */
+        .persona-card-compact:hover::after {
+          content: attr(title);
+          position: absolute;
+          top: -10px;
+          left: 50%;
+          transform: translateX(-50%) translateY(-100%);
+          background: #1e1e1e;
+          color: #e7e9ea;
+          padding: 6px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          white-space: nowrap;
+          max-width: 200px;
+          white-space: normal;
+          width: max-content;
+          z-index: 1000;
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+          opacity: 1;
+          pointer-events: none;
+        }
+        
+        .persona-card-compact.selected {
+          background: #1d9bf0 !important;
+          border-color: #1d9bf0;
+          color: white !important;
+          box-shadow: 0 2px 8px rgba(29, 155, 240, 0.4);
+        }
+        
+        .persona-card-compact.selected .persona-name {
+          color: white !important;
+        }
+        
+        .persona-card-compact .persona-emoji {
+          font-size: 18px;
+        }
+        
+        .persona-card-compact .persona-name {
+          font-size: 10px;
+          font-weight: 600;
+          color: #e7e9ea;
+          line-height: 1.1;
+          text-align: center;
+        }
+        
+        /* Usage and recent indicators */
+        .usage-indicator {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          background: rgba(255, 215, 0, 0.2);
+          border: 1px solid rgba(255, 215, 0, 0.4);
+          border-radius: 10px;
+          padding: 1px 4px;
+          font-size: 8px;
+          color: #FFD700;
+          font-weight: 600;
+          min-width: 12px;
+          text-align: center;
+        }
+        
+        .usage-counter {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          background: rgba(29, 155, 240, 0.15);
+          border: 1px solid rgba(29, 155, 240, 0.3);
+          border-radius: 8px;
+          padding: 1px 4px;
+          font-size: 8px;
+          color: #1DA1F2;
+          font-weight: 600;
+          min-width: 12px;
+          text-align: center;
+          line-height: 1;
+        }
+        
+        .recent-indicator {
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          width: 8px;
+          height: 8px;
+          background: #17BF63;
+          border-radius: 50%;
+          border: 2px solid #0f1419;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 480px) {
+          .personas-grid-compact {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+          }
+          
+          .persona-card-compact {
+            padding: 4px 2px;
+            min-height: 55px;
+          }
+          
+          .persona-card-compact .persona-emoji {
+            font-size: 16px;
+          }
+          
+          .persona-card-compact .persona-name {
+            font-size: 9px;
+          }
+        }
         
         .item-wrapper {
           position: relative;
@@ -3385,6 +3728,74 @@ export class UnifiedSelector {
         .reason-chip:hover {
           background: rgba(29, 155, 240, 0.25);
           color: #e7e9ea;
+        }
+
+        /* Enhanced reason chips with categories */
+        .reason-context {
+          background: rgba(29, 155, 240, 0.15);
+          border-left: 2px solid #1d9bf0;
+        }
+
+        .reason-favorite {
+          background: rgba(255, 212, 0, 0.15);
+          border-left: 2px solid #ffd400;
+          color: #ffd400;
+        }
+
+        .reason-usage {
+          background: rgba(23, 191, 99, 0.15);
+          border-left: 2px solid #17bf63;
+          color: #17bf63;
+        }
+
+        .reason-success {
+          background: rgba(102, 187, 106, 0.15);
+          border-left: 2px solid #66bb6a;
+          color: #66bb6a;
+        }
+
+        .reason-timing {
+          background: rgba(156, 39, 176, 0.15);
+          border-left: 2px solid #9c27b0;
+          color: #ba68c8;
+        }
+
+        .reason-ai {
+          background: rgba(255, 87, 34, 0.15);
+          border-left: 2px solid #ff5722;
+          color: #ff8a65;
+        }
+
+        .reason-tone {
+          background: rgba(233, 30, 99, 0.15);
+          border-left: 2px solid #e91e63;
+          color: #f48fb1;
+        }
+
+        /* Refresh suggestions button */
+        .refresh-suggestions-btn {
+          background: rgba(29, 155, 240, 0.1);
+          border: 1px solid rgba(29, 155, 240, 0.3);
+          border-radius: 4px;
+          padding: 4px 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 12px;
+        }
+
+        .refresh-suggestions-btn:hover {
+          background: rgba(29, 155, 240, 0.2);
+          border-color: rgba(29, 155, 240, 0.5);
+          transform: rotate(90deg);
+        }
+
+        /* Enhanced suggestion score styling */
+        .suggestion-score {
+          font-size: 11px;
+          font-weight: 500;
+          background: transparent;
+          padding: 2px 4px;
+          border-radius: 4px;
         }
         
         /* Image Generation View Styles */

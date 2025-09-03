@@ -7,22 +7,14 @@ import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
 import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
+import { usageTracker } from '@/services/usageTracker';
 
 // Log after imports
 console.log('Service Worker: Imports completed');
 
-// Hardcoded API configuration
-const API_CONFIG = {
-  OPENROUTER_API_KEY: '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',
-  BASE_URL: 'https://openrouter.ai/api/v1',
-  HEADERS: {
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
-  }
-};
+import { API_CONFIG } from '@/config/apiConfig';
 
-console.log('Service Worker: API_CONFIG set');
+console.log('Service Worker: API_CONFIG loaded from environment');
 import type { 
   ExtensionMessage as OpenRouterExtensionMessage,
   StorageData,
@@ -49,7 +41,9 @@ import {
   isGetStorageMessage,
   isSetStorageMessage,
   isTestApiKeyMessage,
-  isFetchModelsMessage
+  isFetchModelsMessage,
+  isResetUsageStatsMessage,
+  isAnalyzeImagesMessage
 } from '@/types/messages';
 import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
@@ -367,7 +361,53 @@ class SmartReplyServiceWorker {
           break;
         }
 
-        // Note: ANALYZE_IMAGES not in MessageType enum - should be added if needed
+        case MessageType.ANALYZE_IMAGES: {
+          if (isAnalyzeImagesMessage(message)) {
+            try {
+              const apiKey = API_CONFIG.OPENROUTER_API_KEY;
+              if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+                sendResponse({ success: false, error: 'API key not configured' });
+                return;
+              }
+
+              const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                  'HTTP-Referer': 'https://tweetcraft.com',
+                  'X-Title': 'TweetCraft Vision Analysis'
+                },
+                body: JSON.stringify({
+                  model: message.modelId,
+                  messages: message.messages,
+                  max_tokens: 500,
+                  temperature: 0.1
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              const content = data.choices?.[0]?.message?.content;
+              
+              if (content) {
+                sendResponse({ success: true, content });
+              } else {
+                sendResponse({ success: false, error: 'No content in API response' });
+              }
+            } catch (error) {
+              console.error('Vision API error:', error);
+              sendResponse({ 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+              });
+            }
+          }
+          break;
+        }
         
         case MessageType.TEST_API_KEY: {
           if (isTestApiKeyMessage(message)) {
@@ -413,6 +453,24 @@ class SmartReplyServiceWorker {
           if (isFetchModelsMessage(message)) {
             // Handle fetch models - await it properly
             await this.handleFetchModels(sendResponse);
+          }
+          break;
+        }
+
+        case MessageType.RESET_USAGE_STATS: {
+          if (isResetUsageStatsMessage(message)) {
+            console.log('Service Worker: Resetting usage statistics');
+            try {
+              await usageTracker.reset();
+              console.log('Service Worker: Usage statistics reset successfully');
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('Service Worker: Failed to reset usage statistics:', error);
+              sendResponse({ 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Failed to reset usage stats' 
+              });
+            }
           }
           break;
         }

@@ -48,24 +48,17 @@
           <small>Specific instructions for how to write your tweets (no length limit)</small>
         </div>
         
-        <div class="setting-group">
-          <label for="custom-tone">Add Custom Tone:</label>
-          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <input type="text" id="custom-tone-name" placeholder="Tone name (e.g., Philosophical)" style="flex: 1;">
-            <input type="text" id="custom-tone-emoji" placeholder="Emoji" style="width: 60px; text-align: center;">
-          </div>
-          <textarea id="custom-tone-prompt" placeholder="e.g., Write in a thoughtful, philosophical manner. Ask deep questions and explore underlying meanings. Reference classical ideas when relevant." rows="3" style="resize: vertical;"></textarea>
-          <button id="add-custom-tone" class="btn-primary">Add Custom Tone</button>
-          <div id="custom-tones-list" style="margin-top: 10px;"></div>
-        </div>
         
         <div class="setting-group">
           <label for="reply-length">Default Reply Length:</label>
           <select id="reply-length">
             <option value="">Auto (based on context)</option>
-            <option value="short">Short (&lt; 50 characters)</option>
-            <option value="medium">Medium (50-150 characters)</option>
-            <option value="long">Long (150-280 characters)</option>
+            <option value="drive_by">One Word (1-20 characters)</option>
+            <option value="one_two_punch">Statement + Question (50-150 characters)</option>
+            <option value="deliberate_pause">Thoughtful Pause (80-200 characters)</option>
+            <option value="conversational_clause">Normal Reply (100-200 characters)</option>
+            <option value="breathless_ramble">Stream of Thought (200-280 characters)</option>
+            <option value="mini_thread">Two-Tweet Thread (280-560 characters)</option>
           </select>
           <small>Set preferred reply length for all generations</small>
         </div>
@@ -91,7 +84,7 @@
         
         <div class="setting-group">
           <label style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="image-understanding" style="width: auto;" aria-controls="vision-settings" aria-expanded="false">
+            <input type="checkbox" id="image-understanding" style="width: auto;" aria-controls="vision-settings" aria-expanded="false" checked>
             <span id="image-understanding-label">Enable Image Understanding <span style="color: #794BC4;">(Beta)</span></span>
           </label>
           <small>Analyze images in tweets for richer context. Uses vision models (may incur additional costs).</small>
@@ -109,7 +102,10 @@
       </main>
       
       <footer class="popup-footer">
-        <button id="save-settings" class="btn-primary">Save Settings</button>
+        <div class="footer-buttons">
+          <button id="save-settings" class="btn-primary">Save Settings</button>
+          <button id="reset-usage" class="btn-secondary reset-btn" title="Reset all usage counters to 0">🔄 Reset Usage</button>
+        </div>
         <div id="status-message"></div>
       </footer>
     </div>

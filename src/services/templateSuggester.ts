@@ -18,6 +18,14 @@ interface SuggestionContext {
   userHistory?: string[];
   timeOfDay?: number;
   dayOfWeek?: number;
+  authorHandle?: string;
+  threadLength?: number;
+  participantCount?: number;
+  recentEngagement?: {
+    likes: number;
+    retweets: number; 
+    replies: number;
+  };
 }
 
 interface SuggestionScore {
@@ -37,37 +45,53 @@ interface PatternRule {
 
 export class TemplateSuggester {
   private patternRules: PatternRule[] = [
-    // Question patterns
+    // Question patterns - more comprehensive
     {
-      pattern: /\?|how|what|when|where|why|who|which/i,
+      pattern: /\?|how do|what if|can you|should i|why does|where can|when will|who knows|which one/i,
       templates: ['ask_question', 'add_insight', 'provide_data'],
       tones: ['professional', 'academic', 'casual'],
-      weight: 1.5,
+      weight: 1.8,
       description: 'Question detected'
     },
-    // Opinion/statement patterns
+    // Opinion/statement patterns - enhanced
     {
-      pattern: /think|believe|opinion|feel|seems|appears/i,
-      templates: ['agree_expand', 'challenge', 'devils_advocate'],
-      tones: ['witty', 'contrarian', 'philosophical'],
-      weight: 1.3,
-      description: 'Opinion expressed'
+      pattern: /i think|my opinion|i believe|personally|in my view|seems like|appears that|i feel/i,
+      templates: ['agree_expand', 'challenge', 'devils_advocate', 'personal_story'],
+      tones: ['witty', 'contrarian', 'philosophical', 'casual'],
+      weight: 1.5,
+      description: 'Personal opinion expressed'
     },
-    // Achievement/success patterns
+    // Strong disagreement/controversy patterns - new
     {
-      pattern: /achieved|launched|built|created|finished|completed|proud|excited/i,
-      templates: ['congratulate', 'show_support', 'relate'],
-      tones: ['enthusiastic', 'motivational', 'casual'],
-      weight: 1.4,
-      description: 'Achievement mentioned'
+      pattern: /wrong|terrible|awful|disagree|nonsense|ridiculous|stupid|bad take|worst/i,
+      templates: ['challenge', 'devils_advocate', 'steel_man', 'hot_take'],
+      tones: ['contrarian', 'sarcastic', 'savage', 'philosophical'],
+      weight: 2.0,
+      description: 'Strong disagreement detected'
     },
-    // Problem/issue patterns
+    // Achievement/success patterns - enhanced
     {
-      pattern: /problem|issue|broken|failed|error|help|stuck|struggling/i,
-      templates: ['add_insight', 'share_experience', 'show_support'],
-      tones: ['professional', 'casual', 'motivational'],
+      pattern: /just launched|shipped|achieved|built|created|finished|completed|proud of|excited to announce|success/i,
+      templates: ['congratulate', 'show_support', 'relate', 'celebrate'],
+      tones: ['enthusiastic', 'motivational', 'casual', 'wholesome'],
+      weight: 1.6,
+      description: 'Achievement or success story'
+    },
+    // Problem/issue patterns - more specific  
+    {
+      pattern: /having trouble|can't figure out|struggling with|problem|issue|broken|failed|error|help needed|stuck on/i,
+      templates: ['add_insight', 'share_experience', 'show_support', 'suggest_solution'],
+      tones: ['professional', 'casual', 'motivational', 'wholesome'],
+      weight: 1.6,
+      description: 'Help or support needed'
+    },
+    // Excitement/hype patterns - new
+    {
+      pattern: /amazing|incredible|love this|so good|excited|hyped|can't wait|obsessed|blown away/i,
+      templates: ['agree_build', 'celebrate', 'relate', 'add_energy'],
+      tones: ['enthusiastic', 'gen_z', 'casual', 'motivational'],
       weight: 1.4,
-      description: 'Problem detected'
+      description: 'High excitement or enthusiasm'
     },
     // Data/facts patterns
     {
@@ -130,7 +154,7 @@ export class TemplateSuggester {
     try {
       const apiKey = await this.getApiKey();
       if (apiKey && context.tweetText.length > 20) {
-        llmAnalysis = await this.getLLMAnalysis(context.tweetText, apiKey);
+        llmAnalysis = await this.getLLMAnalysis(context.tweetText, context, apiKey);
       }
     } catch (error) {
       console.log('%c🤖 Proceeding without LLM analysis', 'color: #657786');
@@ -156,10 +180,10 @@ export class TemplateSuggester {
       });
     });
     
-    // Sort by score and return top suggestions
+    // Sort by score and return top suggestions  
     const sorted = Array.from(scores.values())
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 12); // Increased from 10 to 12 for better variety
     
     console.log('%c🤖 Top suggestions:', 'color: #17BF63');
     sorted.slice(0, 3).forEach((s, i) => {
@@ -205,19 +229,96 @@ export class TemplateSuggester {
     preferences: any,
     llmAnalysis?: LLMAnalysisResult | null
   ): SuggestionScore {
-    let score = 1.0;
+    let score = 0.5; // Lower base score - LLM will be primary
     const reasons: string[] = [];
     
-    // Pattern matching score
-    const templatePatternScore = patternScores.get(template.id) || 0;
-    const tonePatternScore = patternScores.get(`tone:${tone.id}`) || 0;
-    score += templatePatternScore + tonePatternScore;
-    
-    if (templatePatternScore > 0) {
-      reasons.push(`Template matches context (${templatePatternScore.toFixed(1)})`);
-    }
-    if (tonePatternScore > 0) {
-      reasons.push(`Tone suits context (${tonePatternScore.toFixed(1)})`);
+    // LLM analysis is now PRIMARY scoring mechanism
+    if (llmAnalysis) {
+      // Primary LLM-based scoring (much higher weights)
+      if (llmAnalysis.suggestedCategories?.includes(template.category)) {
+        score += 8.0; // Massive boost for LLM category match
+        reasons.push('🤖 AI strongly recommends this approach');
+      }
+      
+      if (llmAnalysis.suggestedTones?.includes(tone.id)) {
+        score += 6.0; // Major boost for LLM tone match  
+        reasons.push('🤖 AI suggests this tone');
+      }
+      
+      // Confidence-based scoring
+      if (llmAnalysis.confidence) {
+        const confidenceBoost = llmAnalysis.confidence * 4.0;
+        score += confidenceBoost;
+        reasons.push(`🤖 AI confidence: ${(llmAnalysis.confidence * 100).toFixed(0)}%`);
+      }
+      
+      // Sentiment-based major adjustments
+      if (llmAnalysis.sentiment) {
+        if (llmAnalysis.sentiment === 'positive' && tone.id === 'enthusiastic') {
+          score += 3.0;
+          reasons.push('🎯 Perfect tone for positive sentiment');
+        } else if (llmAnalysis.sentiment === 'negative' && tone.id === 'motivational') {
+          score += 3.0;  
+          reasons.push('🎯 Motivational tone for negativity');
+        } else if (llmAnalysis.sentiment === 'controversial' && template.category === 'debate') {
+          score += 4.0;
+          reasons.push('🔥 Debate approach for controversy');
+        }
+      }
+      
+      // Intent-based major scoring
+      if (llmAnalysis.intent) {
+        const intentMatches = this.getIntentMatches(template, tone, llmAnalysis.intent);
+        score += intentMatches.score;
+        if (intentMatches.reason) {
+          reasons.push(`🎯 ${intentMatches.reason}`);
+        }
+      }
+
+      // Reasoning chain integration - show AI's thinking process
+      if (llmAnalysis.reasoning && llmAnalysis.reasoning.length > 0) {
+        const keyReasoning = llmAnalysis.reasoning[0]; // Use first/primary reasoning
+        reasons.push(`🧠 AI reasoning: ${keyReasoning}`);
+        
+        // Boost score based on reasoning confidence
+        if (keyReasoning.includes('perfect') || keyReasoning.includes('ideal')) {
+          score += 2.0;
+        } else if (keyReasoning.includes('good') || keyReasoning.includes('suitable')) {
+          score += 1.0;
+        }
+      }
+
+      // Thread analysis scoring
+      if (llmAnalysis.threadAnalysis) {
+        const threadBonus = this.calculateThreadAnalysisBonus(template, tone, llmAnalysis.threadAnalysis);
+        score += threadBonus.score;
+        if (threadBonus.reason) {
+          reasons.push(`🧵 ${threadBonus.reason}`);
+        }
+      }
+
+      // User context scoring  
+      if (llmAnalysis.userContext) {
+        const userBonus = this.calculateUserContextBonus(template, tone, llmAnalysis.userContext);
+        score += userBonus.score;
+        if (userBonus.reason) {
+          reasons.push(`👤 ${userBonus.reason}`);
+        }
+      }
+    } else {
+      // Fallback to pattern matching when LLM unavailable (lower weights)
+      const templatePatternScore = (patternScores.get(template.id) || 0) * 0.3;
+      const tonePatternScore = (patternScores.get(`tone:${tone.id}`) || 0) * 0.3;
+      score += templatePatternScore + tonePatternScore;
+      
+      if (templatePatternScore > 0) {
+        reasons.push(`Pattern match (${templatePatternScore.toFixed(1)})`);
+      }
+      if (tonePatternScore > 0) {
+        reasons.push(`Tone pattern (${tonePatternScore.toFixed(1)})`);
+      }
+      
+      reasons.push('⚠️ Using fallback pattern matching (AI unavailable)');
     }
     
     // Favorite bonus
@@ -312,6 +413,171 @@ export class TemplateSuggester {
       score,
       reasons
     };
+  }
+
+  /**
+   * Get intent-based scoring matches
+   */
+  private getIntentMatches(template: PresetTemplate, tone: ToneOption, intent: string): { score: number; reason?: string } {
+    const intentMappings: Record<string, { templates: string[], tones: string[], score: number, reason: string }> = {
+      'question': {
+        templates: ['ask_question', 'add_insight', 'provide_data'],
+        tones: ['professional', 'academic', 'casual'],
+        score: 5.0,
+        reason: 'Perfect for answering questions'
+      },
+      'opinion': {
+        templates: ['agree_expand', 'challenge', 'devils_advocate'],  
+        tones: ['witty', 'contrarian', 'philosophical'],
+        score: 4.5,
+        reason: 'Great for opinion discussions'
+      },
+      'problem': {
+        templates: ['add_insight', 'share_experience', 'suggest_solution'],
+        tones: ['professional', 'motivational', 'wholesome'],
+        score: 5.5,
+        reason: 'Ideal for problem-solving'
+      },
+      'achievement': {
+        templates: ['congratulate', 'show_support', 'celebrate'],
+        tones: ['enthusiastic', 'motivational', 'wholesome'],
+        score: 4.0,
+        reason: 'Perfect for celebrating success'
+      },
+      'debate': {
+        templates: ['challenge', 'devils_advocate', 'steel_man', 'hot_take'],
+        tones: ['contrarian', 'sarcastic', 'savage', 'philosophical'],
+        score: 6.0,
+        reason: 'Excellent for debates'
+      },
+      'humor': {
+        templates: ['add_humor', 'roast', 'meme_reference'],
+        tones: ['witty', 'sarcastic', 'gen_z'],
+        score: 3.5,
+        reason: 'Great for humor'
+      }
+    };
+
+    const mapping = intentMappings[intent];
+    if (!mapping) return { score: 0 };
+
+    let matchScore = 0;
+    if (mapping.templates.includes(template.id)) matchScore += mapping.score;
+    if (mapping.tones.includes(tone.id)) matchScore += mapping.score * 0.6;
+
+    return matchScore > 0 ? { score: matchScore, reason: mapping.reason } : { score: 0 };
+  }
+
+  /**
+   * Build context string for LLM analysis
+   */
+  private buildContextString(context: SuggestionContext): string {
+    const contextParts: string[] = [];
+    
+    if (context.threadContext && context.threadContext.length > 0) {
+      contextParts.push(`THREAD CONTEXT (${context.threadContext.length} previous tweets):`);
+      context.threadContext.forEach((tweet, i) => {
+        contextParts.push(`${i + 1}. ${tweet}`);
+      });
+    }
+    
+    if (context.authorHandle) {
+      contextParts.push(`AUTHOR: ${context.authorHandle}`);
+    }
+    
+    if (context.threadLength) {
+      contextParts.push(`THREAD LENGTH: ${context.threadLength} tweets`);
+    }
+    
+    if (context.participantCount && context.participantCount > 1) {
+      contextParts.push(`PARTICIPANTS: ${context.participantCount} people in conversation`);
+    }
+    
+    if (context.recentEngagement) {
+      const eng = context.recentEngagement;
+      contextParts.push(`ENGAGEMENT: ${eng.likes} likes, ${eng.retweets} retweets, ${eng.replies} replies`);
+    }
+    
+    if (context.timeOfDay !== undefined) {
+      const hour = context.timeOfDay;
+      let timeContext = '';
+      if (hour >= 5 && hour < 12) timeContext = 'morning';
+      else if (hour >= 12 && hour < 17) timeContext = 'afternoon';  
+      else if (hour >= 17 && hour < 22) timeContext = 'evening';
+      else timeContext = 'late night/early morning';
+      contextParts.push(`TIME CONTEXT: ${timeContext} (${hour}:00)`);
+    }
+    
+    if (context.isReply) {
+      contextParts.push(`REPLY CONTEXT: This is a reply to another tweet`);
+    }
+    
+    return contextParts.length > 0 ? contextParts.join('\n') : 'LIMITED CONTEXT AVAILABLE';
+  }
+
+  /**
+   * Calculate thread analysis bonus scoring
+   */
+  private calculateThreadAnalysisBonus(template: PresetTemplate, tone: ToneOption, threadAnalysis: any): { score: number; reason?: string } {
+    let score = 0;
+    let reason = '';
+
+    // Conversation stage bonuses
+    if (threadAnalysis.conversationStage === 'heated' && template.category === 'debate') {
+      score += 2.5;
+      reason = 'Perfect for heated debates';
+    } else if (threadAnalysis.conversationStage === 'resolution' && template.category === 'support') {
+      score += 2.0; 
+      reason = 'Great for resolution phase';
+    } else if (threadAnalysis.conversationStage === 'opening' && template.category === 'engagement') {
+      score += 1.5;
+      reason = 'Good conversation starter';
+    }
+
+    // Thread sentiment bonuses
+    if (threadAnalysis.threadSentiment === 'escalating' && tone.id === 'professional') {
+      score += 1.5;
+      reason += (reason ? ' + ' : '') + 'Professional tone de-escalates';
+    } else if (threadAnalysis.threadSentiment === 'de-escalating' && tone.id === 'wholesome') {
+      score += 1.0;
+      reason += (reason ? ' + ' : '') + 'Wholesome tone maintains calm';
+    }
+
+    return { score, reason: reason || undefined };
+  }
+
+  /**
+   * Calculate user context bonus scoring  
+   */
+  private calculateUserContextBonus(template: PresetTemplate, tone: ToneOption, userContext: any): { score: number; reason?: string } {
+    let score = 0;
+    let reason = '';
+
+    // User type bonuses
+    if (userContext.userType === 'expert' && tone.id === 'academic') {
+      score += 2.0;
+      reason = 'Academic tone for experts';
+    } else if (userContext.userType === 'beginner' && tone.id === 'casual') {
+      score += 1.5;
+      reason = 'Casual tone for beginners';
+    } else if (userContext.userType === 'influencer' && template.category === 'viral') {
+      score += 2.5;
+      reason = 'Viral content for influencers';
+    }
+
+    // Communication style matching
+    if (userContext.communicationStyle === 'formal' && tone.id === 'professional') {
+      score += 1.5;
+      reason += (reason ? ' + ' : '') + 'Matches formal style';
+    } else if (userContext.communicationStyle === 'humorous' && tone.id === 'witty') {
+      score += 2.0;
+      reason += (reason ? ' + ' : '') + 'Matches humorous style';
+    } else if (userContext.communicationStyle === 'technical' && template.category === 'value') {
+      score += 1.5;
+      reason += (reason ? ' + ' : '') + 'Technical value-add';
+    }
+
+    return { score, reason: reason || undefined };
   }
 
   /**
@@ -553,21 +819,63 @@ export class TemplateSuggester {
   /**
    * Get LLM analysis of tweet for better suggestions
    */
-  private async getLLMAnalysis(tweetText: string, apiKey: string): Promise<LLMAnalysisResult | null> {
+  private async getLLMAnalysis(tweetText: string, context: SuggestionContext, apiKey: string): Promise<LLMAnalysisResult | null> {
     try {
-      console.log('%c🤖 Getting LLM analysis for better suggestions', 'color: #1DA1F2');
+      console.log('%c🤖 Getting advanced LLM analysis for better suggestions', 'color: #1DA1F2');
       
-      const prompt = `Analyze this tweet for reply suggestions. Return JSON only:
-Tweet: "${tweetText}"
+      const contextInfo = this.buildContextString(context);
+      
+      const prompt = `You are an expert social media strategist analyzing tweets for optimal reply suggestions. 
 
-Respond with:
-{
-  "sentiment": "positive/negative/neutral/controversial",
-  "intent": "question/opinion/announcement/problem/achievement/humor/debate",
-  "suggestedCategories": ["engagement", "value", "conversation", "humor", "debate", "viral"],
-  "suggestedTones": ["professional", "casual", "witty", "enthusiastic", "contrarian", etc.],
-  "topics": ["tech", "business", "personal", etc.]
-}`;
+TWEET TO ANALYZE: "${tweetText}"
+
+${contextInfo}
+
+ANALYSIS FRAMEWORK:
+1. Read the tweet carefully and understand the author's intent
+2. Consider the conversation context and thread dynamics  
+3. Identify the optimal reply approach and tone
+4. Provide confidence scores and reasoning
+
+EXAMPLES:
+
+Tweet: "Just shipped our new AI feature after 6 months of work! 🚀"
+Analysis: {
+  "sentiment": "positive",
+  "intent": "achievement", 
+  "confidence": 0.95,
+  "reasoning": ["Clear achievement announcement", "Positive sentiment with emoji", "Invites congratulations"],
+  "suggestedCategories": ["celebration", "engagement", "support"],
+  "suggestedTones": ["enthusiastic", "motivational", "wholesome"],
+  "threadAnalysis": {"conversationStage": "opening"},
+  "userContext": {"engagementLevel": "high"}
+}
+
+Tweet: "Why do people still think AI will replace developers? This is such a bad take..."
+Analysis: {
+  "sentiment": "controversial", 
+  "intent": "debate",
+  "confidence": 0.88,
+  "reasoning": ["Controversial opinion stated", "Dismissive language used", "Invites debate/discussion"],
+  "suggestedCategories": ["debate", "challenge", "perspective"],
+  "suggestedTones": ["contrarian", "professional", "philosophical"], 
+  "threadAnalysis": {"conversationStage": "heated"},
+  "userContext": {"communicationStyle": "technical"}
+}
+
+Tweet: "Having trouble with React state management. Anyone know good patterns?"
+Analysis: {
+  "sentiment": "neutral",
+  "intent": "problem", 
+  "confidence": 0.92,
+  "reasoning": ["Clear problem statement", "Direct request for help", "Technical domain"],
+  "suggestedCategories": ["help", "solution", "insight"],
+  "suggestedTones": ["professional", "casual", "academic"],
+  "threadAnalysis": {"conversationStage": "opening"},
+  "userContext": {"userType": "beginner", "communicationStyle": "technical"}
+}
+
+NOW ANALYZE THE TARGET TWEET. Return ONLY valid JSON with all fields:`;
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -582,15 +890,15 @@ Respond with:
           messages: [
             {
               role: 'system',
-              content: 'You are a tweet analysis assistant. Respond only with valid JSON.'
+              content: 'You are an expert social media strategist and tweet analysis assistant. Provide detailed, confident analysis in valid JSON format only. Always include confidence scores and reasoning chains.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.3,
-          max_tokens: 200
+          temperature: 0.2, // Lower temperature for more consistent analysis
+          max_tokens: 800
         })
       });
 

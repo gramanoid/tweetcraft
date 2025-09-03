@@ -10,7 +10,6 @@ interface StorageConfig {
   contextMode?: string;
   temperature?: number;
   replyLengthDefault?: string;
-  customTones?: any[];
 }
 
 interface Features {
@@ -47,12 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const refreshModelsBtn = document.getElementById('refresh-models') as HTMLButtonElement | null;
   const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement | null;
   
-  // Custom tone elements
-  const customToneNameInput = document.getElementById('custom-tone-name') as HTMLInputElement | null;
-  const customToneEmojiInput = document.getElementById('custom-tone-emoji') as HTMLInputElement | null;
-  const customTonePromptInput = document.getElementById('custom-tone-prompt') as HTMLTextAreaElement | null;
-  const addCustomToneBtn = document.getElementById('add-custom-tone') as HTMLButtonElement | null;
-  const customTonesList = document.getElementById('custom-tones-list') as HTMLDivElement | null;
   
   // Image understanding elements with null checks
   const imageUnderstandingCheckbox = document.getElementById('image-understanding') as HTMLInputElement | null;
@@ -156,28 +149,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.replyLengthDefault && replyLengthSelect) {
         replyLengthSelect.value = config.replyLengthDefault;
       }
-      // Load custom tones
-      if (config.customTones && customTonesList) {
-        displayCustomTones(config.customTones);
-      }
       console.log('Loaded config:', config);
     }
     
-    // Load image understanding features
-    if (result.features) {
-      const features = result.features;
-      if (features.imageUnderstanding) {
-        if (imageUnderstandingCheckbox) {
-          imageUnderstandingCheckbox.checked = features.imageUnderstanding.enabled || false;
-          // Show/hide vision settings based on checkbox
-          if (visionSettingsDiv) {
-            visionSettingsDiv.style.display = imageUnderstandingCheckbox.checked ? 'block' : 'none';
-            imageUnderstandingCheckbox.setAttribute('aria-expanded', imageUnderstandingCheckbox.checked ? 'true' : 'false');
-          }
-        }
-        if (visionModelSelect && features.imageUnderstanding.model) {
-          visionModelSelect.value = features.imageUnderstanding.model;
-        }
+    // Load image understanding features - default to enabled
+    if (imageUnderstandingCheckbox) {
+      // Default to true if no features config exists
+      const imageEnabled = result.features?.imageUnderstanding?.enabled !== false; // Default to true
+      imageUnderstandingCheckbox.checked = imageEnabled;
+      
+      // Show/hide vision settings based on checkbox
+      if (visionSettingsDiv) {
+        visionSettingsDiv.style.display = imageUnderstandingCheckbox.checked ? 'block' : 'none';
+        imageUnderstandingCheckbox.setAttribute('aria-expanded', imageUnderstandingCheckbox.checked ? 'true' : 'false');
+      }
+      
+      // Set vision model if available
+      if (visionModelSelect && result.features?.imageUnderstanding?.model) {
+        visionModelSelect.value = result.features.imageUnderstanding.model;
       }
     }
   });
@@ -232,6 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   const saveBtn = document.getElementById('save-settings');
+  const resetUsageBtn = document.getElementById('reset-usage');
+  
   if (saveBtn) {
     console.log('popup-simple.ts: Save button found');
     saveBtn.addEventListener('click', async () => {
@@ -270,8 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
           customStylePrompt: customStylePrompt || '',
           contextMode: contextMode,
           temperature,
-          replyLengthDefault: replyLengthDefault || undefined,
-          customTones: (existingConfig.config as StorageConfig).customTones || []
+          replyLengthDefault: replyLengthDefault || undefined
         };
         
         // Save features settings
@@ -304,6 +294,66 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   } else {
     console.error('popup-simple.ts: Save button not found');
+  }
+
+  // Handle reset usage button
+  if (resetUsageBtn) {
+    console.log('popup-simple.ts: Reset usage button found');
+    resetUsageBtn.addEventListener('click', async () => {
+      console.log('popup-simple.ts: Reset usage button clicked!');
+      
+      // Show confirmation dialog
+      const confirmed = confirm('Are you sure you want to reset all usage counters? This cannot be undone.');
+      
+      if (confirmed) {
+        try {
+          // Disable button during operation
+          (resetUsageBtn as HTMLButtonElement).disabled = true;
+          resetUsageBtn.textContent = '🔄 Resetting...';
+          
+          // Send reset message to content script/service worker
+          const response = await chrome.runtime.sendMessage({
+            type: MessageType.RESET_USAGE_STATS
+          });
+          
+          if (response?.success) {
+            // Show success message
+            const statusDiv = document.getElementById('status-message');
+            if (statusDiv) {
+              statusDiv.textContent = '✅ Usage counters reset successfully!';
+              statusDiv.style.display = 'block';
+              statusDiv.style.color = 'green';
+              setTimeout(() => {
+                statusDiv.style.display = 'none';
+              }, 3000);
+            }
+            console.log('Usage stats reset successfully');
+          } else {
+            throw new Error('Failed to reset usage stats');
+          }
+          
+        } catch (error) {
+          console.error('Error resetting usage stats:', error);
+          
+          // Show error message
+          const statusDiv = document.getElementById('status-message');
+          if (statusDiv) {
+            statusDiv.textContent = '❌ Failed to reset usage counters';
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'red';
+            setTimeout(() => {
+              statusDiv.style.display = 'none';
+            }, 3000);
+          }
+        } finally {
+          // Re-enable button
+          (resetUsageBtn as HTMLButtonElement).disabled = false;
+          resetUsageBtn.textContent = '🔄 Reset Usage';
+        }
+      }
+    });
+  } else {
+    console.error('popup-simple.ts: Reset usage button not found');
   }
   
   // API key configuration removed - now handled via environment variables
@@ -399,106 +449,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Handle custom tone addition
-  if (addCustomToneBtn && customToneNameInput && customToneEmojiInput && customTonePromptInput) {
-    addCustomToneBtn.addEventListener('click', async () => {
-      const name = customToneNameInput.value.trim();
-      const emoji = customToneEmojiInput.value.trim() || '✨';
-      const prompt = customTonePromptInput.value.trim();
-      
-      if (!name || !prompt) {
-        alert('Please provide both a name and prompt for the custom tone');
-        return;
-      }
-      
-      // Get existing config
-      const result = await new Promise<any>(resolve => {
-        chrome.storage.sync.get(['smartReply_config'], resolve);
-      });
-      
-      const config = result.smartReply_config || {};
-      const customTones = config.customTones || [];
-      
-      // Create new tone
-      const newTone = {
-        id: `custom-${Date.now()}`,
-        name,
-        emoji,
-        systemPrompt: prompt
-      };
-      
-      // Add to custom tones
-      customTones.push(newTone);
-      
-      // Save back to storage
-      config.customTones = customTones;
-      await chrome.storage.sync.set({ smartReply_config: config });
-      
-      // Clear inputs
-      customToneNameInput.value = '';
-      customToneEmojiInput.value = '';
-      customTonePromptInput.value = '';
-      
-      // Update display
-      if (customTonesList) {
-        displayCustomTones(customTones);
-      }
-      
-      // Show success message
-      const statusDiv = document.getElementById('status-message');
-      if (statusDiv) {
-        statusDiv.textContent = 'Custom tone added!';
-        statusDiv.style.display = 'block';
-        statusDiv.style.color = 'green';
-        setTimeout(() => {
-          statusDiv.style.display = 'none';
-        }, 3000);
-      }
-    });
-  }
-  
-  function displayCustomTones(customTones: any[]) {
-    if (!customTonesList) return;
-    
-    customTonesList.innerHTML = '';
-    
-    if (customTones.length === 0) {
-      customTonesList.innerHTML = '<small style="color: #666;">No custom tones yet</small>';
-      return;
-    }
-    
-    customTones.forEach(tone => {
-      const toneDiv = document.createElement('div');
-      toneDiv.style.cssText = 'padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;';
-      
-      const toneInfo = document.createElement('div');
-      toneInfo.innerHTML = `<strong>${tone.emoji} ${tone.name}</strong><br><small style="color: #666;">${tone.systemPrompt.substring(0, 50)}...</small>`;
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.textContent = '🗑️';
-      deleteBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 16px;';
-      deleteBtn.title = 'Delete tone';
-      deleteBtn.onclick = async () => {
-        if (!confirm(`Delete custom tone "${tone.name}"?`)) return;
-        
-        // Get current config
-        const result = await new Promise<any>(resolve => {
-          chrome.storage.sync.get(['smartReply_config'], resolve);
-        });
-        
-        const config = result.smartReply_config || {};
-        config.customTones = (config.customTones || []).filter((t: any) => t.id !== tone.id);
-        
-        // Save updated config
-        await chrome.storage.sync.set({ smartReply_config: config });
-        
-        // Update display
-        displayCustomTones(config.customTones);
-      };
-      
-      toneDiv.appendChild(toneInfo);
-      toneDiv.appendChild(deleteBtn);
-      customTonesList.appendChild(toneDiv);
-    });
-  }
 });

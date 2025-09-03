@@ -5,17 +5,8 @@
 
 import { StorageService } from './storage';
 import { ConfigurationManager } from '@/config/configurationManager';
-
-// Hardcoded API configuration
-const API_CONFIG = {
-  OPENROUTER_API_KEY: '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',
-  BASE_URL: 'https://openrouter.ai/api/v1',
-  HEADERS: {
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://tweetcraft.ai/extension',
-    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
-  }
-};
+import { API_CONFIG } from '@/config/apiConfig';
+import { MessageType } from '@/types/messages';
 
 export interface VisionAnalysisResult {
   success: boolean;
@@ -227,7 +218,7 @@ Keep the description under 150 words and focus on details relevant for crafting 
     try {
       // Use service worker for CSP compliance
       const response = await chrome.runtime.sendMessage({
-        type: 'ANALYZE_IMAGES',
+        type: MessageType.ANALYZE_IMAGES,
         modelId,
         messages
       });

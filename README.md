@@ -23,17 +23,38 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.15)**
+### ✅ **Currently Working (v0.0.15 - Latest: LLM-First Smart Tab + Extension Cleanup)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
-  - ✅ Unified 6-tab selector (Personas, All, Smart, Favorites, Image Gen, Custom)
-  - ✅ All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
-  - ✅ AI Rewrite functionality
-  - ✅ Loading states with "Generating..." text
-  - ✅ Smart context extraction from HypeFury's UI
-  - ✅ Platform-specific styling and button placement
+
+#### 🎭 **NEW: Enhanced Personas Tab** 
+- **Compact 5-column grid** showing all 10 personas simultaneously (massive space efficiency improvement)
+- **Smart usage-based sorting** with visual indicators (count badges + recent usage dots)
+- **Hover tooltips** with full descriptions and usage statistics
+- **Integrated analytics** with main usage tracker for intelligent recommendations
+
+#### 🤖 **NEW: LLM-First Smart Suggestions**
+- **AI-driven scoring** - LLM analysis is now primary with confidence scoring and reasoning chains
+- **Enhanced context analysis** - Thread dynamics, user behavior patterns, and engagement metrics
+- **Sophisticated prompts** - Expert system prompts with concrete examples for each template type  
+- **Reasoning integration** - AI explanations flow through to user-facing suggestion reasons
+- **Confidence scoring** - LLM confidence (0.0-1.0) directly boosts suggestion rankings
+
+#### 🎛️ **NEW: Extension Popup Improvements**
+- **Streamlined interface** - Removed duplicate "Add Custom Tone" (available in AI Reply popup)
+- **Consistent reply lengths** - Default dropdown now matches AI popup's 6-part system
+- **Image understanding enabled by default** - Vision analysis ready out-of-the-box
+- **Full vision infrastructure** - Complete OpenRouter integration with proper message handling
+
+#### 🚀 **Core Features**
+- ✅ Unified 6-tab selector (Personas, All, Smart, Favorites, Image Gen, Custom)
+- ✅ All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
+- ✅ AI Rewrite functionality  
+- ✅ Loading states with "Generating..." text
+- ✅ Smart context extraction from HypeFury's UI
+- ✅ Platform-specific styling and button placement
 
 #### Discovered Existing Features (Already Implemented)
 - **🛡️ Arsenal Mode** - 474 lines, IndexedDB with 6 categories, usage tracking ([src/services/arsenalService.ts](src/services/arsenalService.ts))
@@ -91,11 +112,12 @@ A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md)
 - **📊 Simple Analytics** - Basic engagement insights (NOT IMPLEMENTED)
 - **🚀 Smart Posting** - Automated posting with safety controls (NOT IMPLEMENTED)
 
-### 🎨 Latest UI Updates (v0.0.14)
+### 🎨 Latest UI Updates (v0.0.15)
 
 #### 🎨 Unified AI Reply Interface
-- **Six-tab popup** - Personas, All, Smart, Favorites, Image Gen, Custom
-- **Smart Suggestions** - AI analyzes context and scores template/tone combinations
+- **Six-tab popup** - Personas (enhanced compact grid), All, Smart (8 suggestions + refresh), Favorites, Image Gen, Custom
+- **Enhanced Smart Suggestions** - 8 AI-analyzed suggestions with descriptive labels and color-coded reason chips
+- **Compact Personas Tab** - 5-column grid showing all 10 personas with usage-based sorting and hover tooltips
 - **Image Generation** - Search or generate AI images with styles (realistic, cartoon, artistic, sketch)
 - **Favorites System** - Star your favorite templates and tones for quick access
 - **Enhanced Custom Templates** - Inline creation with Style, Tone, and Length fields, full management system
