@@ -89,9 +89,30 @@ export class OpenRouterService {
     signal?: AbortSignal,
     bypassCache: boolean = false
   ): Promise<ReplyGenerationResponse> {
-    console.log('%c🚀 ENHANCED NETWORK RESILIENCE', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
-    console.log('%c  Connection Status:', 'color: #657786', this.isOnline ? 'Online' : 'Offline');
+    console.log('%c🚀 AI REPLY GENERATION STARTED', 'color: #1DA1F2; font-weight: bold; font-size: 16px');
+    console.log('%c  Connection Status:', 'color: #657786', this.isOnline ? '✅ Online' : '❌ Offline');
     console.log('%c  Connection Type:', 'color: #657786', this.connectionMetrics.effectiveType);
+    
+    // Log all request parameters
+    console.log('%c📋 GENERATION PARAMETERS', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c  Tone:', 'color: #657786', request.tone || 'None');
+    console.log('%c  Model:', 'color: #657786', request.model || 'Default');
+    console.log('%c  Reply length:', 'color: #657786', request.replyLength || 'Default');
+    console.log('%c  Personality:', 'color: #657786', request.personality || 'None');
+    console.log('%c  Vocabulary:', 'color: #657786', request.vocabulary || 'None');
+    console.log('%c  Rhetoric:', 'color: #657786', request.rhetoric || 'None');
+    console.log('%c  Length pacing:', 'color: #657786', request.lengthPacing || 'None');
+    console.log('%c  Custom prompt:', 'color: #657786', request.customPrompt ? '✅ YES' : '❌ NO');
+    console.log('%c  Rewrite mode:', 'color: #657786', request.isRewriteMode ? '✅ YES' : '❌ NO');
+    console.log('%c  Bypass cache:', 'color: #657786', bypassCache ? '✅ YES' : '❌ NO');
+    
+    // Log context information
+    console.log('%c🌐 CONTEXT INFORMATION', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    console.log('%c  Tweet text length:', 'color: #657786', context.tweetText?.length || 0, 'characters');
+    console.log('%c  Author handle:', 'color: #657786', context.authorHandle || 'Unknown');
+    console.log('%c  Thread context:', 'color: #657786', context.threadContext?.length || 0, 'tweets');
+    console.log('%c  Is reply:', 'color: #657786', context.isReply ? '✅ YES' : '❌ NO');
+    console.log('%c  Tweet ID:', 'color: #657786', context.tweetId || 'None');
     
     this.metrics.totalRequests++;
     

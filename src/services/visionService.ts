@@ -97,8 +97,16 @@ export class VisionService {
    * Analyze images and return contextual description
    */
   async analyzeImages(imageUrls: string[], tweetText?: string): Promise<VisionAnalysisResult> {
-    // Check if enabled
-    if (!await this.isEnabled()) {
+    // Check if enabled with detailed logging
+    const isEnabled = await this.isEnabled();
+    console.log('%c👁️ IMAGE UNDERSTANDING CHECK', 'color: #794BC4; font-weight: bold; font-size: 14px');
+    console.log('%c  Status:', 'color: #657786', isEnabled ? '✅ ENABLED' : '❌ DISABLED');
+    console.log('%c  Images to analyze:', 'color: #657786', imageUrls.length);
+    console.log('%c  Image URLs:', 'color: #657786', imageUrls);
+    console.log('%c  Tweet text present:', 'color: #657786', tweetText ? '✅ YES' : '❌ NO');
+    
+    if (!isEnabled) {
+      console.log('%c❌ VISION ANALYSIS SKIPPED', 'color: #DC3545; font-weight: bold');
       return {
         success: false,
         error: 'Image understanding is disabled in settings'
@@ -120,12 +128,18 @@ export class VisionService {
     const maxImages = await this.getMaxImagesPerRequest();
     const imagesToAnalyze = imageUrls.slice(0, maxImages);
 
-    console.log('%c👁️ Vision Analysis', 'color: #794BC4; font-weight: bold');
+    console.log('%c🚀 VISION ANALYSIS STARTING', 'color: #794BC4; font-weight: bold; font-size: 14px');
+    console.log('%c  Max images allowed:', 'color: #657786', maxImages);
     console.log('%c  Images to analyze:', 'color: #657786', imagesToAnalyze.length);
+    console.log('%c  Images filtered out:', 'color: #657786', imageUrls.length - imagesToAnalyze.length);
 
     try {
       const modelConfig = await this.getModelConfig();
       const model = this.visionModels[modelConfig.model] || this.visionModels[this.defaultModel];
+      
+      console.log('%c  Vision model:', 'color: #657786', modelConfig.model);
+      console.log('%c  Model ID:', 'color: #657786', model.id);
+      console.log('%c  Estimated cost per image:', 'color: #657786', '$' + model.costPer1k + '/1K tokens');
 
       // Prepare the prompt for vision analysis
       const prompt = this.buildVisionPrompt(tweetText);
@@ -155,8 +169,14 @@ export class VisionService {
 
       if (response.success && response.content) {
         const analysis = this.parseVisionResponse(response.content);
-        console.log('%c✅ Vision analysis complete', 'color: #17BF63');
-        console.log('%c  Description:', 'color: #657786', analysis.description?.substring(0, 100) + '...');
+        console.log('%c✅ VISION ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+        console.log('%c  Success:', 'color: #657786', analysis.success ? '✅ YES' : '❌ NO');
+        console.log('%c  Description length:', 'color: #657786', analysis.description?.length || 0, 'characters');
+        console.log('%c  Objects found:', 'color: #657786', analysis.objects?.length || 0);
+        console.log('%c  Text in image:', 'color: #657786', analysis.text ? '✅ YES' : '❌ NO');
+        console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'neutral');
+        console.log('%c  Context provided:', 'color: #657786', analysis.context ? '✅ YES' : '❌ NO');
+        console.log('%c  Full description:', 'color: #657786', analysis.description?.substring(0, 200) + (analysis.description && analysis.description.length > 200 ? '...' : ''));
         return analysis;
       } else {
         console.error('Vision API error:', response.error);

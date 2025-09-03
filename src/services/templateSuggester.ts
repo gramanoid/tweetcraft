@@ -139,7 +139,13 @@ export class TemplateSuggester {
    * Get smart suggestions based on context
    */
   async getSuggestions(context: SuggestionContext): Promise<SuggestionScore[]> {
-    console.log('%c🤖 Analyzing context for suggestions', 'color: #1DA1F2');
+    console.log('%c🤖 SMART TAB ANALYSIS STARTED', 'color: #794BC4; font-weight: bold; font-size: 16px');
+    console.log('%c  LLM-First Algorithm:', 'color: #657786', '✅ ENABLED');
+    console.log('%c  Tweet text:', 'color: #657786', context.tweetText ? '✅ YES' : '❌ NO');
+    console.log('%c  Tweet length:', 'color: #657786', context.tweetText?.length || 0, 'characters');
+    console.log('%c  Thread context:', 'color: #657786', context.threadContext?.length || 0, 'tweets');
+    console.log('%c  User history available:', 'color: #657786', context.userHistory ? '✅ YES' : '❌ NO');
+    console.log('%c  Available data points:', 'color: #657786', Object.keys(context).length);
     
     const scores: Map<string, SuggestionScore> = new Map();
     
@@ -821,9 +827,12 @@ export class TemplateSuggester {
    */
   private async getLLMAnalysis(tweetText: string, context: SuggestionContext, apiKey: string): Promise<LLMAnalysisResult | null> {
     try {
-      console.log('%c🤖 Getting advanced LLM analysis for better suggestions', 'color: #1DA1F2');
+      console.log('%c🧠 LLM ANALYSIS STARTED', 'color: #794BC4; font-weight: bold; font-size: 14px');
+      console.log('%c  Tweet text length:', 'color: #657786', tweetText?.length || 0, 'characters');
+      console.log('%c  Building context for AI analysis...', 'color: #657786');
       
       const contextInfo = this.buildContextString(context);
+      console.log('%c  Context built:', 'color: #657786', contextInfo.length, 'characters');
       
       const prompt = `You are an expert social media strategist analyzing tweets for optimal reply suggestions. 
 
@@ -914,7 +923,15 @@ NOW ANALYZE THE TARGET TWEET. Return ONLY valid JSON with all fields:`;
         const analysis = JSONExtractor.parseJSON<LLMAnalysisResult>(content);
         
         if (analysis) {
-          console.log('%c🤖 LLM analysis result:', 'color: #17BF63', analysis);
+          console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+          console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'not detected');
+          console.log('%c  Intent:', 'color: #657786', analysis.intent || 'not detected');
+          console.log('%c  Suggested categories:', 'color: #657786', analysis.suggestedCategories?.length || 0);
+          console.log('%c  Confidence score:', 'color: #657786', analysis.confidence || 'not provided');
+          console.log('%c  Reasoning steps:', 'color: #657786', analysis.reasoning?.length || 0);
+          console.log('%c  Thread analysis:', 'color: #657786', analysis.threadAnalysis ? '✅ YES' : '❌ NO');
+          console.log('%c  User context:', 'color: #657786', analysis.userContext ? '✅ YES' : '❌ NO');
+          console.log('%c  Topics identified:', 'color: #657786', analysis.topics?.length || 0);
           return analysis;
         } else {
           console.warn('Failed to extract valid JSON from LLM response');

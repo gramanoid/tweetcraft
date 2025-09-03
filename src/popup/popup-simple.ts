@@ -145,7 +145,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.replyLengthDefault && replyLengthSelect) {
         replyLengthSelect.value = config.replyLengthDefault;
       }
-      console.log('Loaded config:', config);
+      // Comprehensive logging of all loaded settings
+      console.log('%c📂 POPUP SETTINGS LOADED', 'color: #17BF63; font-weight: bold; font-size: 14px');
+      console.log('%c  Model:', 'color: #657786', config.model || 'Not set');
+      console.log('%c  Temperature:', 'color: #657786', config.temperature || 0.7);
+      console.log('%c  Context Mode:', 'color: #657786', config.contextMode || 'thread');
+      console.log('%c  Reply Length Default:', 'color: #657786', config.replyLengthDefault || 'Auto');
+      console.log('%c  System Prompt Length:', 'color: #657786', config.systemPrompt?.length || 0, 'characters');
+      console.log('%c  Custom Style Prompt Length:', 'color: #657786', config.customStylePrompt?.length || 0, 'characters');
     }
     
   });
@@ -246,6 +253,18 @@ document.addEventListener('DOMContentLoaded', () => {
           smartReply_config: config,
           features: features 
         });
+        
+        // Comprehensive logging of all saved settings
+        console.log('%c💾 POPUP SETTINGS SAVED', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+        console.log('%c  Model:', 'color: #657786', config.model);
+        console.log('%c  Temperature:', 'color: #657786', config.temperature);
+        console.log('%c  Context Mode:', 'color: #657786', config.contextMode);
+        console.log('%c  Reply Length Default:', 'color: #657786', config.replyLengthDefault || 'Auto');
+        console.log('%c  System Prompt Length:', 'color: #657786', config.systemPrompt?.length || 0, 'characters');
+        console.log('%c  Custom Style Prompt Length:', 'color: #657786', config.customStylePrompt?.length || 0, 'characters');
+        console.log('%c  Image Understanding:', 'color: #657786', features.imageUnderstanding?.enabled ? '✅ ENABLED' : '❌ DISABLED');
+        console.log('%c  Vision Model:', 'color: #657786', features.imageUnderstanding?.model);
+        console.log('%c  Max Images Per Request:', 'color: #657786', features.imageUnderstanding?.maxImagesPerRequest);
         
         // Show success message
         const statusDiv = document.getElementById('status-message');
