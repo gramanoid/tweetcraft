@@ -27,6 +27,28 @@ export interface SelectionResult {
   lengthPacing?: string;
   personality?: string;
   rhetoric?: string;
+  // Tab type for proper prompt routing
+  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom';
+  // Additional configs for prompt architecture
+  personaConfig?: {
+    personality: string;
+    vocabulary: string;
+    rhetoricMove: string;
+    lengthPacing: string;
+    systemPrompt: string;
+  };
+  allTabConfig?: {
+    personality: string;
+    vocabulary: string;
+    rhetoric: string;
+    lengthPacing: string;
+  };
+  customConfig?: {
+    style: string;
+    tone: string;
+    length: string;
+    temperature?: number;
+  };
 }
 
 export class UnifiedSelector {
@@ -1216,6 +1238,12 @@ export class UnifiedSelector {
         tempValue.textContent = tempSlider.value;
       });
     }
+    
+    // Add listeners to custom form fields to update button state on input
+    const customFields = this.container.querySelectorAll('#custom-style-field, #custom-tone-field, #custom-length-field');
+    customFields.forEach(field => {
+      field.addEventListener('input', () => this.updateUI());
+    });
 
     // Template action buttons
     this.container.querySelectorAll('.action-btn').forEach(btn => {
@@ -1484,7 +1512,10 @@ export class UnifiedSelector {
     if (generateBtn) {
       let ready = false;
       
-      if (this.view === 'grid') {
+      if (this.view === 'custom') {
+        // Custom form validation for Custom tab
+        ready = this.isCustomFormValid();
+      } else if (this.view === 'grid') {
         // 4-part selection for All tab
         ready = !!(this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing);
       } else if (this.view === 'personas') {
@@ -1574,7 +1605,16 @@ export class UnifiedSelector {
         lengthPacing: this.selectedPersona.lengthPacing,
         // Also pass personality and rhetoric for complete structure
         personality: this.selectedPersona.personality,
-        rhetoric: this.selectedPersona.rhetoricMove
+        rhetoric: this.selectedPersona.rhetoricMove,
+        // Set tab type for prompt architecture
+        tabType: 'personas',
+        personaConfig: {
+          personality: this.selectedPersona.personality || '',
+          vocabulary: this.selectedPersona.vocabulary || '',
+          rhetoricMove: this.selectedPersona.rhetoricMove || '',
+          lengthPacing: this.selectedPersona.lengthPacing || '',
+          systemPrompt: this.selectedPersona.systemPrompt
+        }
       };
       
       console.log('%c🚀 Generating with Persona:', 'color: #FFD700; font-weight: bold');
@@ -1611,7 +1651,37 @@ export class UnifiedSelector {
       // Add 4-part structure data if in grid view
       ...(this.view === 'grid' && {
         vocabulary: this.selectedVocabulary?.id,
-        lengthPacing: this.selectedLengthPacing?.id
+        lengthPacing: this.selectedLengthPacing?.id,
+        tabType: 'all' as const,
+        allTabConfig: {
+          personality: this.selectedPersonality?.id || '',
+          vocabulary: this.selectedVocabulary?.id || '',
+          rhetoric: this.selectedTemplate?.id || '',
+          lengthPacing: this.selectedLengthPacing?.id || ''
+        }
+      }),
+      // Add tab type for other views
+      ...(this.view === 'smart' && {
+        tabType: 'smart' as const,
+        allTabConfig: {
+          personality: this.selectedTone?.id || '',
+          vocabulary: '',
+          rhetoric: this.selectedTemplate?.id || '',
+          lengthPacing: ''
+        }
+      }),
+      ...(this.view === 'favorites' && {
+        tabType: 'favorites' as const,
+        allTabConfig: {
+          personality: this.selectedTone?.id || '',
+          vocabulary: '',
+          rhetoric: this.selectedTemplate?.id || '',
+          lengthPacing: ''
+        }
+      }),
+      ...(this.view === 'custom' && {
+        tabType: 'custom' as const,
+        customConfig: this.getCustomFormData()
       })
     };
 
@@ -1707,7 +1777,15 @@ export class UnifiedSelector {
         vocabulary: selections.vocabulary,
         lengthPacing: selections.lengthPacing,
         personality: selections.personality,
-        rhetoric: selections.rhetoric
+        rhetoric: selections.rhetoric,
+        // Explicitly set tabType and config for proper prompt routing
+        tabType: 'all',
+        allTabConfig: {
+          personality: selections.personality,
+          vocabulary: selections.vocabulary,
+          rhetoric: selections.rhetoric,
+          lengthPacing: selections.lengthPacing
+        }
       };
 
       // Save this as the new last used selection
@@ -1729,6 +1807,49 @@ export class UnifiedSelector {
       // Fall back to opening the selector for manual selection
       console.log('%c  Falling back to manual selection', 'color: #FFA500');
     }
+  }
+
+  /**
+   * Check if custom form is valid for generation
+   */
+  private isCustomFormValid(): boolean {
+    if (this.view !== 'custom' || !this.container) return false;
+    
+    const style = (this.container.querySelector('#custom-style-field') as HTMLTextAreaElement)?.value.trim();
+    const tone = (this.container.querySelector('#custom-tone-field') as HTMLTextAreaElement)?.value.trim();
+    const length = (this.container.querySelector('#custom-length-field') as HTMLTextAreaElement)?.value.trim();
+    
+    // Require all three fields for generation
+    return !!(style && tone && length);
+  }
+
+  /**
+   * Get custom form data for custom tab generation
+   */
+  private getCustomFormData(): { style: string; tone: string; length: string; temperature?: number } | undefined {
+    if (this.view !== 'custom') return undefined;
+    
+    const styleField = this.container?.querySelector('#custom-style-field') as HTMLTextAreaElement;
+    const toneField = this.container?.querySelector('#custom-tone-field') as HTMLTextAreaElement;
+    const lengthField = this.container?.querySelector('#custom-length-field') as HTMLTextAreaElement;
+    const temperatureField = this.container?.querySelector('#custom-temperature-field') as HTMLInputElement;
+    
+    if (!styleField || !toneField || !lengthField) return undefined;
+    
+    const style = styleField.value.trim();
+    const tone = toneField.value.trim();
+    const length = lengthField.value.trim();
+    let temperature = temperatureField ? parseFloat(temperatureField.value) : undefined;
+    
+    // Validate and clamp temperature range
+    if (temperature !== undefined) {
+      temperature = Math.max(0.1, Math.min(1.0, temperature));
+    }
+    
+    // Require all fields for generation
+    if (!style || !tone || !length) return undefined;
+    
+    return { style, tone, length, temperature };
   }
 
   /**

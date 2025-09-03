@@ -813,10 +813,22 @@ class SmartReplyContentScript {
       
       // Show unified selector
       // Show unified selector using the selector adapter
-      selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing) => {
+      selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig) => {
         // Generate reply with the selected template and tone
         const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-        this.generateReply(textarea as HTMLElement, { tweetText: context.text }, combinedPrompt, false, false, vocabulary, lengthPacing);
+        this.generateReply(
+          textarea as HTMLElement, 
+          { tweetText: context.text }, 
+          combinedPrompt, 
+          false, 
+          false, 
+          vocabulary, 
+          lengthPacing, 
+          tabType,
+          personaConfig,
+          allTabConfig,
+          customConfig
+        );
       });
     });
     
@@ -1125,10 +1137,11 @@ class SmartReplyContentScript {
         const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
         
         // Show selector (unified or traditional based on feature flag)
-        selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing) => {
+        selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig) => {
           // When both template and tone are selected, generate/rewrite
           console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
           console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
+          console.log('%c  Tab Type:', 'color: #794BC4', tabType || 'Not specified');
           
           if (isRewriteMode) {
             const existingText = DOMUtils.getTextFromTextarea(textarea);
@@ -1156,7 +1169,19 @@ class SmartReplyContentScript {
           console.log('%c════════════════════════════════', 'color: #2E3236');
           
           // Generate or rewrite using the combined instruction
-          this.generateReply(textarea, context, combinedPrompt, bypassCache, isRewriteMode, vocabulary, lengthPacing);
+          this.generateReply(
+            textarea, 
+            context, 
+            combinedPrompt, 
+            bypassCache, 
+            isRewriteMode, 
+            vocabulary, 
+            lengthPacing,
+            tabType,
+            personaConfig,
+            allTabConfig,
+            customConfig
+          );
         });
         
         return false; // Prevent any default action
@@ -1526,7 +1551,11 @@ class SmartReplyContentScript {
     bypassCache: boolean = false,
     isRewriteMode: boolean = false,
     vocabulary?: string,
-    lengthPacing?: string
+    lengthPacing?: string,
+    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom',
+    personaConfig?: any,
+    allTabConfig?: any,
+    customConfig?: any
   ): Promise<void> {
     // Save state before generating
     ContextRecovery.saveState({
@@ -1735,8 +1764,23 @@ class SmartReplyContentScript {
       if (lengthPacing) {
         request.lengthPacing = lengthPacing;
       }
+      
+      // Add tab type and configs for prompt architecture
+      if (tabType) {
+        request.tabType = tabType;
+      }
+      if (personaConfig) {
+        request.personaConfig = personaConfig;
+      }
+      if (allTabConfig) {
+        request.allTabConfig = allTabConfig;
+      }
+      if (customConfig) {
+        request.customConfig = customConfig;
+      }
 
       console.log('%c📦 CONTENT SCRIPT: REQUEST PREPARED', 'color: #9146FF; font-weight: bold; font-size: 14px');
+      console.log('%c  Tab Type:', 'color: #657786', request.tabType || 'Not specified');
       console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
       if (isRewriteMode && existingText) {
         console.log('%c  Text to Rewrite:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));

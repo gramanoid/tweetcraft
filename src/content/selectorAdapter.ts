@@ -43,7 +43,16 @@ export class SelectorAdapter {
    */
   show(
     button: HTMLElement,
-    callback: (template: PresetTemplate | CustomTemplate, tone: ToneOption, vocabulary?: string, lengthPacing?: string) => void
+    callback: (
+      template: PresetTemplate | CustomTemplate, 
+      tone: ToneOption, 
+      vocabulary?: string, 
+      lengthPacing?: string,
+      tabType?: string,
+      personaConfig?: any,
+      allTabConfig?: any,
+      customConfig?: any
+    ) => void
   ): void {
     if (this.useUnifiedSelector && this.unifiedSelector) {
       // Use unified selector
@@ -67,11 +76,20 @@ export class SelectorAdapter {
           systemPrompt: result.tone.systemPrompt
         };
         
-        // Pass vocabulary and lengthPacing if available (from 4-part structure)
-        callback(template, tone, result.vocabulary, result.lengthPacing);
+        // Pass all data including tab type and configs for prompt architecture
+        callback(
+          template, 
+          tone, 
+          result.vocabulary, 
+          result.lengthPacing,
+          result.tabType,
+          result.personaConfig,
+          result.allTabConfig,
+          result.customConfig
+        );
       });
     } else if (this.templateSelector) {
-      // Use traditional two-popup flow (no 4-part structure)
+      // Use traditional two-popup flow (no 4-part structure or prompt architecture)
       this.templateSelector.show(button, (template, tone) => {
         callback(template, tone);
       });

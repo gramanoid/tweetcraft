@@ -47,6 +47,38 @@ export interface PromptConfiguration {
   };
 }
 
+/**
+ * PromptArchitecture handles strategic prompt construction for all 6 tabs in TweetCraft.
+ * 
+ * TAB DEPENDENCIES AND CONFIGURATIONS:
+ * 
+ * 1. PERSONAS TAB:
+ *    - Requires: personaConfig with personality, vocabulary, rhetoricMove, lengthPacing, and systemPrompt
+ *    - Uses: System-wide prompt + persona's custom prompt + 4-part instructions
+ * 
+ * 2. ALL TAB:
+ *    - Requires: allTabConfig with personality, vocabulary, rhetoric, and lengthPacing
+ *    - Uses: System-wide prompt + 4-part instructions from user selections
+ * 
+ * 3. SMART TAB:
+ *    - DEPENDENCY: Uses ALL tab structure (allTabConfig required)
+ *    - Reason: Smart suggestions are AI-generated combinations from the same 4-part pool
+ *    - The UI must provide allTabConfig when Smart tab generates content
+ * 
+ * 4. FAVORITES TAB:
+ *    - DEPENDENCY: Uses ALL tab structure (allTabConfig required)
+ *    - Reason: Favorites are saved combinations from the ALL tab
+ *    - The UI must provide allTabConfig when a favorite is selected
+ * 
+ * 5. IMAGE_GEN TAB:
+ *    - No prompt construction (returns empty string)
+ *    - This tab is functional only and doesn't require text generation
+ * 
+ * 6. CUSTOM TAB:
+ *    - Requires: customConfig with style, tone, length, and optional temperature
+ *    - Uses: System-wide prompt + custom instructions
+ *    - Special: Can override system temperature with custom value
+ */
 export class PromptArchitecture {
   /**
    * Master system prompt for all Twitter/X reply generation
@@ -111,7 +143,11 @@ export class PromptArchitecture {
       );
     }
     
-    // 3. SMART TAB (uses ALL tab logic)
+    // 3. SMART TAB
+    // IMPORTANT: The Smart tab intentionally uses the ALL tab's 4-part structure
+    // This is because Smart suggestions are dynamically generated combinations
+    // from the same pool of personality, vocabulary, rhetoric, and pacing options.
+    // The allTabConfig must be provided by the UI when Smart tab is selected.
     else if (config.tabType === 'smart') {
       // Smart suggestions are sourced from ALL tab templates
       // Follow the same structure as ALL tab
@@ -131,7 +167,11 @@ export class PromptArchitecture {
       }
     }
     
-    // 4. FAVORITES TAB (uses ALL tab logic)
+    // 4. FAVORITES TAB
+    // IMPORTANT: The Favorites tab intentionally uses the ALL tab's 4-part structure
+    // This is because favorites are saved combinations from the ALL tab.
+    // When a user selects a favorite, it provides the same allTabConfig structure
+    // with personality, vocabulary, rhetoric, and lengthPacing values.
     else if (config.tabType === 'favorites') {
       // Favorites are sourced from ALL tab templates
       systemPrompt = this.MASTER_SYSTEM_PROMPT;
@@ -193,20 +233,21 @@ export class PromptArchitecture {
   ): string {
     let instructions = '';
 
-    if (personality) {
-      instructions += ` Personality: ${personality}.`;
+    // Add null/undefined checks and trim whitespace
+    if (personality && personality.trim()) {
+      instructions += ` Personality: ${personality.trim()}.`;
     }
 
-    if (vocabulary) {
-      instructions += ` Vocabulary style: ${vocabulary}.`;
+    if (vocabulary && vocabulary.trim()) {
+      instructions += ` Vocabulary style: ${vocabulary.trim()}.`;
     }
 
-    if (rhetoric) {
-      instructions += ` Rhetorical approach: ${rhetoric}.`;
+    if (rhetoric && rhetoric.trim()) {
+      instructions += ` Rhetorical approach: ${rhetoric.trim()}.`;
     }
 
-    if (lengthPacing) {
-      instructions += ` Length and pacing: ${lengthPacing}.`;
+    if (lengthPacing && lengthPacing.trim()) {
+      instructions += ` Length and pacing: ${lengthPacing.trim()}.`;
     }
 
     return instructions;
@@ -222,16 +263,17 @@ export class PromptArchitecture {
   ): string {
     let instructions = '';
 
-    if (style && style.trim()) {
-      instructions += ` Writing style: ${style}.`;
+    // Add robust null/undefined checks and trim whitespace
+    if (style && typeof style === 'string' && style.trim()) {
+      instructions += ` Writing style: ${style.trim()}.`;
     }
 
-    if (tone && tone.trim()) {
-      instructions += ` Tone of voice: ${tone}.`;
+    if (tone && typeof tone === 'string' && tone.trim()) {
+      instructions += ` Tone of voice: ${tone.trim()}.`;
     }
 
-    if (length && length.trim()) {
-      instructions += ` Length instructions: ${length}.`;
+    if (length && typeof length === 'string' && length.trim()) {
+      instructions += ` Length instructions: ${length.trim()}.`;
     }
 
     return instructions;
@@ -241,13 +283,26 @@ export class PromptArchitecture {
    * Get the appropriate temperature for the request
    */
   static getTemperature(config: PromptConfiguration): number {
+    let temperature: number;
+    
     // Custom tab can override temperature
     if (config.tabType === 'custom' && config.customConfig?.temperature !== undefined) {
-      return config.customConfig.temperature;
+      temperature = config.customConfig.temperature;
+    } else {
+      // All other tabs use system-wide temperature
+      temperature = config.temperature || 0.7;
     }
     
-    // All other tabs use system-wide temperature
-    return config.temperature || 0.7;
+    // Validate and clamp temperature to valid range (0.1 - 1.0)
+    if (temperature < 0.1) {
+      console.warn(`Temperature ${temperature} is below minimum, clamping to 0.1`);
+      temperature = 0.1;
+    } else if (temperature > 1.0) {
+      console.warn(`Temperature ${temperature} is above maximum, clamping to 1.0`);
+      temperature = 1.0;
+    }
+    
+    return temperature;
   }
 
   /**
