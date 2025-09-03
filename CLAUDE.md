@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**TweetCraft v0.0.16** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+**TweetCraft v0.0.17** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Key Features
 - **Multi-platform support**: Twitter/X + HypeFury with full feature parity
@@ -185,6 +185,22 @@ console.log('%c  Property:', 'color: #657786', value);
 - ✅ UnifiedSelector provides complete allTabConfig with defaults
 - ✅ Comprehensive integration tests for prompt flow
 - ✅ Enhanced error messages with recovery suggestions
+
+### Visual Hierarchy & UX Improvements
+- ✅ **Visual Hierarchy Color Coding** - Category-based colors for rhetoric (4) and personalities (5)
+- ✅ **Frequency-based Prominence** - Popular items scale 1.03x with bolder fonts
+- ✅ **Smart Dimming** - Rarely-used items at 85% opacity until hover
+- ✅ **Popup Size Memory** - Remembers user's preferred selector size via localStorage
+- ✅ **Resize Observer** - Auto-saves size changes with 500ms debounce
+- ✅ **Visual Resize Handle** - Corner indicator for resize capability
+- ✅ **Persistent Selection Bar** - Shows current selections across all tabs
+- ✅ **Quick Presets Section** - Top 3 most-used combinations as single-click buttons
+- ✅ **Smart Defaults Button** - Applies intelligent defaults based on usage patterns
+
+### Code Quality Improvements
+- ✅ **Centralized Constants** - All magic numbers extracted to `config/constants.ts`
+- ✅ **Enhanced Logger** - Compact mode with truncation and color coding
+- ✅ **API Key Security** - Proper environment variable usage with build-time injection
 
 ## Service Worker Message Types
 

@@ -91,9 +91,11 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - [x] ✅ Implement smart defaults
 - [x] ✅ Fix duplicate persona name in notification
 
+### Week 3 - Visual Hierarchy ✅ **COMPLETED**
+- [x] ✅ Task 1: Visual Hierarchy Color Coding
+- [x] ✅ Task 2: Popup Position & Size Memory (size only - position not controllable in Chrome)
+
 ### Current Phase - Final Polish
-- [ ] Task 1: Visual Hierarchy Color Coding
-- [ ] Task 2: Popup Position & Size Memory  
 - [ ] Task 3: Section Completion Indicators
 - [ ] Task 4: Compact Mode Information Density
 - [ ] Task 5: Auto-populate Favorites Tab

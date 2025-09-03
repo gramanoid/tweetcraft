@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.15-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.17-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,13 +23,24 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.15 - Latest: Streamlined Extension + LLM-First Smart Tab + Comprehensive Analytics)**
+### ✅ **Currently Working (v0.0.17 - Latest: Visual Hierarchy + Enhanced UX)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
 
-#### 🎭 **NEW: Enhanced Personas Tab** 
+#### 🎨 **NEW: Visual Hierarchy & Enhanced UX (v0.0.17)**
+- **Category Color Coding** - Visual distinction with 4 colors for rhetoric, 5 for personalities
+- **Frequency-based Prominence** - Popular options scale 1.03x with bolder fonts
+- **Smart Dimming** - Rarely-used items at 85% opacity until hover
+- **Size Memory** - Remembers preferred selector dimensions via localStorage
+- **Resize Observer** - Auto-saves size changes with 500ms debounce
+- **Visual Resize Handle** - Corner indicator showing resize capability
+- **Persistent Selection Bar** - Shows current selections across all tabs
+- **Quick Presets Section** - Top 3 most-used combinations as single-click buttons
+- **Smart Defaults Button** - Applies intelligent defaults based on usage patterns
+
+#### 🎭 **Enhanced Personas Tab** 
 - **Compact 5-column grid** showing all 10 personas simultaneously (massive space efficiency improvement)
 - **Smart usage-based sorting** with visual indicators (count badges + recent usage dots)
 - **Hover tooltips** with full descriptions and usage statistics
@@ -86,7 +97,12 @@
 - **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
 - **🔍 Comprehensive Logging** - Full prompt construction tracking in console
 
-#### 🛠️ **Recent Critical Fixes (v0.0.15)**
+#### 🛠️ **Recent Critical Fixes & Improvements (v0.0.17)**
+- **🎨 Visual Hierarchy Implementation** - Category-based color coding for better visual organization
+- **📏 Popup Size Memory** - Selector remembers user's preferred dimensions across sessions
+- **✨ Code Quality Enhancements** - Centralized constants, enhanced logger, improved API key security
+
+#### 🛠️ **Previous Fixes (v0.0.15-16)**
 - **✅ Personas Tab Generate Button** - Fixed issue where clicking persona cards didn't enable Generate button
 - **🤖 AI Anti-Disclosure System** - Prevents AI from revealing its nature or methodology in responses
 - **⚡ Quick Generate Smart Defaults** - Improved ID matching for instant generation with previous settings
