@@ -256,9 +256,11 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 
 ## Recent Changes (v0.0.17)
 
-### UI/UX Enhancements
+### UI/UX Enhancements  
 - ✅ Section Completion Indicators with checkmarks and progress bar
 - ✅ Compact Mode with 4-column layout and reduced padding (8px)
+- ✅ Auto-populate Favorites Tab - Shows top 5 combinations or defaults when empty
+- ✅ Expanded View Mode - Power user mode with transparency, docking, and keyboard navigation
 - ✅ Visual hierarchy with category-based color coding
 - ✅ Popup size memory via localStorage
 - ✅ Fixed Vision API with updated OpenRouter model IDs

@@ -5,59 +5,7 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 
 ## 🎯 Remaining Tasks
 
-### 1. Visual Hierarchy Color Coding
-**Description**: Implement color-coded categories with visual distinction between option types  
-**Implementation**:
-- Color-code by category: Blue (supportive), Orange (challenging), Green (neutral)
-- Add subtle borders to group related options
-- Size indicates popularity - frequently used slightly larger
-- Dim rarely-used options for better scanability
-
-### 2. Popup Position & Size Memory
-**Description**: Remember popup preferences across sessions for better desktop workflow  
-**Implementation**:
-- Store last popup position in localStorage
-- Remember size preference (width/height)
-- Add resize handle for width up to 800px
-- Include "Always on top" toggle option
-- Restore position on popup open
-
-### 3. Section Completion Indicators
-**Description**: Visual feedback showing which sections have selections  
-**Implementation**:
-- Show checkmarks (✓) on completed sections
-- Highlight sections needing selection with subtle glow
-- Update indicators in real-time as selections are made
-- Include progress indicator (e.g., "3 of 4 sections complete")
-
-### 4. Compact Mode Information Density
-**Description**: Maximize visible options with improved layout  
-**Implementation**:
-- Create 4-column layout for desktop (instead of 3)
-- Reduce padding from 16px to 8px
-- Group similar options together
-- Add subtle divider lines between sections
-- Ensure all options visible without scrolling
-
-### 5. Auto-populate Favorites Tab
-**Description**: Eliminate empty state in Favorites with smart suggestions  
-**Implementation**:
-- Auto-populate with top 5 used combinations when empty
-- Show "Suggested favorites" based on usage patterns
-- Display usage count next to each suggestion
-- Add "Accept suggestion" button to save as favorite
-- Include "Dismiss" option for unwanted suggestions
-
-### 6. Expanded View Mode
-**Description**: Alternative viewing mode for power users  
-**Implementation**:
-- Add "Expanded View" button showing all options at once
-- Include transparency slider for overlay mode (0.7-1.0)
-- Add "Dock to side" capability
-- Implement keyboard navigation in expanded mode
-- Remember view preference per session
-
-### 7. Smart Suggestions Scoring
+### 1. Smart Suggestions Scoring
 **Description**: Clear visual indicators for recommendation logic  
 **Implementation**:
 - Show score badges (1-10) next to smart suggestions
@@ -66,7 +14,7 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - Include "Why recommended?" link with breakdown
 - Update scores based on recent usage patterns
 
-### 8. Dynamic Popup Sizing
+### 2. Dynamic Popup Sizing
 **Description**: Responsive sizing that adapts to content and preferences  
 **Implementation**:
 - Remove fixed 560px width constraint
@@ -75,44 +23,23 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - Add user-draggable resize handle (bottom-right corner)
 - Store size preference in localStorage
 
-## 🚦 Implementation Schedule
+## 🚦 Completed Features
 
-### Week 1 - Core Fixes ✅ **COMPLETED**
-- [x] ✅ Enhance Custom tab with inline template creation
-- [x] ✅ Improve visual selection states (blue background, better contrast)
-- [x] ✅ Add keyboard shortcuts for navigation (Space bar quick generate)
-- [x] ✅ Implement quick generate with last settings (Smart Defaults system)
-- [x] ✅ **BONUS**: Comprehensive anti-meta-commentary AI restrictions
-- [x] ✅ **BONUS**: Perfect cross-category visual consistency
-
-### Week 2 - Speed Optimizations ✅ **COMPLETED**
-- [x] ✅ Add persistent selection bar at top
-- [x] ✅ Create quick presets section
-- [x] ✅ Implement smart defaults
-- [x] ✅ Fix duplicate persona name in notification
-
-### Week 3 - Visual Hierarchy ✅ **COMPLETED**
-- [x] ✅ Task 1: Visual Hierarchy Color Coding
-- [x] ✅ Task 2: Popup Position & Size Memory (size only - position not controllable in Chrome)
-
-### Current Phase - Final Polish
-
-#### ✅ **CRITICAL BUG FIXED**
-- [x] **Fixed Vision API Error (400 Bad Request)** - Vision analysis now working correctly
-  - Updated to current OpenRouter vision model IDs (gpt-4o, gpt-4o-mini, claude-3.5-sonnet, etc.)
-  - Fixed request format and message structure for vision models
-  - Added detailed error logging for better debugging
-  - Updated default model to gemini-2.0-flash (free tier)
-
-#### Completed UI/UX Tasks ✅
-- [x] Task 3: Section Completion Indicators - Visual feedback for section completions with progress bar
-- [x] Task 4: Compact Mode Information Density - 4-column layout with reduced padding for better density
-- [x] Task 5: Auto-populate Favorites Tab - Shows top 5 combinations or defaults when empty with Accept/Dismiss
-- [x] Task 6: Expanded View Mode - Power user mode showing all options with transparency, docking, and keyboard nav
-
-#### Remaining UI/UX Tasks
-- [ ] Task 7: Smart Suggestions Scoring
-- [ ] Task 8: Dynamic Popup Sizing
+### ✅ Core Features (v0.0.15-v0.0.17)
+- **Custom Tab Enhancements**: Inline template creation
+- **Visual Selection States**: Blue background with better contrast
+- **Keyboard Shortcuts**: Space bar quick generate, navigation keys
+- **Smart Defaults System**: Quick generate with last settings
+- **Anti-Meta-Commentary**: Comprehensive AI restrictions
+- **Persistent Selection Bar**: Always visible at top
+- **Quick Presets Section**: Top 3 most-used combinations
+- **Visual Hierarchy Color Coding**: Category-based colors
+- **Popup Size Memory**: Remembers size preferences
+- **Section Completion Indicators**: Visual feedback with progress bar
+- **Compact Mode**: 4-column layout with reduced padding
+- **Auto-populate Favorites**: Smart suggestions when empty
+- **Expanded View Mode**: Power user mode with all options visible
+- **Vision API Fix**: Updated model IDs and request format
 
 ## 📝 Additional Improvements
 
@@ -184,12 +111,9 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - [ ] Smooth scrolling and animations
 - [ ] Memory usage stays reasonable
 
-## 🐛 Known Issues Being Addressed
+## 🐛 Known Issues
 
-All previously identified issues are being addressed in the Current Phase tasks above:
-- Smart suggestions scoring → Task 7
-- Favorite combinations → Task 5 
-- Popup size constraints → Tasks 2, 4, 6, 8
+Currently no critical issues. Remaining enhancements are tracked in the tasks above.
 
 ---
 
