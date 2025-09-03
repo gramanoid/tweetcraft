@@ -30,35 +30,41 @@ export class VisionService {
   private apiKey: string | null = null;
   private baseUrl = 'https://openrouter.ai/api/v1';
   
-  // Vision-capable models on OpenRouter
+  // Vision-capable models on OpenRouter (updated for current API)
   private readonly visionModels: Record<string, { id: string; name: string; maxTokens: number; costPer1k: number }> = {
-    'gpt-4-vision': {
-      id: 'openai/gpt-4-vision-preview',
-      name: 'GPT-4 Vision',
+    'gpt-4o': {
+      id: 'openai/gpt-4o',
+      name: 'GPT-4o (Vision)',
       maxTokens: 4096,
-      costPer1k: 0.01
+      costPer1k: 0.005
     },
-    'claude-3-sonnet': {
-      id: 'anthropic/claude-3-sonnet:beta',
-      name: 'Claude 3 Sonnet',
+    'gpt-4o-mini': {
+      id: 'openai/gpt-4o-mini',
+      name: 'GPT-4o Mini (Vision)',
+      maxTokens: 4096,
+      costPer1k: 0.00015
+    },
+    'claude-3-5-sonnet': {
+      id: 'anthropic/claude-3.5-sonnet',
+      name: 'Claude 3.5 Sonnet',
       maxTokens: 4096,
       costPer1k: 0.003
     },
     'claude-3-haiku': {
-      id: 'anthropic/claude-3-haiku:beta',
+      id: 'anthropic/claude-3-haiku',
       name: 'Claude 3 Haiku',
       maxTokens: 4096,
       costPer1k: 0.00025
     },
-    'gemini-pro-vision': {
-      id: 'google/gemini-pro-vision',
-      name: 'Gemini Pro Vision',
-      maxTokens: 2048,
-      costPer1k: 0.00025
+    'gemini-2-flash': {
+      id: 'google/gemini-2.0-flash-exp:free',
+      name: 'Gemini 2.0 Flash',
+      maxTokens: 8192,
+      costPer1k: 0.0
     }
   };
 
-  private defaultModel = 'gemini-pro-vision'; // Most cost-effective
+  private defaultModel = 'gemini-2-flash'; // Most cost-effective (free tier)
 
   private constructor() {}
 
@@ -155,8 +161,8 @@ export class VisionService {
             ...imagesToAnalyze.map(url => ({
               type: 'image_url',
               image_url: {
-                url: url,
-                detail: 'auto' // Let the model decide the detail level
+                url: url
+                // Removed 'detail' field as it may not be supported by all models
               }
             }))
           ]

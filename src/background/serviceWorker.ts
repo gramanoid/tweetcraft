@@ -365,6 +365,19 @@ class SmartReplyServiceWorker {
                 return;
               }
 
+              console.log('%c👁️ VISION API REQUEST', 'color: #794BC4; font-weight: bold');
+              console.log('%c  Model:', 'color: #657786', message.modelId);
+              console.log('%c  Messages:', 'color: #657786', JSON.stringify(message.messages, null, 2));
+
+              const requestBody = {
+                model: message.modelId,
+                messages: message.messages,
+                max_tokens: API_CONSTANTS.DEFAULT_MAX_TOKENS,
+                temperature: TEMPERATURE_CONFIG.MIN
+              };
+
+              console.log('%c  Request Body:', 'color: #657786', JSON.stringify(requestBody, null, 2));
+
               const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -373,19 +386,35 @@ class SmartReplyServiceWorker {
                   'HTTP-Referer': 'https://tweetcraft.com',
                   'X-Title': 'TweetCraft Vision Analysis'
                 },
-                body: JSON.stringify({
-                  model: message.modelId,
-                  messages: message.messages,
-                  max_tokens: API_CONSTANTS.DEFAULT_MAX_TOKENS,
-                  temperature: TEMPERATURE_CONFIG.MIN
-                })
+                body: JSON.stringify(requestBody)
               });
 
               if (!response.ok) {
-                throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                console.error('%c❌ Vision API Error', 'color: #DC3545; font-weight: bold');
+                console.error('%c  Status:', 'color: #DC3545', response.status);
+                console.error('%c  Status Text:', 'color: #DC3545', response.statusText);
+                console.error('%c  Error Body:', 'color: #DC3545', errorText);
+                
+                // Try to parse error for more details
+                let errorMessage = `Vision API error: ${response.status}`;
+                try {
+                  const errorJson = JSON.parse(errorText);
+                  if (errorJson.error?.message) {
+                    errorMessage = errorJson.error.message;
+                  }
+                } catch (e) {
+                  // Use raw text if not JSON
+                  errorMessage = errorText || `Vision API error: ${response.status} ${response.statusText}`;
+                }
+                
+                throw new Error(errorMessage);
               }
 
               const data = await response.json() as any;
+              console.log('%c✅ Vision API Response', 'color: #17BF63; font-weight: bold');
+              console.log('%c  Data:', 'color: #657786', data);
+              
               const content = (data as any).choices?.[0]?.message?.content;
               
               if (content) {

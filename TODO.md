@@ -96,6 +96,15 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - [x] ✅ Task 2: Popup Position & Size Memory (size only - position not controllable in Chrome)
 
 ### Current Phase - Final Polish
+
+#### ✅ **CRITICAL BUG FIXED**
+- [x] **Fixed Vision API Error (400 Bad Request)** - Vision analysis now working correctly
+  - Updated to current OpenRouter vision model IDs (gpt-4o, gpt-4o-mini, claude-3.5-sonnet, etc.)
+  - Fixed request format and message structure for vision models
+  - Added detailed error logging for better debugging
+  - Updated default model to gemini-2.0-flash (free tier)
+
+#### Remaining UI/UX Tasks
 - [ ] Task 3: Section Completion Indicators
 - [ ] Task 4: Compact Mode Information Density
 - [ ] Task 5: Auto-populate Favorites Tab

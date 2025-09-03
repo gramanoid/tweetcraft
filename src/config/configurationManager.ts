@@ -418,7 +418,7 @@ export class ConfigurationManager {
       features: storedConfig.features || {
         imageUnderstanding: {
           enabled: false, // Default off for cost control
-          model: 'gemini-pro-vision',
+          model: 'gemini-2-flash',
           maxImagesPerRequest: 2
         },
         smartSuggestions: {
@@ -458,7 +458,7 @@ export class ConfigurationManager {
   async toggleImageUnderstanding(enabled: boolean): Promise<void> {
     const config = await this.getConfig();
     const currentSettings = config.features?.imageUnderstanding || {
-      model: 'gemini-pro-vision',
+      model: 'gemini-2-flash',
       maxImagesPerRequest: 2
     };
     

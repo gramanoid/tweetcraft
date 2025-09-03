@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ...existingConfig.features,
           imageUnderstanding: {
             enabled: true, // Always enabled by default
-            model: 'gemini-pro-vision', // Default model
+            model: 'gemini-2-flash', // Default model (free tier)
             maxImagesPerRequest: MAX_IMAGES_PER_REQUEST
           }
         };
