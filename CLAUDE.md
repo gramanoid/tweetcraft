@@ -36,10 +36,10 @@ Located in `bulkcraft/` directory with its own npm package structure (v0.1.0).
 ## Current Development State
 
 The repository is currently in active development with several modified files:
-- Modified files: CLAUDE.md, TODO.md, public/popup.html, src/popup/popup-simple.ts, src/types/messages.ts, src/background/serviceWorker.ts, src/services/visionService.ts
+- Modified files: CLAUDE.md, TODO.md, public/popup.html, src/popup/popup-simple.ts, src/types/messages.ts, src/background/serviceWorker.ts, src/services/visionService.ts, src/services/templateSuggester.ts, .env
 - New untracked files: src/services/smartDefaults.ts (Smart Defaults system)
 - Git branch: feature/custom-tab-ux-improvements (use for PRs)
-- Version: 0.0.15 (with latest improvements: Extension popup cleanup, LLM-first Smart tab, and fully functional image understanding)
+- Version: 0.0.15 (with latest major improvements: **Streamlined extension popup**, **LLM-first Smart tab**, **comprehensive usage analytics**, **backend-only image understanding**, and **environment-based configuration**)
 
 **IMPORTANT**: The codebase contains a hardcoded OpenRouter API key in `src/config/apiConfig.ts`. This is for personal use only and should never be committed to public repositories.
 
@@ -77,7 +77,7 @@ npm run typecheck   # TypeScript type checking
 2. Navigate to `chrome://extensions/`
 3. Enable "Developer mode"
 4. Click "Load unpacked" and select the `dist` folder
-5. Configure OpenRouter API key in the extension popup
+5. **No additional configuration needed** - API key and all advanced settings are pre-configured in the environment
 
 ### Testing
 Jest testing framework configured with TypeScript support:
@@ -98,7 +98,7 @@ Manual testing checklist:
 ### Chrome Extension Structure (Manifest V3)
 - **Service Worker** (`src/background/serviceWorker.ts`) - Background message handling and CSP-compliant storage access
 - **Content Script** (`src/content/contentScript.ts`) - Twitter DOM manipulation with singleton pattern to prevent multiple instances
-- **Popup** (`src/popup/popup-simple.ts`) - Extension settings UI
+- **Popup** (`src/popup/popup-simple.ts`) - **Streamlined extension popup** with only 5 essential settings
 - **Storage** (`src/services/storage.ts`) - Chrome storage API wrapper for API keys and settings
 - **OpenRouter Service** (`src/services/openRouter.ts`) - AI model integration
 - **Platform Support** (`src/platforms/`) - Multi-platform compatibility (Twitter/X, HypeFury)
@@ -123,7 +123,7 @@ Manual testing checklist:
 - Path alias: `@` maps to `src/`
 
 ### Modular Configuration System
-The extension uses a modular configuration approach in `src/config/`:
+The extension uses a modular configuration approach in `src/config/` and **environment-based configuration**:
 - `personalities.ts` - 24 personality types (Friendly, Professional, Sarcastic, etc.)
 - `vocabulary.ts` - 11 vocabulary styles (Plain English, Corporate, Gen Z, etc.)
 - `rhetoric.ts` - 15 rhetorical approaches (Agree & Build, Devil's Advocate, Hot Take, etc.)
@@ -132,6 +132,7 @@ The extension uses a modular configuration approach in `src/config/`:
 - `apiConfig.ts` - **SENSITIVE**: Contains hardcoded OpenRouter API key
 - `configurationManager.ts` - Centralized configuration management
 - `constants.ts` - Application constants and defaults
+- **`.env`** - **NEW**: Environment-based configuration with API keys, model defaults, and feature toggles
 
 ## Critical Implementation Notes
 
@@ -187,8 +188,13 @@ console.log('%c  Property:', 'color: #657786', value);
 - `💾 CACHE` - Cache hits/misses
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
+- `📂 POPUP SETTINGS LOADED` - Extension popup settings loaded
+- `💾 POPUP SETTINGS SAVED` - Extension popup settings saved
+- `👁️ VISION ANALYSIS` - Image understanding and analysis
+- `🔄 RESET USAGE` - Usage counter reset operations
+- `🤖 LLM ANALYSIS` - AI-powered template suggestions and scoring
 
-## Current Features (v0.0.15 - Latest Update: LLM-First Smart Tab + Extension Popup Cleanup)
+## Current Features (v0.0.15 - Latest Update: Streamlined Extension Popup + LLM-First Smart Tab + Comprehensive Analytics)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -231,6 +237,10 @@ if (isHypeFury) {
 ### Unified AI Reply Interface (v0.0.14 - Latest Update)
 - **Six-tab Interface**: Personas, All, Smart, Favorites, Image Gen, Custom
 - **Smart Suggestions Tab**: 
+  - **LLM-First Algorithm**: AI analysis is now the PRIMARY scoring mechanism with confidence scoring and reasoning chains
+  - **Enhanced Context Analysis**: Thread dynamics, user behavior patterns, engagement metrics, and conversation stage detection
+  - **Sophisticated Prompts**: Multi-part system prompts with examples and step-by-step reasoning instructions
+  - **Comprehensive Scoring**: AI confidence scores combined with usage patterns and contextual relevance
   - **Enhanced AI-powered scoring** with descriptive labels (Perfect Match, Excellent Fit, Great Choice, etc.)
   - **Shows top 8 suggestions** with meaningful context explanations (up from 6)
   - **Color-coded reason chips** with categories (Context, Favorites, Usage, Success, Timing, AI, Tone)
@@ -341,7 +351,11 @@ if (isHypeFury) {
 ### Technical Features
 - **Thread Context Extraction**: Analyzes up to 4 tweets for context-aware replies
 - **LLM-First Smart Suggestions**: AI analysis drives template scoring with confidence scoring, reasoning chains, and comprehensive context analysis
-- **Image Understanding**: Fully functional vision analysis using OpenRouter vision models (default: Gemini Pro Vision) - **ENABLED BY DEFAULT**
+- **Image Understanding**: Fully functional vision analysis using OpenRouter vision models (default: Gemini Pro Vision) - **BACKEND-ONLY, ENABLED BY DEFAULT**
+- **Streamlined Extension Popup**: Only 5 essential settings (Model, System Prompt, Reply Length, Temperature, Context Mode) - all advanced features moved to backend
+- **Environment-Based Configuration**: API keys, model defaults, and feature toggles configured in .env file for security and maintainability
+- **Comprehensive Console Logging**: Detailed monitoring of all settings, toggles, image understanding usage, and AI operations with color-coded structured output
+- **Usage Analytics & Reset Functionality**: Complete usage tracking with manual reset capability through extension popup
 - **Smart Defaults & Usage Tracking**: Comprehensive analytics with pattern recognition and intelligent fallbacks
 - **Advanced Caching**: Session-based response caching with deduplication
 - **Network Resilience**: Offline queuing, adaptive timeouts, connection quality detection
@@ -380,12 +394,24 @@ See [TODO.md](TODO.md) for the comprehensive UX/UI improvement plan including:
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.15 - Latest Session)
-- ✅ **Extension Popup Cleanup** - Removed duplicate "Add Custom Tone" functionality (already available in AI Reply popup Custom tab)
-- ✅ **Reply Length Consistency** - Synchronized default reply length dropdown with AI Reply popup's 6-part system (One Word, Statement+Question, etc.)
-- ✅ **Image Understanding Activation** - Made image understanding enabled by default with proper configuration
-- ✅ **Vision Analysis Infrastructure** - Added complete ANALYZE_IMAGES message type, handler, and OpenRouter integration for vision models
-- ✅ **LLM-First Smart Tab** - Transformed Smart suggestions to be LLM-primary with confidence scoring, reasoning chains, and enhanced context analysis
+### Recently Fixed (v0.0.15 - Latest Session: Major Overhaul)
+- ✅ **Streamlined Extension Popup** - Simplified to only 5 essential settings: Model, System Prompt (Your Identity), Default Reply Length, Temperature, Context Mode
+- ✅ **Backend-Only Image Understanding** - Moved all image understanding configuration to backend (.env), always enabled by default, removed frontend toggles
+- ✅ **Environment-Based Configuration** - Added comprehensive .env file with API keys, model defaults, vision settings, and feature toggles
+- ✅ **Usage Analytics Reset** - Added functional reset button in extension popup with full backend message handling (RESET_USAGE_STATS)
+- ✅ **LLM-First Smart Tab Algorithm** - Completely transformed Smart suggestions from pattern-based to LLM-primary scoring with:
+  - AI analysis as PRIMARY mechanism (8.0 point boost for LLM category matches)
+  - Confidence scoring and reasoning chains
+  - Enhanced context analysis (thread dynamics, user behavior, engagement metrics)
+  - Comprehensive system prompts with examples and step-by-step reasoning
+- ✅ **Comprehensive Console Logging** - Added detailed monitoring throughout entire system:
+  - Extension popup settings load/save with structured color-coded output
+  - Vision analysis pipeline with cost estimation and model selection
+  - AI generation parameters and context information
+  - LLM analysis results with confidence scores and reasoning
+  - Usage tracking and analytics operations
+- ✅ **Vision Analysis Integration** - Complete ANALYZE_IMAGES message type implementation with OpenRouter vision models
+- ✅ **TypeScript Build Fixes** - Resolved multiple compilation errors for message types, interfaces, and property access
 
 ### Previous Fixes (v0.0.15 - Earlier)
 - ✅ **Personas Tab Generate Button** - Fixed issue where clicking persona cards didn't activate Generate button (updateUI() method now properly handles personas view)
@@ -503,12 +529,16 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `src/content/contentScript.ts` - Main content script, singleton pattern, button injection
 - `src/content/domUtils.ts` - Twitter DOM manipulation, text insertion (DO NOT MODIFY insertion logic)
 - `src/content/unifiedSelector.ts` - **ENHANCED**: 6-tab unified AI interface with personas grid overhaul and AI suggestions improvements
-- `src/services/openRouter.ts` - OpenRouter API integration with retry logic
+- `src/services/openRouter.ts` - **ENHANCED**: OpenRouter API integration with comprehensive logging and vision model support
 - `src/services/imageService.ts` - AI image generation and web search
-- `src/services/templateSuggester.ts` - **ENHANCED**: Smart suggestions with enhanced pattern recognition, descriptive scoring, and 8-suggestion capacity
+- `src/services/templateSuggester.ts` - **COMPLETELY TRANSFORMED**: LLM-first Smart suggestions with AI-driven scoring, confidence analysis, and reasoning chains
+- `src/services/visionService.ts` - **NEW**: Complete vision analysis pipeline with OpenRouter integration and detailed logging
 - `src/services/smartDefaults.ts` - Smart defaults and Quick Generate functionality
 - `src/services/usageTracker.ts` - **ENHANCED**: Usage patterns tracking with persona tracking support for intelligent sorting
-- `src/background/serviceWorker.ts` - Message handling, storage operations
+- `src/background/serviceWorker.ts` - **ENHANCED**: Message handling with ANALYZE_IMAGES and RESET_USAGE_STATS support, comprehensive logging
+- `src/popup/popup-simple.ts` - **STREAMLINED**: Simplified extension popup with only 5 essential settings and enhanced logging
+- `public/popup.html` - **SIMPLIFIED**: Clean popup interface with Model, System Prompt, Reply Length, Temperature, Context Mode
+- `.env` - **NEW**: Environment-based configuration with API keys, model defaults, vision settings, and feature toggles
 - `src/config/apiConfig.ts` - **CRITICAL**: Contains hardcoded OpenRouter API key
 - `src/config/templatesAndTones.ts` - Template and tone definitions (deprecated - see modular configs)
 - `src/config/personalities.ts` - 24 personality options for template system
@@ -516,6 +546,8 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `src/config/rhetoric.ts` - 15 rhetoric approaches
 - `src/config/lengthPacing.ts` - 6 length and pacing options
 - `src/config/quickPersonas.ts` - 10 pre-configured persona combinations
+- `src/types/messages.ts` - **ENHANCED**: Added ANALYZE_IMAGES and RESET_USAGE_STATS message types with proper interfaces
+- `src/types/llm.ts` - **ENHANCED**: Comprehensive LLM analysis interfaces with confidence scoring and context analysis
 - `src/platforms/hypefury.ts` - HypeFury platform adapter
 
 ## Documentation Maintenance

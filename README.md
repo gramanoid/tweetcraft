@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.15 - Latest: LLM-First Smart Tab + Extension Cleanup)**
+### ✅ **Currently Working (v0.0.15 - Latest: Streamlined Extension + LLM-First Smart Tab + Comprehensive Analytics)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
@@ -42,11 +42,12 @@
 - **Reasoning integration** - AI explanations flow through to user-facing suggestion reasons
 - **Confidence scoring** - LLM confidence (0.0-1.0) directly boosts suggestion rankings
 
-#### 🎛️ **NEW: Extension Popup Improvements**
-- **Streamlined interface** - Removed duplicate "Add Custom Tone" (available in AI Reply popup)
-- **Consistent reply lengths** - Default dropdown now matches AI popup's 6-part system
-- **Image understanding enabled by default** - Vision analysis ready out-of-the-box
-- **Full vision infrastructure** - Complete OpenRouter integration with proper message handling
+#### 🎛️ **NEW: Streamlined Extension Popup**
+- **5 Essential Settings Only** - Model, System Prompt (Your Identity), Default Reply Length, Temperature, Context Mode
+- **Backend Configuration** - All advanced settings moved to .env file for security and maintainability
+- **No Additional Setup Required** - API keys and feature toggles pre-configured in environment
+- **Usage Analytics Reset** - Functional reset button with full backend message handling
+- **Image Understanding Always Enabled** - Vision analysis moved to backend-only operation
 
 #### 🚀 **Core Features**
 - ✅ Unified 6-tab selector (Personas, All, Smart, Favorites, Image Gen, Custom)
@@ -204,17 +205,19 @@ A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md)
 
 ## 🚀 Getting Started
 
-1. **Get your OpenRouter API Key**
-   - Visit [openrouter.ai/keys](https://openrouter.ai/keys)
-   - Create an account and generate an API key
-   - Keep it safe - you'll need it for setup
+1. **No Setup Required!**
+   - API keys and all advanced settings are pre-configured
+   - Extension works out-of-the-box with optimal defaults
+   - No additional configuration needed for most users
 
-2. **Configure the Extension**
+2. **Optional Customization**
    - Click the TweetCraft icon in your Chrome toolbar
-   - Enter your OpenRouter API key
-   - Select your preferred AI model
-   - Customize your style/personality prompt
-   - Choose your default tone for keyboard shortcuts
+   - Adjust only 5 essential settings if desired:
+     - Model selection
+     - System Prompt (your personality)
+     - Default Reply Length
+     - Temperature (creativity level)
+     - Context Mode
 
 3. **Start Using TweetCraft**
    - Navigate to [twitter.com](https://twitter.com), [x.com](https://x.com), or [app.hypefury.com](https://app.hypefury.com)
@@ -263,13 +266,13 @@ npm run type-check # TypeScript checking
 
 ## 🔧 Configuration
 
-### Popup Settings
-- **API Key** - Your OpenRouter API key (stored securely)
-- **Model Selection** - Choose from available AI models
-- **System Prompt** - Define your writing style and personality
+### Streamlined Popup Settings (5 Essential Settings)
+- **Model Selection** - Choose from available AI models (auto-fetched from OpenRouter)
+- **System Prompt (Your Identity)** - Define your writing style and personality
+- **Default Reply Length** - Auto, One Word, Statement+Question, Normal Reply, etc.
 - **Temperature** - Control creativity (0.1 = focused, 1.0 = creative)
-- **Context Mode** - None, Single tweet, or Full thread
-- **Default Tone** - For keyboard shortcut (Alt+Q)
+- **Context Mode** - None, Single tweet, or Full thread context
+- **Usage Reset** - Reset all usage counters with one click
 
 ### Advanced Features
 - **Multiple Suggestions** - Click "3 Suggestions" modifier
@@ -350,6 +353,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.14** - Comprehensive AI reply assistant with 40+ features including enhanced Custom Tab system, Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
+**TweetCraft v0.0.15** - Comprehensive AI reply assistant with streamlined extension popup, LLM-first Smart suggestions, backend-only image understanding, comprehensive analytics, and 40+ features 🚀
 
 Made with ❤️ by the TweetCraft team
