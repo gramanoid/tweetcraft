@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.14-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.15-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.14)**
+### ✅ **Currently Working (v0.0.15)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
@@ -64,10 +64,23 @@
 - **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
 - **🔍 Comprehensive Logging** - Full prompt construction tracking in console
 
+#### 🛠️ **Recent Critical Fixes (v0.0.15)**
+- **✅ Personas Tab Generate Button** - Fixed issue where clicking persona cards didn't enable Generate button
+- **🤖 AI Anti-Disclosure System** - Prevents AI from revealing its nature or methodology in responses
+- **⚡ Quick Generate Smart Defaults** - Improved ID matching for instant generation with previous settings
+- **🎨 UI Compactness** - Fixed collapsible sections (Vocabulary, Length & Pacing) and compact tab layout
+- **📱 Tab Layout** - All tabs including Custom now display properly without text wrapping
+- **🎯 Perfect Visual Consistency** - Unified selection states with `#1d9bf0` blue background and white text
+- **⭐ Enhanced Star Buttons** - 32px clickable areas with gold hover states and clean design
+- **📏 Font Size Normalization** - Consistent 16px emoji, 12px label sizing across all categories
+- **🔤 Descriptive Length & Pacing** - Clear labels like "One Word" 💨, "Statement + Question" 🥊 instead of vague names
+- **🚫 Comprehensive AI Guardrails** - All 40+ prompts enhanced with anti-meta-commentary restrictions preventing robotic responses
+
 ### 📋 **Active Development (TODO.md)**
 A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md) with:
-- 20 detailed UX/UI issues and their solutions
-- 4-week implementation schedule
+- ✅ **Week 1 Completed**: Visual feedback, Custom tab creation, keyboard shortcuts, Smart Defaults
+- 20 detailed UX/UI issues with solutions (7 major issues already resolved)
+- 4-week implementation schedule with significant progress made
 - Desktop-optimized improvements for single-user efficiency
 - Focus on keyboard shortcuts and workflow speed
 
@@ -92,7 +105,7 @@ A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md)
 - **24 personalities** - Friendly, Supportive, Professional, Sarcastic, and more
 - **11 vocabulary styles** - Plain English, Corporate/PR, Academic, Technical, Gen Z, and more
 - **15 rhetoric approaches** - Agree & Build, Steel Man, Devil's Advocate, Hot Take, Ratio Bait, and more
-- **6 length & pacing options** - The Drive-By, The One-Two Punch, The Conversational Clause, and more
+- **6 length & pacing options** - One Word 💨, Statement + Question 🥊, Normal Reply 🗣️, and more
 - **10 quick personas** - Pre-configured combinations like The Debate Lord, The Chaos Muppet, The Edgy Philosopher
 - **Custom templates** - Comprehensive inline creation and management with Style, Tone, and Length fields
 - **Dark mode UI** - Beautiful interface matching Twitter/X's dark theme

@@ -13,6 +13,7 @@ import { visualFeedback } from '@/ui/visualFeedback';
 import { templateSuggester } from '@/services/templateSuggester';
 import { DOMUtils } from '@/content/domUtils';
 import { imageService } from '@/services/imageService';
+import { smartDefaults } from '@/services/smartDefaults';
 
 export interface SelectionResult {
   template: Template;
@@ -43,6 +44,8 @@ export class UnifiedSelector {
   private favoritePersonalities: Set<string> = new Set();
   // Backward compatibility alias
   private get favoriteTones(): Set<string> { return this.favoritePersonalities; }
+  private favoriteVocabulary: Set<string> = new Set();
+  private favoriteLengthPacing: Set<string> = new Set();
   private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
@@ -50,6 +53,8 @@ export class UnifiedSelector {
   private smartSuggestions: { templates: Template[], personalities: Personality[] } = { templates: [], personalities: [] };
   private smartSuggestionsScores: any[] = [];
   private customTemplatesLoaded: Promise<void> | null = null;
+  private quickGenerateButton: HTMLElement | null = null;
+  private lastUsedSelections: any = null;
 
   constructor() {
     this.loadFavorites();
@@ -64,6 +69,58 @@ export class UnifiedSelector {
     if (!text) return 'Not specified';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  }
+
+  /**
+   * Get example preview text for personality types
+   */
+  private getPersonalityExample(personalityId: string): string {
+    const examples: Record<string, string> = {
+      'friendly': '"Oh this is great! Love seeing posts like this ✨"',
+      'supportive': '"This resonates so much. Sending you strength 🤗"',
+      'motivational': '"Yes! You\'ve got this! Keep pushing forward 💪"',
+      'professional': '"Interesting perspective on this topic. Well articulated."',
+      'sarcastic': '"Well, that\'s one way to look at it... 🤔"',
+      'humorous': '"Haha this made my day! Thanks for the laugh 😄"',
+      'technical': '"Good point about the implementation details here."',
+      'creative': '"This sparks so many creative ideas! ✨🎨"',
+      'analytical': '"Breaking this down, there are several factors to consider..."',
+      'casual': '"yep totally agree! thanks for sharing this"',
+      'enthusiastic': '"OMG YES! This is exactly what I needed to see today!!! 🎉"',
+      'empathetic': '"I can really feel what you\'re going through here. Thank you for sharing."'
+    };
+    return examples[personalityId] || 'See preview when you hover...';
+  }
+
+  /**
+   * Get example preview text for vocabulary styles
+   */
+  private getVocabularyExample(vocabularyId: string): string {
+    const examples: Record<string, string> = {
+      'plain_english': '"That makes total sense to me."',
+      'corporate': '"This aligns well with our strategic objectives."',
+      'gen_z': '"no cap this is actually fire ngl"',
+      'academic': '"This empirical evidence supports your hypothesis."',
+      'casual': '"yeah totally, makes sense"',
+      'technical': '"The implementation methodology is sound here."',
+      'creative': '"This paints such a vivid picture in my mind!"'
+    };
+    return examples[vocabularyId] || 'See preview when you hover...';
+  }
+
+  /**
+   * Get example preview text for rhetoric approaches
+   */
+  private getRhetoricExample(rhetoricId: string): string {
+    const examples: Record<string, string> = {
+      'agree_and_build': '"Yes, and building on that idea..."',
+      'question': '"What are your thoughts on the long-term implications?"',
+      'devils_advocate': '"Playing devil\'s advocate here, but what if..."',
+      'personal_experience': '"This reminds me of when I experienced..."',
+      'hot_take': '"Controversial opinion: I think you\'re absolutely right."',
+      'steel_man': '"The strongest version of this argument would be..."'
+    };
+    return examples[rhetoricId] || 'See preview when you hover...';
   }
 
   /**
@@ -108,6 +165,9 @@ export class UnifiedSelector {
     // Add click outside handler
     this.setupClickOutsideHandler();
     
+    // Add keyboard event handler
+    this.setupKeyboardHandler();
+    
     // Add scroll handler to keep popup positioned relative to button
     this.setupScrollHandler();
   }
@@ -131,6 +191,12 @@ export class UnifiedSelector {
     if (this.scrollHandler) {
       window.removeEventListener('scroll', this.scrollHandler, true);
       this.scrollHandler = null;
+    }
+    
+    // Remove keyboard handler
+    if (this.keyboardHandler) {
+      document.removeEventListener('keydown', this.keyboardHandler);
+      this.keyboardHandler = null;
     }
     
     this.anchorButton = null;
@@ -201,6 +267,42 @@ export class UnifiedSelector {
   }
   
   /**
+   * Setup keyboard handler for shortcuts
+   */
+  private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
+  
+  private setupKeyboardHandler(): void {
+    this.keyboardHandler = (e: KeyboardEvent) => {
+      // Only handle if the selector is visible
+      if (!this.container || this.container.style.display === 'none') return;
+      
+      // Ignore if user is typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar': // For older browsers
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleQuickGenerate();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          e.stopPropagation();
+          this.hide();
+          break;
+        case 'Enter':
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleGenerate();
+          break;
+      }
+    };
+    
+    document.addEventListener('keydown', this.keyboardHandler);
+  }
+  
+  /**
    * Setup scroll handler to keep popup positioned
    */
   private setupScrollHandler(): void {
@@ -241,25 +343,31 @@ export class UnifiedSelector {
       <div class="selector-header">
         <div class="selector-tabs">
           <button class="tab-btn ${this.view === 'personas' ? 'active' : ''}" data-view="personas">
-            <span>👤 Personas</span>
+            👤 Personas
           </button>
           <button class="tab-btn ${this.view === 'grid' ? 'active' : ''}" data-view="grid">
-            <span>📝 All</span>
+            📝 All
           </button>
           <button class="tab-btn ${this.view === 'smart' ? 'active' : ''}" data-view="smart">
-            <span>🤖 Smart</span>
+            🤖 Smart
           </button>
           <button class="tab-btn ${this.view === 'favorites' ? 'active' : ''}" data-view="favorites">
-            <span>⭐ Favorites</span>
+            ⭐ Favorites
           </button>
           <button class="tab-btn ${this.view === 'imagegen' ? 'active' : ''}" data-view="imagegen">
-            <span>🖼️ Image Gen</span>
+            🖼️ Image Gen
           </button>
           <button class="tab-btn ${this.view === 'custom' ? 'active' : ''}" data-view="custom">
-            <span>✨ Custom</span>
+            ✨ Custom
           </button>
         </div>
-        <button class="close-btn" aria-label="Close">×</button>
+        <div class="header-actions">
+          <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with last used settings (Space)">
+            <span class="quick-generate-icon">⚡</span>
+            <span class="quick-generate-text">Quick Generate</span>
+          </button>
+          <button class="close-btn" aria-label="Close">×</button>
+        </div>
       </div>
       
       ${this.renderViewContent(templates, personalities)}
@@ -378,16 +486,27 @@ export class UnifiedSelector {
         </div>
         
         <!-- Part 2: Vocabulary (How it's written) -->
-        <div class="part-section vocabulary-section">
-          <h3><span class="part-number">2</span> Vocabulary <span class="part-subtitle">(How it's written)</span></h3>
-          <div class="vocabulary-grid selection-grid">
+        <div class="part-section vocabulary-section collapsible-section" data-section="vocabulary">
+          <h3 class="collapsible-header" data-toggle="vocabulary">
+            <span class="part-number">2</span> 
+            <span class="section-title">Vocabulary <span class="part-subtitle">(How it's written)</span></span>
+            <span class="collapse-indicator">−</span>
+          </h3>
+          <div class="vocabulary-grid selection-grid collapsible-content" id="vocabulary-content">
             ${vocabularyStyles.map(vocab => `
-              <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''}"
-                      data-vocabulary="${vocab.id}"
-                      title="${vocab.description}">
-                <span class="vocabulary-emoji">${vocab.emoji}</span>
-                <span class="vocabulary-label">${vocab.label}</span>
-              </button>
+              <div class="item-wrapper">
+                <button class="vocabulary-btn ${this.selectedVocabulary?.id === vocab.id ? 'selected' : ''}"
+                        data-vocabulary="${vocab.id}"
+                        title="${vocab.description}">
+                  <span class="vocabulary-emoji">${vocab.emoji}</span>
+                  <span class="vocabulary-label">${vocab.label}</span>
+                </button>
+                <button class="star-btn ${this.favoriteVocabulary?.has(vocab.id) ? 'active' : ''}" 
+                        data-vocabulary-star="${vocab.id}" 
+                        title="${this.favoriteVocabulary?.has(vocab.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoriteVocabulary?.has(vocab.id) ? '⭐' : '☆'}
+                </button>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -415,15 +534,27 @@ export class UnifiedSelector {
         </div>
         
         <!-- Part 4: Length & Pacing (How it flows) -->
-        <div class="part-section length-pacing-section">
-          <h3><span class="part-number">4</span> Length & Pacing <span class="part-subtitle">(How it flows)</span></h3>
-          <div class="length-pacing-grid selection-grid">
+        <div class="part-section length-pacing-section collapsible-section" data-section="lengthPacing">
+          <h3 class="collapsible-header" data-toggle="lengthPacing">
+            <span class="part-number">4</span> 
+            <span class="section-title">Length & Pacing <span class="part-subtitle">(How it flows)</span></span>
+            <span class="collapse-indicator">−</span>
+          </h3>
+          <div class="length-pacing-grid selection-grid collapsible-content" id="lengthPacing-content">
             ${lengthPacingStyles.map(pacing => `
-              <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''}"
-                      data-lengthpacing="${pacing.id}"
-                      title="${pacing.description}">
-                <span class="length-pacing-emoji">${pacing.label}</span>
-              </button>
+              <div class="item-wrapper">
+                <button class="length-pacing-btn ${this.selectedLengthPacing?.id === pacing.id ? 'selected' : ''}"
+                        data-lengthpacing="${pacing.id}"
+                        title="${pacing.description}">
+                  <span class="length-pacing-emoji">${pacing.emoji}</span>
+                  <span class="length-pacing-label">${pacing.label}</span>
+                </button>
+                <button class="star-btn ${this.favoriteLengthPacing?.has(pacing.id) ? 'active' : ''}" 
+                        data-lengthpacing-star="${pacing.id}" 
+                        title="${this.favoriteLengthPacing?.has(pacing.id) ? 'Remove from favorites' : 'Add to favorites'}">
+                  ${this.favoriteLengthPacing?.has(pacing.id) ? '⭐' : '☆'}
+                </button>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -798,6 +929,26 @@ export class UnifiedSelector {
       });
     });
 
+    // Vocabulary star buttons
+    this.container.querySelectorAll('[data-vocabulary-star]').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const vocabularyId = (e.currentTarget as HTMLElement).dataset.vocabularyStar!;
+        await this.toggleFavoriteVocabulary(vocabularyId);
+      });
+    });
+
+    // Length-pacing star buttons
+    this.container.querySelectorAll('[data-lengthpacing-star]').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const lengthPacingId = (e.currentTarget as HTMLElement).dataset.lengthpacingStar!;
+        await this.toggleFavoriteLengthPacing(lengthPacingId);
+      });
+    });
+
     // Generate button
     const generateBtn = this.container.querySelector('.generate-btn');
     if (generateBtn) {
@@ -811,6 +962,15 @@ export class UnifiedSelector {
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
         this.hide();
+      });
+    }
+
+    // Quick Generate button
+    const quickGenerateBtn = this.container.querySelector('.quick-generate-btn');
+    if (quickGenerateBtn) {
+      quickGenerateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleQuickGenerate();
       });
     }
 
@@ -875,6 +1035,17 @@ export class UnifiedSelector {
         }
       });
     }
+
+    // Collapsible section headers
+    this.container.querySelectorAll('.collapsible-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const toggle = (e.currentTarget as HTMLElement).dataset.toggle;
+        if (toggle) {
+          this.toggleSection(toggle);
+        }
+      });
+    });
   }
 
   /**
@@ -1080,10 +1251,20 @@ export class UnifiedSelector {
     // Update generate button
     const generateBtn = this.container.querySelector('.generate-btn');
     if (generateBtn) {
-      const ready = this.view === 'grid' 
-        ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing)
-        : (this.selectedTemplate && this.selectedTone);
-      generateBtn.classList.toggle('active', !!ready);
+      let ready = false;
+      
+      if (this.view === 'grid') {
+        // 4-part selection for All tab
+        ready = !!(this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing);
+      } else if (this.view === 'personas') {
+        // Persona selection for Personas tab
+        ready = !!this.selectedPersona;
+      } else {
+        // Template + tone for other views (backward compatibility)
+        ready = !!(this.selectedTemplate && this.selectedTone);
+      }
+      
+      generateBtn.classList.toggle('active', ready);
       if (ready) {
         generateBtn.removeAttribute('disabled');
       } else {
@@ -1093,7 +1274,7 @@ export class UnifiedSelector {
   }
 
   /**
-   * Check if ready to generate
+   * Check if ready to generate and update button state
    */
   private checkReadyToGenerate(): void {
     if (this.view === 'personas') {
@@ -1120,6 +1301,9 @@ export class UnifiedSelector {
         console.log('%c  Tone:', 'color: #657786', this.selectedTone.label);
       }
     }
+    
+    // Update button state immediately after checking
+    this.updateUI();
   }
 
   /**
@@ -1217,6 +1401,141 @@ export class UnifiedSelector {
   }
 
   /**
+   * Handle quick generate with last used selections or smart defaults
+   */
+  private async handleQuickGenerate(): Promise<void> {
+    if (!this.onSelectCallback) return;
+    
+    console.log('%c⚡ Quick Generate triggered', 'color: #1DA1F2; font-weight: bold');
+    
+    try {
+      // Get quick options from smart defaults service
+      const quickOptions = await smartDefaults.getQuickOptions();
+      
+      let selections = null;
+      let source = '';
+      
+      // Prefer last used selections if available
+      if (quickOptions.lastUsed) {
+        selections = quickOptions.lastUsed;
+        source = 'last used';
+      } else if (quickOptions.smartDefaults) {
+        selections = {
+          personality: quickOptions.smartDefaults.personality,
+          vocabulary: quickOptions.smartDefaults.vocabulary,
+          rhetoric: quickOptions.smartDefaults.rhetoric,
+          lengthPacing: quickOptions.smartDefaults.lengthPacing
+        };
+        source = quickOptions.smartDefaults.reason;
+      } else {
+        // Fallback to sensible defaults
+        selections = {
+          personality: 'friendly',
+          vocabulary: 'plain_english',
+          rhetoric: 'agree_build',
+          lengthPacing: 'drive_by'
+        };
+        source = 'default fallback';
+      }
+
+      console.log('%c  Using selections from:', 'color: #657786', source);
+      console.log('%c  Selections:', 'color: #657786', selections);
+
+      // Find the corresponding objects
+      const template = TEMPLATES.find(t => t.id === selections.rhetoric);
+      const personality = PERSONALITIES.find(p => p.id === selections.personality);
+      
+      if (!template || !personality) {
+        console.error('Failed to find template or personality for quick generate');
+        return;
+      }
+
+      // Create the result using the same logic as handleGenerate
+      const vocabularyStyles = getAllVocabularyStyles();
+      const lengthPacingStyles = getAllLengthPacingStyles();
+      
+      const vocabularyStyle = vocabularyStyles.find(v => v.id === selections.vocabulary);
+      const lengthPacingStyle = lengthPacingStyles.find(l => l.id === selections.lengthPacing);
+      
+      // Build the combined prompt
+      let combinedPrompt = `${personality.systemPrompt}\n\nReply approach: ${template.prompt}`;
+      
+      if (vocabularyStyle) {
+        combinedPrompt += `\n\nVocabulary style: ${vocabularyStyle.systemPrompt}`;
+      }
+      
+      if (lengthPacingStyle) {
+        combinedPrompt += `\n\nLength and pacing: ${lengthPacingStyle.systemPrompt}`;
+      }
+
+      const result: SelectionResult = {
+        template,
+        tone: personality,
+        combinedPrompt,
+        temperature: 0.7,
+        vocabulary: selections.vocabulary,
+        lengthPacing: selections.lengthPacing,
+        personality: selections.personality,
+        rhetoric: selections.rhetoric
+      };
+
+      // Save this as the new last used selection
+      await smartDefaults.saveLastUsed({
+        personality: selections.personality,
+        vocabulary: selections.vocabulary,
+        rhetoric: selections.rhetoric,
+        lengthPacing: selections.lengthPacing
+      });
+
+      console.log('%c✅ Quick Generate completed', 'color: #17BF63; font-weight: bold');
+      
+      // Hide and execute
+      this.hide();
+      this.onSelectCallback(result);
+      
+    } catch (error) {
+      console.error('Quick Generate failed:', error);
+      // Fall back to opening the selector for manual selection
+      console.log('%c  Falling back to manual selection', 'color: #FFA500');
+    }
+  }
+
+  /**
+   * Toggle collapsible section visibility
+   */
+  private toggleSection(sectionName: string): void {
+    if (!this.container) return;
+    
+    const header = this.container.querySelector(`[data-toggle="${sectionName}"]`) as HTMLElement;
+    const content = this.container.querySelector(`#${sectionName}-content`) as HTMLElement;
+    const indicator = header?.querySelector('.collapse-indicator') as HTMLElement;
+    
+    if (!header || !content || !indicator) {
+      console.warn(`Missing elements for section ${sectionName}:`, { header: !!header, content: !!content, indicator: !!indicator });
+      return;
+    }
+    
+    // Use computed style to check visibility more reliably
+    const computedStyle = window.getComputedStyle(content);
+    const isCollapsed = content.style.display === 'none' || computedStyle.display === 'none';
+    
+    if (isCollapsed) {
+      // Expand
+      content.style.display = 'grid';
+      content.style.visibility = 'visible';
+      indicator.textContent = '−';
+      header.classList.remove('collapsed');
+      console.log(`%c📖 Expanded ${sectionName} section`, 'color: #1DA1F2');
+    } else {
+      // Collapse  
+      content.style.display = 'none';
+      indicator.textContent = '+';
+      header.classList.add('collapsed');
+      console.log(`%c📕 Collapsed ${sectionName} section`, 'color: #1DA1F2');
+    }
+  }
+
+  /**
    * Toggle favorite template
    */
   private async toggleFavoriteTemplate(rhetoricId: string): Promise<void> {
@@ -1249,12 +1568,46 @@ export class UnifiedSelector {
   }
 
   /**
+   * Toggle favorite vocabulary
+   */
+  private async toggleFavoriteVocabulary(vocabularyId: string): Promise<void> {
+    if (this.favoriteVocabulary.has(vocabularyId)) {
+      this.favoriteVocabulary.delete(vocabularyId);
+      this.saveFavorites();
+      console.log('%c⭐ Removed vocabulary from favorites:', 'color: #FFA500', vocabularyId);
+    } else {
+      this.favoriteVocabulary.add(vocabularyId);
+      this.saveFavorites();
+      console.log('%c⭐ Added vocabulary to favorites:', 'color: #FFA500', vocabularyId);
+    }
+    this.render();
+  }
+
+  /**
+   * Toggle favorite length pacing
+   */
+  private async toggleFavoriteLengthPacing(lengthPacingId: string): Promise<void> {
+    if (this.favoriteLengthPacing.has(lengthPacingId)) {
+      this.favoriteLengthPacing.delete(lengthPacingId);
+      this.saveFavorites();
+      console.log('%c⭐ Removed length pacing from favorites:', 'color: #FFA500', lengthPacingId);
+    } else {
+      this.favoriteLengthPacing.add(lengthPacingId);
+      this.saveFavorites();
+      console.log('%c⭐ Added length pacing to favorites:', 'color: #FFA500', lengthPacingId);
+    }
+    this.render();
+  }
+
+  /**
    * Save favorites to storage
    */
   private saveFavorites(): void {
     const favorites = {
       favoriteTemplates: Array.from(this.favoriteTemplates),
-      favoritePersonalities: Array.from(this.favoritePersonalities)
+      favoritePersonalities: Array.from(this.favoritePersonalities),
+      favoriteVocabulary: Array.from(this.favoriteVocabulary),
+      favoriteLengthPacing: Array.from(this.favoriteLengthPacing)
     };
     localStorage.setItem('tweetcraft_favorites', JSON.stringify(favorites));
   }
@@ -1270,6 +1623,8 @@ export class UnifiedSelector {
       if (prefs) {
         this.favoriteRhetoric = new Set(prefs.favoriteRhetoric || prefs.favoriteTemplates || []);
         this.favoritePersonalities = new Set(prefs.favoritePersonalities || prefs.favoriteTones || []);
+        this.favoriteVocabulary = new Set(prefs.favoriteVocabulary || []);
+        this.favoriteLengthPacing = new Set(prefs.favoriteLengthPacing || []);
       }
     } catch (error) {
       console.error('Failed to load favorites:', error);
@@ -2083,26 +2438,33 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 10px 14px;
+          padding: 8px 12px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
+          gap: 12px;
         }
         
         .selector-tabs {
           display: flex;
-          gap: 8px;
+          gap: 4px;
+          flex: 1;
         }
         
         .tab-btn {
-          padding: 6px 12px;
+          padding: 4px 8px;
           background: transparent;
           border: 1px solid transparent;
-          border-radius: 14px;
+          border-radius: 12px;
           color: #8b98a5;
           cursor: pointer;
           transition: all 0.2s;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 500;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          flex-shrink: 0;
         }
         
         .tab-btn:hover {
@@ -2133,6 +2495,98 @@ export class UnifiedSelector {
         .close-btn:hover {
           background: rgba(255, 255, 255, 0.1);
           color: #e7e9ea;
+        }
+        
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .quick-generate-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px 10px;
+          background: linear-gradient(135deg, #1d9bf0, #1a8cd8);
+          border: none;
+          border-radius: 14px;
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 2px 4px rgba(29, 155, 240, 0.3);
+          flex-shrink: 0;
+        }
+        
+        .quick-generate-btn:hover {
+          background: linear-gradient(135deg, #1a8cd8, #1679c2);
+          box-shadow: 0 4px 8px rgba(29, 155, 240, 0.4);
+          transform: translateY(-1px);
+        }
+        
+        .quick-generate-btn:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 4px rgba(29, 155, 240, 0.3);
+        }
+        
+        .quick-generate-icon {
+          font-size: 14px;
+          animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        
+        .collapsible-header {
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 0;
+          user-select: none;
+        }
+        
+        .collapsible-header:hover {
+          color: #1d9bf0;
+        }
+        
+        .collapsible-header.collapsed {
+          opacity: 0.7;
+        }
+        
+        .section-title {
+          flex: 1;
+        }
+        
+        .collapse-indicator {
+          font-size: 16px;
+          font-weight: bold;
+          color: #8b98a5;
+          transition: transform 0.2s ease;
+          width: 16px;
+          text-align: center;
+        }
+        
+        .collapsible-header:hover .collapse-indicator {
+          color: #1d9bf0;
+        }
+        
+        .collapsible-content {
+          transition: all 0.3s ease;
+          overflow: hidden;
+        }
+        
+        .collapsible-section {
+          border: 1px solid rgba(139, 152, 165, 0.1);
+          border-radius: 8px;
+          padding: 12px;
+          margin: 8px 0;
+          background: rgba(139, 152, 165, 0.02);
         }
         
         .selector-content {
@@ -2226,17 +2680,20 @@ export class UnifiedSelector {
         
         .vocabulary-btn,
         .length-pacing-btn {
-          padding: 8px 10px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 20px 6px 5px;
           background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(139, 152, 165, 0.2);
+          border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
+          position: relative;
           font-size: 12px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          min-height: 32px;
+          width: 100%;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -2244,15 +2701,22 @@ export class UnifiedSelector {
         
         .vocabulary-btn:hover,
         .length-pacing-btn:hover {
-          background: rgba(29, 155, 240, 0.1);
-          border-color: rgba(29, 155, 240, 0.3);
+          background: rgba(29, 155, 240, 0.15);
+          border-color: rgba(29, 155, 240, 0.5);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.2);
         }
         
         .vocabulary-btn.selected,
         .length-pacing-btn.selected {
-          background: rgba(29, 155, 240, 0.2);
-          border-color: rgba(29, 155, 240, 0.5);
-          color: #1d9bf0;
+          background: #1d9bf0 !important;
+          border-color: #1d9bf0;
+          color: white !important;
+        }
+        
+        .vocabulary-btn.selected .vocabulary-label,
+        .length-pacing-btn.selected .length-pacing-label {
+          color: white !important;
         }
         
         .vocabulary-emoji,
@@ -2262,8 +2726,12 @@ export class UnifiedSelector {
         
         .vocabulary-label,
         .length-pacing-label {
+          font-size: 12px;
           flex: 1;
           text-align: left;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         
         /* Personas view styles */
@@ -2283,14 +2751,14 @@ export class UnifiedSelector {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.2);
           border-radius: 12px;
-          padding: 12px;
+          padding: 8px;
           cursor: pointer;
           transition: all 0.2s;
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
-          gap: 6px;
+          gap: 4px;
         }
         
         .persona-card:hover {
@@ -2300,13 +2768,22 @@ export class UnifiedSelector {
         }
         
         .persona-card.selected {
-          background: rgba(29, 155, 240, 0.2);
-          border-color: rgba(29, 155, 240, 0.5);
-          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.2);
+          background: #1d9bf0 !important;
+          border-color: #1d9bf0;
+          color: white !important;
+          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4);
+        }
+        
+        .persona-card.selected .persona-name {
+          color: white !important;
+        }
+        
+        .persona-card.selected .persona-description {
+          color: rgba(255, 255, 255, 0.8) !important;
         }
         
         .persona-emoji {
-          font-size: 28px;
+          font-size: 24px;
         }
         
         .persona-name {
@@ -2318,8 +2795,8 @@ export class UnifiedSelector {
         .persona-description {
           font-size: 11px;
           color: #8b98a5;
-          line-height: 1.3;
-          max-height: 2.6em;
+          line-height: 1.2;
+          max-height: 2.4em;
           overflow: hidden;
           text-overflow: ellipsis;
           display: -webkit-box;
@@ -2370,20 +2847,28 @@ export class UnifiedSelector {
           background: transparent;
           border: none;
           cursor: pointer;
-          font-size: 14px;
-          padding: 2px 4px;
+          font-size: 16px;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           z-index: 10;
+          color: #8b98a5;
+          transition: all 0.2s ease;
           opacity: 0.6;
-          transition: opacity 0.2s;
         }
         
         .star-btn:hover {
+          color: #ffd700;
+          transform: translateY(-50%) scale(1.1);
           opacity: 1;
         }
         
         .star-btn.active {
+          color: #ffd700 !important;
           opacity: 1;
-          color: #ffd700;
+          text-shadow: 0 0 4px rgba(255, 215, 0, 0.6);
         }
         
         .rhetoric-btn:hover,
@@ -2392,13 +2877,22 @@ export class UnifiedSelector {
           background: rgba(29, 155, 240, 0.15);
           border-color: rgba(29, 155, 240, 0.5);
           transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.2);
         }
+        
         
         .rhetoric-btn.selected,
         .template-btn.selected,
         .personality-btn.selected {
-          background: rgba(29, 155, 240, 0.25);
+          background: #1d9bf0 !important;
           border-color: #1d9bf0;
+          color: white !important;
+        }
+        
+        .rhetoric-btn.selected .rhetoric-name,
+        .template-btn.selected .template-name,
+        .personality-btn.selected .personality-label {
+          color: white !important;
         }
         
         .rhetoric-emoji,

@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), smart suggestions with AI scoring, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), 10 quick personas, custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.14
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), smart suggestions with AI scoring, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), 10 quick personas, custom templates with separate Style/Tone prompts, **Smart Defaults & Quick Generate system**, collapsible UX, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts with Space bar quick generation, advanced network resilience, race condition prevention, multi-stage loading states, **comprehensive anti-meta-commentary AI restrictions**, **unified visual feedback system**, and **perfect cross-category consistency**. Current version: 0.0.15
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -188,7 +188,7 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.14 - Latest Update)
+## Current Features (v0.0.15 - Latest Update with Smart Defaults)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
@@ -218,7 +218,9 @@ if (isHypeFury) {
 
 ### Core System Components
 - **Arsenal Mode** (`src/services/arsenalService.ts`) - IndexedDB with 6 categories, usage tracking, favorites
-- **Keyboard Shortcuts System** (`src/utils/keyboardShortcuts.ts`) - Alt+1-9 for tones, Alt+Q/R/T/S/C/E for actions
+- **Smart Defaults System** (`src/services/smartDefaults.ts`) - **NEW**: Usage pattern learning and Quick Generate functionality
+- **Usage Tracker** (`src/services/usageTracker.ts`) - **NEW**: Comprehensive analytics and pattern recognition
+- **Keyboard Shortcuts System** (`src/utils/keyboardShortcuts.ts`) - Alt+1-9 for tones, Alt+Q/R/T/S/C/E for actions, Space for Quick Generate
 - **Loading State Manager** (`src/utils/loadingStateManager.ts`) - Multi-stage progress with animations and cancel support
 - **DOM Resilience System** (`src/utils/domCache.ts`) - 4+ fallback levels per selector with WeakMap caching
 - **AsyncOperationManager** (`src/utils/asyncOperationManager.ts`) - Race condition prevention with AbortController
@@ -297,6 +299,28 @@ if (isHypeFury) {
 - **Dark mode UI**: Matches Twitter/X interface
 - **Seamless flow**: Selections saved between popup opens
 
+### Smart Defaults & Quick Generate System (NEW in v0.0.15 - Issue #2 Resolution)
+- **Smart Defaults Service** (`src/services/smartDefaults.ts`): 
+  - Tracks user selection patterns and usage frequency
+  - Automatically suggests most-used combinations based on history
+  - Provides intelligent fallbacks for new users
+  - Stores last-used selections with 24-hour recency check
+- **Quick Generate Mode**: 
+  - Prominent lightning bolt ⚡ button in header with gradient styling and pulse animation
+  - Bypasses entire 4-part selection flow using learned patterns
+  - Uses last-used selections when available, falls back to smart defaults
+  - Keyboard shortcut: **Space bar** for instant generation
+- **Collapsible UX Improvements**:
+  - Vocabulary and Length & Pacing sections are collapsible for reduced visual clutter
+  - Sections remain **required** - must be selected before generation
+  - Click section headers to collapse/expand with smooth animations
+  - Maintains all 4-part validation while improving usability
+- **Enhanced Keyboard Navigation**:
+  - **Space**: Quick Generate with previous settings
+  - **Enter**: Generate with current selections
+  - **Escape**: Close popup
+  - Works across all tabs with proper input field detection
+
 ### AI Rewrite Feature (Fixed in v0.0.10)
 - **Proper LLM Integration**: User's text is now properly passed to the LLM for rewriting
 - **Context-Aware Rewriting**: Maintains context of what the user is replying to
@@ -349,7 +373,14 @@ See [TODO.md](TODO.md) for the comprehensive UX/UI improvement plan including:
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.14)
+### Recently Fixed (v0.0.15)
+- ✅ **Personas Tab Generate Button** - Fixed issue where clicking persona cards didn't activate Generate button (updateUI() method now properly handles personas view)
+- ✅ **AI Self-Disclosure Prevention** - Enhanced system prompts to prevent AI from revealing its nature or explaining methodology in responses
+- ✅ **Quick Generate Smart Defaults** - Fixed ID mismatches between smartDefaults.ts and config files (hyphenated → underscored IDs)
+- ✅ **Collapsible UI Sections** - Enhanced toggleSection() method with window.getComputedStyle for reliable visibility detection
+- ✅ **Tab Layout Compactness** - Reduced tab padding/font sizes and added flex-shrink: 0 to prevent Custom tab from being cut off
+
+### Previously Fixed (v0.0.14)
 - ✅ ChunkLoadError in image generation - Fixed with message passing pattern
 - ✅ Missing "Generating..." loading state - Fixed with enhanced button finding
 - ✅ 48 ESLint errors - All critical errors resolved
@@ -452,6 +483,8 @@ When BulkCraft is integrated from its separate branch, it will add:
 - `src/services/openRouter.ts` - OpenRouter API integration with retry logic
 - `src/services/imageService.ts` - AI image generation and web search
 - `src/services/templateSuggester.ts` - Smart suggestions with AI scoring
+- `src/services/smartDefaults.ts` - **NEW**: Smart defaults and Quick Generate functionality
+- `src/services/usageTracker.ts` - Usage patterns tracking for smart defaults
 - `src/background/serviceWorker.ts` - Message handling, storage operations
 - `src/config/apiConfig.ts` - **CRITICAL**: Contains hardcoded OpenRouter API key
 - `src/config/templatesAndTones.ts` - Template and tone definitions (deprecated - see modular configs)

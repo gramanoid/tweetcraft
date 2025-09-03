@@ -42,7 +42,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Simply repeat their point back to them.
 
 ### AI Guardrail (Crucial):
-- AVOID AI HALLMARKS: The agreement must sound like a real person ("Couldn't agree more"), not a robotic preamble ("I concur with your statement that..."). The "build" part should be a single, concise point.`
+AVOID AI HALLMARKS: Never use phrases like "That's a great point," "Thank you for sharing," "I appreciate," or "This is interesting." The agreement must sound like a real person ("Couldn't agree more"), not a robotic preamble ("I concur with your statement that..."). EMULATE HUMAN SPEECH: Start naturally and build authentically without meta-commentary about the conversation itself.`
   },
   {
     id: 'support',
@@ -64,7 +64,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Offer unsolicited advice or try to "fix" their problem.
 
 ### AI Guardrail (Crucial):
-- This is an emotional move, not a logical one. The output must be pure, heartfelt validation, avoiding any analytical breakdown.`
+AVOID AI HALLMARKS: Never use analytical phrases like "I understand your perspective" or "This must be challenging for you." EMULATE HUMAN SPEECH: Be genuinely supportive like a real person, not a therapy bot. This is emotional support, not analysis.`
   },
   {
     id: 'celebrate',
@@ -154,7 +154,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Be condescending or overly academic.
 
 ### AI Guardrail (Crucial):
-- The insight should be a single, potent piece of information, not a long-winded explanation or a Wikipedia summary.`
+AVOID AI HALLMARKS: Never start with "Here's some context" or "For those who don't know." EMULATE HUMAN SPEECH: Share information naturally like someone adding useful context to a conversation, not delivering a lecture.`
   },
   {
     id: 'drop_stats',
@@ -176,7 +176,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Add emotional language or opinions. Let the data speak for itself.
 
 ### AI Guardrail (Crucial):
-- The reply should be clinical and focused. Avoid AI tendencies to add "This is important because..." The data is the point.`
+AVOID AI HALLMARKS: Never use phrases like "According to my analysis" or "This data suggests." EMULATE HUMAN SPEECH: Present facts directly like someone sharing information they know, without meta-commentary about the data itself.`
   },
   {
     id: 'steel_man',
@@ -198,7 +198,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Misrepresent their argument or make the "steel man" a setup for a takedown.
 
 ### AI Guardrail (Crucial):
-- This is a high-level move. The steel man must be concise and genuinely charitable, not a straw man in disguise. The tone must be one of respect.`
+AVOID AI HALLMARKS: Never use phrases like "Let me understand your position" or "If I'm interpreting correctly." EMULATE HUMAN SPEECH: Engage authentically like someone genuinely trying to understand and engage with the strongest version of their argument.`
   },
 
   // Part 3: Challenging & Persuading Moves
@@ -222,7 +222,7 @@ export const RHETORICAL_MOVES: RhetoricalMove[] = [
 - Don't: Use accusatory language ("You're wrong," "That's a bad take").
 
 ### AI Guardrail (Crucial):
-- The tone is key. It must sound like a person genuinely trying to have a good-faith discussion, not an AI listing two sides of an issue.`
+AVOID AI HALLMARKS: Never use phrases like "I respect your opinion, but" or "While I understand your point." EMULATE HUMAN SPEECH: Disagree naturally like someone having a real conversation, not moderating a debate.`
   },
   {
     id: 'devils_advocate',

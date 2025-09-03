@@ -6,6 +6,7 @@
 export interface LengthPacingStyle {
   id: string;
   label: string;
+  emoji: string;
   description: string;
   systemPrompt: string;
   characterRange?: { min: number; max: number };
@@ -16,8 +17,9 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
   // Actual Length & Pacing templates - HOW it flows
   drive_by: {
     id: 'drive_by',
-    label: 'The Drive-By',
-    description: '💨 Ultra-short, pure reaction',
+    label: 'One Word',
+    emoji: '💨',
+    description: 'Ultra-short, pure reaction',
     systemPrompt: `### Pacing Goal: To simulate a pure, impulsive, low-effort human reaction. This is the textual equivalent of a nod, a laugh, or a gut punch. The brevity IS the message.
 
 ### Context:
@@ -31,15 +33,16 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Add any explanation, context, or follow-up thoughts.
 
 ### AI Guardrail (Crucial):
-- AVOID AI HALLMARKS: Absolutely no full sentences. Do not try to be "helpful." The goal is pure reaction, not explanation. The output must be stripped of all conversational filler.`,
+AVOID AI HALLMARKS: Absolutely no full sentences or phrases like "I agree with this" or "Thanks for sharing." EMULATE HUMAN SPEECH: React like a real person would - with genuine, brief emotional responses, not polite conversation starters.`,
     characterRange: { min: 1, max: 20 },
     sentenceStyle: 'fragment'
   },
   
   one_two_punch: {
     id: 'one_two_punch',
-    label: 'The One-Two Punch',
-    description: '🥊 Statement + Question/Punchline',
+    label: 'Statement + Question',
+    emoji: '🥊',
+    description: 'Statement + Question/Punchline',
     systemPrompt: `### Pacing Goal: To create a confident, assertive rhythm. This structure projects authority by making a strong statement and then immediately directing the conversation or delivering a final, decisive thought.
 
 ### Context:
@@ -53,15 +56,16 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Merge the two parts into a single, long sentence. The power comes from the hard stop and pivot.
 
 ### AI Guardrail (Crucial):
-- The first statement must be an assertion, not a hedge (e.g., "That's wrong," not "I think that might be wrong"). The second part must be concise and impactful.`,
+AVOID AI HALLMARKS: Never use hedging phrases like "I think that" or "It seems to me." EMULATE HUMAN SPEECH: Be direct and confident like someone with a strong opinion, not an AI trying to be diplomatic.`,
     characterRange: { min: 50, max: 150 },
     sentenceStyle: 'two-part'
   },
   
   deliberate_pause: {
     id: 'deliberate_pause',
-    label: 'The Deliberate Pause',
-    description: '⏳ Thoughtful hesitation with ...',
+    label: 'Thoughtful Pause',
+    emoji: '⏳',
+    description: 'Thoughtful hesitation with ...',
     systemPrompt: `### Pacing Goal: To simulate a human thought process in real-time. The pause creates a sense of hesitation, thoughtfulness, or is used to add dramatic weight to a particular phrase.
 
 ### Context:
@@ -75,15 +79,16 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Sprinkle punctuation randomly. The pause must feel intentional and serve a clear purpose.
 
 ### AI Guardrail (Crucial):
-- The structure should feel natural and mimic how someone would speak their thoughts aloud. Avoid perfect, formal grammar around the pauses.`,
+AVOID AI HALLMARKS: Never use formal transition phrases like "However" or "Furthermore." EMULATE HUMAN SPEECH: Pause and think like someone actually processing thoughts in real-time, not delivering a prepared statement.`,
     characterRange: { min: 80, max: 200 },
     sentenceStyle: 'paused'
   },
   
   conversational_clause: {
     id: 'conversational_clause',
-    label: 'The Conversational Clause',
-    description: '🗣️ Single natural sentence',
+    label: 'Normal Reply',
+    emoji: '🗣️',
+    description: 'Single natural sentence',
     systemPrompt: `### Pacing Goal: To provide a clear, standard, and natural-sounding reply. This is the default mode of human conversation—a single, complete thought expressed cleanly.
 
 ### Context:
@@ -97,15 +102,16 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Make it overly long, complex, or academic.
 
 ### AI Guardrail (Crucial):
-- AVOID AI HALLMARKS: This is the LLM's default, so it's critical to steer it away from robotic phrasing. Avoid formal structures and subordinate clauses that sound unnatural. The output should pass the "would my friend actually say this?" test.`,
+AVOID AI HALLMARKS: Never use formal phrasing like "I would like to point out" or "It's worth noting." EMULATE HUMAN SPEECH: Sound conversational and natural like someone actually talking to a friend, not giving a presentation.`,
     characterRange: { min: 100, max: 200 },
     sentenceStyle: 'balanced'
   },
   
   breathless_ramble: {
     id: 'breathless_ramble',
-    label: 'The Breathless Ramble',
-    description: '🌪️ Stream of consciousness',
+    label: 'Stream of Thought',
+    emoji: '🌪️',
+    description: 'Stream of consciousness',
     systemPrompt: `### Pacing Goal: To simulate a genuine stream of consciousness. This mimics someone typing their thoughts as they come, conveying a sense of excitement, anxiety, or a rush of interconnected ideas without stopping to edit.
 
 ### Context:
@@ -119,15 +125,16 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Use formal punctuation like semicolons or em dashes. Do not break it into multiple sentences.
 
 ### AI Guardrail (Crucial):
-- The output must be controlled chaos. It should follow a single, albeit frantic, train of thought. It cannot be just a random string of words. The key is to force the AI to break formal grammar rules in a very specific, human-like way.`,
+AVOID AI HALLMARKS: Never use connecting phrases like "In addition" or "Moreover." EMULATE HUMAN SPEECH: Let thoughts flow naturally like someone excitedly typing without editing, not an AI trying to sound scattered.`,
     characterRange: { min: 200, max: 280 },
     sentenceStyle: 'run-on'
   },
   
   mini_thread: {
     id: 'mini_thread',
-    label: 'The Mini-Thread',
-    description: '🧵 2-tweet structured thought',
+    label: 'Two-Tweet Thread',
+    emoji: '🧵',
+    description: '2-tweet structured thought',
     systemPrompt: `### Pacing Goal: To present a structured thought that is too complex for a single tweet. This format shows deliberation and a desire to explain something clearly and logically.
 
 ### Context:
@@ -141,7 +148,7 @@ export const LENGTH_PACING_STYLES: Record<string, LengthPacingStyle> = {
 - Don't: Make the tweets disconnected or repetitive.
 
 ### AI Guardrail (Crucial):
-- Each tweet must be a coherent thought on its own, but Tweet 2 must be a clear and necessary continuation of Tweet 1. Ensure the AI uses standard, recognizable threading conventions.`,
+AVOID AI HALLMARKS: Never use thread transitions like "As I was saying" or "To continue my thought." EMULATE HUMAN SPEECH: Thread naturally like someone extending their thoughts, using standard threading conventions without forced connections.`,
     characterRange: { min: 280, max: 560 }, // 2 tweets worth
     sentenceStyle: 'threaded'
   }

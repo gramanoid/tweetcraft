@@ -237,13 +237,13 @@ class SmartReplyContentScript {
         this.initialRetryCount = 0;
         
         // Give the new page time to load - increased delay for Twitter's dynamic loading
-        this.navigationTimerId = this.safeSetTimeout(() => {
+        this.navigationTimerId = this.safeSetTimeout(async () => {
           console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
-          this.attemptInitialInjection();
+          await this.attemptInitialInjection();
           
           // Also trigger a manual scan after a bit more delay
-          this.navigationTimerId = this.safeSetTimeout(() => {
-            this.manualToolbarScan();
+          this.navigationTimerId = this.safeSetTimeout(async () => {
+            await this.manualToolbarScan();
           }, 1000);
         }, 800);
       }
@@ -335,6 +335,12 @@ class SmartReplyContentScript {
    */
   private cleanupDuplicateButtons(): void {
     const allButtons = document.querySelectorAll('.smart-reply-container');
+    
+    if (allButtons.length > 0) {
+      console.log('%c🧹 CLEANUP CHECK', 'color: #FFA500; font-weight: bold');
+      console.log('%c  Found buttons:', 'color: #657786', allButtons.length);
+    }
+    
     const seenLocations = new Map<string, Element>();
     
     allButtons.forEach(button => {
@@ -345,10 +351,22 @@ class SmartReplyContentScript {
         
         if (seenLocations.has(locationKey)) {
           // This is a duplicate, remove it
-          console.log('%c🧹 Removing duplicate button', 'color: #FFA500');
+          console.log('%c🧹 Removing duplicate button at location:', 'color: #FFA500', locationKey);
           button.remove();
         } else {
+          console.log('%c  ✅ Keeping button at location:', 'color: #657786', locationKey);
           seenLocations.set(locationKey, button);
+        }
+      } else {
+        // Button without proper container - might be orphaned
+        console.log('%c  ⚠️ Found orphaned button (no reply container):', 'color: #FFA500', button);
+        console.log('%c    Is connected to DOM:', 'color: #657786', button.isConnected);
+        console.log('%c    Is visible:', 'color: #657786', (button as HTMLElement).offsetParent !== null);
+        
+        // Remove if disconnected OR invisible
+        if (!button.isConnected || (button as HTMLElement).offsetParent === null) {
+          console.log('%c    🗑️ Removing orphaned/invisible button', 'color: #FFA500');
+          button.remove();
         }
       }
     });
@@ -424,8 +442,10 @@ class SmartReplyContentScript {
       this.cleanupDuplicateButtons();
     }, this.cleanupIntervalMs);
 
-    // Attempt initial injection with retries
-    this.attemptInitialInjection();
+    // Attempt initial injection with retries (fire and forget during initialization)
+    this.attemptInitialInjection().catch(error => {
+      console.error('Initial injection failed:', error);
+    });
 
     // Create debounced handler for processing mutations with reduced frequency
     const debouncedMutationHandler = debounce(() => {
@@ -458,13 +478,31 @@ class SmartReplyContentScript {
       });
       
       // Process all found toolbars
-      toolbarsToProcess.forEach(toolbar => {
-        this.handleToolbarAdded(toolbar);
+      toolbarsToProcess.forEach(async (toolbar) => {
+        await this.handleToolbarAdded(toolbar);
       });
     }, 100); // Reduced to 100ms for instant button appearance
 
     // Set up mutation observer to detect new toolbars (with Progressive Enhancement)
     const observerCallback = (mutations: MutationRecord[]) => {
+      // Check for removed nodes that might contain our buttons
+      const hasRemovedButtons = mutations.some(mutation => {
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+          return Array.from(mutation.removedNodes).some(node => 
+            node.nodeType === Node.ELEMENT_NODE && 
+            (node as Element).querySelector && 
+            (node as Element).querySelector('.smart-reply-container')
+          );
+        }
+        return false;
+      });
+      
+      if (hasRemovedButtons) {
+        console.log('%c🗑️ AI BUTTONS REMOVED BY DOM MUTATION', 'color: #DC3545; font-weight: bold');
+        const remainingButtons = document.querySelectorAll('.smart-reply-container');
+        console.log('%c  Remaining buttons:', 'color: #657786', remainingButtons.length);
+      }
+      
       // Check if mutations are relevant before triggering handler
       const hasRelevantChanges = mutations.some(mutation => {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
@@ -479,8 +517,21 @@ class SmartReplyContentScript {
         return false;
       });
       
-      // Only trigger handler if relevant changes detected
+      // Debug logging for DOM changes
       if (hasRelevantChanges) {
+        console.log('%c🔍 DOM MUTATION DETECTED', 'color: #9146FF; font-weight: bold');
+        console.log('%c  Mutations:', 'color: #657786', mutations.length);
+        
+        // Check if any existing buttons were removed
+        const existingButtons = document.querySelectorAll('.smart-reply-container');
+        console.log('%c  Existing AI buttons before processing:', 'color: #657786', existingButtons.length);
+        
+        // Clean up orphaned buttons before processing new toolbars
+        this.cleanupDuplicateButtons();
+        
+        const buttonsAfterCleanup = document.querySelectorAll('.smart-reply-container');
+        console.log('%c  AI buttons after cleanup:', 'color: #657786', buttonsAfterCleanup.length);
+        
         debouncedMutationHandler();
       }
     };
@@ -505,7 +556,9 @@ class SmartReplyContentScript {
 
     // Process existing toolbars
     const existingToolbars = document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
-    existingToolbars.forEach(toolbar => this.handleToolbarAdded(toolbar));
+    existingToolbars.forEach(async (toolbar) => {
+      await this.handleToolbarAdded(toolbar);
+    });
   }
 
   /**
@@ -771,10 +824,13 @@ class SmartReplyContentScript {
     return container;
   }
 
-  private async handleToolbarAdded(toolbarElement: Element): Promise<void> {
+  private async handleToolbarAdded(toolbarElement: Element): Promise<boolean> {
+    console.log('%c🔧 TOOLBAR PROCESSING', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+    
     // Avoid processing the same toolbar multiple times
     if (this.processedToolbars.has(toolbarElement)) {
-      return;
+      console.log('%c  ⚠️ Toolbar already processed, skipping', 'color: #FFA500');
+      return false;
     }
 
     // Mark as processed immediately to prevent race conditions
@@ -782,7 +838,8 @@ class SmartReplyContentScript {
 
     // Check if button already exists in this toolbar
     if (toolbarElement.querySelector('.smart-reply-container')) {
-      return;
+      console.log('%c  ⚠️ Button already exists in toolbar, skipping', 'color: #FFA500');
+      return false;
     }
     
     // Additional check: Look for buttons in parent containers to prevent duplicates
@@ -792,21 +849,24 @@ class SmartReplyContentScript {
       // Count existing buttons in the parent container
       const existingButtons = parentContainer.querySelectorAll('.smart-reply-container');
       if (existingButtons.length > 0) {
-        // Remove all but the first button if multiple exist
-        for (let i = 1; i < existingButtons.length; i++) {
-          console.log('%c🗑️ Removing duplicate button', 'color: #FFA500');
-          existingButtons[i].remove();
-        }
+        console.log('%c  🔍 Found existing buttons in parent:', 'color: #657786', existingButtons.length);
         
-        // Check if the remaining button is visible
-        const firstButton = existingButtons[0] as HTMLElement;
-        const isVisible = firstButton.offsetParent !== null;
-        if (isVisible) {
-          console.log('%c⚠️ Duplicate button prevented in parent container', 'color: #FFA500');
-          return;
-        } else {
-          // Remove the invisible button
-          firstButton.remove();
+        // Check each button for visibility and connection
+        const connectedButtons = Array.from(existingButtons).filter(button => {
+          const isConnected = button.isConnected;
+          const isVisible = (button as HTMLElement).offsetParent !== null;
+          
+          if (!isConnected || !isVisible) {
+            console.log('%c  🗑️ Removing disconnected/invisible button from parent', 'color: #FFA500');
+            button.remove();
+            return false;
+          }
+          return true;
+        });
+        
+        if (connectedButtons.length > 0) {
+          console.log('%c  ⚠️ Found', connectedButtons.length, 'connected buttons in parent, skipping injection', 'color: #FFA500');
+          return false;
         }
       }
     }
@@ -815,20 +875,19 @@ class SmartReplyContentScript {
     // Check if this toolbar is associated with a reply or compose action
     const isReplyContext = this.isReplyToolbar(toolbarElement);
     if (!isReplyContext) {
+      console.log('%c  ⚠️ Not a reply toolbar context, skipping', 'color: #FFA500');
       // This is a regular tweet toolbar (like, retweet, etc.) - ignore it
-      // Already marked as processed above
-      return;
+      return false;
     }
 
     console.log('%c🎯 Reply toolbar detected', 'color: #17BF63; font-weight: bold');
-    // Already marked as processed above
 
     // Now we know this is a reply context, so a textarea SHOULD exist
     const textarea = DOMUtils.findClosestTextarea(toolbarElement);
     if (!textarea) {
       // This is unexpected in a reply context, but handle gracefully
-      console.warn('TweetCraft: Reply toolbar found but no textarea available yet');
-      return;
+      console.log('%c  ❌ No textarea found for reply toolbar', 'color: #DC3545');
+      return false;
     }
 
     // Extract Twitter context
@@ -837,6 +896,18 @@ class SmartReplyContentScript {
     // Create and inject the Smart Reply button
     console.log('%c➕ Injecting AI Reply button', 'color: #1DA1F2');
     await this.injectSmartReplyButton(toolbarElement, textarea, context);
+    
+    // Check if injection was successful
+    const injectedButton = toolbarElement.querySelector('.smart-reply-container') || 
+                          toolbarElement.parentElement?.querySelector('.smart-reply-container');
+    
+    if (injectedButton) {
+      console.log('%c  ✅ Button injection successful', 'color: #17BF63');
+      return true;
+    } else {
+      console.log('%c  ❌ Button injection failed', 'color: #DC3545');
+      return false;
+    }
   }
 
   /**
@@ -927,9 +998,22 @@ class SmartReplyContentScript {
         // Check if a button already exists for this specific textarea
         const existingForTextarea = document.querySelector(`.smart-reply-container[data-textarea-id="${textareaId}"]`);
         if (existingForTextarea) {
-          console.log('%c⚠️ Button already exists for this textarea', 'color: #FFA500');
-          return;
+          console.log('%c⚠️ Button already exists for textarea ID:', 'color: #FFA500', textareaId);
+          console.log('%c  Existing button:', 'color: #657786', existingForTextarea);
+          const isVisible = (existingForTextarea as HTMLElement).offsetParent !== null;
+          console.log('%c  Is visible:', 'color: #657786', isVisible);
+          
+          // Check if the existing button is actually visible and functional
+          if (isVisible) {
+            return; // Keep the existing visible button
+          } else {
+            // Remove invisible/orphaned button and continue with injection
+            console.log('%c  🗑️ Removing invisible orphaned button', 'color: #FFA500');
+            existingForTextarea.remove();
+          }
         }
+      } else {
+        console.log('%c  ℹ️ No textarea ID found for duplicate check', 'color: #657786');
       }
       
       // Create the button container
@@ -1913,7 +1997,7 @@ class SmartReplyContentScript {
   /**
    * Attempt initial injection with retries for hard refresh scenarios
    */
-  private attemptInitialInjection(): void {
+  private async attemptInitialInjection(): Promise<void> {
     // Check if we're on a reply-capable page
     const isStatusPage = window.location.pathname.includes('/status/');
     const hasTweets = document.querySelector('article[data-testid="tweet"]') !== null;
@@ -1956,15 +2040,17 @@ class SmartReplyContentScript {
     // Process any found toolbars
     if (toolbars.length > 0) {
       let injectedCount = 0;
-      toolbars.forEach(toolbar => {
+      for (const toolbar of toolbars) {
         if (!this.processedToolbars.has(toolbar)) {
           console.log('%c  Processing toolbar...', 'color: #657786');
-          this.handleToolbarAdded(toolbar);
-          injectedCount++;
+          const success = await this.handleToolbarAdded(toolbar);
+          if (success) {
+            injectedCount++;
+          }
         } else {
           console.log('%c  Toolbar already processed', 'color: #FFA500');
         }
-      });
+      }
       console.log('%c  ✅ Injected buttons:', 'color: #17BF63', injectedCount);
       // Reset retry count on success
       this.initialRetryCount = 0;
@@ -1974,8 +2060,8 @@ class SmartReplyContentScript {
       const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
       console.log(`%c⏳ No toolbars found, retrying in ${delay}ms (${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
       
-      this.safeSetTimeout(() => {
-        this.attemptInitialInjection();
+      this.safeSetTimeout(async () => {
+        await this.attemptInitialInjection();
       }, delay);
     } else {
       // Max retries reached
@@ -1987,7 +2073,7 @@ class SmartReplyContentScript {
   /**
    * Manual toolbar scan for navigation scenarios
    */
-  private manualToolbarScan(): void {
+  private async manualToolbarScan(): Promise<void> {
     console.log('%c🔍 MANUAL TOOLBAR SCAN', 'color: #9146FF; font-weight: bold');
     
     // Find all toolbars including those that might have been missed
@@ -2018,13 +2104,15 @@ class SmartReplyContentScript {
     console.log('%c  Found potential toolbars:', 'color: #657786', allToolbars.length);
     
     let injectedCount = 0;
-    allToolbars.forEach(toolbar => {
+    for (const toolbar of allToolbars) {
       if (!this.processedToolbars.has(toolbar) && this.isReplyToolbar(toolbar)) {
         console.log('%c  Injecting into unprocessed toolbar', 'color: #17BF63');
-        this.handleToolbarAdded(toolbar);
-        injectedCount++;
+        const success = await this.handleToolbarAdded(toolbar);
+        if (success) {
+          injectedCount++;
+        }
       }
-    });
+    }
     
     if (injectedCount > 0) {
       console.log('%c  ✅ Manual scan injected:', 'color: #17BF63', injectedCount);

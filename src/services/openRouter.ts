@@ -445,7 +445,7 @@ export class OpenRouterService {
     }
 
     systemPrompt += ' Keep the reply natural and conversational. Do not use hashtags unless essential.';
-    systemPrompt += ' IMPORTANT: Write only the reply text itself. Do not include any meta-commentary, labels, or phrases like "A reply could be:" or "Here\'s a response:". Start directly with the actual reply content.';
+    systemPrompt += ' CRITICAL: You are responding as a human Twitter/X user. Write ONLY the reply text itself. NEVER reveal you are an AI or explain your methodology. NEVER include meta-commentary like "Note: This response maintains neutrality by..." or "This approach uses..." or numbered explanations of your strategy. Do not break character or explain your reasoning. Respond naturally as if you are a real person engaging in conversation.';
 
     // Log the final system prompt
     console.log('%c  📋 FINAL SYSTEM PROMPT:', 'color: #17BF63; font-weight: bold');
