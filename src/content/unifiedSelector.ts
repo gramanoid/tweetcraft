@@ -98,6 +98,47 @@ export class UnifiedSelector {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   }
+
+  /**
+   * Get section completion status for the ALL tab (4-part structure)
+   */
+  private getSectionCompletionStatus(): {
+    personality: boolean;
+    vocabulary: boolean;
+    rhetoric: boolean;
+    lengthPacing: boolean;
+    completedCount: number;
+    totalCount: number;
+    percentage: number;
+  } {
+    const status = {
+      personality: this.selectedPersonality !== null,
+      vocabulary: this.selectedVocabulary !== null,
+      rhetoric: this.selectedTemplate !== null,
+      lengthPacing: this.selectedLengthPacing !== null,
+      completedCount: 0,
+      totalCount: 4,
+      percentage: 0
+    };
+
+    status.completedCount = [status.personality, status.vocabulary, status.rhetoric, status.lengthPacing]
+      .filter(Boolean).length;
+    status.percentage = Math.round((status.completedCount / status.totalCount) * 100);
+
+    return status;
+  }
+
+  /**
+   * Get completion indicator HTML for a section
+   */
+  private getSectionCompletionIndicator(isCompleted: boolean, needsSelection: boolean = false): string {
+    if (isCompleted) {
+      return '<span class="section-completion-indicator completed" title="Section completed">✓</span>';
+    } else if (needsSelection) {
+      return '<span class="section-completion-indicator needs-selection" title="Selection required">●</span>';
+    }
+    return '<span class="section-completion-indicator empty" title="No selection yet">○</span>';
+  }
   
   /**
    * Get saved size preferences from localStorage
@@ -778,12 +819,31 @@ export class UnifiedSelector {
   private renderGridView(templates: Template[], personalities: Personality[]): string {
     const vocabularyStyles = getAllVocabularyStyles();
     const lengthPacingStyles = getAllLengthPacingStyles();
+    const completionStatus = this.getSectionCompletionStatus();
     
     return `
       <div class="selector-content grid-view four-part-structure">
+        <!-- Progress Indicator -->
+        ${completionStatus.completedCount > 0 ? `
+          <div class="section-progress-indicator">
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" style="width: ${completionStatus.percentage}%"></div>
+            </div>
+            <div class="progress-text">
+              ${completionStatus.completedCount === completionStatus.totalCount 
+                ? '<span class="all-complete">✨ All sections complete!</span>' 
+                : `${completionStatus.completedCount} of ${completionStatus.totalCount} sections complete`}
+            </div>
+          </div>
+        ` : ''}
         <!-- Part 1: Personality (Who is talking) -->
-        <div class="part-section personalities-section">
-          <h3><span class="part-number">1</span> Personality <span class="part-subtitle">(Who is talking)</span></h3>
+        <div class="part-section personalities-section ${this.selectedPersonality ? 'section-completed' : ''}">
+          <h3>
+            <span class="part-number">1</span> 
+            Personality 
+            <span class="part-subtitle">(Who is talking)</span>
+            ${this.getSectionCompletionIndicator(!!this.selectedPersonality, !this.selectedPersonality)}
+          </h3>
           <div class="personality-grid selection-grid">
             ${personalities.map(personality => {
               const usageCount = this.getPersonalityUsageCount(personality.id);
@@ -810,10 +870,14 @@ export class UnifiedSelector {
         </div>
         
         <!-- Part 2: Vocabulary (How it's written) -->
-        <div class="part-section vocabulary-section collapsible-section" data-section="vocabulary">
+        <div class="part-section vocabulary-section collapsible-section ${this.selectedVocabulary ? 'section-completed' : ''}" data-section="vocabulary">
           <h3 class="collapsible-header" data-toggle="vocabulary">
             <span class="part-number">2</span> 
-            <span class="section-title">Vocabulary <span class="part-subtitle">(How it's written)</span></span>
+            <span class="section-title">
+              Vocabulary 
+              <span class="part-subtitle">(How it's written)</span>
+              ${this.getSectionCompletionIndicator(!!this.selectedVocabulary)}
+            </span>
             <span class="collapse-indicator">−</span>
           </h3>
           <div class="vocabulary-grid selection-grid collapsible-content" id="vocabulary-content">
@@ -841,8 +905,13 @@ export class UnifiedSelector {
         </div>
         
         <!-- Part 3: Rhetoric (Approach to topic) -->
-        <div class="part-section rhetoric-section">
-          <h3><span class="part-number">3</span> Rhetoric <span class="part-subtitle">(Approach to topic)</span></h3>
+        <div class="part-section rhetoric-section ${this.selectedTemplate ? 'section-completed' : ''}">
+          <h3>
+            <span class="part-number">3</span> 
+            Rhetoric 
+            <span class="part-subtitle">(Approach to topic)</span>
+            ${this.getSectionCompletionIndicator(!!this.selectedTemplate, !this.selectedTemplate)}
+          </h3>
           <div class="rhetoric-grid selection-grid">
             ${templates.map(template => {
               const usageCount = this.getTemplateUsageCount(template.id);
@@ -870,10 +939,14 @@ export class UnifiedSelector {
         </div>
         
         <!-- Part 4: Length & Pacing (How it flows) -->
-        <div class="part-section length-pacing-section collapsible-section" data-section="lengthPacing">
+        <div class="part-section length-pacing-section collapsible-section ${this.selectedLengthPacing ? 'section-completed' : ''}" data-section="lengthPacing">
           <h3 class="collapsible-header" data-toggle="lengthPacing">
             <span class="part-number">4</span> 
-            <span class="section-title">Length & Pacing <span class="part-subtitle">(How it flows)</span></span>
+            <span class="section-title">
+              Length & Pacing 
+              <span class="part-subtitle">(How it flows)</span>
+              ${this.getSectionCompletionIndicator(!!this.selectedLengthPacing)}
+            </span>
             <span class="collapse-indicator">−</span>
           </h3>
           <div class="length-pacing-grid selection-grid collapsible-content" id="lengthPacing-content">
@@ -1707,64 +1780,9 @@ export class UnifiedSelector {
   private updateUI(): void {
     if (!this.container) return;
 
-    // Update persona cards
-    this.container.querySelectorAll('.persona-card, .persona-card-compact').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-persona') === this.selectedPersona?.id);
-    });
+    // Re-render to update completion indicators and progress bar
+    this.render();
 
-    // Update vocabulary buttons (new 4-part)
-    this.container.querySelectorAll('.vocabulary-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-vocabulary') === this.selectedVocabulary?.id);
-    });
-
-    // Update rhetoric buttons (new)
-    this.container.querySelectorAll('.rhetoric-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-rhetoric') === this.selectedTemplate?.id);
-    });
-    
-    // Update length & pacing buttons (new 4-part)
-    this.container.querySelectorAll('.length-pacing-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-lengthpacing') === this.selectedLengthPacing?.id);
-    });
-    
-    // Update template buttons (backward compatibility)
-    this.container.querySelectorAll('.template-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-template') === this.selectedTemplate?.id);
-    });
-
-    // Update personality buttons
-    this.container.querySelectorAll('.personality-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-personality') === this.selectedPersonality?.id);
-    });
-
-    // Update selection info - handled in render() now with 4-part display
-    
-    // Update generate button
-    const generateBtn = this.container.querySelector('.generate-btn');
-    if (generateBtn) {
-      let ready = false;
-      
-      if (this.view === 'custom') {
-        // Custom form validation for Custom tab
-        ready = this.isCustomFormValid();
-      } else if (this.view === 'grid') {
-        // 4-part selection for All tab
-        ready = !!(this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing);
-      } else if (this.view === 'personas') {
-        // Persona selection for Personas tab
-        ready = !!this.selectedPersona;
-      } else {
-        // Template + tone for other views (backward compatibility)
-        ready = !!(this.selectedTemplate && this.selectedTone);
-      }
-      
-      generateBtn.classList.toggle('active', ready);
-      if (ready) {
-        generateBtn.removeAttribute('disabled');
-      } else {
-        generateBtn.setAttribute('disabled', '');
-      }
-    }
   }
 
   /**
@@ -3494,14 +3512,14 @@ export class UnifiedSelector {
         .selector-content {
           flex: 1;
           overflow-y: auto;
-          padding: 10px;
+          padding: 6px;
           background: #15202b;
         }
         
         .grid-view {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 8px;
         }
         
         /* 4-part structure styles */
@@ -3510,9 +3528,22 @@ export class UnifiedSelector {
         }
         
         .part-section {
-          padding: 12px;
-          border-bottom: 2px solid rgba(139, 152, 165, 0.15);
+          padding: 8px 6px;
+          border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
+          position: relative;
+        }
+        
+        /* Subtle gradient divider */
+        .part-section::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 8px;
+          right: 8px;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(139, 152, 165, 0.1), transparent);
+          pointer-events: none;
         }
         
         .part-section:last-child {
@@ -3520,13 +3551,28 @@ export class UnifiedSelector {
         }
         
         .part-section h3 {
-          margin: 0 0 10px 0;
+          margin: 0 0 6px 0;
           color: #e7e9ea;
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
+          position: relative;
+        }
+
+        .part-section h3 .section-completion-indicator {
+          margin-left: auto;
+        }
+
+        .collapsible-header .section-title {
+          display: flex;
+          align-items: center;
+          flex: 1;
+        }
+
+        .collapsible-header .section-title .section-completion-indicator {
+          margin-left: 8px;
         }
         
         .part-number {
@@ -3584,17 +3630,17 @@ export class UnifiedSelector {
         .length-pacing-btn {
           display: flex;
           align-items: center;
-          gap: 4px;
-          padding: 6px 20px 6px 5px;
+          gap: 3px;
+          padding: 4px 16px 4px 4px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 8px;
+          border-radius: 6px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
           position: relative;
-          font-size: 12px;
-          min-height: 32px;
+          font-size: 11px;
+          min-height: 28px;
           width: 100%;
           white-space: nowrap;
           overflow: hidden;
@@ -3868,17 +3914,17 @@ export class UnifiedSelector {
         .personality-btn {
           display: flex;
           align-items: center;
-          gap: 4px;
-          padding: 6px 20px 6px 5px;
+          gap: 3px;
+          padding: 4px 16px 4px 4px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(139, 152, 165, 0.3);
-          border-radius: 8px;
+          border-radius: 6px;
           color: #e7e9ea;
           cursor: pointer;
           transition: all 0.2s;
           position: relative;
-          font-size: 12px;
-          min-height: 32px;
+          font-size: 11px;
+          min-height: 28px;
           width: 100%;
         }
         
