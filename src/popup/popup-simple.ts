@@ -6,7 +6,6 @@ import { MessageType } from '@/types/messages';
 interface StorageConfig {
   model?: string;
   systemPrompt?: string;
-  customStylePrompt?: string;
   contextMode?: string;
   temperature?: number;
   replyLengthDefault?: string;
@@ -38,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load saved settings
   const systemPromptInput = document.getElementById('system-prompt') as HTMLTextAreaElement | null;
-  const customStylePromptInput = document.getElementById('custom-style-prompt') as HTMLTextAreaElement | null;
   const contextModeSelect = document.getElementById('context-mode') as HTMLSelectElement | null;
   const modelSelect = document.getElementById('model-select') as HTMLSelectElement | null;
   const temperatureInput = document.getElementById('temperature') as HTMLInputElement | null;
@@ -124,9 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.systemPrompt && systemPromptInput) {
         systemPromptInput.value = config.systemPrompt;
       }
-      if (config.customStylePrompt && customStylePromptInput) {
-        customStylePromptInput.value = config.customStylePrompt;
-      }
       // Model will be loaded after auto-fetch completes
       if (config.temperature !== undefined && temperatureInput) {
         temperatureInput.value = config.temperature.toString();
@@ -152,7 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('%c  Context Mode:', 'color: #657786', config.contextMode || 'thread');
       console.log('%c  Reply Length Default:', 'color: #657786', config.replyLengthDefault || 'Auto');
       console.log('%c  System Prompt Length:', 'color: #657786', config.systemPrompt?.length || 0, 'characters');
-      console.log('%c  Custom Style Prompt Length:', 'color: #657786', config.customStylePrompt?.length || 0, 'characters');
     }
     
   });
@@ -207,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('popup-simple.ts: Save button clicked!');
       
       const systemPrompt = systemPromptInput?.value?.trim();
-      const customStylePrompt = customStylePromptInput?.value?.trim();
       const contextMode = contextModeSelect?.value || 'thread';
       const model = modelSelect?.value;
       const temperature = parseFloat(temperatureInput?.value || '0.7');
@@ -233,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
           ...existingConfig.config,
           model: model || modelSelect?.value || 'openai/gpt-4o',
           systemPrompt: systemPrompt || 'I am a helpful assistant',
-          customStylePrompt: customStylePrompt || '',
           contextMode: contextMode,
           temperature,
           replyLengthDefault: replyLengthDefault || undefined
@@ -261,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('%c  Context Mode:', 'color: #657786', config.contextMode);
         console.log('%c  Reply Length Default:', 'color: #657786', config.replyLengthDefault || 'Auto');
         console.log('%c  System Prompt Length:', 'color: #657786', config.systemPrompt?.length || 0, 'characters');
-        console.log('%c  Custom Style Prompt Length:', 'color: #657786', config.customStylePrompt?.length || 0, 'characters');
         console.log('%c  Image Understanding:', 'color: #657786', features.imageUnderstanding?.enabled ? '✅ ENABLED' : '❌ DISABLED');
         console.log('%c  Vision Model:', 'color: #657786', features.imageUnderstanding?.model);
         console.log('%c  Max Images Per Request:', 'color: #657786', features.imageUnderstanding?.maxImagesPerRequest);
