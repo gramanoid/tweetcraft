@@ -526,7 +526,7 @@ export class TemplateSuggester {
     if (threadAnalysis.conversationStage === 'heated' && template.category === 'debate') {
       score += 2.5;
       reason = 'Perfect for heated debates';
-    } else if (threadAnalysis.conversationStage === 'resolution' && template.category === 'support') {
+    } else if (threadAnalysis.conversationStage === 'resolution' && template.category === 'collaborative') {
       score += 2.0; 
       reason = 'Great for resolution phase';
     } else if (threadAnalysis.conversationStage === 'opening' && template.category === 'engagement') {

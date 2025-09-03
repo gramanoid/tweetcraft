@@ -223,8 +223,8 @@ Keep the description under 150 words and focus on details relevant for crafting 
         messages
       });
 
-      if (response.success && response.content) {
-        return { success: true, content: response.content };
+      if (response.success && response.data) {
+        return { success: true, content: response.data };
       } else {
         return { 
           success: false, 

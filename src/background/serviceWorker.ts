@@ -394,7 +394,7 @@ class SmartReplyServiceWorker {
               const content = data.choices?.[0]?.message?.content;
               
               if (content) {
-                sendResponse({ success: true, content });
+                sendResponse({ success: true, data: content });
               } else {
                 sendResponse({ success: false, error: 'No content in API response' });
               }
