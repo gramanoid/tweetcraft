@@ -174,7 +174,20 @@ console.log('%c  Property:', 'color: #657786', value);
 | Text not inserting | Twitter UI may have changed - check domUtils.ts |
 | Smart/Favorites tab errors | Ensure allTabConfig is provided |
 
-## Recent Changes (v0.0.16)
+## Recent Changes (v0.0.18)
+
+### Vision API Fixes
+- ✅ Fixed "Failed to extract image(s)" error
+- ✅ Images now converted to base64 in content script (has Twitter auth)
+- ✅ Service worker receives pre-converted base64 images
+- ✅ Full compatibility with OpenRouter Vision API
+
+### Bug Fixes
+- ✅ Fixed orphaned button false positive detection
+- ✅ Fixed Vision API response handling (content vs data)
+- ✅ Updated version number across all files
+
+## Previous Changes (v0.0.16)
 
 ### Prompt Architecture Enhancements
 - ✅ Strict validation for Smart/Favorites tabs (throw on missing allTabConfig)
