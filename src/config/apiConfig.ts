@@ -1,8 +1,11 @@
-// OpenRouter API configuration using environment variables
-// API key is now loaded from .env file (not committed to repo)
+/**
+ * OpenRouter API configuration
+ * All values are loaded from environment variables via webpack DefinePlugin
+ * Configure these in .env file (not committed to version control)
+ */
 
 export const API_CONFIG = {
-  // API key loaded from environment variable
+  // API key from .env file (injected at build time by webpack)
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
   
   // API endpoints

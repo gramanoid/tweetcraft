@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshModelsBtn.addEventListener('click', async () => {
       console.log('Fetching models from OpenRouter...');
       
-      // API key is now hardcoded, no need to check storage
+      // API key is configured via environment
       
       refreshModelsBtn.disabled = true;
       refreshModelsBtn.textContent = '⏳';

@@ -1673,7 +1673,7 @@ class SmartReplyContentScript {
       
       console.log(`%c🚀 Smart Reply: Starting ${isRewriteMode ? 'rewrite' : 'generation'} with tone:`, 'color: #1DA1F2; font-weight: bold', tone);
       
-      // API key is now hardcoded - no need to check
+      // API key is configured via environment
       if (signal.aborted) throw new Error('Operation cancelled');
 
       // Check for cancellation before preparing request

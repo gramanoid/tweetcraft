@@ -13,6 +13,7 @@ import { usageTracker } from '@/services/usageTracker';
 console.log('Service Worker: Imports completed');
 
 import { API_CONFIG } from '@/config/apiConfig';
+import { STORAGE_LIMITS, TEMPERATURE_CONFIG, REPLY_LENGTH, API_CONSTANTS } from '@/config/constants';
 
 console.log('Service Worker: API_CONFIG loaded from environment');
 import type { 
@@ -191,7 +192,7 @@ class SmartReplyServiceWorker {
 
         case MessageType.GET_API_KEY: {
           if (isGetApiKeyMessage(message)) {
-            // Return the hardcoded API key
+            // Get API key from environment configuration
             const apiKey = API_CONFIG.OPENROUTER_API_KEY;
             if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
               sendResponse({ success: false, error: 'API key not configured' });
@@ -257,8 +258,8 @@ class SmartReplyServiceWorker {
           
           // Validate array contents if array
           if (Array.isArray(storageKeys)) {
-            if (storageKeys.length > 100) {
-              sendResponse({ success: false, error: 'Too many keys requested (limit: 100)' });
+            if (storageKeys.length > STORAGE_LIMITS.MAX_STORAGE_KEYS) {
+              sendResponse({ success: false, error: `Too many keys requested (limit: ${STORAGE_LIMITS.MAX_STORAGE_KEYS})` });
               break;
             }
             if (!storageKeys.every(key => typeof key === 'string')) {
@@ -270,8 +271,8 @@ class SmartReplyServiceWorker {
           // Validate object if object
           if (storageKeys && typeof storageKeys === 'object' && !Array.isArray(storageKeys)) {
             const keyCount = Object.keys(storageKeys).length;
-            if (keyCount > 100) {
-              sendResponse({ success: false, error: 'Too many keys requested (limit: 100)' });
+            if (keyCount > STORAGE_LIMITS.MAX_STORAGE_KEYS) {
+              sendResponse({ success: false, error: `Too many keys requested (limit: ${STORAGE_LIMITS.MAX_STORAGE_KEYS})` });
               break;
             }
           }
@@ -300,8 +301,8 @@ class SmartReplyServiceWorker {
           
           // Validate number of keys
           const keys = Object.keys(dataToStore);
-          if (keys.length > 100) {
-            sendResponse({ success: false, error: 'Too many keys to store (limit: 100)' });
+          if (keys.length > STORAGE_LIMITS.MAX_STORAGE_KEYS) {
+            sendResponse({ success: false, error: `Too many keys to store (limit: ${STORAGE_LIMITS.MAX_STORAGE_KEYS})` });
             break;
           }
           
@@ -312,7 +313,7 @@ class SmartReplyServiceWorker {
               sendResponse({ success: false, error: 'All keys must be strings' });
               break;
             }
-            if (key.length > 100) {
+            if (key.length > STORAGE_LIMITS.MAX_KEY_LENGTH) {
               sendResponse({ success: false, error: `Key too long: ${key.substring(0, 50)}...` });
               break;
             }
@@ -335,7 +336,7 @@ class SmartReplyServiceWorker {
           let estimatedSize = 0;
           try {
             estimatedSize = JSON.stringify(dataToStore).length;
-            if (estimatedSize > 1024 * 1024) { // 1MB limit
+            if (estimatedSize > STORAGE_LIMITS.ESTIMATED_SIZE_LIMIT) {
               sendResponse({ success: false, error: 'Data too large (limit: 1MB)' });
               break;
             }
@@ -375,8 +376,8 @@ class SmartReplyServiceWorker {
                 body: JSON.stringify({
                   model: message.modelId,
                   messages: message.messages,
-                  max_tokens: 500,
-                  temperature: 0.1
+                  max_tokens: API_CONSTANTS.DEFAULT_MAX_TOKENS,
+                  temperature: TEMPERATURE_CONFIG.MIN
                 })
               });
 
@@ -405,7 +406,7 @@ class SmartReplyServiceWorker {
         
         case MessageType.TEST_API_KEY: {
           if (isTestApiKeyMessage(message)) {
-          // Test the hardcoded API key
+          // Get API key for testing
           const testApiKey = API_CONFIG.OPENROUTER_API_KEY;
           if (!testApiKey || testApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
             sendResponse({ success: false, error: 'API key not configured' });
@@ -529,13 +530,13 @@ class SmartReplyServiceWorker {
       if (template) {
         // Different templates might need different temperatures
         const templateTemperatures: Record<string, number> = {
-          'fact_check': 0.3,      // Low creativity for facts
-          'provide_data': 0.4,    // Low for data/stats
-          'hot_take': 0.9,        // High for controversial
-          'ratio_bait': 0.9,      // High for provocative
-          'meme_response': 0.8,   // High for humor
-          'ask_question': 0.6,    // Moderate for questions
-          'share_experience': 0.7 // Moderate-high for stories
+          'fact_check': TEMPERATURE_CONFIG.BY_TONE.fact_check,
+          'provide_data': TEMPERATURE_CONFIG.BY_TONE.provide_data,
+          'hot_take': TEMPERATURE_CONFIG.BY_TONE.hot_take,
+          'ratio_bait': TEMPERATURE_CONFIG.BY_TONE.ratio_bait,
+          'meme_response': TEMPERATURE_CONFIG.BY_TONE.meme_response,
+          'ask_question': TEMPERATURE_CONFIG.BY_TONE.ask_question,
+          'share_experience': TEMPERATURE_CONFIG.BY_TONE.share_experience
         };
         
         const templateTemp = templateTemperatures[template.id];
@@ -547,7 +548,7 @@ class SmartReplyServiceWorker {
     }
 
     // Fall back to config temperature or default
-    const defaultTemp = config.temperature || REPLY_CONFIG.temperatureByTone.default || 0.7;
+    const defaultTemp = config.temperature || REPLY_CONFIG.temperatureByTone.default || TEMPERATURE_CONFIG.DEFAULT;
     console.log(`%c🌡️ Using default temperature:`, 'color: #657786', defaultTemp);
     return defaultTemp;
   }
@@ -635,9 +636,9 @@ class SmartReplyServiceWorker {
       let systemPrompt = messages[0].content;
       if (request.replyLength) {
         const lengthModifiers = {
-          short: ' Keep the reply very brief, under 50 characters.',
-          medium: ' Keep the reply concise, between 50-150 characters.',
-          long: ' Write a detailed reply, 150-280 characters.'
+          short: REPLY_LENGTH.SHORT.instruction,
+          medium: REPLY_LENGTH.MEDIUM.instruction,
+          long: REPLY_LENGTH.LONG.instruction
         };
         systemPrompt += lengthModifiers[request.replyLength] || '';
         messages[0].content = systemPrompt;
@@ -647,7 +648,7 @@ class SmartReplyServiceWorker {
         model: request.model || config.model || 'openai/gpt-4o',
         messages,
         temperature,
-        top_p: 0.9
+        top_p: API_CONSTANTS.DEFAULT_TOP_P
       };
       
       console.log('%c🌡️ TEMPERATURE SETTINGS', 'color: #FF6B6B; font-weight: bold');
@@ -762,7 +763,7 @@ class SmartReplyServiceWorker {
     sendResponse: (response: MessageResponse) => void
   ): Promise<void> {
     try {
-      // Use hardcoded API key
+      // Get API key from environment configuration
       const fetchApiKey = API_CONFIG.OPENROUTER_API_KEY;
       console.log('Fetching models with API key:', fetchApiKey ? 'Key present' : 'No key');
       console.log('API key length:', fetchApiKey?.length);
@@ -1040,7 +1041,7 @@ class SmartReplyServiceWorker {
     try {
       const { imageUrls, tweetText, modelId, messages } = message;
       
-      // Get hardcoded API key
+      // Get API key from environment configuration
       const apiKey = API_CONFIG.OPENROUTER_API_KEY;
       if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
         sendResponse({

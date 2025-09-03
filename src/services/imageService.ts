@@ -488,7 +488,7 @@ Return ONLY the JSON array, no explanations.`;
    * Get OpenRouter API key from storage via service worker
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
-    // Use hardcoded API key
+    // Get API key from environment configuration
     const apiKey = API_CONFIG.OPENROUTER_API_KEY;
     if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
       console.error('API key not configured in apiConfig.ts');

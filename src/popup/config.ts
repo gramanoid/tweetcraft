@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   async function checkApiStatus() {
     try {
-      // Test the hardcoded API key
+      // Test the API key from environment
       const response = await chrome.runtime.sendMessage({
         type: 'TEST_API_KEY'
       });

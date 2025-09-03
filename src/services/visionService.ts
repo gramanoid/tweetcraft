@@ -73,8 +73,7 @@ export class VisionService {
    * Initialize the service with API key
    */
   async initialize(): Promise<void> {
-    // Get API key directly from storage service
-    // Use hardcoded API key
+    // Get API key from environment configuration
     this.apiKey = API_CONFIG.OPENROUTER_API_KEY;
     
     if (!this.apiKey || this.apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {

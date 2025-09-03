@@ -12,6 +12,7 @@ import { requestOptimizer } from './requestOptimizer';
 import { cleanupReply } from '@/utils/textUtils';
 import { logger } from '@/utils/logger';
 import { API_CONFIG } from '@/config/apiConfig';
+import { API_CONFIG as CONSTANTS, TIMING } from '@/config/constants';
 import { PromptArchitecture, PromptConfiguration } from './promptArchitecture';
 
 export class OpenRouterService {
@@ -24,11 +25,11 @@ export class OpenRouterService {
   
   // Enhanced rate limiting and optimization
   private static lastRequestTime = 0;
-  private static readonly MIN_REQUEST_INTERVAL = 100; // 100ms between requests (10x faster)
+  private static readonly MIN_REQUEST_INTERVAL = TIMING.MIN_REQUEST_INTERVAL;
   
   // Retry configuration
-  private static readonly MAX_RETRIES = 3;
-  private static readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
+  private static readonly MAX_RETRIES = CONSTANTS.RETRY_ATTEMPTS;
+  private static readonly RETRY_DELAYS = CONSTANTS.RETRY_DELAYS;
 
   // Request deduplication - cache identical requests for 30 seconds
   private static requestCache = new Map<string, Promise<ReplyGenerationResponse>>();
@@ -45,7 +46,7 @@ export class OpenRouterService {
     signal?: AbortSignal;
   }> = [];
   private static batchTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly BATCH_WINDOW = 50; // 50ms batching window (4x faster)
+  private static readonly BATCH_WINDOW = TIMING.BATCH_WINDOW;
   
   // Performance metrics
   private static metrics = {
@@ -311,7 +312,7 @@ export class OpenRouterService {
       this.lastRequestTime = Date.now();
 
       const config = await StorageService.getConfig();
-      // Use hardcoded API key instead of getting from storage
+      // Get API key from environment configuration
       const apiKey = API_CONFIG.OPENROUTER_API_KEY;
 
       if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
@@ -507,7 +508,7 @@ export class OpenRouterService {
 
   static async validateApiKey(apiKey?: string): Promise<boolean> {
     try {
-      // Always use the hardcoded API key
+      // Get API key from environment configuration
       const actualApiKey = API_CONFIG.OPENROUTER_API_KEY;
       
       if (!actualApiKey || actualApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
@@ -530,7 +531,7 @@ export class OpenRouterService {
 
   static async fetchAvailableModels(apiKey?: string): Promise<any[]> {
     try {
-      // Always use the hardcoded API key
+      // Get API key from environment configuration
       const actualApiKey = API_CONFIG.OPENROUTER_API_KEY;
       
       if (!actualApiKey || actualApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
