@@ -1,0 +1,6 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "powershell -ExecutionPolicy Bypass -File \"D:\\repos\\personal\\tweetcraft\\.claude\\scripts\\statusline-100-accurate.ps1\""
+  }
+}

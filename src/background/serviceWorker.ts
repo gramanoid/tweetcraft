@@ -1,8 +1,28 @@
+// Log at the very start of service worker loading
+console.log('%c🚀 SERVICE WORKER LOADING', 'color: #FF0000; font-weight: bold; font-size: 16px');
+console.log('Service Worker: Script execution starting...');
+
 import { StorageService } from '@/services/storage';
 import { getTemplate, getTone, REPLY_CONFIG } from '@/config/templatesAndTones';
 import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
 import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
+
+// Log after imports
+console.log('Service Worker: Imports completed');
+
+// Hardcoded API configuration
+const API_CONFIG = {
+  OPENROUTER_API_KEY: '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',
+  BASE_URL: 'https://openrouter.ai/api/v1',
+  HEADERS: {
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://tweetcraft.ai/extension',
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
+  }
+};
+
+console.log('Service Worker: API_CONFIG set');
 import type { 
   ExtensionMessage as OpenRouterExtensionMessage,
   StorageData,
@@ -35,7 +55,9 @@ import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
 class SmartReplyServiceWorker {
   constructor() {
+    console.log('%c🎯 SmartReplyServiceWorker CONSTRUCTOR CALLED', 'color: #00FF00; font-weight: bold; font-size: 14px');
     this.init();
+    console.log('%c✅ SmartReplyServiceWorker INITIALIZED', 'color: #00FF00; font-weight: bold; font-size: 14px');
   }
 
   /**
@@ -58,30 +80,29 @@ class SmartReplyServiceWorker {
   }
 
   private init(): void {
+    console.log('%c📌 Init method called', 'color: #9146FF; font-weight: bold');
     console.log('Smart Reply: Service worker initialized');
 
     // Handle extension installation
     chrome.runtime.onInstalled.addListener((details) => {
+      console.log('📦 onInstalled listener registered');
       void this.handleInstalled(details);
     });
 
     // Handle extension startup
     chrome.runtime.onStartup.addListener(() => {
+      console.log('🚀 onStartup listener registered');
       console.log('Smart Reply: Extension started');
     });
 
     // Handle messages from content scripts or popup with proper error handling
+    console.log('📨 Registering message listener...');
     chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-      // Wrap in Promise to ensure proper response handling
+      console.log('%c📩 Message received:', 'color: #1DA1F2; font-weight: bold', message);
+      // handleMessage calls sendResponse internally, so we just need to catch errors
       this.handleMessage(message as ExtensionMessage, sender, sendResponse)
-        .then(result => {
-          // Send successful response
-          if (!chrome.runtime.lastError) {
-            sendResponse(result);
-          }
-        })
         .catch(error => {
-          // Send error response
+          // Send error response only if handleMessage didn't already send one
           console.error('Service worker message handling error:', error);
           if (!chrome.runtime.lastError) {
             sendResponse({ 
@@ -182,8 +203,13 @@ class SmartReplyServiceWorker {
 
         case MessageType.GET_API_KEY: {
           if (isGetApiKeyMessage(message)) {
-            const apiKey = await StorageService.getApiKey();
-            sendResponse({ success: true, data: apiKey });
+            // Return the hardcoded API key
+            const apiKey = API_CONFIG.OPENROUTER_API_KEY;
+            if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+              sendResponse({ success: false, error: 'API key not configured' });
+            } else {
+              sendResponse({ success: true, data: apiKey });
+            }
           }
           break;
         }
@@ -345,10 +371,10 @@ class SmartReplyServiceWorker {
         
         case MessageType.TEST_API_KEY: {
           if (isTestApiKeyMessage(message)) {
-          // Test API key using shared utility
-          const testApiKey = message.apiKey;
-          if (!testApiKey) {
-            sendResponse({ success: false, error: 'No API key provided' });
+          // Test the hardcoded API key
+          const testApiKey = API_CONFIG.OPENROUTER_API_KEY;
+          if (!testApiKey || testApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+            sendResponse({ success: false, error: 'API key not configured' });
             break;
           }
           
@@ -378,15 +404,15 @@ class SmartReplyServiceWorker {
 
         case MessageType.GENERATE_REPLY:
           if (isGenerateReplyMessage(message)) {
-            // Handle reply generation in service worker
-            void this.handleGenerateReply(message, sendResponse);
+            // Handle reply generation in service worker - await it properly
+            await this.handleGenerateReply(message, sendResponse);
           }
           break;
 
         case MessageType.FETCH_MODELS: {
           if (isFetchModelsMessage(message)) {
-            // Handle fetch models asynchronously
-            void this.handleFetchModels(sendResponse);
+            // Handle fetch models - await it properly
+            await this.handleFetchModels(sendResponse);
           }
           break;
         }
@@ -404,9 +430,9 @@ class SmartReplyServiceWorker {
   // Utility method to check if the extension is properly configured
   private async isConfigured(): Promise<boolean> {
     try {
-      const apiKey = await StorageService.getApiKey();
+      const apiKey = API_CONFIG.OPENROUTER_API_KEY;
       const config = await StorageService.getConfig();
-      return !!(apiKey && config.systemPrompt);
+      return !!(apiKey && apiKey !== 'sk-or-v1-YOUR_API_KEY_HERE' && config.systemPrompt);
     } catch (error) {
       console.error('Smart Reply: Error checking configuration:', error);
       return false;
@@ -493,7 +519,7 @@ class SmartReplyServiceWorker {
         console.log('%c  Text to Rewrite:', 'color: #FF6B6B', request.existingText.substring(0, 100) + (request.existingText.length > 100 ? '...' : ''));
       }
       
-      const apiKey = await StorageService.getApiKey();
+      const apiKey = API_CONFIG.OPENROUTER_API_KEY;
       const config = await StorageService.getConfig();
       
       console.log('%c⚙️ CONFIG LOADED', 'color: #17BF63; font-weight: bold');
@@ -502,10 +528,10 @@ class SmartReplyServiceWorker {
       console.log('%c  Has Custom Style:', 'color: #657786', !!config.customStylePrompt);
       console.log('%c  Custom Tones Count:', 'color: #657786', config.customTones?.length || 0);
 
-      if (!apiKey) {
+      if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
         sendResponse({
           success: false,
-          error: 'No API key found. Please configure in extension settings.'
+          error: 'API key not configured. Please contact the developer.'
         });
         return;
       }
@@ -684,10 +710,14 @@ class SmartReplyServiceWorker {
     sendResponse: (response: MessageResponse) => void
   ): Promise<void> {
     try {
-      // Get API key from storage
-      const fetchApiKey = await StorageService.getApiKey();
-      if (!fetchApiKey) {
-        sendResponse({ success: false, error: 'No API key found. Please configure your OpenRouter API key.' });
+      // Use hardcoded API key
+      const fetchApiKey = API_CONFIG.OPENROUTER_API_KEY;
+      console.log('Fetching models with API key:', fetchApiKey ? 'Key present' : 'No key');
+      console.log('API key length:', fetchApiKey?.length);
+      
+      if (!fetchApiKey || fetchApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+        console.error('API key not configured properly');
+        sendResponse({ success: false, error: 'API key not configured in the extension.' });
         return;
       }
 
@@ -958,12 +988,12 @@ class SmartReplyServiceWorker {
     try {
       const { imageUrls, tweetText, modelId, messages } = message;
       
-      // Get API key
-      const apiKey = await StorageService.getApiKey();
-      if (!apiKey) {
+      // Get hardcoded API key
+      const apiKey = API_CONFIG.OPENROUTER_API_KEY;
+      if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
         sendResponse({
           success: false,
-          error: 'No API key configured'
+          error: 'API key not configured in the extension'
         });
         return;
       }
@@ -1028,7 +1058,9 @@ class SmartReplyServiceWorker {
 }
 
 // Initialize the service worker
-new SmartReplyServiceWorker();
+console.log('%c🔥 CREATING SmartReplyServiceWorker INSTANCE', 'color: #FFD700; font-weight: bold; font-size: 16px');
+const serviceWorkerInstance = new SmartReplyServiceWorker();
+console.log('%c🎉 SmartReplyServiceWorker INSTANCE CREATED', 'color: #FFD700; font-weight: bold; font-size: 16px', serviceWorkerInstance);
 
 // Keep service worker alive for important events
 chrome.runtime.onConnect.addListener((port) => {
@@ -1070,3 +1102,6 @@ self.addEventListener('activate', (event: any) => {
 
 // Log that service worker is starting
 console.log('Smart Reply: Service worker starting...');
+
+// Service worker instance already created above at line 1050
+console.log('Smart Reply: Service worker instance already created');

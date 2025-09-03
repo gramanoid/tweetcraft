@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 5-tab AI interface, smart suggestions with AI scoring, image generation (AI + web search), template+tone system (15+ templates, 12 tones), custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.12
+TweetCraft - AI-powered Twitter/X and HypeFury reply generator Chrome extension with comprehensive feature set including: Multi-platform support (Twitter/X + HypeFury with full feature parity), OpenRouter integration, unified 6-tab AI interface (Personas, All, Smart, Favorites, Image Gen, Custom), smart suggestions with AI scoring, image generation (AI + web search), 4-part template system (24 personalities, 11 vocabularies, 15 rhetoric approaches, 6 pacing options), 10 quick personas, custom templates with separate Style/Tone prompts, thread context awareness, Arsenal Mode (474 lines, IndexedDB), comprehensive keyboard shortcuts (384 lines), advanced network resilience, race condition prevention, and multi-stage loading states. Current version: 0.0.14
 
 ### BulkCraft Feature (Separate Directory - Pending Integration)
 BulkCraft is an advanced content generation feature currently in the `bulkcraft/` directory, planned for integration into the main extension. It provides:
@@ -33,6 +33,16 @@ Located in `bulkcraft/` directory with its own npm package structure (v0.1.0).
 - Zod for schema validation
 - Separate build system from main extension
 
+## Current Development State
+
+The repository is currently in active development with several modified files:
+- Modified files: CLAUDE.md, README.md, build config, popup components, services
+- New untracked files: .claude/, TODO.md, UXUI/, docs/API_KEY_SETUP.md, src/config/apiConfig.ts
+- Git branch: main (use for PRs)
+- Version: 0.0.14 (last commit: "Critical stability and performance fixes for production readiness")
+
+**IMPORTANT**: The codebase contains a hardcoded OpenRouter API key in `src/config/apiConfig.ts`. This is for personal use only and should never be committed to public repositories.
+
 ## Development Commands
 
 ### Main Extension
@@ -42,6 +52,9 @@ npm run dev         # Development build with watch mode
 npm run build       # Production build
 npm run lint        # Run ESLint
 npm run type-check  # TypeScript type checking
+npm run test        # Run Jest tests
+npm run test:watch  # Run Jest tests in watch mode
+npm run test:coverage # Run Jest tests with coverage
 npm run clean       # Clean build directory
 
 # Common workflow:
@@ -67,9 +80,16 @@ npm run typecheck   # TypeScript type checking
 5. Configure OpenRouter API key in the extension popup
 
 ### Testing
-Manual testing only - no automated tests:
+Jest testing framework configured with TypeScript support:
+- `npm run test` - Run all tests
+- `npm run test:watch` - Run tests in watch mode for development
+- `npm run test:coverage` - Run tests with coverage reporting
+- Tests use jsdom environment for DOM manipulation testing
+- @testing-library/jest-dom for enhanced DOM assertions
+
+Manual testing checklist:
 - Test on twitter.com, x.com, and app.hypefury.com
-- Verify all 12 tone presets and templates work on all platforms
+- Verify all template/tone combinations work on all platforms
 - Check browser console for debug logs (uses structured, color-coded logging)
 - Verify loading states show "Generating..." on all platforms
 
@@ -101,6 +121,17 @@ Manual testing only - no automated tests:
 - SCSS processing with CSS extraction
 - Assets copied from `public/` to `dist/`
 - Path alias: `@` maps to `src/`
+
+### Modular Configuration System
+The extension uses a modular configuration approach in `src/config/`:
+- `personalities.ts` - 24 personality types (Friendly, Professional, Sarcastic, etc.)
+- `vocabulary.ts` - 11 vocabulary styles (Plain English, Corporate, Gen Z, etc.)
+- `rhetoric.ts` - 15 rhetorical approaches (Agree & Build, Devil's Advocate, Hot Take, etc.)
+- `lengthPacing.ts` - 6 length and pacing options (Drive-By, Mini-Thread, etc.)
+- `quickPersonas.ts` - 10 pre-configured persona combinations
+- `apiConfig.ts` - **SENSITIVE**: Contains hardcoded OpenRouter API key
+- `configurationManager.ts` - Centralized configuration management
+- `constants.ts` - Application constants and defaults
 
 ## Critical Implementation Notes
 
@@ -157,12 +188,12 @@ console.log('%c  Property:', 'color: #657786', value);
 - `🔨 BUILDING` - Request construction
 - `✅ SUCCESS` / `❌ ERROR` - Operation results
 
-## Current Features (v0.0.11 - Latest Fixes)
+## Current Features (v0.0.14 - Latest Update)
 
 ### Platform Support
 - **Twitter/X**: Full support on twitter.com and x.com
 - **HypeFury**: Complete feature parity on app.hypefury.com
-  - Unified 5-tab selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - Unified 6-tab selector (Personas, All, Smart, Favorites, Image Gen, Custom)
   - All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
   - AI Rewrite functionality
   - Loading states with "Generating..." text
@@ -195,8 +226,8 @@ if (isHypeFury) {
 - **Memory Manager** (`src/utils/memoryManager.ts`) - WeakMap/WeakSet with comprehensive cleanup
 - **Error Handler** (`src/utils/errorHandler.ts`) - Comprehensive recovery workflows
 
-### Unified AI Reply Interface (v0.0.11 - Latest Major Update)
-- **Five-tab Interface**: All Templates, Smart Suggestions, Favorites, Image Gen, Custom
+### Unified AI Reply Interface (v0.0.14 - Latest Update)
+- **Six-tab Interface**: Personas, All, Smart, Favorites, Image Gen, Custom
 - **Smart Suggestions Tab**: 
   - AI-powered scoring of template/tone combinations
   - Shows top 6 suggestions with scores and reasoning
@@ -207,10 +238,19 @@ if (isHypeFury) {
   - Style selection (realistic, cartoon, artistic, sketch)
   - Direct URL insertion into tweets
   - No placeholder images - only real results
-- **Enhanced Custom Templates**: 
-  - Separate Style and Tone prompt fields
-  - No character limits on prompts
-  - Combined prompts for maximum flexibility
+- **Personas Tab**: 
+  - 10 pre-configured quick personas (The Debate Lord, The Chaos Muppet, etc.)
+  - Full personality descriptions with emojis
+  - One-click selection for complex combinations
+- **All Tab (4-part builder)**:
+  - Step 1: 24 personalities (Friendly, Professional, Sarcastic, etc.)
+  - Step 2: 11 vocabulary styles (Plain English, Corporate, Gen Z, etc.)
+  - Step 3: 15 rhetoric approaches (Agree & Build, Devil's Advocate, Hot Take, etc.)
+  - Step 4: 6 length & pacing options (Drive-By, One-Two Punch, Mini-Thread, etc.)
+- **Custom Tab**: 
+  - Create custom template button (currently empty state)
+  - Planned: Separate Style and Tone prompt fields
+  - Planned: Save and manage custom templates
 - **Popup Improvements**:
   - Stays anchored to button during scroll
   - Disappears immediately when generating starts
@@ -242,24 +282,31 @@ if (isHypeFury) {
 - **Three-tab Interface**: Search Web, AI Generate, and Smart Suggest modes
 - **API Key Consistency**: Uses 'smartReply_apiKey' throughout the extension
 
-### Template + Tone System (Revamped in v0.0.10)
-- **Centralized Configuration**: Templates and tones now defined in `src/config/templatesAndTones.ts`
-- **15 preset templates**: Including Hot Take, Ratio Bait, Steel Man, Devil's Advocate, and more
-- **12 personality tones**: Added Gen Z, Minimalist, Philosophical, Savage, and Motivational
-- **Backend-configurable**: Easy to modify templates/tones without touching frontend code
-- **Custom templates**: Support for {variable} placeholders
+### Template + Tone System (Enhanced in v0.0.14)
+- **4-Part Selection System**: 
+  - Personality (24 options): Sets the emotional tone
+  - Vocabulary (11 options): Determines language style
+  - Rhetoric (15 options): Defines approach to the topic
+  - Length & Pacing (6 options): Controls response structure
+- **Quick Personas**: 10 pre-configured combinations for one-click selection
+- **Smart Suggestions**: AI scores and recommends best combinations
+- **Centralized Configuration**: All options defined in config files
+- **Custom templates**: Empty state with "Create Custom Template" button
 - **Dark mode UI**: Matches Twitter/X interface
-- **Seamless flow**: Template selection → Tone selection without closing popup
+- **Seamless flow**: Selections saved between popup opens
 
 ### AI Rewrite Feature (Fixed in v0.0.10)
 - **Proper LLM Integration**: User's text is now properly passed to the LLM for rewriting
 - **Context-Aware Rewriting**: Maintains context of what the user is replying to
 - **Improved Positioning**: AI Rewrite button now appears correctly before the tweet button
 
-### Security Improvements (v0.0.12)
-- **AES-GCM Encryption**: API keys now encrypted using Web Crypto API
+### Security Improvements (v0.0.14)
+- **AES-GCM Encryption**: API keys encrypted using Web Crypto API for storage
 - **Secure Storage**: Enhanced storage mechanisms for sensitive data
 - **Improved Error Handling**: Better validation and sanitization of API responses
+- **API Key Configuration**: OpenRouter API key stored in `src/config/apiConfig.ts`
+  - **SECURITY NOTE**: API key is hardcoded for personal use - DO NOT COMMIT to public repositories
+  - Key should be moved to environment variables or secure storage for production distribution
 
 ### Technical Features
 - **Thread Context Extraction**: Analyzes up to 4 tweets for context-aware replies
@@ -284,6 +331,14 @@ if (isHypeFury) {
 8. **CSP Compliance**: All storage operations use message passing pattern through service worker
 9. **Platform Testing**: Test on both twitter.com and x.com domains
 
+## Active Development
+
+See [TODO.md](TODO.md) for the comprehensive UX/UI improvement plan including:
+- 20 identified issues with detailed solutions
+- 4-week implementation roadmap
+- Desktop-specific optimizations for single-user workflow
+- Focus on reducing clicks and adding keyboard navigation
+
 ## Known Issues
 
 ### Active Issues
@@ -292,7 +347,7 @@ if (isHypeFury) {
 - Extension context can become invalidated on reload (requires extension reload)
 - Rate limiting depends on OpenRouter account tier
 
-### Recently Fixed (v0.0.12)
+### Recently Fixed (v0.0.14)
 - ✅ ChunkLoadError in image generation - Fixed with message passing pattern
 - ✅ Missing "Generating..." loading state - Fixed with enhanced button finding
 - ✅ 48 ESLint errors - All critical errors resolved
@@ -391,12 +446,18 @@ When BulkCraft is integrated from its separate branch, it will add:
 ### Key Files and Their Purpose
 - `src/content/contentScript.ts` - Main content script, singleton pattern, button injection
 - `src/content/domUtils.ts` - Twitter DOM manipulation, text insertion (DO NOT MODIFY insertion logic)
-- `src/content/unifiedSelector.ts` - 5-tab unified AI interface implementation
+- `src/content/unifiedSelector.ts` - 6-tab unified AI interface implementation
 - `src/services/openRouter.ts` - OpenRouter API integration with retry logic
 - `src/services/imageService.ts` - AI image generation and web search
 - `src/services/templateSuggester.ts` - Smart suggestions with AI scoring
 - `src/background/serviceWorker.ts` - Message handling, storage operations
-- `src/config/templatesAndTones.ts` - Template and tone definitions
+- `src/config/apiConfig.ts` - **CRITICAL**: Contains hardcoded OpenRouter API key
+- `src/config/templatesAndTones.ts` - Template and tone definitions (deprecated - see modular configs)
+- `src/config/personalities.ts` - 24 personality options for template system
+- `src/config/vocabulary.ts` - 11 vocabulary styles
+- `src/config/rhetoric.ts` - 15 rhetoric approaches
+- `src/config/lengthPacing.ts` - 6 length and pacing options
+- `src/config/quickPersonas.ts` - 10 pre-configured persona combinations
 - `src/platforms/hypefury.ts` - HypeFury platform adapter
 
 ## Documentation Maintenance

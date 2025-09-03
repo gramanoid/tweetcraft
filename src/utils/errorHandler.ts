@@ -31,7 +31,7 @@ export class ErrorHandler {
     const recoveryActions = this.getRecoveryActions(context);
 
     // Show error on button if provided
-    if (button && 'showError' in (window as any).DOMUtils) {
+    if (button && (window as any).DOMUtils && 'showError' in (window as any).DOMUtils) {
       (window as any).DOMUtils.showError(button, userMessage, 'error');
     }
 

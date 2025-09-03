@@ -58,6 +58,15 @@ export class UnifiedSelector {
   }
 
   /**
+   * Helper method to truncate text for preview display
+   */
+  private truncateText(text: string, maxLength: number): string {
+    if (!text) return 'Not specified';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+
+  /**
    * Show the unified selector
    */
   async show(button: HTMLElement, onSelect: (result: SelectionResult) => void): Promise<void> {
@@ -570,58 +579,106 @@ export class UnifiedSelector {
   }
 
   /**
-   * Render custom view
+   * Render custom view with inline template creation
    */
   private renderCustomView(templates: Template[], personalities: Personality[]): string {
     const customTemplates = templates.filter(t => t.id.startsWith('custom_'));
-    const customPersonalities = personalities.filter(p => p.id.startsWith('custom_'));
-    
-    if (customTemplates.length === 0 && customPersonalities.length === 0) {
-      return `
-        <div class="selector-content custom-view">
-          <div class="empty-state">
-            <p>No custom rhetoric or personalities yet!</p>
-            <button class="create-custom-btn">Create Custom Template</button>
-          </div>
-        </div>
-      `;
-    }
     
     return `
       <div class="selector-content custom-view">
-        ${customTemplates.length > 0 ? `
-          <div class="rhetoric-section">
-            <h3>Custom Rhetoric</h3>
-            <div class="template-grid">
+        <!-- Inline Template Creation Form -->
+        <div class="custom-creation-section">
+          <div class="creation-header">
+            <h3>✨ Create Custom Template</h3>
+            <button class="toggle-creation-btn" data-expanded="false">➕</button>
+          </div>
+          
+          <div class="creation-form" style="display: none;">
+            <div class="form-group">
+              <label for="custom-style-field">Style Instructions</label>
+              <div class="field-description">How should this template structure replies?</div>
+              <textarea 
+                id="custom-style-field" 
+                placeholder="Define the writing approach and structure... (e.g., 'Ask a thoughtful follow-up question that builds on their point and encourages discussion')"
+                rows="4"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="custom-tone-field">Tone Instructions</label>
+              <div class="field-description">What personality should this template use?</div>
+              <textarea 
+                id="custom-tone-field" 
+                placeholder="Describe the personality and voice... (e.g., 'Be genuinely curious and encouraging. Use warm language. Avoid being preachy or condescending')"
+                rows="4"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="custom-length-field">Length Instructions</label>
+              <div class="field-description">How long should replies be?</div>
+              <textarea 
+                id="custom-length-field" 
+                placeholder="Specify the desired length and pacing... (e.g., 'Keep it concise - 1-2 sentences max. Get to the point quickly but include one insightful detail')"
+                rows="4"></textarea>
+            </div>
+            
+            <div class="form-group template-name-row">
+              <label for="custom-name-field">Template Name</label>
+              <div class="name-save-row">
+                <input type="text" id="custom-name-field" placeholder="Enter template name..." maxlength="50" />
+                <button class="save-template-btn">💾 Save Template</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Saved Templates List -->
+        <div class="saved-templates-section">
+          <h3>Saved Templates (${customTemplates.length})</h3>
+          
+          ${customTemplates.length === 0 ? `
+            <div class="no-templates-message">
+              <p>No custom templates yet. Create your first one above! ↑</p>
+            </div>
+          ` : `
+            <div class="templates-list">
               ${customTemplates.map(template => `
-                <button class="template-btn ${this.selectedTemplate?.id === template.id ? 'selected' : ''}"
-                        data-template="${template.id}"
-                        title="${template.description}">
-                  <span class="template-emoji">${template.emoji}</span>
-                  <span class="template-name">${template.name}</span>
-                </button>
+                <div class="template-item" data-template-id="${template.id}">
+                  <div class="template-header">
+                    <div class="template-title">
+                      <span class="template-emoji">${template.emoji}</span>
+                      <span class="template-name">${template.name}</span>
+                    </div>
+                    <div class="template-actions">
+                      <button class="action-btn edit-btn" title="Edit template" data-action="edit">✏️</button>
+                      <button class="action-btn delete-btn" title="Delete template" data-action="delete">🗑️</button>
+                      <button class="action-btn preview-btn" title="Preview output" data-action="preview">👁️</button>
+                      <button class="action-btn favorite-btn" title="Add to favorites" data-action="favorite">⭐</button>
+                    </div>
+                  </div>
+                  <div class="template-preview">
+                    <div class="preview-field">
+                      <strong>Style:</strong> <span class="preview-text">${this.truncateText(template.stylePrompt || '', 60)}</span>
+                    </div>
+                    <div class="preview-field">
+                      <strong>Tone:</strong> <span class="preview-text">${this.truncateText(template.tonePrompt || '', 60)}</span>
+                    </div>
+                    <div class="preview-field">
+                      <strong>Length:</strong> <span class="preview-text">${this.truncateText(template.lengthPrompt || '', 60)}</span>
+                    </div>
+                  </div>
+                </div>
               `).join('')}
             </div>
-          </div>
-        ` : ''}
-        
-        ${customPersonalities.length > 0 ? `
-          <div class="personalities-section">
-            <h3>Custom Personality</h3>
-            <div class="personality-grid">
-              ${customPersonalities.map(personality => `
-                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? 'selected' : ''}"
-                        data-personality="${personality.id}"
-                        title="${personality.description}">
-                  <span class="personality-emoji">${personality.emoji}</span>
-                  <span class="personality-label">${personality.label}</span>
-                </button>
-              `).join('')}
+          `}
+          
+          ${customTemplates.length > 0 ? `
+            <div class="bulk-actions">
+              <button class="bulk-action-btn export-btn">📤 Export All</button>
+              <button class="bulk-action-btn import-btn">📥 Import</button>
+              <button class="bulk-action-btn reset-btn">🔄 Reset All</button>
             </div>
-          </div>
-        ` : ''}
-        
-        <button class="create-custom-btn">Create New</button>
+          ` : ''}
+        </div>
       </div>
     `;
   }
@@ -757,13 +814,41 @@ export class UnifiedSelector {
       });
     }
 
-    // Create custom button
-    const createBtn = this.container.querySelector('.create-custom-btn');
-    if (createBtn) {
-      createBtn.addEventListener('click', () => {
-        this.showCreateCustomDialog();
+    // Toggle creation form
+    const toggleBtn = this.container.querySelector('.toggle-creation-btn');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        this.toggleCreationForm();
       });
     }
+
+    // Save template button
+    const saveBtn = this.container.querySelector('.save-template-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        this.handleSaveCustomTemplate();
+      });
+    }
+
+    // Template action buttons
+    this.container.querySelectorAll('.action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = (e.currentTarget as HTMLElement).dataset.action!;
+        const templateId = (e.currentTarget as HTMLElement).closest('.template-item')?.getAttribute('data-template-id')!;
+        this.handleTemplateAction(action, templateId);
+      });
+    });
+
+    // Bulk action buttons
+    this.container.querySelectorAll('.bulk-action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = (e.currentTarget as HTMLElement).classList.contains('export-btn') ? 'export' :
+                      (e.currentTarget as HTMLElement).classList.contains('import-btn') ? 'import' : 'reset';
+        this.handleBulkAction(action);
+      });
+    });
 
     // Image search button
     const searchBtn = this.container.querySelector('.image-search-btn');
@@ -1496,6 +1581,450 @@ export class UnifiedSelector {
   }
 
   /**
+   * Toggle the creation form visibility
+   */
+  private toggleCreationForm(): void {
+    const toggleBtn = this.container?.querySelector('.toggle-creation-btn');
+    const form = this.container?.querySelector('.creation-form') as HTMLElement;
+    
+    if (!toggleBtn || !form) return;
+    
+    const isExpanded = toggleBtn.getAttribute('data-expanded') === 'true';
+    
+    if (isExpanded) {
+      form.style.display = 'none';
+      toggleBtn.textContent = '➕';
+      toggleBtn.setAttribute('data-expanded', 'false');
+    } else {
+      form.style.display = 'block';
+      toggleBtn.textContent = '➖';
+      toggleBtn.setAttribute('data-expanded', 'true');
+      
+      // Focus on first field
+      const firstField = form.querySelector('#custom-style-field') as HTMLTextAreaElement;
+      if (firstField) {
+        firstField.focus();
+      }
+    }
+  }
+
+  /**
+   * Handle saving a custom template from the inline form
+   */
+  private async handleSaveCustomTemplate(): Promise<void> {
+    const styleField = this.container?.querySelector('#custom-style-field') as HTMLTextAreaElement;
+    const toneField = this.container?.querySelector('#custom-tone-field') as HTMLTextAreaElement;
+    const lengthField = this.container?.querySelector('#custom-length-field') as HTMLTextAreaElement;
+    const nameField = this.container?.querySelector('#custom-name-field') as HTMLInputElement;
+    
+    if (!styleField || !toneField || !lengthField || !nameField) return;
+    
+    const style = styleField.value.trim();
+    const tone = toneField.value.trim();
+    const length = lengthField.value.trim();
+    const name = nameField.value.trim();
+    
+    // Validation
+    if (!name) {
+      visualFeedback.showToast('Template name is required', { type: 'error' });
+      nameField.focus();
+      return;
+    }
+    
+    if (!style) {
+      visualFeedback.showToast('Style instructions are required', { type: 'error' });
+      styleField.focus();
+      return;
+    }
+    
+    if (!tone) {
+      visualFeedback.showToast('Tone instructions are required', { type: 'error' });
+      toneField.focus();
+      return;
+    }
+    
+    if (!length) {
+      visualFeedback.showToast('Length instructions are required', { type: 'error' });
+      lengthField.focus();
+      return;
+    }
+    
+    // Create the template with expanded structure
+    const template: Template = {
+      id: `custom_${Date.now()}`,
+      name,
+      emoji: '✨',
+      description: `Custom template: ${name}`,
+      category: 'custom',
+      prompt: `${style}\n\nTone: ${tone}\n\nLength: ${length}`,
+      stylePrompt: style,
+      tonePrompt: tone,
+      lengthPrompt: length
+    };
+    
+    // Save template
+    await this.saveCustomTemplate(template);
+    
+    // Clear form
+    styleField.value = '';
+    toneField.value = '';
+    lengthField.value = '';
+    nameField.value = '';
+    
+    // Collapse form
+    this.toggleCreationForm();
+    
+    visualFeedback.showToast(`Template "${name}" created!`, { type: 'success' });
+  }
+
+  /**
+   * Handle template actions (edit, delete, preview, favorite)
+   */
+  private handleTemplateAction(action: string, templateId: string): void {
+    const template = TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    
+    switch (action) {
+      case 'edit':
+        this.editTemplate(template);
+        break;
+      case 'delete':
+        this.deleteTemplate(templateId);
+        break;
+      case 'preview':
+        this.previewTemplate(template);
+        break;
+      case 'favorite':
+        this.toggleFavoriteTemplate(templateId);
+        break;
+    }
+  }
+
+  /**
+   * Edit a template by populating the form
+   */
+  private editTemplate(template: Template): void {
+    // Show the creation form if hidden
+    const toggleBtn = this.container?.querySelector('.toggle-creation-btn');
+    const form = this.container?.querySelector('.creation-form') as HTMLElement;
+    
+    if (toggleBtn?.getAttribute('data-expanded') !== 'true') {
+      this.toggleCreationForm();
+    }
+    
+    // Populate form fields
+    const styleField = this.container?.querySelector('#custom-style-field') as HTMLTextAreaElement;
+    const toneField = this.container?.querySelector('#custom-tone-field') as HTMLTextAreaElement;
+    const lengthField = this.container?.querySelector('#custom-length-field') as HTMLTextAreaElement;
+    const nameField = this.container?.querySelector('#custom-name-field') as HTMLInputElement;
+    
+    if (styleField) styleField.value = template.stylePrompt || '';
+    if (toneField) toneField.value = template.tonePrompt || '';
+    if (lengthField) lengthField.value = template.lengthPrompt || '';
+    if (nameField) nameField.value = template.name;
+    
+    // Focus on name field
+    if (nameField) nameField.focus();
+    
+    // Delete the old template since we'll create a new one on save
+    this.deleteTemplate(template.id);
+    
+    visualFeedback.showToast(`Editing "${template.name}"`, { type: 'info' });
+  }
+
+  /**
+   * Delete a custom template
+   */
+  private async deleteTemplate(templateId: string): Promise<void> {
+    const template = TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    
+    if (!confirm(`Delete template "${template.name}"? This cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      // Remove from TEMPLATES array
+      const index = TEMPLATES.findIndex(t => t.id === templateId);
+      if (index !== -1) {
+        TEMPLATES.splice(index, 1);
+      }
+      
+      // Update storage
+      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to load templates for deletion:', chrome.runtime.lastError);
+          return;
+        }
+        
+        const customTemplates = response?.data?.customTemplates || [];
+        const updatedTemplates = customTemplates.filter((t: Template) => t.id !== templateId);
+        
+        chrome.runtime.sendMessage({
+          type: 'SET_STORAGE',
+          data: { customTemplates: updatedTemplates }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to delete template from storage:', chrome.runtime.lastError);
+          } else {
+            visualFeedback.showToast(`Template "${template.name}" deleted`, { type: 'success' });
+            this.render(); // Refresh view
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      visualFeedback.showToast('Failed to delete template', { type: 'error' });
+    }
+  }
+
+  /**
+   * Preview a template's output
+   */
+  private previewTemplate(template: Template): void {
+    // For now, show a simple dialog with the template details
+    const dialog = document.createElement('div');
+    dialog.className = 'template-preview-dialog';
+    dialog.innerHTML = `
+      <div class="preview-content">
+        <div class="preview-header">
+          <h3>🔍 Template Preview: ${template.name}</h3>
+          <button class="preview-close">✕</button>
+        </div>
+        <div class="preview-body">
+          <div class="preview-section">
+            <h4>Style Instructions:</h4>
+            <p>${template.stylePrompt || 'Not specified'}</p>
+          </div>
+          <div class="preview-section">
+            <h4>Tone Instructions:</h4>
+            <p>${template.tonePrompt || 'Not specified'}</p>
+          </div>
+          <div class="preview-section">
+            <h4>Length Instructions:</h4>
+            <p>${template.lengthPrompt || 'Not specified'}</p>
+          </div>
+          <div class="preview-section">
+            <h4>Combined Prompt:</h4>
+            <div class="combined-prompt">${template.prompt}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Style the dialog
+    const style = document.createElement('style');
+    style.textContent = `
+      .template-preview-dialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .preview-content {
+        background: #15202b;
+        border-radius: 12px;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        color: #e7e9ea;
+      }
+      .preview-header {
+        padding: 16px;
+        border-bottom: 1px solid #38444d;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .preview-close {
+        background: none;
+        border: none;
+        color: #e7e9ea;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .preview-body {
+        padding: 16px;
+      }
+      .preview-section {
+        margin-bottom: 16px;
+      }
+      .preview-section h4 {
+        margin: 0 0 8px 0;
+        color: #1d9bf0;
+      }
+      .preview-section p {
+        margin: 0;
+        line-height: 1.4;
+        color: #8b98a5;
+      }
+      .combined-prompt {
+        background: #192734;
+        padding: 12px;
+        border-radius: 8px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        font-size: 13px;
+      }
+    `;
+    
+    document.head.appendChild(style);
+    document.body.appendChild(dialog);
+    
+    // Close handlers
+    const closeDialog = () => {
+      dialog.remove();
+      style.remove();
+    };
+    
+    dialog.querySelector('.preview-close')?.addEventListener('click', closeDialog);
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) closeDialog();
+    });
+  }
+
+  /**
+   * Handle bulk actions (export, import, reset)
+   */
+  private handleBulkAction(action: string): void {
+    switch (action) {
+      case 'export':
+        this.exportTemplates();
+        break;
+      case 'import':
+        this.importTemplates();
+        break;
+      case 'reset':
+        this.resetAllTemplates();
+        break;
+    }
+  }
+
+  /**
+   * Export all custom templates
+   */
+  private exportTemplates(): void {
+    const customTemplates = TEMPLATES.filter(t => t.id.startsWith('custom_'));
+    
+    if (customTemplates.length === 0) {
+      visualFeedback.showToast('No custom templates to export', { type: 'info' });
+      return;
+    }
+    
+    const data = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      templates: customTemplates
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tweetcraft-templates-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    visualFeedback.showToast(`Exported ${customTemplates.length} templates`, { type: 'success' });
+  }
+
+  /**
+   * Import templates from file
+   */
+  private importTemplates(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target?.result as string);
+          
+          if (!data.templates || !Array.isArray(data.templates)) {
+            visualFeedback.showToast('Invalid template file format', { type: 'error' });
+            return;
+          }
+          
+          // Add imported templates
+          data.templates.forEach((template: Template) => {
+            // Generate new ID to avoid conflicts
+            template.id = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            TEMPLATES.push(template);
+          });
+          
+          // Save to storage
+          const customTemplates = TEMPLATES.filter(t => t.id.startsWith('custom_'));
+          chrome.runtime.sendMessage({
+            type: 'SET_STORAGE',
+            data: { customTemplates }
+          }, () => {
+            if (chrome.runtime.lastError) {
+              console.error('Failed to save imported templates:', chrome.runtime.lastError);
+            } else {
+              visualFeedback.showToast(`Imported ${data.templates.length} templates`, { type: 'success' });
+              this.render();
+            }
+          });
+          
+        } catch (error) {
+          console.error('Failed to import templates:', error);
+          visualFeedback.showToast('Failed to import templates', { type: 'error' });
+        }
+      };
+      
+      reader.readAsText(file);
+    });
+    
+    input.click();
+  }
+
+  /**
+   * Reset all custom templates
+   */
+  private resetAllTemplates(): void {
+    const customTemplates = TEMPLATES.filter(t => t.id.startsWith('custom_'));
+    
+    if (customTemplates.length === 0) {
+      visualFeedback.showToast('No custom templates to reset', { type: 'info' });
+      return;
+    }
+    
+    if (!confirm(`Delete all ${customTemplates.length} custom templates? This cannot be undone.`)) {
+      return;
+    }
+    
+    // Remove all custom templates
+    TEMPLATES.splice(0, TEMPLATES.length, ...TEMPLATES.filter(t => !t.id.startsWith('custom_')));
+    
+    // Clear storage
+    chrome.runtime.sendMessage({
+      type: 'SET_STORAGE',
+      data: { customTemplates: [] }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to reset templates:', chrome.runtime.lastError);
+      } else {
+        visualFeedback.showToast('All custom templates deleted', { type: 'success' });
+        this.render();
+      }
+    });
+  }
+
+  /**
    * Apply styles
    */
   private applyStyles(): void {
@@ -1973,18 +2502,312 @@ export class UnifiedSelector {
           color: #8b98a5;
         }
         
-        .create-custom-btn {
-          padding: 8px 16px;
+        /* Custom Templates Inline Interface */
+        .custom-creation-section {
+          margin-bottom: 24px;
+          border: 1px solid #38444d;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        
+        .creation-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px;
+          background: #1e2732;
+          border-bottom: 1px solid #38444d;
+        }
+        
+        .creation-header h3 {
+          margin: 0;
+          color: #e7e9ea;
+          font-size: 16px;
+        }
+        
+        .toggle-creation-btn {
+          background: #1d9bf0;
+          border: none;
+          border-radius: 6px;
+          color: white;
+          width: 32px;
+          height: 32px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          transition: all 0.2s;
+        }
+        
+        .toggle-creation-btn:hover {
+          background: #1a8cd8;
+          transform: scale(1.05);
+        }
+        
+        .creation-form {
+          padding: 20px;
+          background: #15202b;
+        }
+        
+        .form-group {
+          margin-bottom: 20px;
+        }
+        
+        .form-group label {
+          display: block;
+          color: #e7e9ea;
+          font-weight: 500;
+          margin-bottom: 4px;
+          font-size: 14px;
+        }
+        
+        .field-description {
+          color: #8b98a5;
+          font-size: 12px;
+          margin-bottom: 8px;
+          font-style: italic;
+        }
+        
+        .form-group textarea,
+        .form-group input {
+          width: 100%;
+          background: #192734;
+          border: 1px solid #38444d;
+          border-radius: 8px;
+          color: #e7e9ea;
+          padding: 12px;
+          font-size: 14px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          resize: vertical;
+          min-height: 100px;
+          transition: border-color 0.2s;
+        }
+        
+        .form-group input {
+          min-height: auto;
+          height: 42px;
+        }
+        
+        .form-group textarea:focus,
+        .form-group input:focus {
+          outline: none;
+          border-color: #1d9bf0;
+          box-shadow: 0 0 0 1px #1d9bf0;
+        }
+        
+        .form-group textarea::placeholder,
+        .form-group input::placeholder {
+          color: #6e767d;
+        }
+        
+        .template-name-row {
+          margin-bottom: 0;
+        }
+        
+        .name-save-row {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        
+        .name-save-row input {
+          flex: 1;
+        }
+        
+        .save-template-btn {
+          background: #00ba7c;
+          border: none;
+          border-radius: 8px;
+          color: white;
+          padding: 12px 20px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s;
+          font-size: 14px;
+        }
+        
+        .save-template-btn:hover {
+          background: #00a46c;
+          transform: translateY(-1px);
+        }
+        
+        .save-template-btn:active {
+          transform: translateY(0);
+        }
+        
+        /* Saved Templates Section */
+        .saved-templates-section {
+          margin-top: 24px;
+        }
+        
+        .saved-templates-section h3 {
+          margin: 0 0 16px 0;
+          color: #e7e9ea;
+          font-size: 16px;
+        }
+        
+        .no-templates-message {
+          text-align: center;
+          padding: 40px;
+          color: #8b98a5;
+          font-style: italic;
+        }
+        
+        .no-templates-message p {
+          margin: 0;
+        }
+        
+        .templates-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        
+        .template-item {
+          background: #1e2732;
+          border: 1px solid #38444d;
+          border-radius: 12px;
+          overflow: hidden;
+          transition: all 0.2s;
+        }
+        
+        .template-item:hover {
+          border-color: #1d9bf0;
+          transform: translateY(-1px);
+        }
+        
+        .template-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px;
+        }
+        
+        .template-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .template-emoji {
+          font-size: 20px;
+        }
+        
+        .template-name {
+          color: #e7e9ea;
+          font-weight: 600;
+          font-size: 15px;
+        }
+        
+        .template-actions {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .action-btn {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          border-radius: 6px;
+          color: #e7e9ea;
+          width: 32px;
+          height: 32px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: scale(1.1);
+        }
+        
+        .edit-btn:hover {
+          background: rgba(29, 155, 240, 0.3);
+        }
+        
+        .delete-btn:hover {
+          background: rgba(244, 33, 46, 0.3);
+        }
+        
+        .preview-btn:hover {
+          background: rgba(0, 186, 124, 0.3);
+        }
+        
+        .favorite-btn:hover {
+          background: rgba(255, 212, 0, 0.3);
+        }
+        
+        .template-preview {
+          padding: 16px;
+          background: #192734;
+          border-top: 1px solid #38444d;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .preview-field {
+          display: flex;
+          gap: 8px;
+          font-size: 13px;
+        }
+        
+        .preview-field strong {
+          color: #1d9bf0;
+          min-width: 60px;
+          flex-shrink: 0;
+        }
+        
+        .preview-text {
+          color: #8b98a5;
+          flex: 1;
+        }
+        
+        /* Bulk Actions */
+        .bulk-actions {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid #38444d;
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+        }
+        
+        .bulk-action-btn {
           background: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
           color: #e7e9ea;
+          padding: 8px 16px;
           cursor: pointer;
           transition: all 0.2s;
+          font-size: 13px;
+          white-space: nowrap;
         }
         
-        .create-custom-btn:hover {
+        .bulk-action-btn:hover {
           background: rgba(255, 255, 255, 0.15);
+          transform: translateY(-1px);
+        }
+        
+        .export-btn:hover {
+          background: rgba(0, 186, 124, 0.2);
+          border-color: #00ba7c;
+        }
+        
+        .import-btn:hover {
+          background: rgba(29, 155, 240, 0.2);
+          border-color: #1d9bf0;
+        }
+        
+        .reset-btn:hover {
+          background: rgba(244, 33, 46, 0.2);
+          border-color: #f4212e;
         }
         
         /* Smart suggestions cards */

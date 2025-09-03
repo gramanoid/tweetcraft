@@ -19,28 +19,26 @@
       
       <main class="popup-content">
         <div class="setting-group">
-          <label for="api-key">OpenRouter API Key:</label>
-          <div class="api-key-row">
-            <input type="password" id="api-key" placeholder="Enter your OpenRouter API key">
-            <button id="toggle-api-key" class="btn-icon" title="Show/Hide API Key">👁️</button>
+          <h3>API Status</h3>
+          <div id="api-status" style="padding: 15px; background: #e8f5e9; border-radius: 6px; border: 1px solid #4caf50;">
+            <div id="status-text" style="color: #2e7d32; font-weight: 500;">✅ API Key Configured</div>
+            <div style="margin-top: 10px; color: #555;">The OpenRouter API is integrated and ready to use.</div>
+            <div id="model-count" style="margin-top: 10px;"></div>
+            <div id="last-check" style="margin-top: 5px; font-size: 11px; color: #888;"></div>
           </div>
-          <small>Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
-          <div id="api-test-result" class="test-result"></div>
         </div>
         
         <div class="setting-group">
-          <h3>API Status</h3>
-          <div id="api-status" style="padding: 10px; background: #f0f0f0; border-radius: 6px;">
-            <div id="status-text">Checking API key...</div>
-            <div id="model-count" style="margin-top: 5px;"></div>
-            <div id="last-check" style="margin-top: 5px; font-size: 11px; color: #888;"></div>
+          <h3>About</h3>
+          <div style="padding: 10px; background: #f5f5f5; border-radius: 6px;">
+            <p style="margin: 0;">TweetCraft uses OpenRouter's API to generate AI-powered replies.</p>
+            <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">The API key is securely configured in the extension.</p>
           </div>
         </div>
       </main>
       
       <footer class="popup-footer">
-        <button id="save-api-key" class="btn-primary">Save API Key</button>
-        <button id="back-to-settings" class="btn-secondary" style="margin-top: 10px;">Back to Settings</button>
+        <button id="back-to-settings" class="btn-primary">Back to Settings</button>
         <div id="status-message"></div>
       </footer>
     </div>

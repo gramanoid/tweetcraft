@@ -3,6 +3,17 @@
  * Handles AI image generation and web image search
  */
 
+// Hardcoded API configuration
+const API_CONFIG = {
+  OPENROUTER_API_KEY: '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',
+  BASE_URL: 'https://openrouter.ai/api/v1',
+  HEADERS: {
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://tweetcraft.ai/extension',
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
+  }
+};
+
 export interface ImageResult {
   url: string;
   alt: string;
@@ -486,24 +497,13 @@ Return ONLY the JSON array, no explanations.`;
    * Get OpenRouter API key from storage via service worker
    */
   private async getOpenRouterApiKey(): Promise<string | null> {
-    try {
-      // Use message passing to service worker to avoid CSP issues
-      return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'GET_API_KEY' }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Failed to get API key:', chrome.runtime.lastError);
-            resolve(null);
-          } else if (response && response.success) {
-            resolve(response.apiKey);
-          } else {
-            resolve(null);
-          }
-        });
-      });
-    } catch (error) {
-      console.error('Failed to retrieve API key:', error);
+    // Use hardcoded API key
+    const apiKey = API_CONFIG.OPENROUTER_API_KEY;
+    if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+      console.error('API key not configured in apiConfig.ts');
       return null;
     }
+    return apiKey;
   }
 
   /**

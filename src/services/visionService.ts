@@ -6,6 +6,17 @@
 import { StorageService } from './storage';
 import { ConfigurationManager } from '@/config/configurationManager';
 
+// Hardcoded API configuration
+const API_CONFIG = {
+  OPENROUTER_API_KEY: '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',
+  BASE_URL: 'https://openrouter.ai/api/v1',
+  HEADERS: {
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://tweetcraft.ai/extension',
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
+  }
+};
+
 export interface VisionAnalysisResult {
   success: boolean;
   description?: string;
@@ -72,10 +83,12 @@ export class VisionService {
    */
   async initialize(): Promise<void> {
     // Get API key directly from storage service
-    this.apiKey = await StorageService.getApiKey() || null;
+    // Use hardcoded API key
+    this.apiKey = API_CONFIG.OPENROUTER_API_KEY;
     
-    if (!this.apiKey) {
-      console.log('%c⚠️ Vision Service: No API key configured', 'color: #FFA500');
+    if (!this.apiKey || this.apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+      console.log('%c⚠️ Vision Service: API key not configured in apiConfig.ts', 'color: #FFA500');
+      this.apiKey = null;
     } else {
       console.log('%c✅ Vision Service: API key loaded', 'color: #17BF63');
     }

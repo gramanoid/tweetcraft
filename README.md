@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.12-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.14-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,7 +23,7 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.12)**
+### ✅ **Currently Working (v0.0.14)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
@@ -46,7 +46,7 @@
 - **🔧 Error Handler** - 412 lines with recovery workflows ([src/utils/errorHandler.ts](src/utils/errorHandler.ts))
 
 #### Current Working Features
-- **🎨 Unified AI Reply Popup** - 5-tab interface (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+- **🎨 Unified AI Reply Popup** - 6-tab interface (Personas, All, Smart, Favorites, Image Gen, Custom)
 - **📝 Template + Tone System** - Choose reply structure (templates) AND personality (tones) separately
 - **🤖 Smart Suggestions** - AI-powered template/tone recommendations with scoring
 - **🖼️ Image Generation** - AI image creation and web search integrated into replies
@@ -64,6 +64,13 @@
 - **🚀 Instant UI Response** - AI Reply button appears immediately with 100ms debounce
 - **🔍 Comprehensive Logging** - Full prompt construction tracking in console
 
+### 📋 **Active Development (TODO.md)**
+A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md) with:
+- 20 detailed UX/UI issues and their solutions
+- 4-week implementation schedule
+- Desktop-optimized improvements for single-user efficiency
+- Focus on keyboard shortcuts and workflow speed
+
 ### 🔮 **Truly New Features (Not Yet Implemented)**
 - **📝 Thread Composer** - Multi-tweet thread creation with auto-numbering (NOT IMPLEMENTED)
 - **💬 Quote Tweet Generator** - Smart commentary for quote tweets (NOT IMPLEMENTED)
@@ -71,19 +78,22 @@
 - **📊 Simple Analytics** - Basic engagement insights (NOT IMPLEMENTED)
 - **🚀 Smart Posting** - Automated posting with safety controls (NOT IMPLEMENTED)
 
-### 🎨 MVP Features (v0.0.11)
+### 🎨 Latest UI Updates (v0.0.14)
 
-#### 🎨 Unified AI Reply Interface (NEW v0.0.11!)
-- **All-in-one popup** - Five tabs: All Templates, Smart Suggestions, Favorites, Image Gen, Custom
+#### 🎨 Unified AI Reply Interface
+- **Six-tab popup** - Personas, All, Smart, Favorites, Image Gen, Custom
 - **Smart Suggestions** - AI analyzes context and scores template/tone combinations
 - **Image Generation** - Search or generate AI images with styles (realistic, cartoon, artistic, sketch)
 - **Favorites System** - Star your favorite templates and tones for quick access
 - **Enhanced Custom Templates** - Separate Style and Tone prompts with no character limits
 
 #### 📝 Template + Tone System
-- **Two-step selection process** - Choose what to say (template) and how to say it (tone)
-- **15+ preset templates** - Hot Take, Ratio Bait, Steel Man, Devil's Advocate, Challenge Politely, and more
-- **12 personality tones** - Professional, Witty, Sarcastic, Academic, Spicy, Gen Z, Minimalist, and more
+- **Four-part selection process** - Personality → Vocabulary → Rhetoric → Length & Pacing
+- **24 personalities** - Friendly, Supportive, Professional, Sarcastic, and more
+- **11 vocabulary styles** - Plain English, Corporate/PR, Academic, Technical, Gen Z, and more
+- **15 rhetoric approaches** - Agree & Build, Steel Man, Devil's Advocate, Hot Take, Ratio Bait, and more
+- **6 length & pacing options** - The Drive-By, The One-Two Punch, The Conversational Clause, and more
+- **10 quick personas** - Pre-configured combinations like The Debate Lord, The Chaos Muppet, The Edgy Philosopher
 - **Custom templates** - Create your own with separate Style and Tone prompts
 - **Dark mode UI** - Beautiful interface matching Twitter/X's dark theme
 - **Seamless flow** - Popup disappears immediately when generating starts

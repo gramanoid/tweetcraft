@@ -65,6 +65,70 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
   
+  // Auto-fetch models on popup load
+  const autoFetchModels = async () => {
+    if (!refreshModelsBtn || !modelSelect) return;
+    
+    console.log('Auto-fetching models on popup load...');
+    
+    try {
+      const response = await chrome.runtime.sendMessage({ type: MessageType.FETCH_MODELS });
+      
+      if (response?.success && response?.data) {
+        // Clear existing options
+        modelSelect.innerHTML = '';
+        
+        // Add fetched models
+        response.data.forEach((model: any) => {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = `${model.name} (${model.context_length} tokens, $${model.pricing?.prompt || 0}/${model.pricing?.completion || 0})`;
+          modelSelect.appendChild(option);
+        });
+        
+        // Get saved model from storage and select it
+        const savedResult = await new Promise<{ smartReply_config?: StorageConfig }>((resolve) => {
+          chrome.storage.sync.get(['smartReply_config'], resolve);
+        });
+        const savedModel = savedResult.smartReply_config?.model;
+        
+        if (savedModel) {
+          const modelExists = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
+          if (modelExists) {
+            modelSelect.value = savedModel;
+            console.log('Restored saved model:', savedModel);
+          } else {
+            console.log('Saved model not found in fetched list:', savedModel);
+            // Select first model and save it
+            if (modelSelect.options.length > 0) {
+              const firstModel = modelSelect.options[0].value;
+              modelSelect.value = firstModel;
+              const config = savedResult.smartReply_config || {};
+              config.model = firstModel;
+              await chrome.storage.sync.set({ smartReply_config: config });
+            }
+          }
+        } else if (modelSelect.options.length > 0) {
+          // No saved model, select first one
+          const firstModel = modelSelect.options[0].value;
+          modelSelect.value = firstModel;
+          const config = savedResult.smartReply_config || {};
+          config.model = firstModel;
+          await chrome.storage.sync.set({ smartReply_config: config });
+        }
+        
+        console.log(`Loaded ${response.data.length} models`);
+      } else {
+        console.error('Failed to fetch models:', response?.error);
+      }
+    } catch (error) {
+      console.error('Error auto-fetching models:', error);
+    }
+  };
+  
+  // Start fetching models immediately
+  autoFetchModels();
+  
   chrome.storage.sync.get(['smartReply_config', 'features'], (result: { smartReply_config?: StorageConfig; features?: Features }) => {
     if (result.smartReply_config) {
       const config = result.smartReply_config;
@@ -74,16 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.customStylePrompt && customStylePromptInput) {
         customStylePromptInput.value = config.customStylePrompt;
       }
-      if (config.model && modelSelect) {
-        // Set the saved model value
-        modelSelect.value = config.model;
-        // If the saved model doesn't exist in the dropdown (e.g., first load with default options),
-        // check if we need to fetch models
-        const modelExists = Array.from(modelSelect.options).some(opt => opt.value === config.model);
-        if (!modelExists) {
-          console.log('Saved model not in dropdown, may need to fetch models:', config.model);
-        }
-      }
+      // Model will be loaded after auto-fetch completes
       if (config.temperature !== undefined && temperatureInput) {
         temperatureInput.value = config.temperature.toString();
         if (temperatureValue) {
@@ -258,17 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshModelsBtn.addEventListener('click', async () => {
       console.log('Fetching models from OpenRouter...');
       
-      // Get API key from storage
-      const result = await new Promise<any>(resolve => {
-        chrome.storage.local.get(['smartReply_apiKey'], resolve);
-      });
-      
-      const apiKey = result.smartReply_apiKey;
-      if (!apiKey) {
-        alert('Please configure your API key first');
-        chrome.runtime.openOptionsPage();
-        return;
-      }
+      // API key is now hardcoded, no need to check storage
       
       refreshModelsBtn.disabled = true;
       refreshModelsBtn.textContent = '⏳';

@@ -17,6 +17,10 @@ export interface Template {
   category: string;
   categoryLabel?: string;
   systemPrompt?: string;
+  // New fields for enhanced custom templates
+  stylePrompt?: string;
+  tonePrompt?: string;
+  lengthPrompt?: string;
 }
 
 // Re-export from personalities file

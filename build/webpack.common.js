@@ -43,15 +43,8 @@ module.exports = {
     }),
   ],
   optimization: {
-    splitChunks: {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        },
-      },
-    },
+    // CRITICAL: Chrome extensions require each context to be self-contained
+    // DO NOT enable chunk splitting - it breaks isolated contexts
+    splitChunks: false,
   },
 };

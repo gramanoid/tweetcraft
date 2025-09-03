@@ -42,6 +42,8 @@ class SmartReplyContentScript {
   private navigationTimerId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    console.log('%c🚀 TweetCraft: Initializing content script v' + SmartReplyContentScript.VERSION, 'color: #1DA1F2; font-weight: bold; font-size: 16px');
+    
     // Check if another instance already exists
     if ((window as any).__smartReplyInstance) {
       console.log('TweetCraft: Previous instance detected, cleaning up...');
@@ -1554,18 +1556,8 @@ class SmartReplyContentScript {
       
       console.log(`%c🚀 Smart Reply: Starting ${isRewriteMode ? 'rewrite' : 'generation'} with tone:`, 'color: #1DA1F2; font-weight: bold', tone);
       
-      // Check if API key is configured (with cancellation check)
+      // API key is now hardcoded - no need to check
       if (signal.aborted) throw new Error('Operation cancelled');
-      const apiKey = await StorageService.getApiKey();
-      if (!apiKey) {
-        visualFeedback.hideLoading();
-        if (button) {
-          visualFeedback.showError(button, 'Please configure your API key in the extension popup');
-          DOMUtils.showError(button, 'Please configure your API key in the extension popup', 'api');
-        }
-        console.error('%c❌ Smart Reply: No API key configured', 'color: #DC3545; font-weight: bold');
-        return;
-      }
 
       // Check for cancellation before preparing request
       if (signal.aborted) throw new Error('Operation cancelled');
@@ -1685,7 +1677,7 @@ class SmartReplyContentScript {
       
       console.log('%c📨 SERVICE WORKER RESPONSE', 'color: #17BF63; font-weight: bold');
       console.log('%c  Success:', 'color: #657786', response.success);
-      console.log('%c  Reply Length:', 'color: #657786', response.reply?.length || 0);
+      console.log('%c  Reply Length:', 'color: #657786', response.data?.reply?.length || 0);
       if (response.error) {
         console.error('%c  Error:', 'color: #DC3545', response.error);
       }
@@ -1693,15 +1685,15 @@ class SmartReplyContentScript {
       // Check for cancellation after API call
       if (signal.aborted) throw new Error('Operation cancelled');
 
-      if (response.success && response.reply) {
+      if (response.success && response.data?.reply) {
         
         // Set the generated text in the textarea
-        DOMUtils.setTextareaValue(textarea, response.reply);
+        DOMUtils.setTextareaValue(textarea, response.data.reply);
         
         // Update character count
-        DOMUtils.updateCharCount(response.reply.length);
+        DOMUtils.updateCharCount(response.data.reply.length);
         
-        console.log('Smart Reply: Reply generated successfully:', response.reply);
+        console.log('Smart Reply: Reply generated successfully:', response.data.reply);
         
         // Hide loading and show success toast only (no duplicate icon)
         visualFeedback.hideLoading();

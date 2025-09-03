@@ -12,6 +12,17 @@ import { requestOptimizer } from './requestOptimizer';
 import { cleanupReply } from '@/utils/textUtils';
 import { logger } from '@/utils/logger';
 
+// Hardcoded API configuration
+const API_CONFIG = {
+  OPENROUTER_API_KEY: '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',
+  BASE_URL: 'https://openrouter.ai/api/v1',
+  HEADERS: {
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://tweetcraft.ai/extension',
+    'X-Title': 'TweetCraft - AI Reply Assistant v0.0.12'
+  }
+};
+
 export class OpenRouterService {
   private static readonly BASE_URL = 'https://openrouter.ai/api/v1';
   private static readonly HEADERS = {
@@ -288,12 +299,13 @@ export class OpenRouterService {
       this.lastRequestTime = Date.now();
 
       const config = await StorageService.getConfig();
-      const apiKey = await StorageService.getApiKey();
+      // Use hardcoded API key instead of getting from storage
+      const apiKey = API_CONFIG.OPENROUTER_API_KEY;
 
-      if (!apiKey) {
+      if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
         return {
           success: false,
-          error: 'No API key found. Get your key at openrouter.ai/keys and add it in the extension settings.'
+          error: 'API key not configured. Please contact the developer.'
         };
       }
 
@@ -518,12 +530,19 @@ export class OpenRouterService {
     return cleanupReply(reply);
   }
 
-  static async validateApiKey(apiKey: string): Promise<boolean> {
+  static async validateApiKey(apiKey?: string): Promise<boolean> {
     try {
+      // Always use the hardcoded API key
+      const actualApiKey = API_CONFIG.OPENROUTER_API_KEY;
+      
+      if (!actualApiKey || actualApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+        return false;
+      }
+      
       const response = await fetch(`${this.BASE_URL}/models`, {
         headers: {
           ...this.HEADERS,
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${actualApiKey}`
         }
       });
       
@@ -534,14 +553,22 @@ export class OpenRouterService {
     }
   }
 
-  static async fetchAvailableModels(apiKey: string): Promise<any[]> {
+  static async fetchAvailableModels(apiKey?: string): Promise<any[]> {
     try {
+      // Always use the hardcoded API key
+      const actualApiKey = API_CONFIG.OPENROUTER_API_KEY;
+      
+      if (!actualApiKey || actualApiKey === 'sk-or-v1-YOUR_API_KEY_HERE') {
+        console.error('API key not configured');
+        return [];
+      }
+      
       const response = await this.fetchWithRetry(
         `${this.BASE_URL}/models`,
         {
           headers: {
             ...this.HEADERS,
-            'Authorization': `Bearer ${apiKey}`
+            'Authorization': `Bearer ${actualApiKey}`
           }
         }
       );
