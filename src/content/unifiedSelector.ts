@@ -1674,6 +1674,9 @@ export class UnifiedSelector {
     // Collapse form
     this.toggleCreationForm();
     
+    // Refresh the view to show the new template
+    this.render();
+    
     visualFeedback.showToast(`Template "${name}" created!`, { type: 'success' });
   }
 
@@ -2526,8 +2529,8 @@ export class UnifiedSelector {
         }
         
         .toggle-creation-btn {
-          background: #1d9bf0;
-          border: none;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 6px;
           color: white;
           width: 32px;
@@ -2541,7 +2544,8 @@ export class UnifiedSelector {
         }
         
         .toggle-creation-btn:hover {
-          background: #1a8cd8;
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.3);
           transform: scale(1.05);
         }
         
