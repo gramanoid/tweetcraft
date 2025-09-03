@@ -1573,7 +1573,7 @@ class SmartReplyContentScript {
     
     try {
       await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode, vocabulary, lengthPacing);
+        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig);
       });
     } catch (error) {
       if ((error as Error).message.includes('cancelled')) {
@@ -1593,7 +1593,11 @@ class SmartReplyContentScript {
     _bypassCache: boolean = false,
     isRewriteMode: boolean = false,
     vocabulary?: string,
-    lengthPacing?: string
+    lengthPacing?: string,
+    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom',
+    personaConfig?: any,
+    allTabConfig?: any,
+    customConfig?: any
   ): Promise<void> {
     // Find the button to show loading state
     // Check if we're on HypeFury to use the correct class name

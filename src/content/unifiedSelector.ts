@@ -61,6 +61,9 @@ export class UnifiedSelector {
   // Backward compatibility alias
   private get selectedTone(): Personality | null { return this.selectedPersonality; }
   private set selectedTone(value: Personality | null) { this.selectedPersonality = value; }
+  // Alias for selectedTemplate (rhetoric is essentially the template)
+  private get selectedRhetoric(): Template | null { return this.selectedTemplate; }
+  private set selectedRhetoric(value: Template | null) { this.selectedTemplate = value; }
   private onSelectCallback: ((result: SelectionResult) => void) | null = null;
   private favoriteRhetoric: Set<string> = new Set();
   // Backward compatibility alias
@@ -1781,10 +1784,10 @@ export class UnifiedSelector {
         // Explicitly set tabType and config for proper prompt routing
         tabType: 'all',
         allTabConfig: {
-          personality: selections.personality,
-          vocabulary: selections.vocabulary,
-          rhetoric: selections.rhetoric,
-          lengthPacing: selections.lengthPacing
+          personality: selections.personality || 'friendly',
+          vocabulary: selections.vocabulary || 'plain_english',
+          rhetoric: selections.rhetoric || 'agree_build',
+          lengthPacing: selections.lengthPacing || 'drive_by'
         }
       };
 

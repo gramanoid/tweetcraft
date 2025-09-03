@@ -711,9 +711,8 @@ describe('PromptArchitecture Comprehensive Test Suite', () => {
       expect(prompt2).not.toContain('First');
     });
   });
-});
 
-describe('Issues and Fixes Validation', () => {
+  describe('Issues and Fixes Validation', () => {
   describe('ISSUE 1: Smart/Favorites tabs missing allTabConfig', () => {
     it('CURRENT: Silently continues with incomplete prompt', () => {
       const smartConfig: PromptConfiguration = {
@@ -777,6 +776,12 @@ describe('Issues and Fixes Validation', () => {
     it('CURRENT: Images in context are not used', () => {
       const config: PromptConfiguration = {
         ...createBaseConfig('all'),
+        allTabConfig: {
+          personality: 'friendly',
+          vocabulary: 'plain_english',
+          rhetoric: 'agree_build',
+          lengthPacing: 'normal'
+        },
         context: {
           tweetText: 'Check out this image',
           images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
@@ -809,6 +814,12 @@ describe('Issues and Fixes Validation', () => {
 
       const config: PromptConfiguration = {
         ...createBaseConfig('all'),
+        allTabConfig: {
+          personality: 'friendly',
+          vocabulary: 'plain_english',
+          rhetoric: 'agree_build',
+          lengthPacing: 'normal'
+        },
         context: {
           tweetText: 'Check out this image',
           images: ['https://example.com/image1.jpg']
@@ -820,5 +831,6 @@ describe('Issues and Fixes Validation', () => {
       expect(enhancedPrompt).toContain('Images attached to tweet:');
       expect(enhancedPrompt).toContain('Image 1: https://example.com/image1.jpg');
     });
+  });
   });
 });

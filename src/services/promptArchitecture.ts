@@ -177,8 +177,7 @@ export class PromptArchitecture {
     }
     
     // DEFAULT: Invalid or unsupported tab type
-    else if (config.tabType !== 'image_gen') {
-      // Only throw for non-image_gen invalid types (image_gen returns empty string above)
+    else {
       const validTabs = ['personas', 'all', 'smart', 'favorites', 'custom', 'image_gen'];
       console.error('%c❌ INVALID TAB TYPE', 'color: #DC3545; font-weight: bold', 
                    `Tab type "${config.tabType}" is not supported`);

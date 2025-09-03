@@ -48,7 +48,7 @@ export class SelectorAdapter {
       tone: ToneOption, 
       vocabulary?: string, 
       lengthPacing?: string,
-      tabType?: string,
+      tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom',
       personaConfig?: any,
       allTabConfig?: any,
       customConfig?: any

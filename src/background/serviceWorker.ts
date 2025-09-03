@@ -16,12 +16,6 @@ import { API_CONFIG } from '@/config/apiConfig';
 
 console.log('Service Worker: API_CONFIG loaded from environment');
 import type { 
-  ExtensionMessage as OpenRouterExtensionMessage,
-  StorageData,
-  FetchModelsResponse,
-  TestApiKeyResponse,
-  GenerateReplyResponse,
-  GenerateImageResponse,
   OpenRouterModel
 } from '@/types/openrouter';
 import { 
@@ -112,7 +106,7 @@ class SmartReplyServiceWorker {
   private async handleInstalled(details: chrome.runtime.InstalledDetails): Promise<void> {
     console.log('Smart Reply: Extension installed/updated', details);
 
-    if (details.reason === 'install') {
+    if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
       // First-time installation
       console.log('Smart Reply: First-time installation');
       
@@ -121,12 +115,12 @@ class SmartReplyServiceWorker {
       
       // Open welcome page or show notification
       this.showWelcomeNotification();
-    } else if (details.reason === 'update') {
+    } else if (details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
       // Extension updated
       console.log('Smart Reply: Extension updated from', details.previousVersion);
       
       // Handle any migration logic here if needed
-      await this.handleUpdate(details.previousVersion);
+      this.handleUpdate(details.previousVersion);
     }
   }
 
@@ -390,8 +384,8 @@ class SmartReplyServiceWorker {
                 throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
               }
 
-              const data = await response.json();
-              const content = data.choices?.[0]?.message?.content;
+              const data = await response.json() as any;
+              const content = (data as any).choices?.[0]?.message?.content;
               
               if (content) {
                 sendResponse({ success: true, data: content });
@@ -645,7 +639,7 @@ class SmartReplyServiceWorker {
           medium: ' Keep the reply concise, between 50-150 characters.',
           long: ' Write a detailed reply, 150-280 characters.'
         };
-        systemPrompt += lengthModifiers[request.replyLength as keyof typeof lengthModifiers] || '';
+        systemPrompt += lengthModifiers[request.replyLength] || '';
         messages[0].content = systemPrompt;
       }
 
@@ -710,12 +704,12 @@ class SmartReplyServiceWorker {
         return;
       }
 
-      const result = await response.json();
+      const result = await response.json() as any;
       
       console.log('%c✅ API RESPONSE RECEIVED', 'color: #17BF63; font-weight: bold; font-size: 14px');
       console.log('%c  Response Time:', 'color: #657786', `${responseTime}ms`);
-      console.log('%c  Model Used:', 'color: #657786', result.model);
-      console.log('%c  Tokens Used:', 'color: #657786', result.usage);
+      console.log('%c  Model Used:', 'color: #657786', (result as any).model);
+      console.log('%c  Tokens Used:', 'color: #657786', (result as any).usage);
       console.log('%c  Finish Reason:', 'color: #657786', result.choices?.[0]?.finish_reason);
       
       const reply = result.choices?.[0]?.message?.content?.trim();

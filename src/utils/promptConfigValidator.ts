@@ -82,8 +82,8 @@ export class PromptConfigValidator {
     if (config.systemPrompt && typeof config.systemPrompt === 'string') {
       sanitized.systemPrompt = config.systemPrompt.trim();
     } else if (config.systemPrompt) {
-      warnings.push('systemPrompt must be a string, ignoring invalid value');
-      delete sanitized.systemPrompt;
+      warnings.push('systemPrompt must be a string, using default');
+      sanitized.systemPrompt = 'You are a helpful assistant';
     }
 
     return {

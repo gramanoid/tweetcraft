@@ -81,6 +81,7 @@ export interface TwitterContext {
   tweetId?: string;
   isReply: boolean;
   threadContext?: ThreadTweet[];
+  images?: string[];
 }
 
 export interface OpenRouterMessage {
