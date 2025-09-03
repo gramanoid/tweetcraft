@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**TweetCraft v0.0.17** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+**TweetCraft v0.0.18** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Key Features
 - **Multi-platform support**: Twitter/X + HypeFury with full feature parity
@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Network resilience**: Offline queuing, adaptive timeouts, race condition prevention
 
 ### Current Version Status
-- Version: 0.0.16
+- Version: 0.0.18
 - Branch: main (recent merges from feature branches)
 - **API Key**: Hardcoded in `src/config/apiConfig.ts` (personal use only - DO NOT COMMIT to public repos)
 
@@ -254,19 +254,19 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
    - Batch API requests when possible
    - Monitor memory usage
 
-## Recent Changes (v0.0.17)
+## Recent Changes (v0.0.18)
 
 ### UI/UX Enhancements  
-- ✅ Section Completion Indicators with checkmarks and progress bar
-- ✅ Compact Mode with 4-column layout and reduced padding (8px)
+- ✅ **Smart Suggestions Scoring** - Visual score badges (1-10) with detailed breakdown
+- ✅ **Dynamic Popup Sizing** - Responsive width/height with manual resize handle
 - ✅ Auto-populate Favorites Tab - Shows top 5 combinations or defaults when empty
 - ✅ Expanded View Mode - Power user mode with transparency, docking, and keyboard navigation
+- ✅ Section Completion Indicators with checkmarks and progress bar
 - ✅ Visual hierarchy with category-based color coding
-- ✅ Popup size memory via localStorage
+- ✅ Popup size memory with ResizeObserver and manual handle
+- ✅ Auto-height adjustment based on content
+- ✅ Responsive breakpoints with proper constraints
 - ✅ Fixed Vision API with updated OpenRouter model IDs
-- ✅ Real-time indicator updates for section completions
-- ✅ Progress bar showing "X of 4 sections complete"
-- ✅ Pulse animation for sections needing selection
 
 ## Known Issues
 

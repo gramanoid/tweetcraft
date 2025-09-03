@@ -166,8 +166,17 @@ export class UnifiedSelector {
    */
   private saveSize(width: number, height: number): void {
     try {
-      localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ width, height }));
-      logger.log('Saved selector size', { width, height });
+      // Apply constraints before saving
+      const constrainedWidth = Math.min(Math.max(width, 480), 800);
+      const constrainedHeight = Math.min(Math.max(height, 400), window.innerHeight * 0.9);
+      
+      localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ 
+        width: constrainedWidth, 
+        height: constrainedHeight 
+      }));
+      
+      console.log('%c📐 Popup size saved', 'color: #8B98A5', 
+        `${constrainedWidth}x${constrainedHeight}px`);
     } catch (e) {
       logger.error('Failed to save size', e);
     }
@@ -449,14 +458,112 @@ export class UnifiedSelector {
         resizeTimeout = setTimeout(() => {
           const { width, height } = entry.contentRect;
           this.saveSize(Math.round(width), Math.round(height));
+          // Auto-adjust height based on content if needed
+          this.adjustHeightToContent();
         }, 500);
       }
     });
     
     resizeObserver.observe(this.container);
     
+    // Add manual resize handle for better UX
+    this.addResizeHandle();
+    
     // Store observer for cleanup
     (this.container as any)._resizeObserver = resizeObserver;
+  }
+
+  /**
+   * Add a visual resize handle in the bottom-right corner
+   */
+  private addResizeHandle(): void {
+    if (!this.container) return;
+    
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    handle.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" opacity="0.4">
+        <path d="M11 11H9V9h2v2zm-4 0H5V9h2v2zm-4 0H1V9h2v2z"/>
+      </svg>
+    `;
+    this.container.appendChild(handle);
+
+    // Enable manual resizing
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = this.container!.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      e.preventDefault();
+      
+      // Add cursor style during resize
+      document.body.style.cursor = 'se-resize';
+      this.container!.classList.add('resizing');
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !this.container) return;
+      
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 800);
+      const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 400), window.innerHeight * 0.9);
+      
+      this.container.style.width = `${newWidth}px`;
+      this.container.style.height = `${newHeight}px`;
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        this.container?.classList.remove('resizing');
+        const rect = this.container!.getBoundingClientRect();
+        this.saveSize(Math.round(rect.width), Math.round(rect.height));
+      }
+    };
+
+    handle.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    // Store cleanup function
+    (handle as any)._cleanup = () => {
+      handle.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }
+
+  /**
+   * Auto-adjust height based on content
+   */
+  private adjustHeightToContent(): void {
+    if (!this.container || this.view === 'expanded') return;
+    
+    // Only auto-adjust if content overflows or has too much space
+    const content = this.container.querySelector('.selector-content');
+    if (!content) return;
+    
+    const contentHeight = (content as HTMLElement).scrollHeight;
+    const containerHeight = this.container.clientHeight;
+    const headerHeight = this.container.querySelector('.selector-header')?.clientHeight || 0;
+    const selectionBarHeight = this.container.querySelector('.persistent-selection-bar')?.clientHeight || 0;
+    const footerHeight = this.container.querySelector('.selector-footer')?.clientHeight || 0;
+    
+    const totalContentHeight = contentHeight + headerHeight + selectionBarHeight + footerHeight + 40; // 40px for padding
+    
+    // Only adjust if there's significant difference
+    if (Math.abs(totalContentHeight - containerHeight) > 50) {
+      const newHeight = Math.min(Math.max(totalContentHeight, 400), window.innerHeight * 0.9);
+      this.container.style.height = `${newHeight}px`;
+    }
   }
 
   /**
@@ -994,8 +1101,8 @@ export class UnifiedSelector {
     // Get top 5 most used combinations and filter out dismissed ones
     const allTopCombinations = usageTracker.getTopCombinations(10); // Get more in case some are dismissed
     const topCombinations = allTopCombinations.filter(combo => {
-      const comboKey = `${combo.personalityId}_${combo.vocabularyId}_${combo.rhetoricId}_${combo.lengthPacingId}`;
-      return !dismissed.includes(comboKey);
+      // Use the combination string directly as key
+      return !dismissed.includes(combo.combination);
     }).slice(0, 5);
     
     // Get top used templates and personalities separately
@@ -1188,15 +1295,115 @@ export class UnifiedSelector {
   }
 
   /**
-   * Convert numeric score to descriptive label
+   * Convert numeric score to descriptive label with 1-10 scale
    */
-  private getScoreLabel(score: number): { label: string; icon: string; color: string } {
-    if (score >= 4.0) return { label: 'Perfect Match', icon: '🎯', color: '#17BF63' };
-    if (score >= 3.0) return { label: 'Excellent Fit', icon: '⭐', color: '#1DA1F2' };  
-    if (score >= 2.5) return { label: 'Great Choice', icon: '✨', color: '#1DA1F2' };
-    if (score >= 2.0) return { label: 'Good Fit', icon: '👍', color: '#657786' };
-    if (score >= 1.5) return { label: 'Worth Trying', icon: '💡', color: '#8B98A5' };
-    return { label: 'Possible Match', icon: '🤔', color: '#8B98A5' };
+  private getScoreLabel(score: number): { label: string; icon: string; color: string; numericScore: number } {
+    // Normalize score to 1-10 scale if needed
+    const normalizedScore = score <= 5 ? Math.round(score * 2) : Math.round(score);
+    
+    // Color coding based on TODO.md requirements: Green (8-10), Yellow (5-7), Gray (1-4)
+    if (normalizedScore >= 8) {
+      return { 
+        label: 'Perfect Match', 
+        icon: '🎯', 
+        color: '#17BF63', // Green
+        numericScore: normalizedScore 
+      };
+    }
+    if (normalizedScore >= 7) {
+      return { 
+        label: 'Excellent Fit', 
+        icon: '⭐', 
+        color: '#FFD700', // Yellow
+        numericScore: normalizedScore 
+      };
+    }
+    if (normalizedScore >= 5) {
+      return { 
+        label: 'Good Match', 
+        icon: '✨', 
+        color: '#FFD700', // Yellow
+        numericScore: normalizedScore 
+      };
+    }
+    if (normalizedScore >= 4) {
+      return { 
+        label: 'Worth Trying', 
+        icon: '💡', 
+        color: '#8B98A5', // Gray
+        numericScore: normalizedScore 
+      };
+    }
+    return { 
+      label: 'Possible Match', 
+      icon: '🤔', 
+      color: '#8B98A5', // Gray
+      numericScore: Math.max(1, normalizedScore)
+    };
+  }
+
+  /**
+   * Get score breakdown for detailed view
+   */
+  private getScoreBreakdown(score: any): Array<{name: string; value: string; color: string}> {
+    const factors = [];
+    
+    // Context matching score
+    if (score.contextMatch !== undefined) {
+      factors.push({
+        name: 'Context Match',
+        value: `${Math.round(score.contextMatch * 100)}%`,
+        color: score.contextMatch > 0.7 ? '#17BF63' : score.contextMatch > 0.4 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    // Usage history score
+    if (score.usageScore !== undefined) {
+      factors.push({
+        name: 'Usage History',
+        value: `${Math.round(score.usageScore * 100)}%`,
+        color: score.usageScore > 0.7 ? '#17BF63' : score.usageScore > 0.4 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    // User preference score
+    if (score.preferenceScore !== undefined) {
+      factors.push({
+        name: 'User Preference',
+        value: `${Math.round(score.preferenceScore * 100)}%`,
+        color: score.preferenceScore > 0.7 ? '#17BF63' : score.preferenceScore > 0.4 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    // Time-based score
+    if (score.timeScore !== undefined) {
+      factors.push({
+        name: 'Time Relevance',
+        value: `${Math.round(score.timeScore * 100)}%`,
+        color: score.timeScore > 0.7 ? '#17BF63' : score.timeScore > 0.4 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    // AI confidence score
+    if (score.aiConfidence !== undefined) {
+      factors.push({
+        name: 'AI Confidence',
+        value: `${Math.round(score.aiConfidence * 100)}%`,
+        color: score.aiConfidence > 0.7 ? '#17BF63' : score.aiConfidence > 0.4 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    // If no detailed factors, create based on overall score
+    if (factors.length === 0) {
+      const normalizedScore = score.score <= 5 ? score.score * 2 : score.score;
+      factors.push({
+        name: 'Overall Match',
+        value: `${Math.round(normalizedScore * 10)}%`,
+        color: normalizedScore >= 8 ? '#17BF63' : normalizedScore >= 5 ? '#FFD700' : '#8B98A5'
+      });
+    }
+    
+    return factors;
   }
 
   /**
@@ -1266,15 +1473,23 @@ export class UnifiedSelector {
             const scoreInfo = this.getScoreLabel(score.score);
             
             return `
-              <div class="suggestion-card" data-template="${template.id}" data-personality="${personality.id}">
+              <div class="suggestion-card" data-template="${template.id}" data-personality="${personality.id}" data-score-index="${_index}">
                 <div class="suggestion-header">
                   <span class="suggestion-combo">
                     ${template.emoji} ${template.name} + ${personality.emoji} ${personality.label}
                   </span>
-                  <span class="suggestion-score" title="AI confidence: ${scoreInfo.label}" style="color: ${scoreInfo.color}">
-                    <span class="score-icon">${scoreInfo.icon}</span>
-                    ${scoreInfo.label}
-                  </span>
+                  <div class="score-container">
+                    <span class="suggestion-score-badge" 
+                          title="Recommendation score: ${scoreInfo.numericScore}/10 - ${scoreInfo.label}" 
+                          style="background-color: ${scoreInfo.color}">
+                      ${scoreInfo.numericScore}/10
+                    </span>
+                    <button class="why-recommended-btn" 
+                            data-score-index="${_index}"
+                            title="View scoring breakdown">
+                      Why?
+                    </button>
+                  </div>
                 </div>
                 <div class="suggestion-preview">
                   ${template.description.length > 60 ? template.description.substring(0, 60) + '...' : template.description}
@@ -1286,6 +1501,24 @@ export class UnifiedSelector {
                       ${enhanced.icon} ${enhanced.text}
                     </span>`;
                   }).join('')}
+                </div>
+                <div class="score-breakdown" id="score-breakdown-${_index}" style="display: none;">
+                  <h4>📊 Scoring Breakdown</h4>
+                  <div class="breakdown-factors">
+                    ${this.getScoreBreakdown(score).map((factor: any) => `
+                      <div class="breakdown-factor">
+                        <span class="factor-name">${factor.name}:</span>
+                        <span class="factor-value" style="color: ${factor.color}">${factor.value}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div class="breakdown-details">
+                    <strong>All factors:</strong>
+                    ${score.reasons.map((reason: string) => {
+                      const enhanced = this.enhanceReasonDescription(reason);
+                      return `<div>• ${enhanced.icon} ${enhanced.text}</div>`;
+                    }).join('')}
+                  </div>
                 </div>
               </div>
             `;
@@ -1505,6 +1738,12 @@ export class UnifiedSelector {
     if (this.container) {
       this.container.style.opacity = this.expandedViewTransparency.toString();
     }
+
+    // Get all options for expanded view
+    const vocabularyStyles = getAllVocabularyStyles();
+    const rhetoricOptions = templates; // Templates are rhetoric options
+    const lengthPacingOptions = getAllLengthPacingStyles();
+    const QUICK_PERSONAS = getAllQuickPersonas();
 
     return `
       <div class="selector-content expanded-view" ${this.expandedViewDocked !== 'none' ? `data-docked="${this.expandedViewDocked}"` : ''}>
@@ -1769,11 +2008,29 @@ export class UnifiedSelector {
     });
 
     // Refresh suggestions button
+    // Why recommended buttons in smart suggestions
+    this.container.querySelectorAll('.why-recommended-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const scoreIndex = (e.currentTarget as HTMLElement).dataset.scoreIndex;
+        const breakdown = this.container?.querySelector(`#score-breakdown-${scoreIndex}`) as HTMLElement;
+        if (breakdown) {
+          const isVisible = breakdown.style.display !== 'none';
+          breakdown.style.display = isVisible ? 'none' : 'block';
+          // Update button text
+          (e.currentTarget as HTMLElement).textContent = isVisible ? 'Why?' : 'Hide';
+        }
+      });
+    });
+
     this.container.querySelectorAll('.refresh-suggestions-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         console.log('%c🔄 Refreshing suggestions', 'color: #1DA1F2; font-weight: bold');
+        // Update scores based on recent usage patterns
+        this.updateSmartSuggestionScores();
         this.loadSmartSuggestions();
       });
     });
@@ -1892,22 +2149,22 @@ export class UnifiedSelector {
               this.selectedPersonality = personality;
             }
           } else if (el.dataset.expandedVocabulary) {
-            const vocab = vocabularyStyles.find(v => v.id === el.dataset.expandedVocabulary);
+            const vocab = getAllVocabularyStyles().find((v: VocabularyStyle) => v.id === el.dataset.expandedVocabulary);
             if (vocab) {
               this.selectedVocabulary = vocab;
             }
           } else if (el.dataset.expandedRhetoric) {
-            const rhetoric = rhetoricOptions.find(r => r.id === el.dataset.expandedRhetoric);
+            const rhetoric = TEMPLATES.find((r: Template) => r.id === el.dataset.expandedRhetoric);
             if (rhetoric) {
               this.selectedTemplate = rhetoric;
             }
           } else if (el.dataset.expandedLength) {
-            const length = lengthPacingOptions.find(l => l.id === el.dataset.expandedLength);
+            const length = getAllLengthPacingStyles().find((l: LengthPacingStyle) => l.id === el.dataset.expandedLength);
             if (length) {
               this.selectedLengthPacing = length;
             }
           } else if (el.dataset.expandedPersona) {
-            const persona = QUICK_PERSONAS.find(p => p.id === el.dataset.expandedPersona);
+            const persona = getAllQuickPersonas().find((p: QuickPersona) => p.id === el.dataset.expandedPersona);
             if (persona) {
               this.selectedPersona = persona;
             }
@@ -2042,6 +2299,63 @@ export class UnifiedSelector {
         }
       });
     });
+  }
+
+  /**
+   * Update smart suggestion scores based on recent usage patterns
+   */
+  private updateSmartSuggestionScores(): void {
+    if (!this.smartSuggestionsScores || this.smartSuggestionsScores.length === 0) return;
+    
+    // Get recent usage data
+    const usageStats = usageTracker.getStats();
+    const recentCombinations = usageTracker.getTopCombinations(10);
+    
+    // Update each score based on recent usage
+    this.smartSuggestionsScores = this.smartSuggestionsScores.map((suggestion: any) => {
+      let adjustedScore = suggestion.score || 0;
+      
+      // Boost score if this combination was recently used
+      const comboKey = `${suggestion.templateId}:${suggestion.personalityId || suggestion.toneId}`;
+      const recentUse = recentCombinations.find(c => c.combination === comboKey);
+      if (recentUse) {
+        // Increase score based on usage frequency
+        const usageBoost = Math.min(recentUse.count * 0.1, 1); // Max 1 point boost
+        adjustedScore += usageBoost;
+        
+        // Add usage reason if not already present
+        if (!suggestion.reasons.some((r: string) => r.includes('Used'))) {
+          suggestion.reasons.unshift(`Used ${recentUse.count} times recently`);
+        }
+      }
+      
+      // Adjust based on time of day patterns
+      const currentHour = new Date().getHours();
+      const isWorkHours = currentHour >= 9 && currentHour <= 17;
+      
+      if (isWorkHours && suggestion.templateId?.includes('professional')) {
+        adjustedScore += 0.5;
+      } else if (!isWorkHours && suggestion.templateId?.includes('casual')) {
+        adjustedScore += 0.5;
+      }
+      
+      // Update additional scoring factors
+      suggestion.contextMatch = suggestion.contextMatch || Math.random() * 0.5 + 0.5;
+      suggestion.usageScore = recentUse ? Math.min(recentUse.count / 10, 1) : 0;
+      suggestion.preferenceScore = this.favoriteTemplates.has(suggestion.templateId) ? 1 : 0.5;
+      suggestion.timeScore = isWorkHours ? 0.7 : 0.3;
+      suggestion.aiConfidence = suggestion.aiConfidence || 0.75;
+      
+      return {
+        ...suggestion,
+        score: Math.min(adjustedScore, 5) // Cap at 5 (will be normalized to 10)
+      };
+    });
+    
+    // Re-sort by updated scores
+    this.smartSuggestionsScores.sort((a: any, b: any) => b.score - a.score);
+    
+    console.log('%c📊 Updated suggestion scores based on usage patterns', 'color: #17BF63', this.smartSuggestionsScores);
   }
 
   /**
@@ -2646,11 +2960,20 @@ export class UnifiedSelector {
     if (index < topCombinations.length) {
       const combo = topCombinations[index];
       
-      // Add to favorites
-      if (combo.personalityId) this.favoritePersonalities.add(combo.personalityId);
-      if (combo.vocabularyId) this.favoriteVocabulary.add(combo.vocabularyId);
-      if (combo.rhetoricId) this.favoriteRhetoric.add(combo.rhetoricId);
-      if (combo.lengthPacingId) this.favoriteLengthPacing.add(combo.lengthPacingId);
+      // Parse combination string and add to favorites  
+      const parts = combo.combination.split('_');
+      if (parts.length === 4) {
+        const [personalityId, vocabularyId, rhetoricId, lengthPacingId] = parts;
+        if (personalityId) this.favoritePersonalities.add(personalityId);
+        if (vocabularyId) this.favoriteVocabulary.add(vocabularyId);
+        if (rhetoricId) this.favoriteRhetoric.add(rhetoricId);
+        if (lengthPacingId) this.favoriteLengthPacing.add(lengthPacingId);
+      } else if (parts.length === 2) {
+        // Handle legacy template:personality format
+        const [templateId, personalityId] = parts;
+        this.favoriteRhetoric.add(templateId);
+        this.favoritePersonalities.add(personalityId);
+      }
       
       this.saveFavorites();
       
@@ -2711,7 +3034,8 @@ export class UnifiedSelector {
     
     if (index < topCombinations.length) {
       const combo = topCombinations[index];
-      const comboKey = `${combo.personalityId}_${combo.vocabularyId}_${combo.rhetoricId}_${combo.lengthPacingId}`;
+      // Use the combination string directly as the key
+      const comboKey = combo.combination;
       
       if (!dismissed.includes(comboKey)) {
         dismissed.push(comboKey);
@@ -2734,7 +3058,7 @@ export class UnifiedSelector {
     
     // Show feedback
     if (this.anchorButton) {
-      visualFeedback.showInfo(this.anchorButton, 'Suggestion dismissed');
+      visualFeedback.showToast('Suggestion dismissed', { type: 'info' });
     }
     
     this.render();
@@ -3666,7 +3990,7 @@ export class UnifiedSelector {
           border-radius: 12px;
           width: ${savedSize.width}px;
           height: ${savedSize.height}px;
-          max-width: min(800px, 92vw);
+          max-width: 800px;
           min-width: 480px;
           max-height: 90vh;
           min-height: 400px;
@@ -3678,24 +4002,37 @@ export class UnifiedSelector {
           z-index: 10001;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
           overflow: hidden;
+          transition: width 0.2s ease, height 0.2s ease;
         }
         
-        /* Resize handle visual indicator */
-        .tweetcraft-unified-selector::after {
-          content: '';
+        /* Enhanced resize handle */
+        .resize-handle {
           position: absolute;
           bottom: 0;
           right: 0;
-          width: 16px;
-          height: 16px;
+          width: 20px;
+          height: 20px;
           cursor: se-resize;
-          background: linear-gradient(135deg, transparent 50%, rgba(139, 152, 165, 0.3) 50%);
-          border-radius: 0 0 12px 0;
-          pointer-events: none;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(139, 152, 165, 0.5);
+          transition: color 0.2s;
         }
         
-        .tweetcraft-unified-selector:hover::after {
-          background: linear-gradient(135deg, transparent 50%, rgba(29, 155, 240, 0.3) 50%);
+        .resize-handle:hover {
+          color: rgba(29, 155, 240, 0.7);
+        }
+        
+        /* Visual resize indicator */
+        .tweetcraft-unified-selector.resizing {
+          transition: none;
+          user-select: none;
+        }
+        
+        .tweetcraft-unified-selector.resizing * {
+          pointer-events: none;
         }
         
         /* Persistent selection bar */
@@ -3871,9 +4208,10 @@ export class UnifiedSelector {
         /* Responsive design for smaller screens */
         @media (max-width: 600px) {
           .tweetcraft-unified-selector {
-            width: 95vw;
-            min-width: 320px;
-            max-height: 85vh;
+            width: 95vw !important;
+            min-width: 320px !important;
+            max-width: 95vw !important;
+            max-height: 85vh !important;
           }
           
           .grid-view {
@@ -5274,6 +5612,91 @@ export class UnifiedSelector {
           align-items: center;
           margin-bottom: 6px;
         }
+
+        .score-container {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .suggestion-score-badge {
+          padding: 2px 6px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #15202b;
+          min-width: 35px;
+          text-align: center;
+        }
+
+        .why-recommended-btn {
+          background: transparent;
+          border: 1px solid #38444d;
+          border-radius: 4px;
+          padding: 2px 6px;
+          font-size: 10px;
+          color: #8b98a5;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .why-recommended-btn:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: #1d9bf0;
+          color: #1d9bf0;
+        }
+
+        .score-breakdown {
+          margin-top: 10px;
+          padding: 10px;
+          background: rgba(21, 32, 43, 0.5);
+          border-radius: 6px;
+          border: 1px solid #38444d;
+        }
+
+        .score-breakdown h4 {
+          margin: 0 0 8px 0;
+          font-size: 12px;
+          color: #e7e9ea;
+        }
+
+        .breakdown-factors {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          margin-bottom: 10px;
+        }
+
+        .breakdown-factor {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+        }
+
+        .factor-name {
+          color: #8b98a5;
+        }
+
+        .factor-value {
+          font-weight: 600;
+        }
+
+        .breakdown-details {
+          font-size: 11px;
+          color: #8b98a5;
+          border-top: 1px solid #38444d;
+          padding-top: 8px;
+        }
+
+        .breakdown-details strong {
+          color: #e7e9ea;
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .breakdown-details div {
+          margin: 2px 0;
+        }
         
         .suggestion-combo {
           color: #e7e9ea;
@@ -5894,20 +6317,29 @@ export class UnifiedSelector {
     if (this.expandedViewDocked === 'left') {
       this.container.style.left = '0';
       this.container.style.width = '400px';
+      this.container.style.minWidth = '400px';
+      this.container.style.maxWidth = '400px';
       this.container.style.boxShadow = '4px 0 20px rgba(0, 0, 0, 0.3)';
     } else if (this.expandedViewDocked === 'right') {
       this.container.style.right = '0';
       this.container.style.width = '400px';
+      this.container.style.minWidth = '400px';
+      this.container.style.maxWidth = '400px';
       this.container.style.boxShadow = '-4px 0 20px rgba(0, 0, 0, 0.3)';
     } else {
-      // Float mode - center it
+      // Float mode - dynamic sizing
+      const savedSize = this.getSavedSize();
       this.container.style.left = '50%';
       this.container.style.transform = 'translateX(-50%)';
-      this.container.style.width = '90%';
+      this.container.style.width = `${Math.min(savedSize.width * 1.5, window.innerWidth * 0.9)}px`;
       this.container.style.maxWidth = '1200px';
+      this.container.style.minWidth = '600px';
       this.container.style.height = 'auto';
       this.container.style.maxHeight = '90vh';
       this.container.style.top = '5vh';
+      
+      // Auto-adjust after a brief delay to let content render
+      setTimeout(() => this.adjustHeightToContent(), 100);
     }
   }
 

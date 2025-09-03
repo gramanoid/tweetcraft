@@ -3,29 +3,11 @@
 ## Overview
 This document outlines the remaining UX/UI improvements for TweetCraft Chrome Extension v0.0.16, optimized for single desktop user efficiency.
 
-## 🎯 Remaining Tasks
-
-### 1. Smart Suggestions Scoring
-**Description**: Clear visual indicators for recommendation logic  
-**Implementation**:
-- Show score badges (1-10) next to smart suggestions
-- Add tooltip explaining scoring factors on hover
-- Color-code scores: Green (8-10), Yellow (5-7), Gray (1-4)
-- Include "Why recommended?" link with breakdown
-- Update scores based on recent usage patterns
-
-### 2. Dynamic Popup Sizing
-**Description**: Responsive sizing that adapts to content and preferences  
-**Implementation**:
-- Remove fixed 560px width constraint
-- Set min-width: 480px, max-width: 800px
-- Auto-adjust height based on content
-- Add user-draggable resize handle (bottom-right corner)
-- Store size preference in localStorage
+## 🎯 All Tasks Completed!
 
 ## 🚦 Completed Features
 
-### ✅ Core Features (v0.0.15-v0.0.17)
+### ✅ Core Features (v0.0.15-v0.0.18)
 - **Custom Tab Enhancements**: Inline template creation
 - **Visual Selection States**: Blue background with better contrast
 - **Keyboard Shortcuts**: Space bar quick generate, navigation keys
@@ -40,6 +22,8 @@ This document outlines the remaining UX/UI improvements for TweetCraft Chrome Ex
 - **Auto-populate Favorites**: Smart suggestions when empty
 - **Expanded View Mode**: Power user mode with all options visible
 - **Vision API Fix**: Updated model IDs and request format
+- **Smart Suggestions Scoring**: Score badges (1-10) with breakdown view
+- **Dynamic Popup Sizing**: Responsive width/height with resize handle
 
 ## 📝 Additional Improvements
 

@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.17-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.18-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,16 +23,18 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.17 - Latest: Auto-Favorites & Expanded View)**
+### ✅ **Currently Working (v0.0.18 - Latest: Smart Scoring & Dynamic Sizing)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
 
-#### 🎨 **NEW: Visual Hierarchy & Enhanced UX (v0.0.17)**
+#### 🎨 **NEW: Visual Hierarchy & Enhanced UX (v0.0.18)**
 - **Section Completion Indicators** - Visual checkmarks (✓) show completed sections with progress bar
 - **Compact Mode Density** - 4-column layout with reduced padding (8px) for maximum visibility
 - **Auto-populate Favorites** - Shows top 5 combinations when empty with Accept/Dismiss buttons
+- **Smart Suggestions Scoring** - Visual score badges (1-10) with detailed breakdown view
+- **Dynamic Popup Sizing** - Responsive width/height with manual resize handle
 - **Expanded View Mode** - Power user mode showing all options with transparency and docking
 - **Category Color Coding** - Visual distinction with 4 colors for rhetoric, 5 for personalities
 - **Frequency-based Prominence** - Popular options scale 1.03x with bolder fonts
