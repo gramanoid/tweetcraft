@@ -28,7 +28,7 @@
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
-  - ✅ Unified 5-tab selector (Templates, Smart Suggestions, Favorites, Image Gen, Custom)
+  - ✅ Unified 6-tab selector (Personas, All, Smart, Favorites, Image Gen, Custom)
   - ✅ All keyboard shortcuts (Alt+1-9 for tones, Alt+Q for quick generate)
   - ✅ AI Rewrite functionality
   - ✅ Loading states with "Generating..." text
@@ -53,7 +53,7 @@
 - **✨ AI Rewrite** - Transform your draft tweets with AI while maintaining core message
 - **🎯 AI Reply Generation** - 15+ preset templates, 12 tones, custom templates with Style and Tone prompts
 - **🎨 Dark Mode UI** - Beautiful dark theme matching Twitter/X's interface
-- **📊 Custom Templates** - Create your own templates with separate Style and Tone prompts
+- **📊 Custom Templates** - Inline creation system with Style, Tone, and Length fields (unlimited characters)
 - **⚙️ Multi-API Management** - Secure key storage via OpenRouter
 - **🧵 Context Processing** - Thread context extraction (up to 4 tweets)
 - **🚫 Race Condition Prevention** - AsyncOperationManager with AbortController coordination
@@ -85,7 +85,7 @@ A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md)
 - **Smart Suggestions** - AI analyzes context and scores template/tone combinations
 - **Image Generation** - Search or generate AI images with styles (realistic, cartoon, artistic, sketch)
 - **Favorites System** - Star your favorite templates and tones for quick access
-- **Enhanced Custom Templates** - Separate Style and Tone prompts with no character limits
+- **Enhanced Custom Templates** - Inline creation with Style, Tone, and Length fields, full management system
 
 #### 📝 Template + Tone System
 - **Four-part selection process** - Personality → Vocabulary → Rhetoric → Length & Pacing
@@ -94,7 +94,7 @@ A comprehensive UX/UI improvement plan has been documented in [TODO.md](TODO.md)
 - **15 rhetoric approaches** - Agree & Build, Steel Man, Devil's Advocate, Hot Take, Ratio Bait, and more
 - **6 length & pacing options** - The Drive-By, The One-Two Punch, The Conversational Clause, and more
 - **10 quick personas** - Pre-configured combinations like The Debate Lord, The Chaos Muppet, The Edgy Philosopher
-- **Custom templates** - Create your own with separate Style and Tone prompts
+- **Custom templates** - Comprehensive inline creation and management with Style, Tone, and Length fields
 - **Dark mode UI** - Beautiful interface matching Twitter/X's dark theme
 - **Seamless flow** - Popup disappears immediately when generating starts
 
@@ -315,6 +315,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.11** - Comprehensive AI reply assistant with 38+ features including Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
+**TweetCraft v0.0.14** - Comprehensive AI reply assistant with 40+ features including enhanced Custom Tab system, Arsenal Mode, advanced keyboard shortcuts, and multi-stage loading states 🚀
 
 Made with ❤️ by the TweetCraft team

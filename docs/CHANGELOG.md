@@ -5,6 +5,40 @@ All notable changes to TweetCraft will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.14+] - 2025-09-03
+
+### 🚀 Major - Custom Tab Complete Overhaul
+- **Inline Template Creation System**: Completely replaced empty state with comprehensive interface
+  - Three-field creation: Style, Tone, and Length instructions (unlimited characters)
+  - Collapsible form interface with toggle button (➕/➖)
+  - Auto-focus and form clearing after successful save
+  - Comprehensive validation with helpful error messages
+- **Advanced Template Management**:
+  - Template cards with preview snippets showing Style/Tone/Length
+  - Action buttons: ✏️ Edit, 🗑️ Delete, 👁️ Preview, ⭐ Favorite
+  - Detailed preview dialog with combined prompt view
+  - Inline editing - populate form fields from existing templates
+- **Import/Export System**:
+  - Export all templates to JSON with metadata
+  - Import templates with conflict resolution
+  - Bulk operations: Export All, Import, Reset All
+  - Template sharing capabilities
+
+### ✅ Fixed
+- Custom templates now immediately appear in "Saved Templates" section after creation
+- Toggle button styling changed from blue to white with subtle transparency
+- Template saving and UI refresh issues resolved
+
+### 🛠️ Technical
+- Extended Template interface with `stylePrompt`, `tonePrompt`, `lengthPrompt` fields
+- 300+ lines of comprehensive CSS styling matching Twitter/X dark theme
+- Enhanced event handling for all template management actions
+- Chrome storage integration with message passing pattern
+- Type-safe implementation throughout
+
+### 🎯 Resolves
+- **TODO.md Issue #1**: "Custom Tab Has Poor UX" - completely resolved and exceeded requirements
+
 ## [0.0.11] - 2025-09-01
 
 ### Added

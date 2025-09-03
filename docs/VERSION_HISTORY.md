@@ -6,6 +6,48 @@ This document tracks all version releases, enhancements, and changes made to Twe
 
 ---
 
+## 🚀 **v0.0.14+** - Custom Tab Overhaul Release
+
+**Release Date**: September 3, 2025  
+**Focus**: Complete Custom Tab UX transformation with advanced template management
+
+### ✅ **Major Features Completed**
+
+#### Custom Tab Complete Overhaul
+- **Inline Template Creation**: Three-field system (Style + Tone + Length) with unlimited characters
+- **Advanced Template Management**: Edit, delete, preview, favorite capabilities for all saved templates
+- **Template Cards UI**: Visual cards with preview snippets and action buttons
+- **Import/Export System**: Full template sharing and backup functionality
+- **Bulk Operations**: Export all, import, and reset capabilities
+- **Enhanced Preview Dialog**: Detailed template breakdown with combined prompt view
+
+#### User Experience Improvements
+- **Collapsible Interface**: Expandable creation form with ➕/➖ toggle button
+- **Immediate Updates**: Templates appear instantly in list after creation
+- **Intuitive Management**: Inline editing, one-click actions, smart validation
+- **Dark Theme Integration**: Matches Twitter/X interface seamlessly
+- **Error Handling**: Comprehensive validation with helpful user feedback
+
+#### Technical Enhancements  
+- **Extended Template Interface**: Added stylePrompt, tonePrompt, lengthPrompt fields
+- **Type-Safe Implementation**: Full TypeScript coverage throughout
+- **Chrome Storage Integration**: Secure persistence with message passing pattern
+- **Event System**: Comprehensive handling for all user interactions
+- **CSS Framework**: 300+ lines of responsive styling
+
+### 🎯 **Achievement**
+- **TODO.md Issue #1 Resolved**: "Custom Tab Has Poor UX" - exceeded all requirements
+- **User Feedback Integration**: Implemented immediate template visibility and white toggle button
+- **Architecture Foundation**: Scalable system for future template enhancements
+
+### 📈 **Impact Metrics**
+- **UI Interactions**: Reduced from modal-based to inline (3 clicks → 0 clicks)
+- **Template Fields**: Expanded from 2 to 3 fields with unlimited character support
+- **Management Actions**: Added 4 new actions per template (edit/delete/preview/favorite)
+- **Code Quality**: 100% TypeScript coverage, comprehensive error handling
+
+---
+
 ## 🎨 **v0.0.11** - Unified AI Interface Release
 
 **Release Date**: September 2024  

@@ -248,9 +248,11 @@ if (isHypeFury) {
   - Step 3: 15 rhetoric approaches (Agree & Build, Devil's Advocate, Hot Take, etc.)
   - Step 4: 6 length & pacing options (Drive-By, One-Two Punch, Mini-Thread, etc.)
 - **Custom Tab**: 
-  - Create custom template button (currently empty state)
-  - Planned: Separate Style and Tone prompt fields
-  - Planned: Save and manage custom templates
+  - **Inline template creation** with collapsible form interface
+  - **Three-field system**: Style, Tone, and Length instructions (unlimited characters)
+  - **Comprehensive template management**: Edit, delete, preview, and favorite saved templates
+  - **Advanced features**: Import/export templates, bulk operations, template sharing
+  - **Enhanced UI**: Template cards with preview snippets, action buttons, search functionality
 - **Popup Improvements**:
   - Stays anchored to button during scroll
   - Disappears immediately when generating starts
@@ -291,7 +293,7 @@ if (isHypeFury) {
 - **Quick Personas**: 10 pre-configured combinations for one-click selection
 - **Smart Suggestions**: AI scores and recommends best combinations
 - **Centralized Configuration**: All options defined in config files
-- **Custom templates**: Empty state with "Create Custom Template" button
+- **Custom templates**: Full inline creation and management system with Style/Tone/Length fields
 - **Dark mode UI**: Matches Twitter/X interface
 - **Seamless flow**: Selections saved between popup opens
 
