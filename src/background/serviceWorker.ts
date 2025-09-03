@@ -1060,6 +1060,83 @@ class SmartReplyServiceWorker {
     return cleanupReply(reply);
   }
 
+  /**
+   * Convert image URLs to base64 data URLs for OpenRouter compatibility
+   * Twitter images require authentication, so we fetch them locally first
+   */
+  private async convertImagesToBase64(messages: any[]): Promise<any[]> {
+    const processedMessages = [];
+    
+    for (const message of messages) {
+      if (message.content && Array.isArray(message.content)) {
+        const processedContent = [];
+        
+        for (const item of message.content) {
+          if (item.type === 'image_url' && item.image_url?.url) {
+            try {
+              // Check if already base64
+              if (item.image_url.url.startsWith('data:')) {
+                processedContent.push(item);
+                continue;
+              }
+              
+              // Fetch the image
+              const response = await fetch(item.image_url.url);
+              if (!response.ok) {
+                console.error('Failed to fetch image:', item.image_url.url);
+                // Skip this image if we can't fetch it
+                continue;
+              }
+              
+              // Convert to blob then to base64
+              const blob = await response.blob();
+              const reader = new FileReader();
+              const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onloadend = () => {
+                  if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                  } else {
+                    reject(new Error('Failed to convert image to base64'));
+                  }
+                };
+                reader.onerror = reject;
+              });
+              
+              reader.readAsDataURL(blob);
+              const base64Data = await base64Promise;
+              
+              // Replace URL with base64 data
+              processedContent.push({
+                type: 'image_url',
+                image_url: {
+                  url: base64Data
+                }
+              });
+              
+              console.log('%c  ✅ Converted image to base64', 'color: #17BF63');
+            } catch (error) {
+              console.error('Error converting image:', error);
+              // Skip this image if conversion fails
+            }
+          } else {
+            // Keep non-image content as-is
+            processedContent.push(item);
+          }
+        }
+        
+        processedMessages.push({
+          ...message,
+          content: processedContent
+        });
+      } else {
+        // Keep message as-is if it doesn't have the expected structure
+        processedMessages.push(message);
+      }
+    }
+    
+    return processedMessages;
+  }
+
   // Handle image analysis requests from vision service
   private async handleAnalyzeImages(
     message: any,
@@ -1080,6 +1157,9 @@ class SmartReplyServiceWorker {
         return;
       }
       
+      // Convert image URLs to base64 data URLs for OpenRouter
+      const processedMessages = await this.convertImagesToBase64(messages);
+      
       // Make the vision API call
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -1091,7 +1171,7 @@ class SmartReplyServiceWorker {
         },
         body: JSON.stringify({
           model: modelId,
-          messages: messages,
+          messages: processedMessages,
           max_tokens: 500,
           temperature: 0.3,
           stream: false
