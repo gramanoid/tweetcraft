@@ -333,6 +333,76 @@ class SmartReplyContentScript {
   /**
    * Clean up duplicate buttons in the DOM
    */
+  /**
+   * Convert image URLs to base64 data URLs
+   * This runs in the content script where we have access to Twitter's authentication
+   */
+  private async convertImagesToBase64(imageUrls: string[]): Promise<string[]> {
+    const base64Images: string[] = [];
+    
+    for (const url of imageUrls) {
+      try {
+        // Skip if already base64
+        if (url.startsWith('data:')) {
+          base64Images.push(url);
+          continue;
+        }
+        
+        // Fetch the image using the page's credentials
+        const response = await fetch(url, {
+          credentials: 'include', // Include cookies for Twitter auth
+          mode: 'cors'
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to fetch image:', url, response.status);
+          continue;
+        }
+        
+        // Convert to blob then to base64
+        const blob = await response.blob();
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+              resolve(reader.result);
+            } else {
+              reject(new Error('Failed to convert image to base64'));
+            }
+          };
+          reader.onerror = reject;
+        });
+        
+        reader.readAsDataURL(blob);
+        const base64Data = await base64Promise;
+        base64Images.push(base64Data);
+        
+        console.log('%c  ✅ Converted image to base64', 'color: #17BF63');
+      } catch (error) {
+        console.error('Error converting image to base64:', url, error);
+        // Try without credentials as fallback
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const blob = await response.blob();
+            const reader = new FileReader();
+            const base64Data = await new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            base64Images.push(base64Data);
+            console.log('%c  ✅ Converted image to base64 (no credentials)', 'color: #17BF63');
+          }
+        } catch (fallbackError) {
+          console.error('Fallback fetch also failed:', fallbackError);
+        }
+      }
+    }
+    
+    return base64Images;
+  }
+
   private cleanupDuplicateButtons(): void {
     const allButtons = document.querySelectorAll('.smart-reply-container');
     
@@ -1732,15 +1802,22 @@ class SmartReplyContentScript {
             const { imageUrls, needsVision } = ContextExtractor.prepareForVisionAnalysis(fullContext);
             
             if (needsVision && imageUrls.length > 0) {
-              // Analyze images with vision service
-              const visionResult = await visionService.analyzeImages(imageUrls, context.tweetText);
+              // Convert images to base64 in content script where we have Twitter auth
+              const base64Images = await this.convertImagesToBase64(imageUrls);
               
-              if (visionResult.success) {
-                // Format the vision context for inclusion in prompt
-                visualContext = VisionService.formatVisionContext(visionResult);
-                console.log('%c✅ Visual context added to prompt', 'color: #17BF63');
+              if (base64Images.length > 0) {
+                // Analyze images with vision service (now with base64 data)
+                const visionResult = await visionService.analyzeImages(base64Images, context.tweetText);
+                
+                if (visionResult.success) {
+                  // Format the vision context for inclusion in prompt
+                  visualContext = VisionService.formatVisionContext(visionResult);
+                  console.log('%c✅ Visual context added to prompt', 'color: #17BF63');
+                } else {
+                  console.warn('Vision analysis failed:', visionResult.error);
+                }
               } else {
-                console.warn('Vision analysis failed:', visionResult.error);
+                console.warn('Failed to convert images to base64');
               }
             }
           }
