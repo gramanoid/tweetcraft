@@ -125,22 +125,9 @@ export class PromptArchitecture {
     }
     
     // 2. ALL TAB
-    else if (config.tabType === 'all' && config.allTabConfig) {
+    else if (config.tabType === 'all') {
       // [EXTENSION POPUP SYSTEM-WIDE SYSTEM PROMPT] + [4-PART SELECTION]
-      systemPrompt = this.MASTER_SYSTEM_PROMPT;
-      
-      // Add user's system-wide prompt if exists
-      if (config.systemPrompt && config.systemPrompt.trim()) {
-        systemPrompt += ` ${config.systemPrompt}`;
-      }
-      
-      // Add 4-part instructions
-      systemPrompt += this.buildPersonalityInstructions(
-        config.allTabConfig.personality,
-        config.allTabConfig.vocabulary,
-        config.allTabConfig.rhetoric,
-        config.allTabConfig.lengthPacing
-      );
+      systemPrompt = this.buildAllTabSystemPrompt(config, 'all');
     }
     
     // 3. SMART TAB
@@ -150,21 +137,7 @@ export class PromptArchitecture {
     // The allTabConfig must be provided by the UI when Smart tab is selected.
     else if (config.tabType === 'smart') {
       // Smart suggestions are sourced from ALL tab templates
-      // Follow the same structure as ALL tab
-      systemPrompt = this.MASTER_SYSTEM_PROMPT;
-      
-      if (config.systemPrompt && config.systemPrompt.trim()) {
-        systemPrompt += ` ${config.systemPrompt}`;
-      }
-      
-      if (config.allTabConfig) {
-        systemPrompt += this.buildPersonalityInstructions(
-          config.allTabConfig.personality,
-          config.allTabConfig.vocabulary,
-          config.allTabConfig.rhetoric,
-          config.allTabConfig.lengthPacing
-        );
-      }
+      systemPrompt = this.buildAllTabSystemPrompt(config, 'smart');
     }
     
     // 4. FAVORITES TAB
@@ -174,20 +147,7 @@ export class PromptArchitecture {
     // with personality, vocabulary, rhetoric, and lengthPacing values.
     else if (config.tabType === 'favorites') {
       // Favorites are sourced from ALL tab templates
-      systemPrompt = this.MASTER_SYSTEM_PROMPT;
-      
-      if (config.systemPrompt && config.systemPrompt.trim()) {
-        systemPrompt += ` ${config.systemPrompt}`;
-      }
-      
-      if (config.allTabConfig) {
-        systemPrompt += this.buildPersonalityInstructions(
-          config.allTabConfig.personality,
-          config.allTabConfig.vocabulary,
-          config.allTabConfig.rhetoric,
-          config.allTabConfig.lengthPacing
-        );
-      }
+      systemPrompt = this.buildAllTabSystemPrompt(config, 'favorites');
     }
     
     // 5. CUSTOM TAB
@@ -207,6 +167,24 @@ export class PromptArchitecture {
         config.customConfig.length
       );
     }
+    
+    // 6. CUSTOM TAB WITHOUT CONFIG (edge case)
+    else if (config.tabType === 'custom' && !config.customConfig) {
+      // Handle custom tab with missing configuration
+      console.error('%c❌ CUSTOM TAB CONFIG ERROR', 'color: #DC3545; font-weight: bold', 
+                   'customConfig is required for Custom tab but was not provided');
+      throw new Error('CUSTOM tab requires customConfig with style, tone, and length fields. Please provide custom template configuration.');
+    }
+    
+    // DEFAULT: Invalid or unsupported tab type
+    else if (config.tabType !== 'image_gen') {
+      // Only throw for non-image_gen invalid types (image_gen returns empty string above)
+      const validTabs = ['personas', 'all', 'smart', 'favorites', 'custom', 'image_gen'];
+      console.error('%c❌ INVALID TAB TYPE', 'color: #DC3545; font-weight: bold', 
+                   `Tab type "${config.tabType}" is not supported`);
+      console.error('%c  Valid tab types:', 'color: #657786', validTabs.join(', '));
+      throw new Error(`Invalid tab type "${config.tabType}". Valid types are: ${validTabs.join(', ')}. Please check your tab selection.`);
+    }
 
     // Add context awareness instruction if applicable
     if (config.contextMode && config.contextMode !== 'none' && config.context?.tweetText) {
@@ -219,6 +197,47 @@ export class PromptArchitecture {
     // Add anti-disclosure instruction
     systemPrompt += this.ANTI_DISCLOSURE;
 
+    return systemPrompt;
+  }
+
+  /**
+   * Build system prompt for tabs using ALL tab structure (ALL, SMART, FAVORITES)
+   * This helper reduces code duplication for the three tabs that share the same prompt structure
+   */
+  private static buildAllTabSystemPrompt(
+    config: PromptConfiguration,
+    tabName: string
+  ): string {
+    // Validate required configuration
+    if (!config.allTabConfig) {
+      console.error(`%c❌ ${tabName.toUpperCase()} TAB CONFIG ERROR`, 'color: #DC3545; font-weight: bold', 
+                   'allTabConfig is required but was not provided');
+      console.error('%c  Expected structure:', 'color: #657786', 
+                   '{ personality, vocabulary, rhetoric, lengthPacing }');
+      
+      const errorMessage = tabName === 'smart' 
+        ? 'SMART tab requires allTabConfig with personality, vocabulary, rhetoric, and lengthPacing. Please select from the ALL tab or use a different tab.'
+        : tabName === 'favorites'
+        ? 'FAVORITES tab requires allTabConfig from a saved favorite selection. The favorite data may be corrupted. Please select a different favorite or use the ALL tab.'
+        : 'ALL tab requires allTabConfig with personality, vocabulary, rhetoric, and lengthPacing.';
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Build the system prompt
+    let systemPrompt = this.MASTER_SYSTEM_PROMPT;
+    
+    if (config.systemPrompt && config.systemPrompt.trim()) {
+      systemPrompt += ` ${config.systemPrompt}`;
+    }
+    
+    systemPrompt += this.buildPersonalityInstructions(
+      config.allTabConfig.personality,
+      config.allTabConfig.vocabulary,
+      config.allTabConfig.rhetoric,
+      config.allTabConfig.lengthPacing
+    );
+    
     return systemPrompt;
   }
 
@@ -338,6 +357,20 @@ export class PromptArchitecture {
       }
     } else {
       userPrompt = 'Write an engaging tweet.';
+    }
+
+    // Add image context if available
+    if (config.context?.images && config.context.images.length > 0) {
+      userPrompt += '\n\n[Visual Context] The tweet contains the following images:';
+      config.context.images.forEach((imageUrl, index) => {
+        // Include image URL for vision models to process
+        userPrompt += `\n- Image ${index + 1}: ${imageUrl}`;
+      });
+      userPrompt += '\n\nConsider the visual content when crafting your reply.';
+      
+      // Log image context inclusion
+      console.log('%c🖼️ IMAGE CONTEXT INCLUDED', 'color: #17BF63; font-weight: bold', 
+                  `${config.context.images.length} image(s) added to prompt`);
     }
 
     return userPrompt;

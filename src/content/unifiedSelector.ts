@@ -1664,19 +1664,19 @@ export class UnifiedSelector {
       ...(this.view === 'smart' && {
         tabType: 'smart' as const,
         allTabConfig: {
-          personality: this.selectedTone?.id || '',
-          vocabulary: '',
-          rhetoric: this.selectedTemplate?.id || '',
-          lengthPacing: ''
+          personality: this.selectedPersonality?.id || this.selectedTone?.id || '',
+          vocabulary: this.selectedVocabulary?.id || 'Plain English with modern slang',
+          rhetoric: this.selectedRhetoric?.id || this.selectedTemplate?.id || 'Agree and build upon the original point',
+          lengthPacing: this.selectedLengthPacing?.id || 'Normal reply with 1-2 sentences'
         }
       }),
       ...(this.view === 'favorites' && {
         tabType: 'favorites' as const,
         allTabConfig: {
-          personality: this.selectedTone?.id || '',
-          vocabulary: '',
-          rhetoric: this.selectedTemplate?.id || '',
-          lengthPacing: ''
+          personality: this.selectedPersonality?.id || this.selectedTone?.id || '',
+          vocabulary: this.selectedVocabulary?.id || 'Plain English with modern slang',
+          rhetoric: this.selectedRhetoric?.id || this.selectedTemplate?.id || 'Agree and build upon the original point',
+          lengthPacing: this.selectedLengthPacing?.id || 'Normal reply with 1-2 sentences'
         }
       }),
       ...(this.view === 'custom' && {
