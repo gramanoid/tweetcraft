@@ -398,6 +398,17 @@ export class UsageTracker {
   }
 
   /**
+   * Get top N most used combinations
+   */
+  getTopCombinations(limit: number = 3): Array<{combination: string, count: number}> {
+    const stats = this.getStats();
+    return Array.from(stats.combinationUsage.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([combination, count]) => ({ combination, count }));
+  }
+
+  /**
    * Clear old events
    */
   clearOldEvents(daysToKeep: number = 30): void {

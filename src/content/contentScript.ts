@@ -1155,8 +1155,11 @@ class SmartReplyContentScript {
           console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
           console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
           
-          // Show toast for selection
-          visualFeedback.showToast(`Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
+          // Show toast for selection - avoid duplicate names for personas
+          const message = template.name === tone.label 
+            ? `Selected: ${template.emoji} ${template.name}` 
+            : `Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`;
+          visualFeedback.showToast(message, {
             type: 'info',
             duration: 2000
           });

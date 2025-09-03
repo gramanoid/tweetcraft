@@ -13,7 +13,7 @@ import { visualFeedback } from '@/ui/visualFeedback';
 import { templateSuggester } from '@/services/templateSuggester';
 import { DOMUtils } from '@/content/domUtils';
 import { imageService } from '@/services/imageService';
-import { smartDefaults } from '@/services/smartDefaults';
+import { smartDefaults, SmartDefaultsService } from '@/services/smartDefaults';
 import { usageTracker } from '@/services/usageTracker';
 import { createTemplateId } from '@/types/branded';
 
@@ -367,6 +367,7 @@ export class UnifiedSelector {
     const personalities = PERSONALITIES;
     
     this.container.innerHTML = `
+      ${this.renderPersistentSelectionBar()}
       <div class="selector-header">
         <div class="selector-tabs">
           <button class="tab-btn ${this.view === 'personas' ? 'active' : ''}" data-view="personas">
@@ -415,24 +416,90 @@ export class UnifiedSelector {
             ${this.selectedPersonality ? `<span class="selected-personality">${this.selectedPersonality.emoji} ${this.selectedPersonality.label}</span>` : ''}
           `}
         </div>
-        <button class="generate-btn ${this.view === 'personas'
-          ? (this.selectedPersona ? 'active' : '')
-          : this.view === 'grid' 
-          ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing ? 'active' : '')
-          : (this.selectedTemplate && this.selectedPersonality ? 'active' : '')}" 
-                ${this.view === 'personas'
-          ? (!this.selectedPersona ? 'disabled' : '')
-          : this.view === 'grid'
-          ? (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing ? 'disabled' : '')
-          : (!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : '')}>
-          Generate Reply
-        </button>
+        <div class="footer-buttons">
+          <button class="smart-defaults-btn" title="Apply smart defaults based on your usage">
+            🎯 Smart Defaults
+          </button>
+          <button class="generate-btn ${this.view === 'personas'
+            ? (this.selectedPersona ? 'active' : '')
+            : this.view === 'grid' 
+            ? (this.selectedPersonality && this.selectedVocabulary && this.selectedTemplate && this.selectedLengthPacing ? 'active' : '')
+            : (this.selectedTemplate && this.selectedPersonality ? 'active' : '')}" 
+                  ${this.view === 'personas'
+            ? (!this.selectedPersona ? 'disabled' : '')
+            : this.view === 'grid'
+            ? (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing ? 'disabled' : '')
+            : (!this.selectedTemplate || !this.selectedPersonality ? 'disabled' : '')}>
+            Generate Reply
+          </button>
+        </div>
       </div>
     `;
 
     this.attachEventListeners();
   }
 
+  /**
+   * Render persistent selection bar showing current selections
+   */
+  private renderPersistentSelectionBar(): string {
+    const hasAnySelection = this.selectedPersona || this.selectedPersonality || this.selectedVocabulary || 
+                           this.selectedTemplate || this.selectedLengthPacing;
+    
+    if (!hasAnySelection) {
+      return ''; // Don't show bar if nothing selected
+    }
+    
+    // Build selection summary based on current view
+    let selectionSummary = '';
+    
+    if (this.view === 'personas' && this.selectedPersona) {
+      selectionSummary = `
+        <div class="selection-item persona-selection">
+          <span class="selection-emoji">${this.selectedPersona.emoji}</span>
+          <span class="selection-name">${this.selectedPersona.name}</span>
+        </div>
+      `;
+    } else if (this.view === 'grid') {
+      const items = [];
+      if (this.selectedPersonality) {
+        items.push(`<div class="selection-item"><span class="selection-number">1️⃣</span><span class="selection-emoji">${this.selectedPersonality.emoji}</span><span class="selection-name">${this.selectedPersonality.label}</span></div>`);
+      }
+      if (this.selectedVocabulary) {
+        items.push(`<div class="selection-item"><span class="selection-number">2️⃣</span><span class="selection-emoji">${this.selectedVocabulary.emoji}</span><span class="selection-name">${this.selectedVocabulary.label}</span></div>`);
+      }
+      if (this.selectedTemplate) {
+        items.push(`<div class="selection-item"><span class="selection-number">3️⃣</span><span class="selection-emoji">${this.selectedTemplate.emoji}</span><span class="selection-name">${this.selectedTemplate.name}</span></div>`);
+      }
+      if (this.selectedLengthPacing) {
+        items.push(`<div class="selection-item"><span class="selection-number">4️⃣</span><span class="selection-name">${this.selectedLengthPacing.label}</span></div>`);
+      }
+      selectionSummary = items.join('');
+    } else {
+      // For other views, show template and personality if selected
+      const items = [];
+      if (this.selectedTemplate) {
+        items.push(`<div class="selection-item"><span class="selection-emoji">${this.selectedTemplate.emoji}</span><span class="selection-name">${this.selectedTemplate.name}</span></div>`);
+      }
+      if (this.selectedPersonality) {
+        items.push(`<div class="selection-item"><span class="selection-emoji">${this.selectedPersonality.emoji}</span><span class="selection-name">${this.selectedPersonality.label}</span></div>`);
+      }
+      selectionSummary = items.join(' + ');
+    }
+    
+    return `
+      <div class="persistent-selection-bar">
+        <div class="selection-summary">
+          ${selectionSummary}
+        </div>
+        <button class="clear-selection-btn" title="Clear all selections">
+          <span class="clear-icon">×</span>
+          Clear
+        </button>
+      </div>
+    `;
+  }
+  
   /**
    * Render content based on current view
    */
@@ -462,8 +529,47 @@ export class UnifiedSelector {
     // Sort personas by usage frequency (most used first)
     const sortedPersonas = this.sortPersonasByUsage(personas);
     
+    // Get top 3 most used combinations for quick presets
+    const topCombinations = usageTracker.getTopCombinations(3);
+    
     return `
       <div class="selector-content personas-view">
+        ${topCombinations.length > 0 ? `
+          <div class="quick-presets-section">
+            <div class="quick-presets-header">
+              <span class="quick-presets-title">⚡ Quick Presets</span>
+              <span class="quick-presets-subtitle">Your most-used combinations</span>
+            </div>
+            <div class="quick-presets-grid">
+              ${topCombinations.map((combo, index) => {
+                const [templateId, personalityId] = combo.combination.split(':');
+                const template = TEMPLATES.find(t => t.id === templateId);
+                const personality = PERSONALITIES.find(p => p.id === personalityId);
+                
+                if (!template || !personality) return '';
+                
+                return `
+                  <button class="quick-preset-btn" 
+                          data-preset-template="${templateId}"
+                          data-preset-personality="${personalityId}"
+                          title="Apply this preset combination (used ${combo.count} times)">
+                    <div class="preset-number">${index + 1}</div>
+                    <div class="preset-content">
+                      <div class="preset-icons">
+                        ${template.emoji} + ${personality.emoji}
+                      </div>
+                      <div class="preset-names">
+                        ${template.name} + ${personality.label}
+                      </div>
+                      <div class="preset-usage">${combo.count}x</div>
+                    </div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
         <div class="personas-info">
           <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0 0 12px 0;">
             🎭 Quick personas with pre-configured personality, vocabulary, rhetoric, and pacing
@@ -1053,6 +1159,20 @@ export class UnifiedSelector {
   private attachEventListeners(): void {
     if (!this.container) return;
 
+    // Handle clear selection button in persistent bar
+    const clearBtn = this.container.querySelector('.clear-selection-btn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.clearAllSelections();
+        this.render(); // Re-render to update UI
+        // Show feedback near the button
+        if (this.anchorButton) {
+          visualFeedback.showSuccess(this.anchorButton, 'Selections cleared');
+        }
+      });
+    }
+
     // Tab switching
     this.container.querySelectorAll('.tab-btn').forEach(btn => {
       (btn as HTMLElement).addEventListener('click', (e) => {
@@ -1064,6 +1184,41 @@ export class UnifiedSelector {
           this.loadSmartSuggestions();
         }
         this.render();
+      });
+    });
+
+    // Quick preset selection (top 3 combinations)
+    this.container.querySelectorAll('.quick-preset-btn').forEach(btn => {
+      (btn as HTMLElement).addEventListener('click', (e) => {
+        e.stopPropagation();
+        const templateId = (e.currentTarget as HTMLElement).dataset.presetTemplate!;
+        const personalityId = (e.currentTarget as HTMLElement).dataset.presetPersonality!;
+        
+        // Apply the preset combination
+        const template = TEMPLATES.find(t => t.id === templateId);
+        const personality = PERSONALITIES.find(p => p.id === personalityId);
+        
+        if (template && personality) {
+          this.selectedTemplate = template;
+          this.selectedPersonality = personality;
+          
+          // Track the preset usage
+          usageTracker.trackTemplateSelection(templateId as any, 'favorite');
+          usageTracker.trackPersonaSelection(personalityId, 'favorite');
+          
+          // Show success feedback
+          if (this.anchorButton) {
+            visualFeedback.showSuccess(this.anchorButton, `Applied preset: ${template.name} + ${personality.label}`);
+          }
+          
+          // Re-render to show selections
+          this.render();
+          
+          logger.success('Quick Preset Applied', {
+            template: templateId,
+            personality: personalityId
+          });
+        }
       });
     });
 
@@ -1191,6 +1346,14 @@ export class UnifiedSelector {
         await this.toggleFavoriteLengthPacing(lengthPacingId);
       });
     });
+
+    // Smart defaults button
+    const smartDefaultsBtn = this.container.querySelector('.smart-defaults-btn');
+    if (smartDefaultsBtn) {
+      smartDefaultsBtn.addEventListener('click', async () => {
+        await this.applySmartDefaults();
+      });
+    }
 
     // Generate button
     const generateBtn = this.container.querySelector('.generate-btn');
@@ -1970,6 +2133,100 @@ export class UnifiedSelector {
   /**
    * Load favorites from storage
    */
+  /**
+   * Clear all selections
+   */
+  private clearAllSelections(): void {
+    this.selectedPersona = null;
+    this.selectedPersonality = null;
+    this.selectedVocabulary = null;
+    this.selectedTemplate = null;
+    this.selectedLengthPacing = null;
+  }
+  
+  /**
+   * Apply smart defaults based on usage patterns
+   */
+  private async applySmartDefaults(): Promise<void> {
+    const smartDefaultsService = new SmartDefaultsService();
+    const defaults = await smartDefaultsService.getSmartDefaults();
+    
+    if (!defaults) {
+      visualFeedback.showToast('Unable to determine smart defaults', { type: 'warning' });
+      return;
+    }
+    
+    // Apply defaults based on current view
+    if (this.view === 'grid') {
+      // Apply all 4 parts for grid view
+      if (defaults.personality) {
+        const personality = PERSONALITIES.find(p => p.id === defaults.personality);
+        if (personality) this.selectedPersonality = personality;
+      }
+      
+      if (defaults.vocabulary) {
+        const vocabularies = getAllVocabularyStyles();
+        const vocabulary = vocabularies.find(v => v.id === defaults.vocabulary);
+        if (vocabulary) this.selectedVocabulary = vocabulary;
+      }
+      
+      if (defaults.rhetoric) {
+        const template = TEMPLATES.find(t => t.id === defaults.rhetoric);
+        if (template) this.selectedTemplate = template;
+      }
+      
+      if (defaults.lengthPacing) {
+        const lengthPacings = getAllLengthPacingStyles();
+        const lengthPacing = lengthPacings.find(l => l.id === defaults.lengthPacing);
+        if (lengthPacing) this.selectedLengthPacing = lengthPacing;
+      }
+    } else if (this.view === 'personas') {
+      // Try to find a matching persona
+      const personas = getAllQuickPersonas();
+      const matchingPersona = personas.find(p => 
+        p.defaults?.personality === defaults.personality
+      );
+      
+      if (matchingPersona) {
+        this.selectedPersona = matchingPersona;
+      }
+    } else {
+      // Apply template and personality for other views
+      if (defaults.rhetoric) {
+        const template = TEMPLATES.find(t => t.id === defaults.rhetoric);
+        if (template) this.selectedTemplate = template;
+      }
+      
+      if (defaults.personality) {
+        const personality = PERSONALITIES.find(p => p.id === defaults.personality);
+        if (personality) this.selectedPersonality = personality;
+      }
+    }
+    
+    // Show feedback
+    visualFeedback.showToast(
+      `Smart defaults applied: ${defaults.reason}`, 
+      { type: 'success', duration: 4000 }
+    );
+    
+    // Re-render to show selections
+    this.render();
+    
+    // Check if ready to generate
+    this.checkReadyToGenerate();
+    
+    logger.success('Smart Defaults Applied', {
+      confidence: defaults.confidence,
+      reason: defaults.reason,
+      selections: {
+        personality: defaults.personality,
+        vocabulary: defaults.vocabulary,
+        rhetoric: defaults.rhetoric,
+        lengthPacing: defaults.lengthPacing
+      }
+    });
+  }
+  
   private async loadFavorites(): Promise<void> {
     try {
       // Load favorites from localStorage
@@ -2793,6 +3050,176 @@ export class UnifiedSelector {
           overflow: hidden;
         }
         
+        /* Persistent selection bar */
+        .persistent-selection-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, rgba(29, 155, 240, 0.1), rgba(29, 155, 240, 0.05));
+          border-bottom: 1px solid rgba(29, 155, 240, 0.3);
+          min-height: 36px;
+        }
+        
+        .persistent-selection-bar .selection-summary {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          flex: 1;
+        }
+        
+        .persistent-selection-bar .selection-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          background: rgba(29, 155, 240, 0.15);
+          border: 1px solid rgba(29, 155, 240, 0.3);
+          border-radius: 12px;
+          color: #e7e9ea;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        
+        .persistent-selection-bar .selection-number {
+          font-size: 10px;
+          opacity: 0.8;
+        }
+        
+        .persistent-selection-bar .selection-emoji {
+          font-size: 14px;
+        }
+        
+        .persistent-selection-bar .selection-name {
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .persistent-selection-bar .clear-selection-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          background: rgba(220, 53, 69, 0.1);
+          border: 1px solid rgba(220, 53, 69, 0.3);
+          border-radius: 8px;
+          color: #dc3545;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .persistent-selection-bar .clear-selection-btn:hover {
+          background: rgba(220, 53, 69, 0.2);
+          border-color: rgba(220, 53, 69, 0.5);
+        }
+        
+        .persistent-selection-bar .clear-icon {
+          font-size: 14px;
+          line-height: 1;
+        }
+        
+        /* Quick presets section */
+        .quick-presets-section {
+          padding: 12px;
+          background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(255, 215, 0, 0.02));
+          border: 1px solid rgba(255, 215, 0, 0.2);
+          border-radius: 8px;
+          margin-bottom: 12px;
+        }
+        
+        .quick-presets-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          margin-bottom: 12px;
+        }
+        
+        .quick-presets-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #FFD700;
+        }
+        
+        .quick-presets-subtitle {
+          font-size: 11px;
+          color: #8b98a5;
+        }
+        
+        .quick-presets-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+        }
+        
+        .quick-preset-btn {
+          position: relative;
+          padding: 8px;
+          background: linear-gradient(135deg, #15202b, rgba(29, 155, 240, 0.1));
+          border: 1px solid rgba(29, 155, 240, 0.3);
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          color: #e7e9ea;
+        }
+        
+        .quick-preset-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(29, 155, 240, 0.3);
+          border-color: #1d9bf0;
+        }
+        
+        .preset-number {
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          width: 18px;
+          height: 18px;
+          background: rgba(255, 215, 0, 0.2);
+          border: 1px solid rgba(255, 215, 0, 0.5);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: bold;
+          color: #FFD700;
+        }
+        
+        .preset-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .preset-icons {
+          font-size: 20px;
+        }
+        
+        .preset-names {
+          font-size: 10px;
+          color: #8b98a5;
+          text-align: center;
+          line-height: 1.2;
+        }
+        
+        .preset-usage {
+          position: absolute;
+          bottom: 4px;
+          right: 4px;
+          font-size: 9px;
+          color: #657786;
+          background: rgba(0, 0, 0, 0.4);
+          padding: 2px 4px;
+          border-radius: 4px;
+        }
+        
         /* Responsive design for smaller screens */
         @media (max-width: 600px) {
           .tweetcraft-unified-selector {
@@ -3494,6 +3921,31 @@ export class UnifiedSelector {
           background: rgba(139, 152, 165, 0.1);
           color: #657786;
           border: 1px dashed rgba(139, 152, 165, 0.3);
+        }
+        
+        .footer-buttons {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .smart-defaults-btn {
+          padding: 8px 14px;
+          background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
+          border: 1px solid rgba(255, 215, 0, 0.3);
+          border-radius: 18px;
+          color: #FFD700;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+        
+        .smart-defaults-btn:hover {
+          background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 215, 0, 0.1));
+          border-color: rgba(255, 215, 0, 0.5);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
         }
         
         .generate-btn {

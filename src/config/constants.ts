@@ -79,6 +79,65 @@ export const API_CONFIG = {
   MAX_REQUESTS_PER_WINDOW: 60,
 } as const;
 
+// API and Request Configuration (renamed to avoid confusion)
+export const API_CONSTANTS = {
+  MIN_REQUEST_INTERVAL: 100, // 100ms between requests
+  MAX_RETRIES: 3,
+  RETRY_DELAYS: [1000, 2000, 4000], // Exponential backoff in ms
+  REQUEST_CACHE_MAX_SIZE: 100,
+  OFFLINE_QUEUE_MAX_AGE: 300000, // 5 minutes in ms
+  OFFLINE_QUEUE_MAX_SIZE: 50,
+  MAX_BATCH_SIZE: 10,
+  MAX_RESPONSE_TIME_SAMPLES: 100,
+  DEFAULT_MAX_TOKENS: 500,
+  DEFAULT_TOP_P: 0.9,
+} as const;
+
+// Storage and Memory Limits
+export const STORAGE_LIMITS = {
+  MAX_CACHE_SIZE: 100,
+  MAX_CACHE_AGE_MS: 3600000, // 1 hour
+  MAX_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
+  MAX_EVENTS: 1000,
+  MAX_STORAGE_KEYS: 100, // Chrome storage API limit
+  MAX_KEY_LENGTH: 100,
+  ESTIMATED_SIZE_LIMIT: 1024 * 1024, // 1MB
+} as const;
+
+// Temperature Configuration
+export const TEMPERATURE_CONFIG = {
+  MIN: 0.1,
+  MAX: 1.0,
+  DEFAULT: 0.7,
+  BY_TONE: {
+    fact_check: 0.3,      // Low creativity for facts
+    provide_data: 0.4,    // Low for data/stats
+    hot_take: 0.9,        // High for controversial
+    ratio_bait: 0.9,      // High for provocative
+    meme_response: 0.8,   // High for humor
+    ask_question: 0.6,    // Moderate for questions
+    share_experience: 0.7, // Moderate-high for stories
+  },
+} as const;
+
+// Reply Length Configuration
+export const REPLY_LENGTH = {
+  SHORT: {
+    instruction: ' Keep the reply very brief, under 50 characters.',
+    maxChars: 50,
+  },
+  MEDIUM: {
+    instruction: ' Keep the reply concise, between 50-150 characters.',
+    minChars: 50,
+    maxChars: 150,
+  },
+  LONG: {
+    instruction: ' Write a detailed reply, 150-280 characters.',
+    minChars: 150,
+    maxChars: 280,
+  },
+} as const;
+
 // DOM selectors
 export const SELECTORS = {
   // Twitter/X selectors
