@@ -64,6 +64,7 @@ export interface SelectionResult {
 export class UnifiedSelector {
   private container: HTMLElement | null = null;
   private isResizing: boolean = false;
+  private mouseDownStartedInside: boolean = false;
   private selectedTemplate: Template | null = null;
   private selectedPersonality: Personality | null = null;
   private selectedVocabulary: VocabularyStyle | null = null;
@@ -307,17 +308,29 @@ export class UnifiedSelector {
       this.container = null;
     }
     
-    // Reset resizing flag
+    // Reset resizing flag and mousedown tracking
     this.isResizing = false;
+    this.mouseDownStartedInside = false;
     
     // Clean up all event listeners
     this.eventListenerCleanups.forEach(cleanup => cleanup());
     this.eventListenerCleanups = [];
     
-    // Remove click outside handler (make sure to use same capture flag)
+    // Remove click outside handler and mouse tracking handlers
     if (this.clickOutsideHandler) {
       document.removeEventListener('click', this.clickOutsideHandler, true);
       this.clickOutsideHandler = null;
+    }
+    
+    // Remove mouse tracking handlers
+    if ((this as any)._mouseDownHandler) {
+      document.removeEventListener('mousedown', (this as any)._mouseDownHandler, true);
+      (this as any)._mouseDownHandler = null;
+    }
+    
+    if ((this as any)._mouseUpHandler) {
+      document.removeEventListener('mouseup', (this as any)._mouseUpHandler, true);
+      (this as any)._mouseUpHandler = null;
     }
     
     // Remove scroll handler
@@ -385,9 +398,29 @@ export class UnifiedSelector {
    * Setup click outside handler
    */
   private setupClickOutsideHandler(): void {
+    // Track mousedown to know if drag started inside
+    const mouseDownHandler = (e: MouseEvent) => {
+      if (this.container && (this.container.contains(e.target as Node) || 
+          (e.target as HTMLElement).closest('.resize-handle'))) {
+        this.mouseDownStartedInside = true;
+      } else {
+        this.mouseDownStartedInside = false;
+      }
+    };
+    
+    // Track mouseup to reset the flag
+    const mouseUpHandler = () => {
+      // Small delay to ensure click event checks the flag first
+      setTimeout(() => {
+        this.mouseDownStartedInside = false;
+      }, 50);
+    };
+    
     this.clickOutsideHandler = (e: MouseEvent) => {
-      // Don't hide if we're currently resizing or if the container has the resizing class
-      if (this.isResizing || this.container?.classList.contains('resizing')) {
+      // Don't hide if we're currently resizing, if the container has the resizing class,
+      // or if the mouse was pressed down inside the container
+      if (this.isResizing || this.container?.classList.contains('resizing') || 
+          this.mouseDownStartedInside) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -404,7 +437,15 @@ export class UnifiedSelector {
       }
     };
     
-    // Delay to avoid immediate trigger and use capture phase
+    // Set up all handlers immediately
+    document.addEventListener('mousedown', mouseDownHandler, true);
+    document.addEventListener('mouseup', mouseUpHandler, true);
+    
+    // Store references for cleanup
+    (this as any)._mouseDownHandler = mouseDownHandler;
+    (this as any)._mouseUpHandler = mouseUpHandler;
+    
+    // Delay click handler to avoid immediate trigger
     setTimeout(() => {
       if (this.clickOutsideHandler) {
         // Use capture phase to intercept events earlier
