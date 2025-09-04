@@ -25,4 +25,5 @@ export interface LLMAnalysisResult {
   reasons?: string[];
   tokensUsed?: number;
   metadata?: Record<string, any>;
+  isFallback?: boolean; // PHASE 1.1 - Indicates if this is a pattern-based fallback response
 }

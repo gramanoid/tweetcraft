@@ -17,6 +17,106 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Choose pragmatic solutions over "best practices" from enterprise software
 - If the code is readable and works reliably, ship it
 
+## 🎯 UX/UI TRANSFORMATION PROJECT
+
+**CRITICAL**: This project is undergoing a comprehensive 7-phase UX/UI transformation. See `UX_UI_TRANSFORMATION_REPORT.md` in the root folder for complete context, tasks, and recovery information.
+
+**KEY CONSTRAINTS:**
+- ALL 24 personalities must be preserved (including negative ones) - explicitly required
+- Use TwitterAPI.io (NOT expensive official Twitter API) for analytics
+- Each phase = new git version with proper commits for rollback capability
+- Each task completion requires individual commit with comprehensive documentation
+
+**CURRENT STATUS:** Phase 1 (Smart Tab Resurrection) - fixing OpenRouter integration issues
+
+### **🚨 CRITICAL SUCCESS FACTORS**
+**READ THIS EVERY SESSION**: Essential requirements for transformation success
+
+#### **NON-NEGOTIABLE CONSTRAINTS**
+1. **ALL 24 personalities MUST be preserved** (including negative ones) - user explicitly required
+2. **Use TwitterAPI.io ONLY** (not expensive official Twitter API) for all analytics
+3. **Each task = individual git commit** with rollback capability
+4. **Test ALL platforms** (Twitter/X, HypeFury) before any commit
+5. **Never break existing functionality** - maintain backward compatibility
+
+#### **SAFETY PROTOCOLS**
+- **Before ANY code changes**: Run `npm run build && npm run lint && npm run type-check`
+- **Before ANY commit**: Test extension reload and verify no console errors
+- **API Key Security**: NEVER commit API keys - only use .env with webpack DefinePlugin
+- **Rollback Ready**: Each commit must be a complete, working state
+- **Documentation Sync**: Update both documents after EVERY task completion
+
+#### **QUALITY GATES**
+- ✅ Extension builds successfully
+- ✅ No TypeScript or ESLint errors
+- ✅ All platforms (Twitter/X, HypeFury) working
+- ✅ No console errors in browser DevTools
+- ✅ All template combinations still functional
+- ✅ Keyboard shortcuts still working (Alt+1-9, Space, etc.)
+- ✅ Documentation updated before commit
+
+### **📋 PRE-IMPLEMENTATION VALIDATION**
+**COMPLETE BEFORE STARTING PHASE 1**: Verify all prerequisites are in place
+
+#### **Environment Setup**
+- [ ] .env file exists with OpenRouter API key
+- [ ] `npm install` completed successfully  
+- [ ] `npm run build` runs without errors
+- [ ] Extension loads in Chrome without errors
+- [ ] All platforms accessible (Twitter/X, HypeFury)
+
+#### **Documentation Readiness**
+- [ ] UX_UI_TRANSFORMATION_REPORT.md contains complete context
+- [ ] Memory reset recovery section comprehensive
+- [ ] All 32 tasks and 128+ subtasks documented
+- [ ] Git workflow and commit standards defined
+- [ ] Success metrics and KPIs clearly defined
+
+#### **Architecture Understanding**
+- [ ] Core files identified: unifiedSelector.ts, promptArchitecture.ts, arsenalMode.ts
+- [ ] API integration points mapped: OpenRouter, TwitterAPI.io requirements
+- [ ] Extension patterns understood: Manifest V3, service worker messaging
+- [ ] Critical constraint confirmed: ALL 24 personalities preserved
+
+#### **Implementation Strategy**
+- [ ] Phase 1 priority confirmed: Smart tab resurrection
+- [ ] Task order validated: OpenRouter fixes → fallbacks → defaults → suggestions
+- [ ] Rollback strategy tested: git reset procedures documented
+- [ ] Quality gates established: build + lint + test before commit
+
+### **⚠️ RISK MITIGATION & CONTINGENCY PLANNING**
+**ANTICIPATE THESE COMMON ISSUES**: Prepare for likely obstacles during implementation
+
+#### **Technical Risks**
+- **Bundle Size Growth**: contentScript.js already 495KB (warning threshold 244KB)
+  - *Mitigation*: Implement code splitting and lazy loading during Phase 1
+  - *Trigger*: If bundle exceeds 600KB, stop and refactor immediately
+- **API Rate Limiting**: OpenRouter/TwitterAPI.io may have usage limits
+  - *Mitigation*: Implement request queuing and circuit breakers in Task 1.6/1.7
+  - *Trigger*: If >10% API failures, pause and add throttling
+- **Chrome Extension Manifest V3 Changes**: Google may update requirements
+  - *Mitigation*: Monitor Chrome extension developer updates
+  - *Trigger*: Extension rejection → immediate compatibility review
+
+#### **UX Risks** 
+- **Choice Paralysis Persists**: Progressive disclosure may not solve core problem
+  - *Mitigation*: A/B test with real users after Phase 2
+  - *Trigger*: If user feedback doesn't improve, revisit approach
+- **Power Users Revolt**: Simplification may anger advanced users
+  - *Mitigation*: Expanded view mode and keyboard shortcuts preserved
+  - *Trigger*: Negative feedback → enhance power user features
+- **Performance Degradation**: 24,750 combinations may cause UI lag
+  - *Mitigation*: Virtualization and intelligent caching
+  - *Trigger*: >500ms render time → optimize immediately
+
+#### **Project Risks**
+- **Scope Creep**: 7 phases may expand beyond original scope
+  - *Mitigation*: Phase gates with go/no-go decisions
+  - *Trigger*: Phase takes >50% longer than estimate → reassess
+- **Memory Reset Issues**: Context loss between sessions
+  - *Mitigation*: Comprehensive documentation (completed)
+  - *Trigger*: Key information missing → update recovery section
+
 ## Repository Overview
 
 **TweetCraft v0.0.19** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
@@ -198,12 +298,12 @@ console.log('%c  Property:', 'color: #657786', value);
 ## Recent Changes (v0.0.19)
 
 ### Architectural Security & Consistency Improvements
-- ✅ **API Key Management**: All keys now exclusively from .env via webpack DefinePlugin
+- ✅ **API Key Management**: All keys provided at runtime only via webpack DefinePlugin (never bundled into build artifacts)
 - ✅ **Type-Safe Messaging**: Replaced string literals with MessageType enum throughout
 - ✅ **Complete Data Cleanup**: CLEAR_DATA now removes both chrome.storage AND IndexedDB
 - ✅ **API Validation**: Implemented real OpenRouter API key validation (was stub)
 - ✅ **UI Integration**: Added Clear Data and Validate Key buttons to popup
-- ✅ **Future-Ready**: Added SUGGEST_TEMPLATE and GENERATE_IMAGE message types
+- ✅ **Future-Ready**: Added SUGGEST_TEMPLATE and GENERATE_IMAGE message types (experimental/planned features)
 
 ## Previous Changes (v0.0.18)
 
@@ -255,13 +355,14 @@ MessageType.GET_API_KEY / SET_API_KEY       // API key management
 MessageType.GET_STORAGE / SET_STORAGE       // Generic storage (type-safe)
 MessageType.VALIDATE_API_KEY                // Real API validation ✅
 MessageType.CLEAR_DATA                      // Clears ALL data (storage + IndexedDB) ✅
+MessageType.TEST_API_KEY                    // Test API connection
+MessageType.FETCH_MODELS                    // Fetch available models from OpenRouter
 
 // Generation
 MessageType.GENERATE_REPLY                  // Main reply generation
 MessageType.ANALYZE_IMAGES                  // Vision analysis
-MessageType.TEST_API_KEY                    // Test API connection
-MessageType.SUGGEST_TEMPLATE                // Template suggestions (future)
-MessageType.GENERATE_IMAGE                  // Image generation (future)
+MessageType.SUGGEST_TEMPLATE                // Template suggestions (future - no handler yet)
+MessageType.GENERATE_IMAGE                  // Image generation (future - no handler yet)
 
 // Analytics
 MessageType.RESET_USAGE_STATS              // Reset usage counters ✅
@@ -269,7 +370,7 @@ MessageType.GET_LAST_TONE / SET_LAST_TONE  // Tone preferences
 MessageType.FETCH_TRENDING_TOPICS          // Exa trending topics
 ```
 
-**IMPORTANT**: Always use MessageType enum, never string literals for type safety.
+**IMPORTANT**: Always import and use the MessageType enum from `src/types/messages.ts` instead of string literals for type safety.
 
 ## BulkCraft (Pending Integration)
 
@@ -281,13 +382,76 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 
 ## Development Guidelines
 
+## 📜 UX/UI TRANSFORMATION GIT WORKFLOW
+
+### **PHASE-BASED VERSION CONTROL**
+- **Each Phase = New Version**: v0.1.0 (Phase 1), v0.2.0 (Phase 2), etc.
+- **Each Task = Individual Commit**: Granular commits for safe rollback capability
+- **Feature Branches**: Create branch per phase, merge after completion
+- **Git Tags**: Tag each phase completion for easy reference
+
+### **COMMIT MESSAGE STANDARD**
+```
+[PHASE-X.TASK-Y.Z]: Brief description
+
+Detailed changes:
+- Specific change 1
+- Impact and testing notes
+
+Files: src/path/file.ts, src/path/style.scss
+Breaking: None
+Rollback: Safe to previous commit
+```
+
+### **TESTING BEFORE EACH COMMIT**
+- All platforms (Twitter/X, HypeFury) working
+- No console errors or build failures  
+- Template combinations functioning
+- Keyboard shortcuts operational
+
+### **CRITICAL DOCUMENTATION MAINTENANCE**
+**MANDATORY**: After EVERY task completion, update the following in exact order:
+
+#### **1. UX_UI_TRANSFORMATION_REPORT.md Updates**
+- Update "IMPLEMENTATION STATUS TRACKING" → "COMPLETED TASKS" section with:
+  - ✅ Task name and completion date
+  - Brief description of what was accomplished
+- Update "CURRENTLY IN PROGRESS" section (remove completed, add new in-progress)
+- Update "DOCUMENT UPDATE LOG" at bottom with new entry
+- If any architecture changes, update "MEMORY RESET Recovery" section
+
+#### **2. CLAUDE.md Updates** 
+- Update "Recent Changes" section with task completion details
+- Update version status if phase completed
+- Add any new Known Issues discovered during implementation
+- Update "Current Version Status" if version numbers changed
+
+#### **3. TodoWrite Tool Updates**
+- Mark completed task as "completed" with activeForm showing accomplishment
+- Mark next task as "in_progress" before starting work
+- Keep todo list synchronized with actual work progress
+
+#### **4. Code Documentation**
+- Add inline comments for new functions/classes with JSDoc format
+- Document any new API message types in src/types/messages.ts
+- Update README sections if major functionality added
+- Document breaking changes and migration notes
+
+#### **5. Git Commit Documentation**
+- Use exact commit format: `[PHASE-X.TASK-Y.Z]: Brief description`
+- Include file list, breaking changes, rollback notes
+- Tag phase completions: `git tag v0.X.0 -m "Phase X: Description"`
+
+## Development Guidelines
+
 1. **Before Committing**:
    - Test on all platforms (Twitter/X, HypeFury)
    - Run `npm run lint` and `npm run type-check`
    - Run `npm run build` to validate all changes
-   - Update version in manifest.json and package.json
+   - Update version in manifest.json, package.json, and src/config/version.ts
    - Verify API keys are ONLY in .env file, never in source code
-   - Use MessageType enum for all message passing
+   - Verify no secrets or API keys appear in dist/ (scan build output for common secret patterns)
+   - Use MessageType enum from `src/types/messages.ts` for all message passing
 
 2. **When Adding Features**:
    - Follow existing patterns (singleton content script, message passing)
@@ -325,5 +489,6 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 
 - Service worker shows "Inactive" in Chrome extensions page (normal for Manifest V3)
 - Rate limiting depends on OpenRouter account tier
-- Twitter DOM structure changes may break selectors (mitigated with fallbacks)
-- Some services (templateSuggester, imageService) still make direct API calls (to be migrated)
+- Twitter DOM structure changes may break selectors (mitigated with fallbacks) - **Owner:** Frontend Team | **Tracking:** [#DOM-001](https://github.com/gramanoid/tweetcraft/issues) | **Priority:** Medium | **ETA:** Q1 2025
+- Some services (templateSuggester, imageService) still make direct API calls (to be migrated) - **Owner:** Backend Team | **Tracking:** [#API-002](https://github.com/gramanoid/tweetcraft/issues) | **Priority:** High | **ETA:** v0.0.20
+- No secrets in dist/ - ensure build artifacts contain no credentials (temporary enforcement until CI rule implemented) - **Owner:** DevOps Team | **Tracking:** [#SEC-003](https://github.com/gramanoid/tweetcraft/issues) | **Priority:** Critical | **ETA:** Immediate

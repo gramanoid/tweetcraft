@@ -186,6 +186,47 @@ class SmartReplyServiceWorker {
   ): Promise<void> {
     try {
       switch (message.type) {
+        case MessageType.EXA_SEARCH: {
+          const { query, options } = message as any;
+          try {
+            const EXA_API_KEY = API_CONFIG.EXA_API_KEY || '';
+            const EXA_API_URL = 'https://api.exa.ai/search';
+            if (!EXA_API_KEY) {
+              sendResponse({ success: false, error: 'EXA API key not configured' });
+              break;
+            }
+            const body = {
+              query,
+              num_results: options?.numResults || 10,
+              use_autoprompt: options?.useAutoprompt !== false,
+              type: options?.type || 'neural',
+              contents: { text: true, highlights: true }
+            } as any;
+            const response = await fetch(EXA_API_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': EXA_API_KEY
+              },
+              body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+              sendResponse({ success: false, error: `EXA search failed: ${response.status}` });
+              break;
+            }
+            const data = await response.json();
+            sendResponse({ success: true, data });
+          } catch (error) {
+            console.error('Service Worker: EXA search error:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'EXA search error' });
+          }
+          break;
+        }
+        case MessageType.PING: {
+          // Quiet heartbeat response to avoid warning spam
+          sendResponse({ success: true, data: 'pong' });
+          break;
+        }
         case MessageType.GET_CONFIG: {
           if (isGetConfigMessage(message)) {
             const config = await StorageService.getConfig();
@@ -580,7 +621,8 @@ class SmartReplyServiceWorker {
                   { topic: 'AI Technology', category: 'tech' },
                   { topic: 'Climate Change', category: 'news' },
                   { topic: 'Remote Work', category: 'business' }
-                ] 
+                ],
+                meta: { source: 'defaults_no_key' }
               });
               break;
             }
@@ -641,8 +683,22 @@ class SmartReplyServiceWorker {
               }
             });
             
-            console.log(`Service Worker: Fetched ${topics.length} trending topics`);
-            sendResponse({ success: true, data: topics.slice(0, 10) });
+            // Fallback if we couldn't derive topics
+            if (topics.length === 0) {
+              console.warn('Service Worker: No topics derived from Exa response, using defaults');
+              const fallback = [
+                { topic: 'AI Technology', category: 'tech' },
+                { topic: 'Climate Policy', category: 'news' },
+                { topic: 'Crypto Markets', category: 'finance' },
+                { topic: 'Remote Work', category: 'business' },
+                { topic: 'GenAI Tools', category: 'tech' }
+              ];
+              console.log(`Service Worker: Fetched ${fallback.length} trending topics (fallback)`);
+              sendResponse({ success: true, data: fallback, meta: { source: 'fallback_empty' } });
+            } else {
+              console.log(`Service Worker: Fetched ${topics.length} trending topics`);
+              sendResponse({ success: true, data: topics.slice(0, 10), meta: { source: 'exa' } });
+            }
           } catch (error) {
             console.error('Service Worker: Failed to fetch trending topics:', error);
             sendResponse({ 

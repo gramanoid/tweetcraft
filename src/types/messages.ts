@@ -6,6 +6,8 @@ import { AppConfig, ReplyGenerationRequest, TwitterContext } from './index';
 
 // Message types enum for type safety
 export enum MessageType {
+  PING = 'PING',
+  EXA_SEARCH = 'EXA_SEARCH',
   GET_CONFIG = 'GET_CONFIG',
   SET_CONFIG = 'SET_CONFIG',
   GET_API_KEY = 'GET_API_KEY',
@@ -119,8 +121,24 @@ export interface GenerateImageMessage extends BaseMessage {
   options?: any;
 }
 
+export interface PingMessage extends BaseMessage {
+  type: MessageType.PING;
+}
+
+export interface ExaSearchMessage extends BaseMessage {
+  type: MessageType.EXA_SEARCH;
+  query: string;
+  options?: {
+    numResults?: number;
+    useAutoprompt?: boolean;
+    type?: 'neural' | 'keyword';
+  };
+}
+
 // Union type of all messages
 export type ExtensionMessage = 
+  | PingMessage
+  | ExaSearchMessage
   | GetConfigMessage
   | SetConfigMessage
   | GetApiKeyMessage
@@ -219,9 +237,18 @@ export function isGenerateImageMessage(msg: any): msg is GenerateImageMessage {
          typeof msg?.prompt === 'string';
 }
 
+export function isPingMessage(msg: any): msg is PingMessage {
+  return msg?.type === MessageType.PING;
+}
+
+export function isExaSearchMessage(msg: any): msg is ExaSearchMessage {
+  return msg?.type === MessageType.EXA_SEARCH && typeof msg?.query === 'string';
+}
+
 // Response types
 export interface MessageResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
+  meta?: any;
 }

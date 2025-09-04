@@ -1,26 +1,26 @@
-import { DOMUtils, DOMCache } from './domUtils';
+import { DOMUtils, DOMCache } from "./domUtils";
 // OpenRouter service now handled by service worker
-import { StorageService } from '@/services/storage';
-import { ReplyGenerationRequest } from '@/types';
-import { MessageType } from '@/types/messages';
-import { debounce } from '@/utils/debounce';
-import { ErrorHandler } from '@/utils/errorHandler';
-import { globalAsyncManager } from '@/utils/asyncOperationManager';
-import { KeyboardShortcutManager } from '@/utils/keyboardShortcuts';
-import { selectorAdapter } from './selectorAdapter';
-import { visualFeedback } from '@/ui/visualFeedback';
-import { templateSuggester } from '@/services/templateSuggester';
-import { TEMPLATES } from './presetTemplates';
-import { TONES } from './toneSelector';
-import { imageAttachment } from './imageAttachment';
-import { arsenalModeUI } from './arsenalMode';
-import { APP_VERSION } from '@/config/version';
-import { HypeFuryPlatform, HYPEFURY_SELECTORS } from '@/platforms/hypefury';
-import { ProgressiveEnhancement } from '@/utils/progressiveEnhancement';
-import { ContextRecovery } from '@/utils/contextRecovery';
-import { ContextExtractor, TweetContext } from '@/utils/contextExtractor';
-import { visionService, VisionService } from '@/services/visionService';
-import './contentScript.scss';
+import { StorageService } from "@/services/storage";
+import { ReplyGenerationRequest } from "@/types";
+import { MessageType } from "@/types/messages";
+import { debounce } from "@/utils/debounce";
+import { ErrorHandler } from "@/utils/errorHandler";
+import { globalAsyncManager } from "@/utils/asyncOperationManager";
+import { KeyboardShortcutManager } from "@/utils/keyboardShortcuts";
+import { selectorAdapter } from "./selectorAdapter";
+import { visualFeedback } from "@/ui/visualFeedback";
+import { templateSuggester } from "@/services/templateSuggester";
+import { TEMPLATES } from "./presetTemplates";
+import { TONES } from "./toneSelector";
+import { imageAttachment } from "./imageAttachment";
+import { arsenalModeUI } from "./arsenalMode";
+import { APP_VERSION } from "@/config/version";
+import { HypeFuryPlatform, HYPEFURY_SELECTORS } from "@/platforms/hypefury";
+import { ProgressiveEnhancement } from "@/utils/progressiveEnhancement";
+import { ContextRecovery } from "@/utils/contextRecovery";
+import { ContextExtractor, TweetContext } from "@/utils/contextExtractor";
+import { visionService, VisionService } from "@/services/visionService";
+import "./contentScript.scss";
 
 class SmartReplyContentScript {
   private observer: MutationObserver | null = null;
@@ -28,40 +28,55 @@ class SmartReplyContentScript {
   private port: chrome.runtime.Port | null = null;
   private static readonly VERSION = APP_VERSION;
   private isDestroyed = false;
-  
+
   // Store event listener references for proper cleanup
   private eventListeners: Array<() => void> = [];
   private customEventListeners: Map<string, EventListener> = new Map();
-  
+
   // Timer and interval tracking for memory leak prevention
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private intervals = new Set<ReturnType<typeof setInterval>>();
-  
+
   // Configurable cleanup interval
   private cleanupIntervalMs: number = 30000; // Default to 30 seconds (reduced frequency)
   private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
   private navigationTimerId: ReturnType<typeof setTimeout> | null = null;
+  private readonly MIN_CLEANUP_INTERVAL = 5000; // 5 seconds minimum
+  private readonly MAX_CLEANUP_INTERVAL = 600000; // 10 minutes maximum
 
   constructor() {
-    console.log('%c🚀 TweetCraft: Initializing content script v' + SmartReplyContentScript.VERSION, 'color: #1DA1F2; font-weight: bold; font-size: 16px');
-    
+    console.log(
+      "%c🚀 TweetCraft: Initializing content script v" +
+        SmartReplyContentScript.VERSION,
+      "color: #1DA1F2; font-weight: bold; font-size: 16px",
+    );
+
     // Check if another instance already exists
     if ((window as any).__smartReplyInstance) {
-      console.log('TweetCraft: Previous instance detected, cleaning up...');
+      console.log("TweetCraft: Previous instance detected, cleaning up...");
       (window as any).__smartReplyInstance.destroy();
     }
-    
+
     // Register this instance
     (window as any).__smartReplyInstance = this;
-    
+
     // Set up cleanup handlers
     this.setupCleanupHandlers();
-    
+
+    // Load and apply cleanup interval from storage
+    this.loadCleanupInterval();
+
+    // Listen for storage changes to update cleanup interval
+    this.listenForCleanupIntervalChanges();
+
     this.init();
   }
-  
+
   // Safe setTimeout wrapper that tracks timers
-  private safeSetTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  private safeSetTimeout(
+    callback: () => void,
+    delay: number,
+  ): ReturnType<typeof setTimeout> {
     const timerId = setTimeout(() => {
       this.timers.delete(timerId);
       if (!this.isDestroyed) {
@@ -71,9 +86,12 @@ class SmartReplyContentScript {
     this.timers.add(timerId);
     return timerId;
   }
-  
+
   // Safe setInterval wrapper that tracks intervals
-  private safeSetInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
+  private safeSetInterval(
+    callback: () => void,
+    delay: number,
+  ): ReturnType<typeof setInterval> {
     const intervalId = setInterval(() => {
       if (!this.isDestroyed) {
         callback();
@@ -83,43 +101,140 @@ class SmartReplyContentScript {
     return intervalId;
   }
 
+  // Load cleanup interval from storage
+  private async loadCleanupInterval(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get("cleanupIntervalMs");
+      if (result.cleanupIntervalMs) {
+        const interval = this.validateAndClampInterval(
+          result.cleanupIntervalMs,
+        );
+        if (interval !== this.cleanupIntervalMs) {
+          console.log(
+            `%c⚙️ Loaded cleanup interval: ${interval}ms`,
+            "color: #657786",
+          );
+          this.cleanupIntervalMs = interval;
+          this.restartCleanupInterval();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load cleanup interval from storage:", error);
+    }
+  }
+
+  // Listen for storage changes to update cleanup interval
+  private listenForCleanupIntervalChanges(): void {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === "sync" && changes.cleanupIntervalMs) {
+        const newValue = changes.cleanupIntervalMs.newValue;
+        if (newValue !== undefined) {
+          const interval = this.validateAndClampInterval(newValue);
+          if (interval !== this.cleanupIntervalMs) {
+            console.log(
+              `%c⚙️ Cleanup interval updated: ${interval}ms`,
+              "color: #657786",
+            );
+            this.cleanupIntervalMs = interval;
+            this.restartCleanupInterval();
+          }
+        }
+      }
+    });
+  }
+
+  // Validate and clamp interval to acceptable range
+  private validateAndClampInterval(value: any): number {
+    const numValue = Number(value);
+    if (isNaN(numValue)) {
+      console.warn(`Invalid cleanup interval value: ${value}, using default`);
+      return 30000; // Default
+    }
+
+    // Clamp to min/max range
+    const clamped = Math.max(
+      this.MIN_CLEANUP_INTERVAL,
+      Math.min(this.MAX_CLEANUP_INTERVAL, numValue),
+    );
+
+    if (clamped !== numValue) {
+      console.warn(`Cleanup interval ${numValue}ms clamped to ${clamped}ms`);
+    }
+
+    return clamped;
+  }
+
+  // Start cleanup interval
+  private startCleanupInterval(): void {
+    if (!this.cleanupIntervalId) {
+      this.cleanupIntervalId = this.safeSetInterval(() => {
+        this.cleanupDuplicateButtons();
+      }, this.cleanupIntervalMs);
+      console.log(
+        `%c♻️ Cleanup interval started: ${this.cleanupIntervalMs}ms`,
+        "color: #17BF63",
+      );
+    }
+  }
+
+  // Restart cleanup interval with new timing
+  private restartCleanupInterval(): void {
+    // Clear existing interval if any
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.intervals.delete(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
+
+    // Start new interval with updated timing
+    this.startCleanupInterval();
+  }
+
   private async init(): Promise<void> {
     // Check if already destroyed
     if (this.isDestroyed) return;
-    
+
     // Initialize Arsenal Mode UI (ensures event listeners are set up)
     if (arsenalModeUI) {
-      console.log('%c⚔️ Arsenal Mode initialized', 'color: #1DA1F2');
+      console.log("%c⚔️ Arsenal Mode initialized", "color: #1DA1F2");
     }
-    
+
     // Initialize vision service first
     try {
       await visionService.initialize();
-      console.log('%c👁️ Vision service initialized', 'color: #794BC4');
+      console.log("%c👁️ Vision service initialized", "color: #794BC4");
     } catch (error) {
-      console.warn('Failed to initialize vision service:', error);
+      console.warn("Failed to initialize vision service:", error);
     }
-    
+
     // Initialize Progressive Enhancement System
     const capabilities = await ProgressiveEnhancement.init();
-    console.log('%c🔍 Progressive Enhancement initialized', 'color: #9146FF; font-weight: bold', capabilities);
-    
+    console.log(
+      "%c🔍 Progressive Enhancement initialized",
+      "color: #9146FF; font-weight: bold",
+      capabilities,
+    );
+
     // Initialize Context Recovery System
     ContextRecovery.init({
       autoRecover: true,
       stateExpiration: 3600000, // 1 hour
-      checkInterval: 5000 // 5 seconds
+      checkInterval: 5000, // 5 seconds
     });
-    
+
     // Save initial state
     ContextRecovery.saveState({
       timestamp: Date.now(),
-      activeTab: 'all-templates'
+      activeTab: "all-templates",
     });
-    
+
     // Listen for recovery completion
-    window.addEventListener('tweetcraft-recovery-complete', (event: any) => {
-      console.log('%c✅ Recovery complete', 'color: #17BF63; font-weight: bold', event.detail);
+    window.addEventListener("tweetcraft-recovery-complete", (event: any) => {
+      console.log(
+        "%c✅ Recovery complete",
+        "color: #17BF63; font-weight: bold",
+        event.detail,
+      );
       // Re-inject buttons after recovery by reinitializing DOM observation
       if (HypeFuryPlatform.isHypeFury()) {
         this.startObservingHypeFury();
@@ -128,44 +243,50 @@ class SmartReplyContentScript {
         this.init();
       }
     });
-    
+
     // Detect platform
-    const platform = HypeFuryPlatform.isHypeFury() ? 'HypeFury' : 'Twitter/X';
-    console.log(`%c🚀 TweetCraft v0.0.18 - ${platform}`, 'color: #1DA1F2; font-weight: bold');
-    
+    const platform = HypeFuryPlatform.isHypeFury() ? "HypeFury" : "Twitter/X";
+    console.log(
+      `%c🚀 TweetCraft v0.0.18 - ${platform}`,
+      "color: #1DA1F2; font-weight: bold",
+    );
+
     // Apply platform-specific styles if on HypeFury
     if (HypeFuryPlatform.isHypeFury()) {
       HypeFuryPlatform.applyPlatformStyles();
     }
-    
+
     // Show initialization toast
-    visualFeedback.showToast(`TweetCraft ready on ${platform}! Click AI Reply button on any post.`, {
-      type: 'success',
-      duration: 3000,
-      position: 'bottom'
-    });
-    
+    visualFeedback.showToast(
+      `TweetCraft ready on ${platform}! Click AI Reply button on any post.`,
+      {
+        type: "success",
+        duration: 3000,
+        position: "bottom",
+      },
+    );
+
     // Test DOM selector health
     DOMUtils.testSelectorHealth();
-    
+
     // Initialize keyboard shortcuts
     await KeyboardShortcutManager.init();
-    
+
     // Set up listener for keyboard shortcut events
     this.setupKeyboardShortcutListener();
-    
+
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
     if (recovered) {
-      console.log('%c✅ State recovered', 'color: #17BF63');
+      console.log("%c✅ State recovered", "color: #17BF63");
     }
-    
+
     // Establish connection with service worker
     this.connectToServiceWorker();
-    
+
     // Wait for the page to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
         if (!this.isDestroyed) this.startObserving();
       });
     } else {
@@ -178,70 +299,93 @@ class SmartReplyContentScript {
     const generateReplyListener = ((event: Event) => {
       const customEvent = event as CustomEvent;
       const { tone, bypassCache, regenerate } = customEvent.detail;
-      
+
       // Find the reply textarea
-      const textarea = DOMUtils.findWithFallback('replyTextarea');
+      const textarea = DOMUtils.findWithFallback("replyTextarea");
       if (!textarea) {
-        console.warn('Smart Reply: No reply textarea found for keyboard shortcut');
+        console.warn(
+          "Smart Reply: No reply textarea found for keyboard shortcut",
+        );
         return;
       }
-      
+
       // Find the AI Reply button (check both class names for platform compatibility)
-      const isHypeFury = window.location.hostname === 'app.hypefury.com';
-      const buttonSelector = isHypeFury ? '.smart-reply-button' : '.smart-reply-btn';
+      const isHypeFury = window.location.hostname === "app.hypefury.com";
+      const buttonSelector = isHypeFury
+        ? ".smart-reply-button"
+        : ".smart-reply-btn";
       const button = document.querySelector(buttonSelector) as HTMLElement;
       if (!button) {
-        console.warn('Smart Reply: AI Reply button not found for keyboard shortcut');
+        console.warn(
+          "Smart Reply: AI Reply button not found for keyboard shortcut",
+        );
         return;
       }
-      
+
       // Extract context
       const context = DOMUtils.extractTwitterContext();
-      
+
       // Save the tone for future use
-      sessionStorage.setItem('tweetcraft_last_tone', tone);
-      
+      sessionStorage.setItem("tweetcraft_last_tone", tone);
+
       // Trigger generation with HTMLElement cast
       const safeContext = {
         ...context,
-        tweetText: context.tweetText || '',
-        threadContext: context.threadContext?.map(t => t.text) || []
+        tweetText: context.tweetText || "",
+        threadContext: context.threadContext?.map((t) => t.text) || [],
       };
-      this.generateReply(textarea as HTMLElement, safeContext, tone, bypassCache || regenerate);
+      this.generateReply(
+        textarea as HTMLElement,
+        safeContext,
+        tone,
+        bypassCache || regenerate,
+      );
     }) as EventListener;
-    
+
     // Store reference for cleanup
-    this.customEventListeners.set('tweetcraft:generate-reply', generateReplyListener);
-    
+    this.customEventListeners.set(
+      "tweetcraft:generate-reply",
+      generateReplyListener,
+    );
+
     // Listen for custom events from keyboard shortcuts
-    document.addEventListener('tweetcraft:generate-reply', generateReplyListener);
+    document.addEventListener(
+      "tweetcraft:generate-reply",
+      generateReplyListener,
+    );
   }
 
   private setupCleanupHandlers(): void {
     // Enhanced cleanup with state persistence for context recovery
     const handleNavigation = () => {
       if (!this.isDestroyed) {
-        console.log('%c🔄 NAVIGATION DETECTED', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
-        console.log('%c  URL:', 'color: #657786', window.location.href);
-        console.log('%c  Clearing processed toolbars...', 'color: #657786');
-        
+        console.log(
+          "%c🔄 NAVIGATION DETECTED",
+          "color: #1DA1F2; font-weight: bold; font-size: 14px",
+        );
+        console.log("%c  URL:", "color: #657786", window.location.href);
+        console.log("%c  Clearing processed toolbars...", "color: #657786");
+
         // Clear any pending navigation timers
         if (this.navigationTimerId) {
           clearTimeout(this.navigationTimerId);
           this.navigationTimerId = null;
         }
-        
+
         // Clear processed toolbars for the new page
         this.processedToolbars = new WeakSet<Element>();
-        
+
         // Reset retry count and attempt injection after navigation
         this.initialRetryCount = 0;
-        
+
         // Give the new page time to load - increased delay for Twitter's dynamic loading
         this.navigationTimerId = this.safeSetTimeout(async () => {
-          console.log('%c  Re-attempting injection after navigation...', 'color: #17BF63');
+          console.log(
+            "%c  Re-attempting injection after navigation...",
+            "color: #17BF63",
+          );
           await this.attemptInitialInjection();
-          
+
           // Also trigger a manual scan after a bit more delay
           this.navigationTimerId = this.safeSetTimeout(async () => {
             await this.manualToolbarScan();
@@ -249,34 +393,38 @@ class SmartReplyContentScript {
         }, 800);
       }
     };
-    
+
     // Listen for various navigation events
-    window.addEventListener('beforeunload', handleNavigation);
-    window.addEventListener('pagehide', handleNavigation);
-    
+    window.addEventListener("beforeunload", handleNavigation);
+    window.addEventListener("pagehide", handleNavigation);
+
     // Listen for history changes (Twitter is an SPA)
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
-    
-    history.pushState = function(...args) {
+
+    history.pushState = function (...args) {
       originalPushState.apply(history, args);
       handleNavigation();
     };
-    
-    history.replaceState = function(...args) {
+
+    history.replaceState = function (...args) {
       originalReplaceState.apply(history, args);
       handleNavigation();
     };
-    
-    window.addEventListener('popstate', handleNavigation);
-    
+
+    window.addEventListener("popstate", handleNavigation);
+
     // Store cleanup functions for later
     (this as any).cleanupFunctions = [
-      () => window.removeEventListener('beforeunload', handleNavigation),
-      () => window.removeEventListener('pagehide', handleNavigation),
-      () => window.removeEventListener('popstate', handleNavigation),
-      () => { history.pushState = originalPushState; },
-      () => { history.replaceState = originalReplaceState; }
+      () => window.removeEventListener("beforeunload", handleNavigation),
+      () => window.removeEventListener("pagehide", handleNavigation),
+      () => window.removeEventListener("popstate", handleNavigation),
+      () => {
+        history.pushState = originalPushState;
+      },
+      () => {
+        history.replaceState = originalReplaceState;
+      },
     ];
   }
 
@@ -290,13 +438,20 @@ class SmartReplyContentScript {
         url: window.location.href,
         version: SmartReplyContentScript.VERSION,
         processedCount: this.processedToolbars ? 1 : 0, // WeakSet can't be serialized
-        isDestroyed: this.isDestroyed
+        isDestroyed: this.isDestroyed,
       };
-      
-      sessionStorage.setItem('tweetcraft_recovery_state', JSON.stringify(recoveryState));
-      console.log('%c💾 State saved for recovery', 'color: #17BF63');
+
+      sessionStorage.setItem(
+        "tweetcraft_recovery_state",
+        JSON.stringify(recoveryState),
+      );
+      console.log("%c💾 State saved for recovery", "color: #17BF63");
     } catch (error) {
-      console.warn('%c⚠️ Failed to save recovery state:', 'color: #FFA500', error);
+      console.warn(
+        "%c⚠️ Failed to save recovery state:",
+        "color: #FFA500",
+        error,
+      );
     }
   }
 
@@ -305,28 +460,41 @@ class SmartReplyContentScript {
    */
   private attemptStateRecovery(): boolean {
     try {
-      const savedStateJson = sessionStorage.getItem('tweetcraft_recovery_state');
+      const savedStateJson = sessionStorage.getItem(
+        "tweetcraft_recovery_state",
+      );
       if (!savedStateJson) return false;
-      
+
       const savedState = JSON.parse(savedStateJson);
       const timeDiff = Date.now() - savedState.timestamp;
-      
+
       // Only recover if state was saved within the last 2 minutes
       if (timeDiff > 120000) {
-        sessionStorage.removeItem('tweetcraft_recovery_state');
+        sessionStorage.removeItem("tweetcraft_recovery_state");
         return false;
       }
-      
-      console.log('%c🔄 Smart Reply: Recovering from saved state', 'color: #1DA1F2; font-weight: bold');
-      console.log('%c  Saved:', 'color: #657786', new Date(savedState.timestamp).toLocaleTimeString());
-      console.log('%c  URL match:', 'color: #657786', savedState.url === window.location.href);
-      
+
+      console.log(
+        "%c🔄 Smart Reply: Recovering from saved state",
+        "color: #1DA1F2; font-weight: bold",
+      );
+      console.log(
+        "%c  Saved:",
+        "color: #657786",
+        new Date(savedState.timestamp).toLocaleTimeString(),
+      );
+      console.log(
+        "%c  URL match:",
+        "color: #657786",
+        savedState.url === window.location.href,
+      );
+
       // Clear the saved state
-      sessionStorage.removeItem('tweetcraft_recovery_state');
+      sessionStorage.removeItem("tweetcraft_recovery_state");
       return true;
     } catch (error) {
-      console.warn('%c⚠️ State recovery failed:', 'color: #FFA500', error);
-      sessionStorage.removeItem('tweetcraft_recovery_state');
+      console.warn("%c⚠️ State recovery failed:", "color: #FFA500", error);
+      sessionStorage.removeItem("tweetcraft_recovery_state");
       return false;
     }
   }
@@ -339,70 +507,78 @@ class SmartReplyContentScript {
    * This runs in the content script where we have access to Twitter's authentication
    * Optimized to use parallel processing for better performance
    * Includes user notifications for failed conversions
-   * 
+   *
    * @param imageUrls - Array of image URLs to convert
    * @returns Promise resolving to array of base64 data URLs (excludes failed conversions)
    */
   private async convertImagesToBase64(imageUrls: string[]): Promise<string[]> {
-    console.log('%c🖼️ Converting images to base64', 'color: #794BC4; font-weight: bold');
-    console.log('%c  Image count:', 'color: #657786', imageUrls.length);
-    
+    console.log(
+      "%c🖼️ Converting images to base64",
+      "color: #794BC4; font-weight: bold",
+    );
+    console.log("%c  Image count:", "color: #657786", imageUrls.length);
+
     // Limit maximum number of images to prevent excessive API usage
     const MAX_IMAGES = 4;
     let imagesToProcess = imageUrls;
-    
+
     if (imageUrls.length > MAX_IMAGES) {
-      console.warn(`%c⚠️ Too many images (${imageUrls.length}). Processing only first ${MAX_IMAGES} images`, 'color: #FFA500');
+      console.warn(
+        `%c⚠️ Too many images (${imageUrls.length}). Processing only first ${MAX_IMAGES} images`,
+        "color: #FFA500",
+      );
       visualFeedback.showToast(
         `Processing only first ${MAX_IMAGES} images out of ${imageUrls.length} for performance reasons`,
-        { type: 'warning', duration: 4000 }
+        { type: "warning", duration: 4000 },
       );
       imagesToProcess = imageUrls.slice(0, MAX_IMAGES);
     }
-    
+
     let failedCount = 0;
     let oversizedCount = 0;
-    
+
     // Process all images in parallel for better performance
     const conversionPromises = imagesToProcess.map(async (url) => {
       try {
         // Skip if already base64
-        if (url.startsWith('data:')) {
+        if (url.startsWith("data:")) {
           return url;
         }
-        
+
         // Validate URL for security before fetching
         if (!this.isValidImageUrl(url)) {
-          console.error('URL validation failed for security reasons:', url);
+          console.error("URL validation failed for security reasons:", url);
           failedCount++;
           return null;
         }
-        
+
         // Fetch the image using the page's credentials
         const response = await fetch(url, {
-          credentials: 'include', // Include cookies for Twitter auth
-          mode: 'cors'
+          credentials: "include", // Include cookies for Twitter auth
+          mode: "cors",
         });
-        
+
         if (!response.ok) {
-          console.error('Failed to fetch image:', url, response.status);
+          console.error("Failed to fetch image:", url, response.status);
           failedCount++;
           // Try fallback immediately
           const fallbackResult = await this.fetchImageWithoutCredentials(url);
           if (!fallbackResult) failedCount--; // Decrement if fallback also failed (already counted)
           return fallbackResult;
         }
-        
+
         // Convert to blob then to base64
         const blob = await response.blob();
         const base64Data = await this.blobToBase64(blob);
-        console.log('%c  ✅ Converted image to base64', 'color: #17BF63');
+        console.log("%c  ✅ Converted image to base64", "color: #17BF63");
         return base64Data;
-        
       } catch (error) {
-        console.error('Error converting image to base64:', url, error);
+        console.error("Error converting image to base64:", url, error);
         // Check if error is due to size limit
-        if (error instanceof Error && error.message.includes('exceeds maximum size')) {
+        if (
+          error instanceof Error &&
+          error.message.includes("exceeds maximum size")
+        ) {
           oversizedCount++;
           // Don't retry for oversized images
           return null;
@@ -414,47 +590,55 @@ class SmartReplyContentScript {
         return fallbackResult;
       }
     });
-    
+
     // Wait for all conversions to complete
     const results = await Promise.all(conversionPromises);
-    
+
     // Filter out any null values from failed conversions
     const base64Images = results.filter((img): img is string => img !== null);
-    
+
     // Show user notifications for failed conversions
     if (oversizedCount > 0) {
       visualFeedback.showToast(
-        `${oversizedCount} image${oversizedCount > 1 ? 's' : ''} exceeded 5MB size limit and ${oversizedCount > 1 ? 'were' : 'was'} skipped`,
-        { type: 'warning', duration: 4000 }
+        `${oversizedCount} image${oversizedCount > 1 ? "s" : ""} exceeded 5MB size limit and ${oversizedCount > 1 ? "were" : "was"} skipped`,
+        { type: "warning", duration: 4000 },
       );
     }
-    
-    const otherFailures = imagesToProcess.length - base64Images.length - oversizedCount;
+
+    const otherFailures =
+      imagesToProcess.length - base64Images.length - oversizedCount;
     if (otherFailures > 0) {
       visualFeedback.showToast(
-        `Failed to process ${otherFailures} image${otherFailures > 1 ? 's' : ''}. They will not be included in the analysis.`,
-        { type: 'error', duration: 4000 }
+        `Failed to process ${otherFailures} image${otherFailures > 1 ? "s" : ""}. They will not be included in the analysis.`,
+        { type: "error", duration: 4000 },
       );
     }
-    
+
     // Show success message if some images were processed
-    if (base64Images.length > 0 && base64Images.length < imagesToProcess.length) {
+    if (
+      base64Images.length > 0 &&
+      base64Images.length < imagesToProcess.length
+    ) {
       visualFeedback.showToast(
         `Successfully processed ${base64Images.length} of ${imagesToProcess.length} images`,
-        { type: 'info', duration: 3000 }
+        { type: "info", duration: 3000 },
       );
     }
-    
-    console.log('%c  Conversion complete:', 'color: #657786', `${base64Images.length}/${imagesToProcess.length} successful`);
-    
+
+    console.log(
+      "%c  Conversion complete:",
+      "color: #657786",
+      `${base64Images.length}/${imagesToProcess.length} successful`,
+    );
+
     return base64Images;
   }
-  
+
   /**
    * Helper function to convert blob to base64
    * Eliminates code duplication and improves maintainability
    * Includes size validation to prevent memory issues
-   * 
+   *
    * @param blob - The Blob object to convert
    * @returns Promise resolving to base64 data URL string
    * @throws Error if blob exceeds 5MB size limit or conversion fails
@@ -462,126 +646,154 @@ class SmartReplyContentScript {
   private async blobToBase64(blob: Blob): Promise<string> {
     // Size validation - max 5MB per image
     const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
-    
+
     if (blob.size > MAX_IMAGE_SIZE) {
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-      console.warn(`%c⚠️ Image too large (${sizeMB}MB), max size is 5MB`, 'color: #FFA500');
-      throw new Error(`Image exceeds maximum size of 5MB (actual: ${sizeMB}MB)`);
+      console.warn(
+        `%c⚠️ Image too large (${sizeMB}MB), max size is 5MB`,
+        "color: #FFA500",
+      );
+      throw new Error(
+        `Image exceeds maximum size of 5MB (actual: ${sizeMB}MB)`,
+      );
     }
-    
+
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
+        if (typeof reader.result === "string") {
           resolve(reader.result);
         } else {
-          reject(new Error('Failed to convert blob to base64'));
+          reject(new Error("Failed to convert blob to base64"));
         }
       };
-      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.onerror = () => reject(new Error("FileReader error"));
       reader.readAsDataURL(blob);
     });
   }
-  
+
   /**
    * Validate image URL for security (SSRF prevention)
    * Only allows whitelisted domains and protocols
-   * 
+   *
    * @param url - The URL to validate
    * @returns true if URL is safe to fetch, false otherwise
    */
   private isValidImageUrl(url: string): boolean {
     try {
       // Skip validation for data URLs (already base64)
-      if (url.startsWith('data:')) {
+      if (url.startsWith("data:")) {
         return true;
       }
-      
+
       const urlObj = new URL(url);
-      
+
       // Only allow HTTPS and HTTP protocols
-      if (!['https:', 'http:'].includes(urlObj.protocol)) {
-        console.warn(`%c⚠️ Invalid protocol: ${urlObj.protocol}`, 'color: #FFA500');
+      if (!["https:", "http:"].includes(urlObj.protocol)) {
+        console.warn(
+          `%c⚠️ Invalid protocol: ${urlObj.protocol}`,
+          "color: #FFA500",
+        );
         return false;
       }
-      
+
       // Whitelist trusted image domains
       const trustedDomains = [
-        'pbs.twimg.com',      // Twitter images
-        'abs.twimg.com',      // Twitter absolute images
-        'video.twimg.com',    // Twitter videos
-        'twitter.com',        // Twitter main domain
-        'x.com',              // X.com domain
-        't.co',               // Twitter short URLs
-        'pic.twitter.com'     // Twitter pic subdomain
+        "pbs.twimg.com", // Twitter images
+        "abs.twimg.com", // Twitter absolute images
+        "video.twimg.com", // Twitter videos
+        "twitter.com", // Twitter main domain
+        "x.com", // X.com domain
+        "t.co", // Twitter short URLs
+        "pic.twitter.com", // Twitter pic subdomain
       ];
-      
+
       // Check if hostname ends with any trusted domain
-      const isTrusted = trustedDomains.some(domain => 
-        urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+      const isTrusted = trustedDomains.some(
+        (domain) =>
+          urlObj.hostname === domain || urlObj.hostname.endsWith("." + domain),
       );
-      
+
       if (!isTrusted) {
-        console.warn(`%c⚠️ Untrusted image domain: ${urlObj.hostname}`, 'color: #FFA500');
+        console.warn(
+          `%c⚠️ Untrusted image domain: ${urlObj.hostname}`,
+          "color: #FFA500",
+        );
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.error('Invalid URL format:', url, error);
+      console.error("Invalid URL format:", url, error);
       return false;
     }
   }
-  
+
   /**
    * Fallback function to fetch image without credentials
    * Used when authenticated fetch fails
    * Includes size validation for memory safety
-   * 
+   *
    * @param url - The image URL to fetch
    * @returns Promise resolving to base64 data URL string or null if fetch fails
    */
-  private async fetchImageWithoutCredentials(url: string): Promise<string | null> {
+  private async fetchImageWithoutCredentials(
+    url: string,
+  ): Promise<string | null> {
     // Validate URL before fetching
     if (!this.isValidImageUrl(url)) {
-      console.error('URL validation failed for security reasons:', url);
+      console.error("URL validation failed for security reasons:", url);
       return null;
     }
-    
+
     try {
       const response = await fetch(url);
       if (response.ok) {
         const blob = await response.blob();
         // Size validation is handled in blobToBase64
         const base64Data = await this.blobToBase64(blob);
-        console.log('%c  ✅ Converted image to base64 (no credentials)', 'color: #17BF63');
+        console.log(
+          "%c  ✅ Converted image to base64 (no credentials)",
+          "color: #17BF63",
+        );
         return base64Data;
       }
     } catch (fallbackError) {
-      console.error('Fallback fetch also failed:', fallbackError);
+      console.error("Fallback fetch also failed:", fallbackError);
       // Check if it's a size error
-      if (fallbackError instanceof Error && fallbackError.message.includes('exceeds maximum size')) {
-        console.warn('%c  ⚠️ Image skipped due to size limit', 'color: #FFA500');
+      if (
+        fallbackError instanceof Error &&
+        fallbackError.message.includes("exceeds maximum size")
+      ) {
+        console.warn(
+          "%c  ⚠️ Image skipped due to size limit",
+          "color: #FFA500",
+        );
       }
     }
     return null;
   }
 
   private cleanupDuplicateButtons(): void {
-    const allButtons = document.querySelectorAll('.smart-reply-container');
-    
+    const allButtons = document.querySelectorAll(".smart-reply-container");
+
     // Only log if we're actually going to do cleanup
     let duplicatesRemoved = 0;
     let orphansRemoved = 0;
-    
+
     const seenLocations = new Map<string, Element>();
-    
-    allButtons.forEach(button => {
+
+    allButtons.forEach((button) => {
       // Create a location key based on the nearest reply container
-      const replyContainer = button.closest('[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]');
+      const replyContainer = button.closest(
+        '[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]',
+      );
       if (replyContainer) {
-        const locationKey = replyContainer.getAttribute('data-testid') || replyContainer.getAttribute('role') || 'unknown';
-        
+        const locationKey =
+          replyContainer.getAttribute("data-testid") ||
+          replyContainer.getAttribute("role") ||
+          "unknown";
+
         if (seenLocations.has(locationKey)) {
           // This is a duplicate, remove it
           button.remove();
@@ -591,11 +803,13 @@ class SmartReplyContentScript {
         }
       } else {
         // Button without a reply container - check if it's in a toolbar
-        const toolbar = button.closest('[role="group"], [data-testid="toolBar"], .css-175oi2r');
+        const toolbar = button.closest(
+          '[role="group"], [data-testid="toolBar"], .css-175oi2r',
+        );
         const isInToolbar = toolbar !== null;
         const isConnected = button.isConnected;
         const isVisible = (button as HTMLElement).offsetParent !== null;
-        
+
         // Only consider it orphaned if it's not in a toolbar AND (disconnected OR invisible)
         if (!isInToolbar && (!isConnected || !isVisible)) {
           button.remove();
@@ -603,10 +817,14 @@ class SmartReplyContentScript {
         }
       }
     });
-    
+
     // Only log if we actually removed something
     if (duplicatesRemoved > 0 || orphansRemoved > 0) {
-      console.log('%c🧹 Cleanup:', 'color: #FFA500', `Removed ${duplicatesRemoved} duplicates, ${orphansRemoved} orphans`);
+      console.log(
+        "%c🧹 Cleanup:",
+        "color: #FFA500",
+        `Removed ${duplicatesRemoved} duplicates, ${orphansRemoved} orphans`,
+      );
     }
   }
 
@@ -614,39 +832,45 @@ class SmartReplyContentScript {
     try {
       // Check if extension context is still valid
       if (!chrome.runtime?.id) {
-        console.log('Smart Reply: Extension context invalidated, cleaning up...');
+        console.log(
+          "Smart Reply: Extension context invalidated, cleaning up...",
+        );
         this.destroy();
         return;
       }
-      
-      this.port = chrome.runtime.connect({ name: 'content-script' });
-      
+
+      this.port = chrome.runtime.connect({ name: "content-script" });
+
       this.port.onDisconnect.addListener(() => {
         // Check if it's an invalidation error
         const error = chrome.runtime.lastError;
-        if (error?.message?.includes('Extension context invalidated')) {
-          console.log('Smart Reply: Extension was reloaded, cleaning up old instance...');
+        if (error?.message?.includes("Extension context invalidated")) {
+          console.log(
+            "Smart Reply: Extension was reloaded, cleaning up old instance...",
+          );
           this.destroy();
           return;
         }
-        
+
         // Otherwise try silent reconnection
         this.port = null;
         this.safeSetTimeout(() => this.connectToServiceWorker(), 1000);
       });
     } catch (error: any) {
       // Check for context invalidation
-      if (error?.message?.includes('Extension context invalidated')) {
-        console.log('Smart Reply: Extension context invalidated, stopping reconnection attempts');
+      if (error?.message?.includes("Extension context invalidated")) {
+        console.log(
+          "Smart Reply: Extension context invalidated, stopping reconnection attempts",
+        );
         this.destroy();
         return;
       }
-      
+
       // Only log actual errors, not context invalidation
-      if (!error?.message?.includes('context invalidated')) {
-        console.error('Smart Reply: Connection error:', error);
+      if (!error?.message?.includes("context invalidated")) {
+        console.error("Smart Reply: Connection error:", error);
       }
-      
+
       this.safeSetTimeout(() => this.connectToServiceWorker(), 5000);
     }
   }
@@ -661,9 +885,9 @@ class SmartReplyContentScript {
       this.startObservingHypeFury();
       return;
     }
-    
+
     // Twitter/X logic - Find the React root element
-    const reactRoot = document.querySelector('#react-root');
+    const reactRoot = document.querySelector("#react-root");
     if (!reactRoot) {
       // Silently retry
       this.safeSetTimeout(() => {
@@ -671,50 +895,52 @@ class SmartReplyContentScript {
       }, 1000);
       return;
     }
-    
+
     // Clean up any duplicate buttons before starting
     this.cleanupDuplicateButtons();
-    
+
     // Set up periodic cleanup with configurable interval
-    this.cleanupIntervalId = this.safeSetInterval(() => {
-      this.cleanupDuplicateButtons();
-    }, this.cleanupIntervalMs);
+    this.startCleanupInterval();
 
     // Attempt initial injection with retries (fire and forget during initialization)
-    this.attemptInitialInjection().catch(error => {
-      console.error('Initial injection failed:', error);
+    this.attemptInitialInjection().catch((error) => {
+      console.error("Initial injection failed:", error);
     });
 
     // Create debounced handler for processing mutations with reduced frequency
     const debouncedMutationHandler = debounce(() => {
       // Only process if we're on a page that likely has toolbars
-      if (!window.location.pathname.includes('/status/') && 
-          !document.querySelector('article[data-testid="tweet"]') &&
-          !window.location.pathname.includes('/compose/tweet')) {
+      if (
+        !window.location.pathname.includes("/status/") &&
+        !document.querySelector('article[data-testid="tweet"]') &&
+        !window.location.pathname.includes("/compose/tweet")
+      ) {
         return; // Skip processing on non-tweet pages
       }
-      
+
       const toolbarsToProcess = new Set<Element>();
-      
+
       // Find all unprocessed toolbars
       // Use resilient selector to find all toolbars
       const toolbars: Element[] = [];
       // First try primary selector for all
-      document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
-        toolbars.push(toolbar);
-      });
+      document
+        .querySelectorAll(DOMUtils.TOOLBAR_SELECTOR)
+        .forEach((toolbar) => {
+          toolbars.push(toolbar);
+        });
       // If none found, try fallbacks
       if (toolbars.length === 0) {
-        const toolbar = DOMUtils.findWithFallback('toolbar');
+        const toolbar = DOMUtils.findWithFallback("toolbar");
         if (toolbar) toolbars.push(toolbar);
       }
-      
-      toolbars.forEach(toolbar => {
+
+      toolbars.forEach((toolbar) => {
         if (!this.processedToolbars.has(toolbar)) {
           toolbarsToProcess.add(toolbar);
         }
       });
-      
+
       // Process all found toolbars
       toolbarsToProcess.forEach(async (toolbar) => {
         await this.handleToolbarAdded(toolbar);
@@ -724,76 +950,104 @@ class SmartReplyContentScript {
     // Set up mutation observer to detect new toolbars (with Progressive Enhancement)
     const observerCallback = (mutations: MutationRecord[]) => {
       // Check for removed nodes that might contain our buttons
-      const hasRemovedButtons = mutations.some(mutation => {
-        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-          return Array.from(mutation.removedNodes).some(node => 
-            node.nodeType === Node.ELEMENT_NODE && 
-            (node as Element).querySelector && 
-            (node as Element).querySelector('.smart-reply-container')
+      const hasRemovedButtons = mutations.some((mutation) => {
+        if (mutation.type === "childList" && mutation.removedNodes.length > 0) {
+          return Array.from(mutation.removedNodes).some(
+            (node) =>
+              node.nodeType === Node.ELEMENT_NODE &&
+              (node as Element).querySelector &&
+              (node as Element).querySelector(".smart-reply-container"),
           );
         }
         return false;
       });
-      
+
       if (hasRemovedButtons) {
-        console.log('%c🗑️ AI BUTTONS REMOVED BY DOM MUTATION', 'color: #DC3545; font-weight: bold');
-        const remainingButtons = document.querySelectorAll('.smart-reply-container');
-        console.log('%c  Remaining buttons:', 'color: #657786', remainingButtons.length);
+        console.log(
+          "%c🗑️ AI BUTTONS REMOVED BY DOM MUTATION",
+          "color: #DC3545; font-weight: bold",
+        );
+        const remainingButtons = document.querySelectorAll(
+          ".smart-reply-container",
+        );
+        console.log(
+          "%c  Remaining buttons:",
+          "color: #657786",
+          remainingButtons.length,
+        );
       }
-      
+
       // Check if mutations are relevant before triggering handler
-      const hasRelevantChanges = mutations.some(mutation => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+      const hasRelevantChanges = mutations.some((mutation) => {
+        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
           // Check if any added nodes might contain toolbars
-          return Array.from(mutation.addedNodes).some(node => 
-            node.nodeType === Node.ELEMENT_NODE && 
-            (node as Element).querySelector && 
-            ((node as Element).querySelector('[data-testid="toolBar"]') || 
-             (node as Element).querySelector('[role="group"]'))
+          return Array.from(mutation.addedNodes).some(
+            (node) =>
+              node.nodeType === Node.ELEMENT_NODE &&
+              (node as Element).querySelector &&
+              ((node as Element).querySelector('[data-testid="toolBar"]') ||
+                (node as Element).querySelector('[role="group"]')),
           );
         }
         return false;
       });
-      
+
       // Debug logging for DOM changes
       if (hasRelevantChanges) {
-        console.log('%c🔍 DOM MUTATION DETECTED', 'color: #9146FF; font-weight: bold');
-        console.log('%c  Mutations:', 'color: #657786', mutations.length);
-        
+        console.log(
+          "%c🔍 DOM MUTATION DETECTED",
+          "color: #9146FF; font-weight: bold",
+        );
+        console.log("%c  Mutations:", "color: #657786", mutations.length);
+
         // Check if any existing buttons were removed
-        const existingButtons = document.querySelectorAll('.smart-reply-container');
-        console.log('%c  Existing AI buttons before processing:', 'color: #657786', existingButtons.length);
-        
+        const existingButtons = document.querySelectorAll(
+          ".smart-reply-container",
+        );
+        console.log(
+          "%c  Existing AI buttons before processing:",
+          "color: #657786",
+          existingButtons.length,
+        );
+
         // Clean up orphaned buttons before processing new toolbars
         this.cleanupDuplicateButtons();
-        
-        const buttonsAfterCleanup = document.querySelectorAll('.smart-reply-container');
-        console.log('%c  AI buttons after cleanup:', 'color: #657786', buttonsAfterCleanup.length);
-        
+
+        const buttonsAfterCleanup = document.querySelectorAll(
+          ".smart-reply-container",
+        );
+        console.log(
+          "%c  AI buttons after cleanup:",
+          "color: #657786",
+          buttonsAfterCleanup.length,
+        );
+
         debouncedMutationHandler();
       }
     };
-    
+
     // Create observer with Progressive Enhancement fallback
     this.observer = ProgressiveEnhancement.createObserver(observerCallback, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
-    
+
     if (this.observer) {
       this.observer.observe(reactRoot, {
         childList: true,
-        subtree: true
+        subtree: true,
       });
     } else {
       // Fallback: Listen for custom DOM change events
-      window.addEventListener('pe-dom-change', () => {
+      window.addEventListener("pe-dom-change", () => {
         debouncedMutationHandler();
       });
     }
 
     // Process existing toolbars
-    const existingToolbars = document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR);
+    const existingToolbars = document.querySelectorAll(
+      DOMUtils.TOOLBAR_SELECTOR,
+    );
     existingToolbars.forEach(async (toolbar) => {
       await this.handleToolbarAdded(toolbar);
     });
@@ -803,283 +1057,374 @@ class SmartReplyContentScript {
    * HypeFury-specific observation logic
    */
   private startObservingHypeFury(): void {
-    console.log('%c👀 Starting HypeFury observation', 'color: #667eea');
-    
+    console.log("%c👀 Starting HypeFury observation", "color: #667eea");
+
     // Debug: Log all textareas found
-    const allTextareas = document.querySelectorAll('textarea, [contenteditable="true"]');
-    console.log('%c🔍 Initial scan - textareas/editable elements:', 'color: #667eea', allTextareas.length);
+    const allTextareas = document.querySelectorAll(
+      'textarea, [contenteditable="true"]',
+    );
+    console.log(
+      "%c🔍 Initial scan - textareas/editable elements:",
+      "color: #667eea",
+      allTextareas.length,
+    );
     allTextareas.forEach((el, index) => {
       const elem = el as HTMLElement;
-      console.log(`  ${index}:`, elem, 'placeholder:', elem.getAttribute('placeholder'), 'class:', elem.className);
+      console.log(
+        `  ${index}:`,
+        elem,
+        "placeholder:",
+        elem.getAttribute("placeholder"),
+        "class:",
+        elem.className,
+      );
     });
-    
+
     // Process initial textareas
     this.processHypeFuryTextareas();
-    
+
     // Set up mutation observer for HypeFury with longer debounce for Vue rendering
     const debouncedHandler = debounce(() => {
-      console.log('%c🔄 DOM changed, reprocessing...', 'color: #667eea');
+      console.log("%c🔄 DOM changed, reprocessing...", "color: #667eea");
       this.processHypeFuryTextareas();
     }, 500);
-    
+
     // Create observer with Progressive Enhancement fallback for HypeFury
-    this.observer = ProgressiveEnhancement.createObserver(() => {
-      debouncedHandler();
-    }, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['placeholder', 'contenteditable']
-    });
-    
+    this.observer = ProgressiveEnhancement.createObserver(
+      () => {
+        debouncedHandler();
+      },
+      {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["placeholder", "contenteditable"],
+      },
+    );
+
     // Observe the entire body for HypeFury
     if (this.observer) {
       this.observer.observe(document.body, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['placeholder', 'contenteditable']
+        attributeFilter: ["placeholder", "contenteditable"],
       });
     } else {
       // Fallback: Listen for custom DOM change events
-      window.addEventListener('pe-dom-change', () => {
+      window.addEventListener("pe-dom-change", () => {
         debouncedHandler();
       });
     }
-    
+
     // Also try processing after a delay for Vue components to load
     this.safeSetTimeout(() => {
-      console.log('%c⏰ Delayed processing for Vue components', 'color: #667eea');
+      console.log(
+        "%c⏰ Delayed processing for Vue components",
+        "color: #667eea",
+      );
       this.processHypeFuryTextareas();
     }, 2000);
   }
-  
+
   /**
    * Process HypeFury reply textareas
    */
   private processHypeFuryTextareas(): void {
-    console.log('%c🔍 Looking for HypeFury textareas...', 'color: #667eea');
-    
+    console.log("%c🔍 Looking for HypeFury textareas...", "color: #667eea");
+
     // Get ALL textareas first to see what's available
-    const allTextareas = document.querySelectorAll('textarea');
-    console.log(`%c  Found ${allTextareas.length} total textareas`, 'color: #667eea');
-    
+    const allTextareas = document.querySelectorAll("textarea");
+    console.log(
+      `%c  Found ${allTextareas.length} total textareas`,
+      "color: #667eea",
+    );
+
     // Filter to only include textareas that are visible and likely for replies
-    const replyTextareas = Array.from(allTextareas).filter(textarea => {
+    const replyTextareas = Array.from(allTextareas).filter((textarea) => {
       const elem = textarea as HTMLTextAreaElement;
-      
+
       // Log details for debugging
-      const placeholder = elem.placeholder || '';
+      const placeholder = elem.placeholder || "";
       const isVisible = elem.offsetHeight > 30 && elem.offsetWidth > 100;
-      const hasReplyContext = elem.closest('.mention-item, .feed-item, [class*="engagement"], [class*="reply"]');
-      
+      const hasReplyContext = elem.closest(
+        '.mention-item, .feed-item, [class*="engagement"], [class*="reply"]',
+      );
+
       // Skip if hidden or too small
       if (!isVisible) {
         return false;
       }
-      
+
       // Skip if it's clearly a search/filter/title input
-      if (placeholder.toLowerCase().includes('search') || 
-          placeholder.toLowerCase().includes('filter') ||
-          placeholder.toLowerCase().includes('title') ||
-          placeholder.toLowerCase().includes('name')) {
+      if (
+        placeholder.toLowerCase().includes("search") ||
+        placeholder.toLowerCase().includes("filter") ||
+        placeholder.toLowerCase().includes("title") ||
+        placeholder.toLowerCase().includes("name")
+      ) {
         return false;
       }
-      
+
       // Include if it has reply context OR if it's a general textarea that could be for replies
       // Be more permissive since HypeFury might not have specific placeholders
-      return hasReplyContext || (!placeholder || placeholder.length > 20);
+      return hasReplyContext || !placeholder || placeholder.length > 20;
     });
-    
-    console.log(`%c  Filtered to ${replyTextareas.length} potential reply textareas`, 'color: #667eea');
-    
+
+    console.log(
+      `%c  Filtered to ${replyTextareas.length} potential reply textareas`,
+      "color: #667eea",
+    );
+
     if (replyTextareas.length === 0) {
-      console.log('%c⚠️ No suitable reply textareas found', 'color: #FFA500');
+      console.log("%c⚠️ No suitable reply textareas found", "color: #FFA500");
       // Log first few textareas for debugging
       allTextareas.forEach((ta, i) => {
         if (i < 3) {
           const elem = ta as HTMLTextAreaElement;
-          console.log(`  Textarea ${i}: placeholder="${elem.placeholder}", height=${elem.offsetHeight}, width=${elem.offsetWidth}`);
+          console.log(
+            `  Textarea ${i}: placeholder="${elem.placeholder}", height=${elem.offsetHeight}, width=${elem.offsetWidth}`,
+          );
         }
       });
       return;
     }
-    
+
     // Limit to maximum 5 buttons to prevent spam
     const textareasToProcess = replyTextareas.slice(0, 5);
-    
-    console.log(`%c✅ Found ${textareasToProcess.length} suitable textarea(s) to process`, 'color: #17BF63');
-    
+
+    console.log(
+      `%c✅ Found ${textareasToProcess.length} suitable textarea(s) to process`,
+      "color: #17BF63",
+    );
+
     let processedCount = 0;
-    
-    textareasToProcess.forEach(textarea => {
+
+    textareasToProcess.forEach((textarea) => {
       // Check if already processed
-      if (textarea.hasAttribute('data-tweetcraft-processed')) {
+      if (textarea.hasAttribute("data-tweetcraft-processed")) {
         return;
       }
-      
+
       // Check if a button already exists near this textarea
-      const parent = textarea.closest('.mention-item, .feed-item, [class*="reply"]');
-      if (parent && parent.querySelector('.smart-reply-button, .smart-reply-container')) {
-        console.log('%c⚠️ Button already exists for this textarea', 'color: #FFA500');
-        textarea.setAttribute('data-tweetcraft-processed', 'true');
+      const parent = textarea.closest(
+        '.mention-item, .feed-item, [class*="reply"]',
+      );
+      if (
+        parent &&
+        parent.querySelector(".smart-reply-button, .smart-reply-container")
+      ) {
+        console.log(
+          "%c⚠️ Button already exists for this textarea",
+          "color: #FFA500",
+        );
+        textarea.setAttribute("data-tweetcraft-processed", "true");
         return;
       }
-      
+
       // Mark as processed BEFORE creating button to prevent race conditions
-      textarea.setAttribute('data-tweetcraft-processed', 'true');
+      textarea.setAttribute("data-tweetcraft-processed", "true");
       processedCount++;
-      
+
       // Create button for this specific textarea
       const button = this.createHypeFuryAIButton(textarea);
-      
+
       // Try multiple injection strategies
       let injected = false;
-      
+
       // Strategy 1: Look for nearby button groups
       if (parent) {
-        const buttonGroup = parent.querySelector('.flex, .button-group, [class*="action"], [class*="button"]');
-        if (buttonGroup && !buttonGroup.querySelector('.smart-reply-button')) {
+        const buttonGroup = parent.querySelector(
+          '.flex, .button-group, [class*="action"], [class*="button"]',
+        );
+        if (buttonGroup && !buttonGroup.querySelector(".smart-reply-button")) {
           buttonGroup.appendChild(button);
           injected = true;
-          console.log('%c💉 Injected into button group', 'color: #1DA1F2');
+          console.log("%c💉 Injected into button group", "color: #1DA1F2");
         }
       }
-      
+
       // Strategy 2: Create container after textarea
       if (!injected) {
-        const container = document.createElement('div');
-        container.className = 'tweetcraft-button-container';
-        container.style.cssText = 'display: flex; gap: 8px; margin-top: 8px; align-items: center;';
+        const container = document.createElement("div");
+        container.className = "tweetcraft-button-container";
+        container.style.cssText =
+          "display: flex; gap: 8px; margin-top: 8px; align-items: center;";
         container.appendChild(button);
-        
+
         if (textarea.parentElement) {
           textarea.parentElement.insertBefore(container, textarea.nextSibling);
           injected = true;
-          console.log('%c💉 Created new container for button', 'color: #1DA1F2');
+          console.log(
+            "%c💉 Created new container for button",
+            "color: #1DA1F2",
+          );
         }
       }
-      
+
       if (!injected) {
-        console.warn('❌ Could not inject button for', textarea);
+        console.warn("❌ Could not inject button for", textarea);
       }
     });
-    
+
     if (processedCount === 0) {
-      console.log('%c⚠️ No unprocessed textareas found', 'color: #FFA500');
+      console.log("%c⚠️ No unprocessed textareas found", "color: #FFA500");
     } else {
-      console.log(`%c🎉 Processed ${processedCount} textarea(s)`, 'color: #17BF63');
+      console.log(
+        `%c🎉 Processed ${processedCount} textarea(s)`,
+        "color: #17BF63",
+      );
     }
   }
-  
+
   /**
    * Create AI button for HypeFury
    */
   private createHypeFuryAIButton(textarea: Element): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'smart-reply-container hypefury-reply-container';
-    
-    const button = document.createElement('button');
-    button.className = 'smart-reply-button';
-    button.innerHTML = '<span>✨ AI Reply</span>';
-    button.title = 'Generate AI-powered reply';
-    
-    button.addEventListener('click', async (e) => {
+    const container = document.createElement("div");
+    container.className = "smart-reply-container hypefury-reply-container";
+
+    const button = document.createElement("button");
+    button.className = "smart-reply-button";
+    button.innerHTML = "<span>✨ AI Reply</span>";
+    button.title = "Generate AI-powered reply";
+
+    button.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Get context - look up from the textarea to find the tweet container
       let parent: Element | null = null;
-      
+
       // Strategy 1: Look for specific HypeFury containers
-      parent = textarea.closest('.feed-item, .mention-item, [data-cy="feed-item"], [data-cy="mention-item"]');
-      
+      parent = textarea.closest(
+        '.feed-item, .mention-item, [data-cy="feed-item"], [data-cy="mention-item"]',
+      );
+
       // Strategy 2: Look for containers with tweet-like structure
       if (!parent) {
-        parent = textarea.closest('[class*="space-y"], [class*="rounded"][class*="bg-"], [class*="border"]');
+        parent = textarea.closest(
+          '[class*="space-y"], [class*="rounded"][class*="bg-"], [class*="border"]',
+        );
       }
-      
+
       // Strategy 3: Walk up the tree to find the tweet content container
       if (!parent) {
         let current = textarea.parentElement;
         let maxLevels = 10; // Prevent infinite loops
-        
+
         while (current && current !== document.body && maxLevels > 0) {
           // Check if this container has tweet-like content
-          const textElements = current.querySelectorAll('p, div[class*="text-"]');
-          const hasSubstantialText = Array.from(textElements).some(el => {
-            const text = el.textContent?.trim() || '';
-            return text.length > 50 && !text.includes('Reply') && !text.includes('Quote');
+          const textElements = current.querySelectorAll(
+            'p, div[class*="text-"]',
+          );
+          const hasSubstantialText = Array.from(textElements).some((el) => {
+            const text = el.textContent?.trim() || "";
+            return (
+              text.length > 50 &&
+              !text.includes("Reply") &&
+              !text.includes("Quote")
+            );
           });
-          
+
           if (hasSubstantialText) {
             // Also check for author links
-            const hasAuthor = current.querySelector('a[href*="twitter.com"], a[href*="x.com"], a.font-semibold, span.font-semibold');
+            const hasAuthor = current.querySelector(
+              'a[href*="twitter.com"], a[href*="x.com"], a.font-semibold, span.font-semibold',
+            );
             if (hasAuthor) {
               parent = current;
-              console.log('%c✔ Found parent by walking up tree', 'color: #17BF63', maxLevels, 'levels up');
+              console.log(
+                "%c✔ Found parent by walking up tree",
+                "color: #17BF63",
+                maxLevels,
+                "levels up",
+              );
               break;
             }
           }
-          
+
           current = current.parentElement;
           maxLevels--;
         }
       }
-      
+
       // Log detailed information about what we found
       if (parent) {
-        console.log('%c🔍 Parent container found:', 'color: #667eea', parent);
-        console.log('  Classes:', parent.className);
-        console.log('  Text preview:', parent.textContent?.substring(0, 200));
+        console.log("%c🔍 Parent container found:", "color: #667eea", parent);
+        console.log("  Classes:", parent.className);
+        console.log("  Text preview:", parent.textContent?.substring(0, 200));
       } else {
-        console.log('%c⚠️ No parent container found for context extraction', 'color: #FFA500');
-        console.log('  Textarea:', textarea);
+        console.log(
+          "%c⚠️ No parent container found for context extraction",
+          "color: #FFA500",
+        );
+        console.log("  Textarea:", textarea);
       }
-      
-      const context = parent ? HypeFuryPlatform.extractContext(parent) : { text: '', author: '' };
-      
+
+      const context = parent
+        ? HypeFuryPlatform.extractContext(parent)
+        : { text: "", author: "" };
+
       // More detailed logging of extraction results
       if (context.text) {
-        console.log('%c📨 Successfully extracted context:', 'color: #17BF63');
-        console.log('  Tweet:', context.text.substring(0, 150));
-        console.log('  Author:', context.author || 'Unknown');
+        console.log("%c📨 Successfully extracted context:", "color: #17BF63");
+        console.log("  Tweet:", context.text.substring(0, 150));
+        console.log("  Author:", context.author || "Unknown");
       } else {
-        console.log('%c❌ Failed to extract tweet content', 'color: #DC3545');
-        console.log('  Parent element:', parent);
+        console.log("%c❌ Failed to extract tweet content", "color: #DC3545");
+        console.log("  Parent element:", parent);
       }
-      
+
       // Show unified selector
       // Show unified selector using the selector adapter
-      selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig) => {
-        // Generate reply with the selected template and tone
-        const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-        this.generateReply(
-          textarea as HTMLElement, 
-          { tweetText: context.text }, 
-          combinedPrompt, 
-          false, 
-          false, 
-          vocabulary, 
-          lengthPacing, 
+      selectorAdapter.show(
+        button,
+        (
+          template,
+          tone,
+          vocabulary,
+          lengthPacing,
           tabType,
           personaConfig,
           allTabConfig,
-          customConfig
-        );
-      });
+          customConfig,
+        ) => {
+          // Generate reply with the selected template and tone
+          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+          this.generateReply(
+            textarea as HTMLElement,
+            { tweetText: context.text },
+            combinedPrompt,
+            false,
+            false,
+            vocabulary,
+            lengthPacing,
+            tabType,
+            personaConfig,
+            allTabConfig,
+            customConfig,
+          );
+        },
+      );
     });
-    
+
     container.appendChild(button);
     return container;
   }
 
   private async handleToolbarAdded(toolbarElement: Element): Promise<boolean> {
-    console.log('%c🔧 TOOLBAR PROCESSING', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
-    
+    console.log(
+      "%c🔧 TOOLBAR PROCESSING",
+      "color: #1DA1F2; font-weight: bold; font-size: 14px",
+    );
+
     // Avoid processing the same toolbar multiple times
     if (this.processedToolbars.has(toolbarElement)) {
-      console.log('%c  ⚠️ Toolbar already processed, skipping', 'color: #FFA500');
+      console.log(
+        "%c  ⚠️ Toolbar already processed, skipping",
+        "color: #FFA500",
+      );
       return false;
     }
 
@@ -1087,35 +1432,56 @@ class SmartReplyContentScript {
     this.processedToolbars.add(toolbarElement);
 
     // Check if button already exists in this toolbar
-    if (toolbarElement.querySelector('.smart-reply-container')) {
-      console.log('%c  ⚠️ Button already exists in toolbar, skipping', 'color: #FFA500');
+    if (toolbarElement.querySelector(".smart-reply-container")) {
+      console.log(
+        "%c  ⚠️ Button already exists in toolbar, skipping",
+        "color: #FFA500",
+      );
       return false;
     }
-    
+
     // Additional check: Look for buttons in parent containers to prevent duplicates
     // This handles cases where Twitter recreates toolbar elements
-    const parentContainer = toolbarElement.closest('[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]');
+    const parentContainer = toolbarElement.closest(
+      '[data-testid="inline-reply"], [data-testid="reply"], [role="dialog"], [role="group"]',
+    );
     if (parentContainer) {
       // Count existing buttons in the parent container
-      const existingButtons = parentContainer.querySelectorAll('.smart-reply-container');
+      const existingButtons = parentContainer.querySelectorAll(
+        ".smart-reply-container",
+      );
       if (existingButtons.length > 0) {
-        console.log('%c  🔍 Found existing buttons in parent:', 'color: #657786', existingButtons.length);
-        
+        console.log(
+          "%c  🔍 Found existing buttons in parent:",
+          "color: #657786",
+          existingButtons.length,
+        );
+
         // Check each button for visibility and connection
-        const connectedButtons = Array.from(existingButtons).filter(button => {
-          const isConnected = button.isConnected;
-          const isVisible = (button as HTMLElement).offsetParent !== null;
-          
-          if (!isConnected || !isVisible) {
-            console.log('%c  🗑️ Removing disconnected/invisible button from parent', 'color: #FFA500');
-            button.remove();
-            return false;
-          }
-          return true;
-        });
-        
+        const connectedButtons = Array.from(existingButtons).filter(
+          (button) => {
+            const isConnected = button.isConnected;
+            const isVisible = (button as HTMLElement).offsetParent !== null;
+
+            if (!isConnected || !isVisible) {
+              console.log(
+                "%c  🗑️ Removing disconnected/invisible button from parent",
+                "color: #FFA500",
+              );
+              button.remove();
+              return false;
+            }
+            return true;
+          },
+        );
+
         if (connectedButtons.length > 0) {
-          console.log('%c  ⚠️ Found', connectedButtons.length, 'connected buttons in parent, skipping injection', 'color: #FFA500');
+          console.log(
+            "%c  ⚠️ Found",
+            connectedButtons.length,
+            "connected buttons in parent, skipping injection",
+            "color: #FFA500",
+          );
           return false;
         }
       }
@@ -1125,37 +1491,47 @@ class SmartReplyContentScript {
     // Check if this toolbar is associated with a reply or compose action
     const isReplyContext = this.isReplyToolbar(toolbarElement);
     if (!isReplyContext) {
-      console.log('%c  ⚠️ Not a reply toolbar context, skipping', 'color: #FFA500');
+      console.log(
+        "%c  ⚠️ Not a reply toolbar context, skipping",
+        "color: #FFA500",
+      );
       // This is a regular tweet toolbar (like, retweet, etc.) - ignore it
       return false;
     }
 
-    console.log('%c🎯 Reply toolbar detected', 'color: #17BF63; font-weight: bold');
+    console.log(
+      "%c🎯 Reply toolbar detected",
+      "color: #17BF63; font-weight: bold",
+    );
 
     // Now we know this is a reply context, so a textarea SHOULD exist
     const textarea = DOMUtils.findClosestTextarea(toolbarElement);
     if (!textarea) {
       // This is unexpected in a reply context, but handle gracefully
-      console.log('%c  ❌ No textarea found for reply toolbar', 'color: #DC3545');
+      console.log(
+        "%c  ❌ No textarea found for reply toolbar",
+        "color: #DC3545",
+      );
       return false;
     }
 
     // Extract Twitter context
     const context = DOMUtils.extractTwitterContext();
-    
+
     // Create and inject the Smart Reply button
-    console.log('%c➕ Injecting AI Reply button', 'color: #1DA1F2');
+    console.log("%c➕ Injecting AI Reply button", "color: #1DA1F2");
     await this.injectSmartReplyButton(toolbarElement, textarea, context);
-    
+
     // Check if injection was successful
-    const injectedButton = toolbarElement.querySelector('.smart-reply-container') || 
-                          toolbarElement.parentElement?.querySelector('.smart-reply-container');
-    
+    const injectedButton =
+      toolbarElement.querySelector(".smart-reply-container") ||
+      toolbarElement.parentElement?.querySelector(".smart-reply-container");
+
     if (injectedButton) {
-      console.log('%c  ✅ Button injection successful', 'color: #17BF63');
+      console.log("%c  ✅ Button injection successful", "color: #17BF63");
       return true;
     } else {
-      console.log('%c  ❌ Button injection failed', 'color: #DC3545');
+      console.log("%c  ❌ Button injection failed", "color: #DC3545");
       return false;
     }
   }
@@ -1170,173 +1546,224 @@ class SmartReplyContentScript {
     if (!textarea) {
       return false;
     }
-    
+
     // Check if the textarea is actually editable (not readonly)
-    const isEditable = textarea.getAttribute('contenteditable') === 'true' || 
-                       !textarea.hasAttribute('readonly');
+    const isEditable =
+      textarea.getAttribute("contenteditable") === "true" ||
+      !textarea.hasAttribute("readonly");
     if (!isEditable) {
       return false;
     }
-    
+
     // Platform-specific checks for reply container
-    const isTwitter = window.location.hostname.includes('twitter.com') || 
-                      window.location.hostname.includes('x.com');
-    const isHypeFury = window.location.hostname.includes('hypefury.com');
-    
+    const isTwitter =
+      window.location.hostname.includes("twitter.com") ||
+      window.location.hostname.includes("x.com");
+    const isHypeFury = window.location.hostname.includes("hypefury.com");
+
     let replyContainer = null;
-    
+
     if (isTwitter) {
       // Twitter-specific selectors
-      replyContainer = textarea.closest('[data-testid="tweetTextarea_0_label"]') ||
-                      textarea.closest('[data-testid="tweetTextarea_1_label"]') ||
-                      textarea.closest('.DraftEditor-root');
+      replyContainer =
+        textarea.closest('[data-testid="tweetTextarea_0_label"]') ||
+        textarea.closest('[data-testid="tweetTextarea_1_label"]') ||
+        textarea.closest(".DraftEditor-root");
     } else if (isHypeFury) {
       // HypeFury-specific selectors
-      replyContainer = textarea.closest('.mention-reply-form') ||
-                      textarea.closest('.compose-form') ||
-                      textarea.closest('[data-cy="reply-form"]') ||
-                      textarea.closest('[class*="reply"]') ||
-                      textarea.closest('form');
+      replyContainer =
+        textarea.closest(".mention-reply-form") ||
+        textarea.closest(".compose-form") ||
+        textarea.closest('[data-cy="reply-form"]') ||
+        textarea.closest('[class*="reply"]') ||
+        textarea.closest("form");
     }
-    
+
     if (!replyContainer) {
       return false;
     }
-    
+
     // Strategy: Look for specific indicators of a reply composition toolbar
     // vs a tweet's action bar (reply, retweet, like buttons)
-    
+
     // 1. Check if toolbar contains a "Reply" button (submit button for replies)
     // This is different from the reply action button in tweets
-    const hasReplySubmitButton = toolbarElement.querySelector('div[data-testid="tweetButton"], div[data-testid="tweetButtonInline"], button[data-testid="tweetButton"], button[data-testid="tweetButtonInline"]');
+    const hasReplySubmitButton = toolbarElement.querySelector(
+      'div[data-testid="tweetButton"], div[data-testid="tweetButtonInline"], button[data-testid="tweetButton"], button[data-testid="tweetButtonInline"]',
+    );
     if (hasReplySubmitButton) {
       // This is definitely a reply composition toolbar
       return true;
     }
-    
+
     // 2. Check if we're in a reply modal or compose modal
-    const modal = toolbarElement.closest('[role="dialog"], [data-testid="reply"]');
+    const modal = toolbarElement.closest(
+      '[role="dialog"], [data-testid="reply"]',
+    );
     if (modal) {
       // Additional check: modal should have a textarea
-      const modalTextarea = modal.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
+      const modalTextarea = modal.querySelector(
+        '[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]',
+      );
       return !!modalTextarea;
     }
-    
+
     // 3. Check URL - compose/tweet paths indicate compose mode
-    if (window.location.pathname.includes('/compose/')) return true;
-    
+    if (window.location.pathname.includes("/compose/")) return true;
+
     // 4. Check if toolbar is adjacent to a textarea (reply composition pattern)
     // In reply composition, the toolbar and textarea are siblings or close relatives
     const parent = toolbarElement.parentElement;
     if (parent) {
       // Look for textarea as a sibling
-      const textarea = parent.querySelector('[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]');
+      const textarea = parent.querySelector(
+        '[data-testid^="tweetTextarea_"], [contenteditable="true"][role="textbox"]',
+      );
       if (textarea) {
         // Make sure this textarea is for composing, not displaying
-        const isEditable = textarea.getAttribute('contenteditable') === 'true';
+        const isEditable = textarea.getAttribute("contenteditable") === "true";
         if (isEditable) {
           return true;
         }
       }
     }
-    
+
     // 5. Check for reply composition container patterns
     // Reply areas often have specific container structures
-    const replyContainer = toolbarElement.closest('[data-testid="inline-reply"], [data-testid="reply-composer"], div[aria-label*="reply" i], div[aria-label*="compose" i]');
-    if (replyContainer) {
+    const replyContextContainer = toolbarElement.closest(
+      '[data-testid="inline-reply"], [data-testid="reply-composer"], div[aria-label*="reply" i], div[aria-label*="compose" i]'
+    );
+    if (replyContextContainer) {
       return true;
     }
-    
+
     // 6. Check if toolbar has the specific action buttons of a tweet (negative indicator)
     // Tweet action bars have reply, retweet, like buttons with specific data-testids
-    const hasLikeButton = toolbarElement.querySelector('[data-testid="like"], [data-testid="unlike"]');
-    const hasRetweetButton = toolbarElement.querySelector('[data-testid="retweet"], [data-testid="unretweet"]');
+    const hasLikeButton = toolbarElement.querySelector(
+      '[data-testid="like"], [data-testid="unlike"]',
+    );
+    const hasRetweetButton = toolbarElement.querySelector(
+      '[data-testid="retweet"], [data-testid="unretweet"]',
+    );
     if (hasLikeButton || hasRetweetButton) {
       // This is a tweet's action bar, not a reply toolbar
       return false;
     }
-    
+
     // 7. Final check: Look for "Post your reply" or similar placeholder text
-    const placeholderText = parent?.querySelector('[data-text="true"], [data-placeholder="true"]');
-    if (placeholderText?.textContent?.toLowerCase().includes('reply')) {
+    const placeholderText = parent?.querySelector(
+      '[data-text="true"], [data-placeholder="true"]',
+    );
+    if (placeholderText?.textContent?.toLowerCase().includes("reply")) {
       return true;
     }
-    
+
     // Default: not a reply toolbar
     return false;
   }
 
   private async injectSmartReplyButton(
-    toolbarElement: Element, 
-    textarea: HTMLElement, 
-    context: any
+    toolbarElement: Element,
+    textarea: HTMLElement,
+    context: any,
   ): Promise<void> {
     // Directly perform the injection
     await this.performSmartReplyInjection(toolbarElement, textarea, context);
   }
 
   private async performSmartReplyInjection(
-    toolbarElement: Element, 
-    textarea: HTMLElement, 
-    context: any
+    toolbarElement: Element,
+    textarea: HTMLElement,
+    context: any,
   ): Promise<void> {
     try {
       // Final duplicate check: ensure no button exists for this specific textarea
-      const textareaId = textarea.getAttribute('id') || textarea.getAttribute('data-testid') || '';
+      const textareaId =
+        textarea.getAttribute("id") ||
+        textarea.getAttribute("data-testid") ||
+        "";
       if (textareaId) {
         // Check if a button already exists for this specific textarea
-        const existingForTextarea = document.querySelector(`.smart-reply-container[data-textarea-id="${textareaId}"]`);
+        const existingForTextarea = document.querySelector(
+          `.smart-reply-container[data-textarea-id="${textareaId}"]`,
+        );
         if (existingForTextarea) {
-          console.log('%c⚠️ Button already exists for textarea ID:', 'color: #FFA500', textareaId);
-          console.log('%c  Existing button:', 'color: #657786', existingForTextarea);
-          const isVisible = (existingForTextarea as HTMLElement).offsetParent !== null;
-          console.log('%c  Is visible:', 'color: #657786', isVisible);
-          
+          console.log(
+            "%c⚠️ Button already exists for textarea ID:",
+            "color: #FFA500",
+            textareaId,
+          );
+          console.log(
+            "%c  Existing button:",
+            "color: #657786",
+            existingForTextarea,
+          );
+          const isVisible =
+            (existingForTextarea as HTMLElement).offsetParent !== null;
+          console.log("%c  Is visible:", "color: #657786", isVisible);
+
           // Check if the existing button is actually visible and functional
           if (isVisible) {
             return; // Keep the existing visible button
           } else {
             // Remove invisible/orphaned button and continue with injection
-            console.log('%c  🗑️ Removing invisible orphaned button', 'color: #FFA500');
+            console.log(
+              "%c  🗑️ Removing invisible orphaned button",
+              "color: #FFA500",
+            );
             existingForTextarea.remove();
           }
         }
       } else {
-        console.log('%c  ℹ️ No textarea ID found for duplicate check', 'color: #657786');
+        console.log(
+          "%c  ℹ️ No textarea ID found for duplicate check",
+          "color: #657786",
+        );
       }
-      
+
       // Create the button container
-      const buttonContainer = document.createElement('div');
-      buttonContainer.className = 'smart-reply-container';
-      
+      const buttonContainer = document.createElement("div");
+      buttonContainer.className = "smart-reply-container";
+
       // Mark this button with the textarea ID to prevent duplicates
       if (textareaId) {
-        buttonContainer.setAttribute('data-textarea-id', textareaId);
+        buttonContainer.setAttribute("data-textarea-id", textareaId);
       }
 
       // Check if there's existing text to determine initial mode
       const hasText = DOMUtils.hasUserText(textarea);
-      
+
       // Create the main button with appropriate mode
       const button = DOMUtils.createSmartReplyButton(hasText);
-      
-      console.log('%c🔧 BUTTON INJECTION', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
-      console.log('%c  Has existing text:', 'color: #657786', hasText);
-      console.log('%c  Initial mode:', 'color: #657786', hasText ? 'REWRITE' : 'GENERATE');
-      console.log('%c  Toolbar found:', 'color: #657786', !!toolbarElement);
-      console.log('%c  Textarea found:', 'color: #657786', !!textarea);
-      
+
+      console.log(
+        "%c🔧 BUTTON INJECTION",
+        "color: #1DA1F2; font-weight: bold; font-size: 14px",
+      );
+      console.log("%c  Has existing text:", "color: #657786", hasText);
+      console.log(
+        "%c  Initial mode:",
+        "color: #657786",
+        hasText ? "REWRITE" : "GENERATE",
+      );
+      console.log("%c  Toolbar found:", "color: #657786", !!toolbarElement);
+      console.log("%c  Textarea found:", "color: #657786", !!textarea);
+
       // Monitor textarea for changes to update button mode
       const updateButtonMode = () => {
         const currentHasText = DOMUtils.hasUserText(textarea);
-        const currentMode = button.getAttribute('data-mode');
+        const currentMode = button.getAttribute("data-mode");
         const shouldBeRewrite = currentHasText;
-        const isRewrite = currentMode === 'rewrite';
-        
+        const isRewrite = currentMode === "rewrite";
+
         if (shouldBeRewrite !== isRewrite) {
           // Mode needs to change
-          console.log('%c🔄 Button mode change:', 'color: #9146FF', shouldBeRewrite ? 'REWRITE' : 'GENERATE');
-          
+          console.log(
+            "%c🔄 Button mode change:",
+            "color: #9146FF",
+            shouldBeRewrite ? "REWRITE" : "GENERATE",
+          );
+
           if (shouldBeRewrite) {
             button.innerHTML = `
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1345,8 +1772,8 @@ class SmartReplyContentScript {
               </svg>
               <span>AI Rewrite ✨</span>
             `;
-            button.setAttribute('title', 'Rewrite your draft with AI');
-            button.setAttribute('data-mode', 'rewrite');
+            button.setAttribute("title", "Rewrite your draft with AI");
+            button.setAttribute("data-mode", "rewrite");
           } else {
             button.innerHTML = `
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1354,151 +1781,211 @@ class SmartReplyContentScript {
               </svg>
               <span>AI Reply</span>
             `;
-            button.setAttribute('title', 'Generate AI reply');
-            button.setAttribute('data-mode', 'generate');
+            button.setAttribute("title", "Generate AI reply");
+            button.setAttribute("data-mode", "generate");
           }
         }
       };
-      
+
       // Set up observer for textarea changes
       const textObserver = new MutationObserver(() => {
         updateButtonMode();
       });
-      
+
       textObserver.observe(textarea, {
         childList: true,
         characterData: true,
-        subtree: true
+        subtree: true,
       });
-      
+
       // Also listen for input events
-      textarea.addEventListener('input', updateButtonMode);
-      textarea.addEventListener('paste', () => {
+      textarea.addEventListener("input", updateButtonMode);
+      textarea.addEventListener("paste", () => {
         this.safeSetTimeout(updateButtonMode, 100);
       });
-      
+
       // Store cleanup function
       this.eventListeners.push(() => {
         textObserver.disconnect();
-        textarea.removeEventListener('input', updateButtonMode);
+        textarea.removeEventListener("input", updateButtonMode);
       });
-      
+
       // Use selector adapter instead of direct template selector
       // const templateSelector = new TemplateSelector(); // Removed - using adapter
 
       // Add click handler for the main button
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation(); // Stop all other handlers
-        
-        // Visual feedback for button click
-        visualFeedback.pulse(button, '#1d9bf0');
-        
-        // Check if a tone was set (e.g., from keyboard shortcut)
-        const presetTone = button.getAttribute('data-tone');
-        const bypassCache = button.getAttribute('data-bypass-cache') === 'true';
-        
-        if (presetTone) {
-          // Remove the attributes so next click shows dropdown
-          button.removeAttribute('data-tone');
-          button.removeAttribute('data-bypass-cache');
-          // Check if we're in rewrite mode
-          const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
-          // Generate directly with the preset tone
-          this.generateReply(textarea, context, presetTone, bypassCache, isRewriteMode);
-          return;
-        }
-        
-        // Check if we're in rewrite mode
-        const isRewriteMode = button.getAttribute('data-mode') === 'rewrite';
-        
-        // Show selector (unified or traditional based on feature flag)
-        selectorAdapter.show(button, (template, tone, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig) => {
-          // When both template and tone are selected, generate/rewrite
-          console.log('%c🔨 BUILDING COMBINED PROMPT', 'color: #FF6B6B; font-weight: bold; font-size: 14px');
-          console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
-          console.log('%c  Tab Type:', 'color: #794BC4', tabType || 'Not specified');
-          
-          if (isRewriteMode) {
-            const existingText = DOMUtils.getTextFromTextarea(textarea);
-            console.log('%c  Existing Text:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));
+      button.addEventListener(
+        "click",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation(); // Stop all other handlers
+
+          // Visual feedback for button click
+          visualFeedback.pulse(button, "#1d9bf0");
+
+          // Check if a tone was set (e.g., from keyboard shortcut)
+          const presetTone = button.getAttribute("data-tone");
+          const bypassCache =
+            button.getAttribute("data-bypass-cache") === "true";
+
+          if (presetTone) {
+            // Remove the attributes so next click shows dropdown
+            button.removeAttribute("data-tone");
+            button.removeAttribute("data-bypass-cache");
+            // Check if we're in rewrite mode
+            const isRewriteMode =
+              button.getAttribute("data-mode") === "rewrite";
+            // Generate directly with the preset tone
+            this.generateReply(
+              textarea,
+              context,
+              presetTone,
+              bypassCache,
+              isRewriteMode,
+            );
+            return;
           }
-          
-          console.log('%c  Template Selected:', 'color: #657786');
-          console.log(`%c    ${template.emoji} ${template.name}`, 'color: #1DA1F2');
-          console.log('%c    Prompt:', 'color: #8899a6', template.prompt);
-          console.log('%c  Tone Selected:', 'color: #657786');
-          console.log(`%c    ${tone.emoji} ${tone.label}`, 'color: #9146FF');
-          console.log('%c    System Prompt:', 'color: #8899a6', tone.systemPrompt);
-          
-          // Show toast for selection - avoid duplicate names for personas
-          const message = template.name === tone.label 
-            ? `Selected: ${template.emoji} ${template.name}` 
-            : `Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`;
-          visualFeedback.showToast(message, {
-            type: 'info',
-            duration: 2000
-          });
-          
-          // Combine template prompt with tone system prompt
-          const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-          
-          console.log('%c  ✨ COMBINED PROMPT:', 'color: #17BF63; font-weight: bold');
-          console.log(`%c    "${combinedPrompt}"`, 'color: #17BF63');
-          console.log('%c════════════════════════════════', 'color: #2E3236');
-          
-          // Generate or rewrite using the combined instruction
-          this.generateReply(
-            textarea, 
-            context, 
-            combinedPrompt, 
-            bypassCache, 
-            isRewriteMode, 
-            vocabulary, 
-            lengthPacing,
-            tabType,
-            personaConfig,
-            allTabConfig,
-            customConfig
+
+          // Check if we're in rewrite mode
+          const isRewriteMode = button.getAttribute("data-mode") === "rewrite";
+
+          // Show selector (unified or traditional based on feature flag)
+          selectorAdapter.show(
+            button,
+            (
+              template,
+              tone,
+              vocabulary,
+              lengthPacing,
+              tabType,
+              personaConfig,
+              allTabConfig,
+              customConfig,
+            ) => {
+              // When both template and tone are selected, generate/rewrite
+              console.log(
+                "%c🔨 BUILDING COMBINED PROMPT",
+                "color: #FF6B6B; font-weight: bold; font-size: 14px",
+              );
+              console.log(
+                "%c  Mode:",
+                "color: #657786",
+                isRewriteMode ? "REWRITE" : "GENERATE",
+              );
+              console.log(
+                "%c  Tab Type:",
+                "color: #794BC4",
+                tabType || "Not specified",
+              );
+
+              if (isRewriteMode) {
+                const existingText = DOMUtils.getTextFromTextarea(textarea);
+                console.log(
+                  "%c  Existing Text:",
+                  "color: #657786",
+                  existingText.substring(0, 100) +
+                    (existingText.length > 100 ? "..." : ""),
+                );
+              }
+
+              console.log("%c  Template Selected:", "color: #657786");
+              console.log(
+                `%c    ${template.emoji} ${template.name}`,
+                "color: #1DA1F2",
+              );
+              console.log("%c    Prompt:", "color: #8899a6", template.prompt);
+              console.log("%c  Tone Selected:", "color: #657786");
+              console.log(
+                `%c    ${tone.emoji} ${tone.label}`,
+                "color: #9146FF",
+              );
+              console.log(
+                "%c    System Prompt:",
+                "color: #8899a6",
+                tone.systemPrompt,
+              );
+
+              // Show toast for selection - avoid duplicate names for personas
+              const message =
+                template.name === tone.label
+                  ? `Selected: ${template.emoji} ${template.name}`
+                  : `Selected: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`;
+              visualFeedback.showToast(message, {
+                type: "info",
+                duration: 2000,
+              });
+
+              // Combine template prompt with tone system prompt
+              const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
+
+              console.log(
+                "%c  ✨ COMBINED PROMPT:",
+                "color: #17BF63; font-weight: bold",
+              );
+              console.log(`%c    "${combinedPrompt}"`, "color: #17BF63");
+              console.log(
+                "%c════════════════════════════════",
+                "color: #2E3236",
+              );
+
+              // Generate or rewrite using the combined instruction
+              this.generateReply(
+                textarea,
+                context,
+                combinedPrompt,
+                bypassCache,
+                isRewriteMode,
+                vocabulary,
+                lengthPacing,
+                tabType,
+                personaConfig,
+                allTabConfig,
+                customConfig,
+              );
+            },
           );
-        });
-        
-        return false; // Prevent any default action
-      }, true); // Use capture phase
+
+          return false; // Prevent any default action
+        },
+        true,
+      ); // Use capture phase
 
       // REMOVED: Smart suggestions and image buttons are now integrated into the AI Reply popup
       // These features are available as tabs in the unified selector popup
       // const suggestButton = null; // this.createSmartSuggestButton(textarea, context);
       // const imageButton = null; // imageAttachment.createButton(textarea, '');
-      
+
       // Set callback for when image is selected (keeping for potential future use)
       imageAttachment.onSelect((image) => {
         if (image) {
-          console.log('%c🖼️ IMAGE SELECTED', 'color: #9146FF; font-weight: bold; font-size: 14px');
-          console.log('%c  URL:', 'color: #657786', image.url);
-          console.log('%c  Alt:', 'color: #657786', image.alt);
-          console.log('%c  Source:', 'color: #657786', image.source);
-          
+          console.log(
+            "%c🖼️ IMAGE SELECTED",
+            "color: #9146FF; font-weight: bold; font-size: 14px",
+          );
+          console.log("%c  URL:", "color: #657786", image.url);
+          console.log("%c  Alt:", "color: #657786", image.alt);
+          console.log("%c  Source:", "color: #657786", image.source);
+
           // Store the image URL for later use
-          button.setAttribute('data-image-url', image.url);
-          button.setAttribute('data-image-alt', image.alt);
-          
+          button.setAttribute("data-image-url", image.url);
+          button.setAttribute("data-image-alt", image.alt);
+
           // Update button to show image is attached
-          const imgIndicator = button.querySelector('.image-indicator');
+          const imgIndicator = button.querySelector(".image-indicator");
           if (!imgIndicator) {
-            const indicator = document.createElement('span');
-            indicator.className = 'image-indicator';
-            indicator.style.cssText = 'margin-left: 4px; color: #9146FF;';
-            indicator.textContent = '🖼️';
+            const indicator = document.createElement("span");
+            indicator.className = "image-indicator";
+            indicator.style.cssText = "margin-left: 4px; color: #9146FF;";
+            indicator.textContent = "🖼️";
             button.appendChild(indicator);
           }
         }
       });
-      
+
       // Create Arsenal Mode button
       const arsenalButton = this.createArsenalButton(textarea);
-      
+
       // Assemble the components
       buttonContainer.appendChild(button);
       if (arsenalButton) {
@@ -1514,20 +2001,31 @@ class SmartReplyContentScript {
 
       // Find the right place to inject the button
       // Look for the container that has the tweet button and other toolbar items
-      const tweetButton = toolbarElement.querySelector('[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
-      
+      const tweetButton = toolbarElement.querySelector(
+        '[data-testid="tweetButton"], [data-testid="tweetButtonInline"]',
+      );
+
       if (tweetButton && tweetButton.parentElement) {
         // Insert before the tweet/reply button for better positioning
         const toolbarItemsContainer = tweetButton.parentElement;
-        
+
         // Find if there are other toolbar items (emoji, gif buttons etc)
-        const toolbarItems = toolbarItemsContainer.querySelector('div[role="group"], div[aria-label]');
-        
-        console.log('%c✅ AI BUTTON POSITIONING', 'color: #17BF63; font-weight: bold; font-size: 14px');
-        console.log('%c  Tweet button found:', 'color: #657786', !!tweetButton);
-        console.log('%c  Other toolbar items:', 'color: #657786', !!toolbarItems);
-        console.log('%c  Inserting before tweet button', 'color: #657786');
-        
+        const toolbarItems = toolbarItemsContainer.querySelector(
+          'div[role="group"], div[aria-label]',
+        );
+
+        console.log(
+          "%c✅ AI BUTTON POSITIONING",
+          "color: #17BF63; font-weight: bold; font-size: 14px",
+        );
+        console.log("%c  Tweet button found:", "color: #657786", !!tweetButton);
+        console.log(
+          "%c  Other toolbar items:",
+          "color: #657786",
+          !!toolbarItems,
+        );
+        console.log("%c  Inserting before tweet button", "color: #657786");
+
         if (toolbarItems) {
           // Insert after the toolbar items but before the tweet button
           toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
@@ -1535,30 +2033,34 @@ class SmartReplyContentScript {
           // Just insert before the tweet button
           toolbarItemsContainer.insertBefore(buttonContainer, tweetButton);
         }
-        
+
         // Only log on first injection
-        if (!document.querySelector('.smart-reply-container:nth-of-type(2)')) {
-          console.log('Smart Reply: Ready');
+        if (!document.querySelector(".smart-reply-container:nth-of-type(2)")) {
+          console.log("Smart Reply: Ready");
         }
       } else {
         // Fallback: try to find a suitable container
-        const toolbarContainer = toolbarElement.querySelector('div > div');
+        const toolbarContainer = toolbarElement.querySelector("div > div");
         if (toolbarContainer) {
           // Look for existing items to insert before
           const existingItems = toolbarContainer.children;
           if (existingItems.length > 0) {
             // Insert before the last item (usually the tweet button)
-            toolbarContainer.insertBefore(buttonContainer, existingItems[existingItems.length - 1]);
+            toolbarContainer.insertBefore(
+              buttonContainer,
+              existingItems[existingItems.length - 1],
+            );
           } else {
             toolbarContainer.appendChild(buttonContainer);
           }
         } else {
-          console.warn('Smart Reply: Could not find suitable toolbar container');
+          console.warn(
+            "Smart Reply: Could not find suitable toolbar container",
+          );
         }
       }
-
     } catch (error) {
-      console.error('Smart Reply: Failed to inject button:', error);
+      console.error("Smart Reply: Failed to inject button:", error);
     }
   }
 
@@ -1566,10 +2068,13 @@ class SmartReplyContentScript {
    * Create smart suggestions button
    */
   private createArsenalButton(textarea: HTMLElement): HTMLButtonElement | null {
-    const arsenalButton = document.createElement('button');
-    arsenalButton.className = 'arsenal-mode-btn';
-    arsenalButton.innerHTML = '⚔️';
-    arsenalButton.setAttribute('title', 'Arsenal Mode - Pre-generated replies (Alt+A)');
+    const arsenalButton = document.createElement("button");
+    arsenalButton.className = "arsenal-mode-btn";
+    arsenalButton.innerHTML = "⚔️";
+    arsenalButton.setAttribute(
+      "title",
+      "Arsenal Mode - Pre-generated replies (Alt+A)",
+    );
     arsenalButton.style.cssText = `
       background: transparent;
       border: none;
@@ -1586,25 +2091,28 @@ class SmartReplyContentScript {
     `;
 
     // Add hover effect
-    arsenalButton.addEventListener('mouseenter', () => {
-      arsenalButton.style.backgroundColor = 'rgba(29, 161, 242, 0.1)';
-      arsenalButton.style.color = '#1DA1F2';
+    arsenalButton.addEventListener("mouseenter", () => {
+      arsenalButton.style.backgroundColor = "rgba(29, 161, 242, 0.1)";
+      arsenalButton.style.color = "#1DA1F2";
     });
 
-    arsenalButton.addEventListener('mouseleave', () => {
-      arsenalButton.style.backgroundColor = 'transparent';
-      arsenalButton.style.color = '#8899A6';
+    arsenalButton.addEventListener("mouseleave", () => {
+      arsenalButton.style.backgroundColor = "transparent";
+      arsenalButton.style.color = "#8899A6";
     });
 
     // Click handler to open Arsenal Mode
-    arsenalButton.addEventListener('click', (e) => {
+    arsenalButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('%c⚔️ Arsenal button clicked', 'color: #1DA1F2; font-weight: bold');
-      
+      console.log(
+        "%c⚔️ Arsenal button clicked",
+        "color: #1DA1F2; font-weight: bold",
+      );
+
       // Dispatch custom event to open Arsenal Mode
-      const event = new CustomEvent('tweetcraft:open-arsenal', {
-        detail: { textarea }
+      const event = new CustomEvent("tweetcraft:open-arsenal", {
+        detail: { textarea },
       });
       document.dispatchEvent(event);
     });
@@ -1612,11 +2120,14 @@ class SmartReplyContentScript {
     return arsenalButton;
   }
 
-  private createSmartSuggestButton(textarea: HTMLElement, context: any): HTMLButtonElement | null {
-    const suggestButton = document.createElement('button');
-    suggestButton.className = 'tweetcraft-suggest-button';
-    suggestButton.innerHTML = '💡';
-    suggestButton.setAttribute('title', 'Smart Suggestions (Context-aware)');
+  private createSmartSuggestButton(
+    textarea: HTMLElement,
+    context: any,
+  ): HTMLButtonElement | null {
+    const suggestButton = document.createElement("button");
+    suggestButton.className = "tweetcraft-suggest-button";
+    suggestButton.innerHTML = "💡";
+    suggestButton.setAttribute("title", "Smart Suggestions (Context-aware)");
     suggestButton.style.cssText = `
       background: transparent;
       border: 1px solid #536471;
@@ -1633,32 +2144,35 @@ class SmartReplyContentScript {
     `;
 
     // Add hover effect
-    suggestButton.addEventListener('mouseenter', () => {
-      suggestButton.style.borderColor = '#ffa500';
-      suggestButton.style.color = '#ffa500';
-      suggestButton.style.background = 'rgba(255, 165, 0, 0.1)';
+    suggestButton.addEventListener("mouseenter", () => {
+      suggestButton.style.borderColor = "#ffa500";
+      suggestButton.style.color = "#ffa500";
+      suggestButton.style.background = "rgba(255, 165, 0, 0.1)";
     });
-    suggestButton.addEventListener('mouseleave', () => {
-      suggestButton.style.borderColor = '#536471';
-      suggestButton.style.color = '#536471';
-      suggestButton.style.background = 'transparent';
+    suggestButton.addEventListener("mouseleave", () => {
+      suggestButton.style.borderColor = "#536471";
+      suggestButton.style.color = "#536471";
+      suggestButton.style.background = "transparent";
     });
 
     // Smart suggestions click handler
-    suggestButton.addEventListener('click', async (e) => {
+    suggestButton.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Visual feedback
-      visualFeedback.pulse(suggestButton, '#ffa500');
-      
+      visualFeedback.pulse(suggestButton, "#ffa500");
+
       // Get tweet context
-      const tweetText = context.tweetText || '';
+      const tweetText = context.tweetText || "";
       const threadContext = context.threadContext || [];
-      
-      console.log('%c💡 SMART SUGGESTIONS', 'color: #FFA500; font-weight: bold; font-size: 14px');
-      console.log('%c  Analyzing context...', 'color: #657786');
-      
+
+      console.log(
+        "%c💡 SMART SUGGESTIONS",
+        "color: #FFA500; font-weight: bold; font-size: 14px",
+      );
+      console.log("%c  Analyzing context...", "color: #657786");
+
       try {
         // Get smart suggestions based on context
         const suggestions = await templateSuggester.getSuggestions({
@@ -1666,22 +2180,30 @@ class SmartReplyContentScript {
           isReply: true,
           threadContext,
           timeOfDay: new Date().getHours(),
-          dayOfWeek: new Date().getDay()
+          dayOfWeek: new Date().getDay(),
         });
-        
+
         if (suggestions.length > 0) {
-          this.showSuggestionsPopup(suggestButton, suggestions, textarea, context);
+          this.showSuggestionsPopup(
+            suggestButton,
+            suggestions,
+            textarea,
+            context,
+          );
         } else {
-          visualFeedback.showToast('No suggestions available for this context', {
-            type: 'info',
-            duration: 2000
-          });
+          visualFeedback.showToast(
+            "No suggestions available for this context",
+            {
+              type: "info",
+              duration: 2000,
+            },
+          );
         }
       } catch (error) {
-        console.error('Failed to get suggestions:', error);
-        visualFeedback.showToast('Failed to get suggestions', {
-          type: 'error',
-          duration: 2000
+        console.error("Failed to get suggestions:", error);
+        visualFeedback.showToast("Failed to get suggestions", {
+          type: "error",
+          duration: 2000,
         });
       }
     });
@@ -1692,15 +2214,20 @@ class SmartReplyContentScript {
   /**
    * Show suggestions popup
    */
-  private showSuggestionsPopup(button: HTMLElement, suggestions: any[], textarea: HTMLElement, context: any): void {
+  private showSuggestionsPopup(
+    button: HTMLElement,
+    suggestions: any[],
+    textarea: HTMLElement,
+    context: any,
+  ): void {
     // Remove any existing popup
-    const existingPopup = document.querySelector('.tweetcraft-suggest-popup');
+    const existingPopup = document.querySelector(".tweetcraft-suggest-popup");
     if (existingPopup) {
       existingPopup.remove();
     }
 
-    const suggestPopup = document.createElement('div');
-    suggestPopup.className = 'tweetcraft-suggest-popup';
+    const suggestPopup = document.createElement("div");
+    suggestPopup.className = "tweetcraft-suggest-popup";
     suggestPopup.style.cssText = `
       position: absolute;
       bottom: 100%;
@@ -1715,28 +2242,28 @@ class SmartReplyContentScript {
       z-index: 10000;
       margin-bottom: 8px;
     `;
-    
+
     // Add dark mode support
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      suggestPopup.style.background = '#000';
-      suggestPopup.style.borderColor = '#2f3336';
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      suggestPopup.style.background = "#000";
+      suggestPopup.style.borderColor = "#2f3336";
     }
-    
+
     suggestPopup.innerHTML = `
       <div style="font-size: 13px; font-weight: 600; color: #536471; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span>💡 Smart Suggestions</span>
         <button class="close-suggest-popup" style="background: transparent; border: none; cursor: pointer; color: #536471; font-size: 18px; padding: 0; margin: 0;">×</button>
       </div>
     `;
-    
+
     // Add top 3 suggestions
     suggestions.slice(0, 3).forEach((suggestion) => {
-      const template = TEMPLATES.find(t => t.id === suggestion.templateId);
-      const tone = TONES.find(t => t.id === suggestion.toneId);
-      
+      const template = TEMPLATES.find((t) => t.id === suggestion.templateId);
+      const tone = TONES.find((t) => t.id === suggestion.toneId);
+
       if (template && tone) {
-        const suggestionItem = document.createElement('div');
-        suggestionItem.className = 'suggestion-item';
+        const suggestionItem = document.createElement("div");
+        suggestionItem.className = "suggestion-item";
         suggestionItem.style.cssText = `
           padding: 10px;
           margin: 6px 0;
@@ -1746,63 +2273,76 @@ class SmartReplyContentScript {
           transition: all 0.2s;
           font-size: 13px;
         `;
-        
+
         suggestionItem.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
             <span style="font-weight: 500;">${template.emoji} ${template.name}</span>
             <span style="color: #536471; font-size: 12px;">${tone.emoji} ${tone.label}</span>
           </div>
           <div style="font-size: 11px; color: #536471;">
-            Score: ${suggestion.score.toFixed(1)} • ${suggestion.reasons[0] || 'Contextual match'}
+            Score: ${suggestion.score.toFixed(1)} • ${suggestion.reasons[0] || "Contextual match"}
           </div>
         `;
-        
+
         // Hover effect
-        suggestionItem.addEventListener('mouseenter', () => {
-          suggestionItem.style.borderColor = '#1d9bf0';
-          suggestionItem.style.background = 'rgba(29, 155, 240, 0.05)';
+        suggestionItem.addEventListener("mouseenter", () => {
+          suggestionItem.style.borderColor = "#1d9bf0";
+          suggestionItem.style.background = "rgba(29, 155, 240, 0.05)";
         });
-        suggestionItem.addEventListener('mouseleave', () => {
-          suggestionItem.style.borderColor = '#e1e8ed';
-          suggestionItem.style.background = 'transparent';
+        suggestionItem.addEventListener("mouseleave", () => {
+          suggestionItem.style.borderColor = "#e1e8ed";
+          suggestionItem.style.background = "transparent";
         });
-        
+
         // Click to use suggestion
-        suggestionItem.addEventListener('click', () => {
+        suggestionItem.addEventListener("click", () => {
           // Record usage
           templateSuggester.recordUsage(template.id, tone.id);
-          
+
           // Close popup
           suggestPopup.remove();
-          
+
           // Generate with this combination
           const combinedPrompt = `${tone.systemPrompt}. ${template.prompt}`;
-          this.generateReply(textarea, context, combinedPrompt, false, false, undefined, undefined);
-          
+          this.generateReply(
+            textarea,
+            context,
+            combinedPrompt,
+            false,
+            false,
+            undefined,
+            undefined,
+          );
+
           // Show toast
-          visualFeedback.showToast(`Using: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`, {
-            type: 'success',
-            duration: 2000
-          });
+          visualFeedback.showToast(
+            `Using: ${template.emoji} ${template.name} with ${tone.emoji} ${tone.label}`,
+            {
+              type: "success",
+              duration: 2000,
+            },
+          );
         });
-        
+
         suggestPopup.appendChild(suggestionItem);
       }
     });
-    
+
     // Add close button handler
-    const closeBtn = suggestPopup.querySelector('.close-suggest-popup') as HTMLElement;
+    const closeBtn = suggestPopup.querySelector(
+      ".close-suggest-popup",
+    ) as HTMLElement;
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => suggestPopup.remove());
+      closeBtn.addEventListener("click", () => suggestPopup.remove());
     }
-    
+
     // Position relative to button
     const buttonContainer = button.parentElement;
     if (buttonContainer) {
-      buttonContainer.style.position = 'relative';
+      buttonContainer.style.position = "relative";
       buttonContainer.appendChild(suggestPopup);
     }
-    
+
     // Auto-remove after 15 seconds
     this.safeSetTimeout(() => {
       if (suggestPopup.parentElement) {
@@ -1815,49 +2355,82 @@ class SmartReplyContentScript {
       const closePopup = (e: MouseEvent) => {
         if (!suggestPopup.contains(e.target as Node) && e.target !== button) {
           suggestPopup.remove();
-          document.removeEventListener('click', closePopup);
+          document.removeEventListener("click", closePopup);
         }
       };
-      document.addEventListener('click', closePopup);
+      document.addEventListener("click", closePopup);
       // Store for cleanup
-      this.eventListeners.push(() => document.removeEventListener('click', closePopup));
+      this.eventListeners.push(() =>
+        document.removeEventListener("click", closePopup),
+      );
     }, 100);
   }
 
   private async generateReply(
-    textarea: HTMLElement, 
-    context: { tweetId?: string; tweetText: string; threadContext?: string[]; authorHandle?: string }, 
+    textarea: HTMLElement,
+    context: {
+      tweetId?: string;
+      tweetText: string;
+      threadContext?: string[];
+      authorHandle?: string;
+    },
     tone?: string,
     bypassCache: boolean = false,
     isRewriteMode: boolean = false,
     vocabulary?: string,
     lengthPacing?: string,
-    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose',
+    tabType?:
+      | "personas"
+      | "all"
+      | "smart"
+      | "favorites"
+      | "image_gen"
+      | "custom"
+      | "compose",
     personaConfig?: any,
     allTabConfig?: any,
-    customConfig?: any
+    customConfig?: any,
   ): Promise<void> {
     // Save state before generating
     ContextRecovery.saveState({
       timestamp: Date.now(),
       lastTone: tone,
       pendingReply: {
-        text: '',
-        tweetId: context.tweetId || '',
-        context: context.tweetText
-      }
+        text: "",
+        tweetId: context.tweetId || "",
+        context: context.tweetText,
+      },
     });
-    
+
     // Use AsyncOperationManager to prevent race conditions
-    const operationKey = `generate_reply_${context.tweetId || 'unknown'}_${tone || 'default'}_${isRewriteMode ? 'rewrite' : 'generate'}`;
-    
+    const operationKey = `generate_reply_${context.tweetId || "unknown"}_${tone || "default"}_${isRewriteMode ? "rewrite" : "generate"}`;
+
     try {
-      await globalAsyncManager.execute(operationKey, async (signal: AbortSignal) => {
-        return this.performReplyGeneration(textarea, context, tone, signal, bypassCache, isRewriteMode, vocabulary, lengthPacing, tabType, personaConfig, allTabConfig, customConfig);
-      });
+      await globalAsyncManager.execute(
+        operationKey,
+        async (signal: AbortSignal) => {
+          return this.performReplyGeneration(
+            textarea,
+            context,
+            tone,
+            signal,
+            bypassCache,
+            isRewriteMode,
+            vocabulary,
+            lengthPacing,
+            tabType,
+            personaConfig,
+            allTabConfig,
+            customConfig,
+          );
+        },
+      );
     } catch (error) {
-      if ((error as Error).message.includes('cancelled')) {
-        console.log('%c⏹️ Reply generation cancelled due to new request', 'color: #FFA500; font-weight: bold');
+      if ((error as Error).message.includes("cancelled")) {
+        console.log(
+          "%c⏹️ Reply generation cancelled due to new request",
+          "color: #FFA500; font-weight: bold",
+        );
         return;
       }
       // Re-throw other errors to be handled by the UI
@@ -1866,169 +2439,177 @@ class SmartReplyContentScript {
   }
 
   private async performReplyGeneration(
-    textarea: HTMLElement, 
-    context: { tweetId?: string; tweetText: string; threadContext?: string[]; authorHandle?: string }, 
+    textarea: HTMLElement,
+    context: {
+      tweetId?: string;
+      tweetText: string;
+      threadContext?: string[];
+      authorHandle?: string;
+    },
     tone: string | undefined,
     signal: AbortSignal,
     _bypassCache: boolean = false,
     isRewriteMode: boolean = false,
     vocabulary?: string,
     lengthPacing?: string,
-    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose',
+    tabType?:
+      | "personas"
+      | "all"
+      | "smart"
+      | "favorites"
+      | "image_gen"
+      | "custom"
+      | "compose",
     personaConfig?: any,
     allTabConfig?: any,
-    customConfig?: any
+    customConfig?: any,
   ): Promise<void> {
-    // Find the button to show loading state
-    // Check if we're on HypeFury to use the correct class name
-    const isHypeFury = window.location.hostname === 'app.hypefury.com';
-    const buttonSelector = isHypeFury ? '.smart-reply-button' : '.smart-reply-btn';
-    
-    // Strategy 1: Find button near the textarea (for replies)
-    let button: HTMLElement | null = null;
-    const replyContainer = textarea.closest('[data-testid="tweetTextarea_0_label"]')?.parentElement?.parentElement;
-    if (replyContainer) {
-      button = replyContainer.querySelector(buttonSelector) as HTMLElement;
-    }
-    
-    // Strategy 2: Find button in the tweet being replied to
+    // Find the button to show loading state using improved detection logic
+    const isHypeFury = window.location.hostname === "app.hypefury.com";
+    const button = this.findSmartReplyButton(textarea, isHypeFury);
+
     if (!button) {
-      const tweetArticle = textarea.closest('article[data-testid="tweet"]');
-      if (tweetArticle) {
-        button = tweetArticle.querySelector(buttonSelector) as HTMLElement;
-      }
-    }
-    
-    // Strategy 3: Find button in the reply dialog/modal
-    if (!button) {
-      const dialog = textarea.closest('[role="dialog"]');
-      if (dialog) {
-        button = dialog.querySelector(buttonSelector) as HTMLElement;
-      }
-    }
-    
-    // Strategy 4: For HypeFury, look in parent containers
-    if (!button && isHypeFury) {
-      const parent = textarea.closest('.mention-item, .feed-item, article');
-      if (parent) {
-        button = parent.querySelector(buttonSelector) as HTMLElement;
-      }
-    }
-    
-    // Strategy 5: Find any visible smart-reply button on the page
-    if (!button) {
-      const allButtons = Array.from(document.querySelectorAll(buttonSelector));
-      for (const btn of allButtons) {
-        const htmlBtn = btn as HTMLElement;
-        if (htmlBtn.offsetParent !== null) { // Check if visible
-          button = htmlBtn;
-          break;
-        }
-      }
-    }
-    
-    if (!button) {
-      console.warn('%c⚠️ Smart Reply: Button not found for loading state', 'color: #FFA500');
-      console.log('Textarea location:', textarea);
-      console.log(`All ${buttonSelector} elements:`, document.querySelectorAll(buttonSelector).length);
+      console.warn(
+        "%c⚠️ Smart Reply: Button not found for loading state",
+        "color: #FFA500",
+      );
+      console.log("Textarea location:", textarea);
+      console.log("Button search context:", {
+        isHypeFury,
+        textareaParent: textarea.parentElement,
+        closestArticle: textarea.closest('article'),
+        closestDialog: textarea.closest('[role="dialog"]'),
+      });
       // Continue without button - generation will still work
     } else {
-      console.log('%c✅ Found button for loading state', 'color: #17BF63', button);
+      console.log(
+        "%c✅ Found button for loading state",
+        "color: #17BF63",
+        button,
+      );
     }
 
     try {
       // Check for cancellation before starting
       if (signal.aborted) {
-        throw new Error('Operation was cancelled before starting');
+        throw new Error("Operation was cancelled before starting");
       }
 
       // Show visual loading state
-      const loadingText = isRewriteMode ? 'Rewriting your draft...' : 'Generating AI reply...';
+      const loadingText = isRewriteMode
+        ? "Rewriting your draft..."
+        : "Generating AI reply...";
       visualFeedback.showLoading(loadingText);
-      
+
       // Only show button loading state if button was found
       if (button) {
-        DOMUtils.showLoadingState(button, isRewriteMode ? 'Rewriting' : 'Generating');
+        DOMUtils.showLoadingState(
+          button,
+          isRewriteMode ? "Rewriting" : "Generating",
+        );
       }
-      
-      console.log(`%c🚀 Smart Reply: Starting ${isRewriteMode ? 'rewrite' : 'generation'} with tone:`, 'color: #1DA1F2; font-weight: bold', tone);
-      
+
+      console.log(
+        `%c🚀 Smart Reply: Starting ${isRewriteMode ? "rewrite" : "generation"} with tone:`,
+        "color: #1DA1F2; font-weight: bold",
+        tone,
+      );
+
       // API key is configured via environment
-      if (signal.aborted) throw new Error('Operation cancelled');
+      if (signal.aborted) throw new Error("Operation cancelled");
 
       // Check for cancellation before preparing request
-      if (signal.aborted) throw new Error('Operation cancelled');
-      
+      if (signal.aborted) throw new Error("Operation cancelled");
+
       // Parse reply length from tone if it contains the modifier
       let actualTone = tone;
-      let replyLength: 'short' | 'medium' | 'long' | undefined;
-      
-      if (tone && tone.includes('replyLength:')) {
+      let replyLength: "short" | "medium" | "long" | undefined;
+
+      if (tone && tone.includes("replyLength:")) {
         const match = tone.match(/replyLength:(short|medium|long)/);
         if (match) {
-          replyLength = match[1] as 'short' | 'medium' | 'long';
+          replyLength = match[1] as "short" | "medium" | "long";
           // Remove the replyLength modifier from the tone string
-          actualTone = tone.replace(/replyLength:(short|medium|long)/, '').trim();
+          actualTone = tone
+            .replace(/replyLength:(short|medium|long)/, "")
+            .trim();
         }
       }
-      
+
       // Get existing text if in rewrite mode
       let existingText: string | undefined;
       if (isRewriteMode) {
         existingText = DOMUtils.getTextFromTextarea(textarea);
-        
+
         // Validate minimum text length
         if (!existingText || existingText.trim().length < 10) {
           visualFeedback.hideLoading();
           if (button) {
-            const errorMsg = !existingText ? 'No text to rewrite' : 'Please enter at least 10 characters to rewrite';
+            const errorMsg = !existingText
+              ? "No text to rewrite"
+              : "Please enter at least 10 characters to rewrite";
             visualFeedback.showError(button, errorMsg);
-            DOMUtils.showError(button, errorMsg, 'validation');
+            DOMUtils.showError(button, errorMsg, "context");
           }
-          console.error('%c❌ Text too short for rewrite', 'color: #DC3545; font-weight: bold', `Length: ${existingText?.trim().length || 0}`);
+          console.error(
+            "%c❌ Text too short for rewrite",
+            "color: #DC3545; font-weight: bold",
+            `Length: ${existingText?.trim().length || 0}`,
+          );
           return;
         }
       }
-      
+
       // Extract full context including images
-      let visualContext = '';
+      let visualContext = "";
       try {
         // Use ContextExtractor to get complete tweet context
         const fullContext = ContextExtractor.extractFullContext();
-        
+
         // Check if image understanding is enabled and we have images
         if (ContextExtractor.hasVisualContent(fullContext)) {
           const visionEnabled = await visionService.isEnabled();
-          
+
           if (visionEnabled) {
-            console.log('%c👁️ Analyzing images for context...', 'color: #794BC4; font-weight: bold');
-            
+            console.log(
+              "%c👁️ Analyzing images for context...",
+              "color: #794BC4; font-weight: bold",
+            );
+
             // Get image URLs for analysis
-            const { imageUrls, needsVision } = ContextExtractor.prepareForVisionAnalysis(fullContext);
-            
+            const { imageUrls, needsVision } =
+              ContextExtractor.prepareForVisionAnalysis(fullContext);
+
             if (needsVision && imageUrls.length > 0) {
               // Convert images to base64 in content script where we have Twitter auth
               const base64Images = await this.convertImagesToBase64(imageUrls);
-              
+
               if (base64Images.length > 0) {
                 // Analyze images with vision service (now with base64 data)
-                const visionResult = await visionService.analyzeImages(base64Images, context.tweetText);
-                
+                const visionResult = await visionService.analyzeImages(
+                  base64Images,
+                  context.tweetText,
+                );
+
                 if (visionResult.success) {
                   // Format the vision context for inclusion in prompt
-                  visualContext = VisionService.formatVisionContext(visionResult);
-                  console.log('%c✅ Visual context added to prompt', 'color: #17BF63');
+                  visualContext =
+                    VisionService.formatVisionContext(visionResult);
+                  console.log(
+                    "%c✅ Visual context added to prompt",
+                    "color: #17BF63",
+                  );
                 } else {
-                  console.warn('Vision analysis failed:', visionResult.error);
+                  console.warn("Vision analysis failed:", visionResult.error);
                 }
               } else {
-                console.warn('Failed to convert images to base64');
+                console.warn("Failed to convert images to base64");
               }
             }
           }
         }
       } catch (error) {
-        console.warn('Failed to extract visual context:', error);
+        console.warn("Failed to extract visual context:", error);
         // Continue without visual context
       }
 
@@ -2037,7 +2618,7 @@ class SmartReplyContentScript {
         originalTweet: context.tweetText + visualContext, // Append visual context to tweet text
         tone: actualTone,
         isRewriteMode,
-        existingText
+        existingText,
       };
 
       // Add reply length if specified in tone or use default from config
@@ -2050,7 +2631,7 @@ class SmartReplyContentScript {
           request.replyLength = config.replyLengthDefault;
         }
       }
-      
+
       // Add 4-part structure data if available
       if (vocabulary) {
         request.vocabulary = vocabulary;
@@ -2058,7 +2639,7 @@ class SmartReplyContentScript {
       if (lengthPacing) {
         request.lengthPacing = lengthPacing;
       }
-      
+
       // Add tab type and configs for prompt architecture
       if (tabType) {
         request.tabType = tabType;
@@ -2073,253 +2654,423 @@ class SmartReplyContentScript {
         request.customConfig = customConfig;
       }
 
-      console.log('%c📦 CONTENT SCRIPT: REQUEST PREPARED', 'color: #9146FF; font-weight: bold; font-size: 14px');
-      console.log('%c  Tab Type:', 'color: #657786', request.tabType || 'Not specified');
-      console.log('%c  Mode:', 'color: #657786', isRewriteMode ? 'REWRITE' : 'GENERATE');
+      console.log(
+        "%c📦 CONTENT SCRIPT: REQUEST PREPARED",
+        "color: #9146FF; font-weight: bold; font-size: 14px",
+      );
+      console.log(
+        "%c  Tab Type:",
+        "color: #657786",
+        request.tabType || "Not specified",
+      );
+      console.log(
+        "%c  Mode:",
+        "color: #657786",
+        isRewriteMode ? "REWRITE" : "GENERATE",
+      );
       if (isRewriteMode && existingText) {
-        console.log('%c  Text to Rewrite:', 'color: #657786', existingText.substring(0, 100) + (existingText.length > 100 ? '...' : ''));
+        console.log(
+          "%c  Text to Rewrite:",
+          "color: #657786",
+          existingText.substring(0, 100) +
+            (existingText.length > 100 ? "..." : ""),
+        );
       }
-      console.log('%c  Original Tweet:', 'color: #657786', request.originalTweet?.substring(0, 100) + '...');
-      console.log('%c  Tone/Template:', 'color: #657786', request.tone?.substring(0, 100) + '...');
-      console.log('%c  Reply Length:', 'color: #657786', request.replyLength || 'auto');
-      console.log('%c  Full Request:', 'color: #9146FF', request);
-      console.log('%c  Full Context:', 'color: #9146FF', context);
+      console.log(
+        "%c  Original Tweet:",
+        "color: #657786",
+        request.originalTweet?.substring(0, 100) + "...",
+      );
+      console.log(
+        "%c  Tone/Template:",
+        "color: #657786",
+        request.tone?.substring(0, 100) + "...",
+      );
+      console.log(
+        "%c  Reply Length:",
+        "color: #657786",
+        request.replyLength || "auto",
+      );
+      console.log("%c  Full Request:", "color: #9146FF", request);
+      console.log("%c  Full Context:", "color: #9146FF", context);
 
       // Check for cancellation before API call
-      if (signal.aborted) throw new Error('Operation cancelled');
-      
-      console.log('%c📡 SENDING TO SERVICE WORKER...', 'color: #E1AD01; font-weight: bold');
-      
+      if (signal.aborted) throw new Error("Operation cancelled");
+
+      console.log(
+        "%c📡 SENDING TO SERVICE WORKER...",
+        "color: #E1AD01; font-weight: bold",
+      );
+
       // Generate the reply through service worker
       const response = await chrome.runtime.sendMessage({
         type: MessageType.GENERATE_REPLY,
         request,
-        context
+        context,
       });
-      
-      console.log('%c📨 SERVICE WORKER RESPONSE', 'color: #17BF63; font-weight: bold');
-      console.log('%c  Success:', 'color: #657786', response.success);
-      console.log('%c  Reply Length:', 'color: #657786', response.data?.reply?.length || 0);
+
+      console.log(
+        "%c📨 SERVICE WORKER RESPONSE",
+        "color: #17BF63; font-weight: bold",
+      );
+      console.log("%c  Success:", "color: #657786", response.success);
+      console.log(
+        "%c  Reply Length:",
+        "color: #657786",
+        response.data?.reply?.length || 0,
+      );
       if (response.error) {
-        console.error('%c  Error:', 'color: #DC3545', response.error);
+        console.error("%c  Error:", "color: #DC3545", response.error);
       }
 
       // Check for cancellation after API call
-      if (signal.aborted) throw new Error('Operation cancelled');
+      if (signal.aborted) throw new Error("Operation cancelled");
 
       if (response.success && response.data?.reply) {
-        
         // Set the generated text in the textarea
         DOMUtils.setTextareaValue(textarea, response.data.reply);
-        
+
         // Update character count
         DOMUtils.updateCharCount(response.data.reply.length);
-        
-        console.log('Smart Reply: Reply generated successfully:', response.data.reply);
-        
+
+        console.log(
+          "Smart Reply: Reply generated successfully:",
+          response.data.reply,
+        );
+
         // Hide loading and show success toast only (no duplicate icon)
         visualFeedback.hideLoading();
-        visualFeedback.showToast(isRewriteMode ? 'Draft rewritten!' : 'Reply generated!', {
-          type: 'success',
-          duration: 3000,
-          position: 'bottom'
-        });
+        visualFeedback.showToast(
+          isRewriteMode ? "Draft rewritten!" : "Reply generated!",
+          {
+            type: "success",
+            duration: 3000,
+            position: "bottom",
+          },
+        );
         if (button) {
-          visualFeedback.pulse(button, '#17BF63');
+          visualFeedback.pulse(button, "#17BF63");
           // Reset button to normal state
           DOMUtils.hideLoadingState(button);
         }
-        
+
         // Close selector after successful generation
         selectorAdapter.hide();
-        
+
         // Also close old dropdown if it exists (backward compatibility)
-        const dropdown = document.querySelector('.smart-reply-dropdown') as HTMLElement;
+        const dropdown = document.querySelector(
+          ".smart-reply-dropdown",
+        ) as HTMLElement;
         if (dropdown) {
           this.safeSetTimeout(() => {
-            dropdown.style.display = 'none';
+            dropdown.style.display = "none";
             // Note: Scroll listener is already properly managed by updateDropdownPosition
           }, 500); // Small delay to show the completion
         }
-        
+
         // Listen for further edits to update char count
         const updateCount = () => {
-          const currentText = textarea.textContent || '';
+          const currentText = textarea.textContent || "";
           DOMUtils.updateCharCount(currentText.length);
         };
-        textarea.addEventListener('input', updateCount);
-        
+        textarea.addEventListener("input", updateCount);
+
         // Store for cleanup
-        this.eventListeners.push(
-          () => textarea.removeEventListener('input', updateCount)
+        this.eventListeners.push(() =>
+          textarea.removeEventListener("input", updateCount),
         );
-        
+
         // Store the listener for cleanup
-        textarea.setAttribute('data-smart-reply-listener', 'true');
+        textarea.setAttribute("data-smart-reply-listener", "true");
       } else {
         // Hide loading and show error
         visualFeedback.hideLoading();
         if (button) {
-          visualFeedback.showError(button, response.error || 'Failed to generate reply');
+          visualFeedback.showError(
+            button,
+            response.error || "Failed to generate reply",
+          );
           // Reset button and show error
           DOMUtils.hideLoadingState(button);
         }
-        
+
         // Use enhanced error handling for API failures
-        const apiError = new Error(response.error || 'Failed to generate reply');
+        const apiError = new Error(
+          response.error || "Failed to generate reply",
+        );
         ErrorHandler.handleUserFriendlyError(
           apiError,
           {
-            action: 'api_response_failure',
-            component: 'SmartReplyContentScript',
+            action: "api_response_failure",
+            component: "SmartReplyContentScript",
             retryAction: () => this.generateReply(textarea, context, tone),
-            metadata: { tone, apiError: response.error }
+            metadata: { tone, apiError: response.error },
           },
-          button || undefined
+          button || undefined,
         );
-        console.error('Smart Reply: Generation failed:', response.error);
+        console.error("Smart Reply: Generation failed:", response.error);
       }
-
     } catch (error) {
       // Handle cancellation gracefully
-      if ((error as Error).message.includes('cancelled')) {
-        console.log('%c⏹️ Operation cancelled during generation', 'color: #657786');
+      if ((error as Error).message.includes("cancelled")) {
+        console.log(
+          "%c⏹️ Operation cancelled during generation",
+          "color: #657786",
+        );
         visualFeedback.hideLoading();
         if (button) {
           DOMUtils.hideLoadingState(button);
         }
         return; // Don't show error UI for cancellations
       }
-      
+
       // Hide loading and show error
       visualFeedback.hideLoading();
       if (button) {
-        visualFeedback.showError(button, (error as Error).message || 'An error occurred');
+        visualFeedback.showError(
+          button,
+          (error as Error).message || "An error occurred",
+        );
         // Reset button on error
         DOMUtils.hideLoadingState(button);
       }
-      
+
       // Use enhanced error handling with recovery actions
       const recoveryActions = ErrorHandler.handleUserFriendlyError(
         error as Error,
         {
-          action: 'generate_reply',
-          component: 'SmartReplyContentScript',
+          action: "generate_reply",
+          component: "SmartReplyContentScript",
           retryAction: () => this.generateReply(textarea, context, tone),
-          metadata: { tone, tweetText: context.tweetText }
+          metadata: { tone, tweetText: context.tweetText },
         },
-        button || undefined
+        button || undefined,
       );
-      
+
       // Log the recovery actions for debugging
-      console.log('%c🔧 Recovery actions available:', 'color: #FFA500', recoveryActions);
+      console.log(
+        "%c🔧 Recovery actions available:",
+        "color: #FFA500",
+        recoveryActions,
+      );
     } finally {
       // Loading states are handled by LoadingStateManager
     }
+  }
+
+  /**
+   * Enhanced button finder with multiple strategies and better debugging
+   * @param textarea The textarea element to find button relative to
+   * @param isHypeFury Whether we're on HypeFury platform
+   * @returns HTMLElement | null The found smart reply button
+   */
+  private findSmartReplyButton(textarea: HTMLElement, isHypeFury: boolean): HTMLElement | null {
+    const buttonSelector = isHypeFury ? ".smart-reply-button" : ".smart-reply-btn";
+    
+    // Strategy 1: Find button near the textarea (for replies)
+    const replyContainer = textarea.closest('[data-testid="tweetTextarea_0_label"]')?.parentElement?.parentElement;
+    if (replyContainer) {
+      const button = replyContainer.querySelector(buttonSelector) as HTMLElement;
+      if (button) return button;
+    }
+
+    // Strategy 2: Find button in the tweet being replied to
+    const tweetArticle = textarea.closest('article[data-testid="tweet"]');
+    if (tweetArticle) {
+      const button = tweetArticle.querySelector(buttonSelector) as HTMLElement;
+      if (button) return button;
+    }
+
+    // Strategy 3: Find button in the reply dialog/modal
+    const dialog = textarea.closest('[role="dialog"]');
+    if (dialog) {
+      const button = dialog.querySelector(buttonSelector) as HTMLElement;
+      if (button) return button;
+    }
+
+    // Strategy 4: For HypeFury, look in parent containers
+    if (isHypeFury) {
+      const parent = textarea.closest(".mention-item, .feed-item, article");
+      if (parent) {
+        const button = parent.querySelector(buttonSelector) as HTMLElement;
+        if (button) return button;
+      }
+    }
+
+    // Strategy 5: Look for button in tweet toolbar area (new strategy)
+    const toolbar = textarea.closest('[role="group"]') || 
+                   textarea.parentElement?.querySelector('[role="group"]');
+    if (toolbar) {
+      const button = toolbar.querySelector(buttonSelector) as HTMLElement;
+      if (button) return button;
+    }
+
+    // Strategy 6: Search in broader context - compose tweet area
+    const composeArea = textarea.closest('[data-testid="toolBar"]')?.parentElement;
+    if (composeArea) {
+      const button = composeArea.querySelector(buttonSelector) as HTMLElement;
+      if (button) return button;
+    }
+
+    // Strategy 7: Find button by looking up the DOM tree more aggressively
+    let current = textarea.parentElement;
+    let depth = 0;
+    while (current && depth < 10) { // Limit depth to prevent infinite loops
+      const button = current.querySelector(buttonSelector) as HTMLElement;
+      if (button && this.isButtonVisible(button)) {
+        return button;
+      }
+      current = current.parentElement;
+      depth++;
+    }
+
+    // Strategy 8: Find any visible smart-reply button on the page (last resort)
+    const allButtons = Array.from(document.querySelectorAll(buttonSelector));
+    for (const btn of allButtons) {
+      const htmlBtn = btn as HTMLElement;
+      if (this.isButtonVisible(htmlBtn)) {
+        return htmlBtn;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if a button is visible and likely the correct one to use
+   * @param button The button element to check
+   * @returns boolean True if button is visible and usable
+   */
+  private isButtonVisible(button: HTMLElement): boolean {
+    // Check if element is visible
+    if (button.offsetParent === null) return false;
+    
+    // Check if it has reasonable dimensions
+    const rect = button.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return false;
+    
+    // Check if it's not hidden by display or visibility
+    const style = window.getComputedStyle(button);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    
+    return true;
   }
 
   public destroy(): void {
     // Prevent multiple destroy calls
     if (this.isDestroyed) return;
     this.isDestroyed = true;
-    
-    console.log('%c🗑️ Smart Reply: Content script destroyed', 'color: #DC3545; font-weight: bold');
-    
+
+    console.log(
+      "%c🗑️ Smart Reply: Content script destroyed",
+      "color: #DC3545; font-weight: bold",
+    );
+
     // Clean up all timers with error handling
-    console.log(`%c  Cleaning up ${this.timers.size} timers`, 'color: #657786');
-    this.timers.forEach(timerId => {
+    console.log(`%c  Cleaning up ${this.timers.size} timers`, "color: #657786");
+    this.timers.forEach((timerId) => {
       try {
         clearTimeout(timerId);
       } catch (error) {
-        console.error('Error clearing timer:', error);
+        console.error("Error clearing timer:", error);
       }
     });
     this.timers.clear();
-    
+
     // Clean up all intervals with error handling
-    console.log(`%c  Cleaning up ${this.intervals.size} intervals`, 'color: #657786');
-    this.intervals.forEach(intervalId => {
+    console.log(
+      `%c  Cleaning up ${this.intervals.size} intervals`,
+      "color: #657786",
+    );
+    this.intervals.forEach((intervalId) => {
       try {
         clearInterval(intervalId);
       } catch (error) {
-        console.error('Error clearing interval:', error);
+        console.error("Error clearing interval:", error);
       }
     });
     this.intervals.clear();
-    
+
     // Clean up all stored event listeners
-    console.log(`%c  Cleaning up ${this.eventListeners.length} stored event listeners`, 'color: #657786');
-    this.eventListeners.forEach(cleanup => cleanup());
+    console.log(
+      `%c  Cleaning up ${this.eventListeners.length} stored event listeners`,
+      "color: #657786",
+    );
+    this.eventListeners.forEach((cleanup) => cleanup());
     this.eventListeners = [];
-    
+
     // Clean up custom event listeners
     this.customEventListeners.forEach((listener, eventName) => {
       document.removeEventListener(eventName, listener);
     });
     this.customEventListeners.clear();
-    
+
     // Clear cleanup interval
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
       this.cleanupIntervalId = null;
     }
-    
+
     // Clear navigation timer
     if (this.navigationTimerId) {
       clearTimeout(this.navigationTimerId);
       this.navigationTimerId = null;
     }
-    
+
     // Disconnect observer
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
-    
+
     // Cleanup keyboard shortcuts
     KeyboardShortcutManager.destroy();
-    
+
     // Cleanup Context Recovery
     ContextRecovery.destroy();
-    
+
     // Disconnect port
     if (this.port) {
       this.port.disconnect();
       this.port = null;
     }
-    
+
     // Run all cleanup functions
     const cleanupFunctions = (this as any).cleanupFunctions || [];
     cleanupFunctions.forEach((cleanup: () => void) => {
       try {
         cleanup();
       } catch (error) {
-        console.error('Smart Reply: Error during cleanup:', error);
+        console.error("Smart Reply: Error during cleanup:", error);
       }
     });
-    
+
     // Remove all injected buttons and dropdowns
-    document.querySelectorAll('.smart-reply-container').forEach(el => el.remove());
-    document.querySelectorAll('.smart-reply-dropdown').forEach(el => el.remove());
-    
+    document
+      .querySelectorAll(".smart-reply-container")
+      .forEach((el) => el.remove());
+    document
+      .querySelectorAll(".smart-reply-dropdown")
+      .forEach((el) => el.remove());
+
     // Remove event listeners from buttons by cloning (legacy cleanup)
-    document.querySelectorAll('.smart-reply-button').forEach(button => {
+    document.querySelectorAll(".smart-reply-button").forEach((button) => {
       const newButton = button.cloneNode(true);
       button.parentNode?.replaceChild(newButton, button);
     });
-    
+
     // Clear processed toolbars - recreate WeakSet to ensure proper cleanup
     this.processedToolbars = new WeakSet<Element>();
-    
+
     // Clear DOM cache to prevent memory leaks
     if (DOMCache) {
       try {
         DOMCache.invalidate();
       } catch (error) {
-        console.error('Error clearing DOM cache:', error);
+        console.error("Error clearing DOM cache:", error);
       }
     }
-    
+
     // Unregister this instance
     if ((window as any).__smartReplyInstance === this) {
       delete (window as any).__smartReplyInstance;
@@ -2337,73 +3088,92 @@ class SmartReplyContentScript {
    */
   private async attemptInitialInjection(): Promise<void> {
     // Check if we're on a reply-capable page
-    const isStatusPage = window.location.pathname.includes('/status/');
-    const hasTweets = document.querySelector('article[data-testid="tweet"]') !== null;
-    const isComposePage = window.location.pathname.includes('/compose/');
-    const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-    const isReplyPage = isStatusPage || hasTweets || isComposePage || isHomePage;
-    
-    console.log('%c🎯 ATTEMPT INITIAL INJECTION', 'color: #17BF63; font-weight: bold');
-    console.log('%c  Page type:', 'color: #657786', {
+    const isStatusPage = window.location.pathname.includes("/status/");
+    const hasTweets =
+      document.querySelector('article[data-testid="tweet"]') !== null;
+    const isComposePage = window.location.pathname.includes("/compose/");
+    const isHomePage =
+      window.location.pathname === "/" || window.location.pathname === "/home";
+    const isReplyPage =
+      isStatusPage || hasTweets || isComposePage || isHomePage;
+
+    console.log(
+      "%c🎯 ATTEMPT INITIAL INJECTION",
+      "color: #17BF63; font-weight: bold",
+    );
+    console.log("%c  Page type:", "color: #657786", {
       status: isStatusPage,
       tweets: hasTweets,
       compose: isComposePage,
-      home: isHomePage
+      home: isHomePage,
     });
-    console.log('%c  Retry:', 'color: #657786', `${this.initialRetryCount}/${this.maxInitialRetries}`);
-    
+    console.log(
+      "%c  Retry:",
+      "color: #657786",
+      `${this.initialRetryCount}/${this.maxInitialRetries}`,
+    );
+
     if (!isReplyPage) {
       // Not on a reply page, reset retry count for next time
       this.initialRetryCount = 0;
-      console.log('%c  Not a reply-capable page, skipping', 'color: #FFA500');
+      console.log("%c  Not a reply-capable page, skipping", "color: #FFA500");
       return;
     }
 
     // Try to find and inject buttons
     const toolbars: Element[] = [];
-    
+
     // Try primary selector
-    document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach(toolbar => {
+    document.querySelectorAll(DOMUtils.TOOLBAR_SELECTOR).forEach((toolbar) => {
       toolbars.push(toolbar);
     });
-    
+
     // If none found, try fallbacks
     if (toolbars.length === 0) {
-      const toolbar = DOMUtils.findWithFallback('toolbar');
+      const toolbar = DOMUtils.findWithFallback("toolbar");
       if (toolbar) toolbars.push(toolbar);
     }
 
-    console.log('%c  Found toolbars:', 'color: #657786', toolbars.length);
+    console.log("%c  Found toolbars:", "color: #657786", toolbars.length);
 
     // Process any found toolbars
     if (toolbars.length > 0) {
       let injectedCount = 0;
       for (const toolbar of toolbars) {
         if (!this.processedToolbars.has(toolbar)) {
-          console.log('%c  Processing toolbar...', 'color: #657786');
+          console.log("%c  Processing toolbar...", "color: #657786");
           const success = await this.handleToolbarAdded(toolbar);
           if (success) {
             injectedCount++;
           }
         } else {
-          console.log('%c  Toolbar already processed', 'color: #FFA500');
+          console.log("%c  Toolbar already processed", "color: #FFA500");
         }
       }
-      console.log('%c  ✅ Injected buttons:', 'color: #17BF63', injectedCount);
+      console.log("%c  ✅ Injected buttons:", "color: #17BF63", injectedCount);
       // Reset retry count on success
       this.initialRetryCount = 0;
     } else if (this.initialRetryCount < this.maxInitialRetries) {
       // Retry with exponential backoff
       this.initialRetryCount++;
-      const delay = Math.min(this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1), 5000);
-      console.log(`%c⏳ No toolbars found, retrying in ${delay}ms (${this.initialRetryCount}/${this.maxInitialRetries})`, 'color: #FFA500');
-      
+      const delay = Math.min(
+        this.initialRetryDelay * Math.pow(1.5, this.initialRetryCount - 1),
+        5000,
+      );
+      console.log(
+        `%c⏳ No toolbars found, retrying in ${delay}ms (${this.initialRetryCount}/${this.maxInitialRetries})`,
+        "color: #FFA500",
+      );
+
       this.safeSetTimeout(async () => {
         await this.attemptInitialInjection();
       }, delay);
     } else {
       // Max retries reached
-      console.log('%c⚠️ Max retries reached, relying on mutation observer', 'color: #DC3545');
+      console.log(
+        "%c⚠️ Max retries reached, relying on mutation observer",
+        "color: #DC3545",
+      );
       this.initialRetryCount = 0;
     }
   }
@@ -2412,25 +3182,31 @@ class SmartReplyContentScript {
    * Manual toolbar scan for navigation scenarios
    */
   private async manualToolbarScan(): Promise<void> {
-    console.log('%c🔍 MANUAL TOOLBAR SCAN', 'color: #9146FF; font-weight: bold');
-    
+    console.log(
+      "%c🔍 MANUAL TOOLBAR SCAN",
+      "color: #9146FF; font-weight: bold",
+    );
+
     // Find all toolbars including those that might have been missed
     const allToolbars: Element[] = [];
-    
+
     // Try multiple selectors
     const selectors = [
       DOMUtils.TOOLBAR_SELECTOR,
       '[role="group"][aria-label]',
       'div[data-testid="toolBar"]',
       'div[class*="toolbar"]',
-      'div[class*="ToolBar"]'
+      'div[class*="ToolBar"]',
     ];
-    
-    selectors.forEach(selector => {
+
+    selectors.forEach((selector) => {
       try {
-        document.querySelectorAll(selector).forEach(element => {
+        document.querySelectorAll(selector).forEach((element) => {
           // Check if it looks like a toolbar
-          if (element.querySelector('button') && !allToolbars.includes(element)) {
+          if (
+            element.querySelector("button") &&
+            !allToolbars.includes(element)
+          ) {
             allToolbars.push(element);
           }
         });
@@ -2438,24 +3214,35 @@ class SmartReplyContentScript {
         // Ignore selector errors
       }
     });
-    
-    console.log('%c  Found potential toolbars:', 'color: #657786', allToolbars.length);
-    
+
+    console.log(
+      "%c  Found potential toolbars:",
+      "color: #657786",
+      allToolbars.length,
+    );
+
     let injectedCount = 0;
     for (const toolbar of allToolbars) {
-      if (!this.processedToolbars.has(toolbar) && this.isReplyToolbar(toolbar)) {
-        console.log('%c  Injecting into unprocessed toolbar', 'color: #17BF63');
+      if (
+        !this.processedToolbars.has(toolbar) &&
+        this.isReplyToolbar(toolbar)
+      ) {
+        console.log("%c  Injecting into unprocessed toolbar", "color: #17BF63");
         const success = await this.handleToolbarAdded(toolbar);
         if (success) {
           injectedCount++;
         }
       }
     }
-    
+
     if (injectedCount > 0) {
-      console.log('%c  ✅ Manual scan injected:', 'color: #17BF63', injectedCount);
+      console.log(
+        "%c  ✅ Manual scan injected:",
+        "color: #17BF63",
+        injectedCount,
+      );
     } else {
-      console.log('%c  No new toolbars to process', 'color: #657786');
+      console.log("%c  No new toolbars to process", "color: #657786");
     }
   }
 
@@ -2465,20 +3252,20 @@ class SmartReplyContentScript {
   private testDOMInjection(): boolean {
     try {
       // Test if we can create and inject elements
-      const testElement = document.createElement('div');
-      testElement.style.display = 'none';
-      testElement.setAttribute('data-tweetcraft-test', 'true');
-      
+      const testElement = document.createElement("div");
+      testElement.style.display = "none";
+      testElement.setAttribute("data-tweetcraft-test", "true");
+
       document.body?.appendChild(testElement);
       const found = document.querySelector('[data-tweetcraft-test="true"]');
-      
+
       if (found) {
         found.remove();
         return true;
       }
       return false;
     } catch (error) {
-      console.warn('%c  DOM injection test failed:', 'color: #FFA500', error);
+      console.warn("%c  DOM injection test failed:", "color: #FFA500", error);
       return false;
     }
   }
@@ -2490,17 +3277,20 @@ class SmartReplyContentScript {
     try {
       // Test if we're on Twitter/X and can potentially find reply elements
       // Don't require elements to exist immediately, just test capability
-      const isTwitterPage = window.location.hostname.includes('twitter.com') || 
-                           window.location.hostname.includes('x.com');
-      
+      const isTwitterPage =
+        window.location.hostname.includes("twitter.com") ||
+        window.location.hostname.includes("x.com");
+
       if (!isTwitterPage) return false;
-      
+
       // Test basic DOM query capability for Twitter elements
-      const hasBasicTwitterStructure = !!document.querySelector('#react-root, [data-reactroot]');
-      
+      const hasBasicTwitterStructure = !!document.querySelector(
+        "#react-root, [data-reactroot]",
+      );
+
       return hasBasicTwitterStructure;
     } catch (error) {
-      console.warn('%c  Reply detection test failed:', 'color: #FFA500', error);
+      console.warn("%c  Reply detection test failed:", "color: #FFA500", error);
       return false;
     }
   }
@@ -2512,28 +3302,34 @@ class SmartReplyContentScript {
     try {
       // Test if we have the basic capability to extract context
       // Don't require content to be loaded immediately
-      const isTwitterPage = window.location.hostname.includes('twitter.com') || 
-                           window.location.hostname.includes('x.com');
-      
+      const isTwitterPage =
+        window.location.hostname.includes("twitter.com") ||
+        window.location.hostname.includes("x.com");
+
       if (!isTwitterPage) return false;
-      
+
       // Test if we can run basic DOM queries and have access to DOMUtils
-      const hasReactRoot = !!document.querySelector('#react-root, [data-reactroot]');
-      const canAccessDOMUtils = typeof DOMUtils !== 'undefined';
-      
+      const hasReactRoot = !!document.querySelector(
+        "#react-root, [data-reactroot]",
+      );
+      const canAccessDOMUtils = typeof DOMUtils !== "undefined";
+
       return hasReactRoot && canAccessDOMUtils;
     } catch (error) {
-      console.warn('%c  Context extraction test failed:', 'color: #FFA500', error);
+      console.warn(
+        "%c  Context extraction test failed:",
+        "color: #FFA500",
+        error,
+      );
       return false;
     }
   }
-
 }
 
 // Initialize the content script
 const smartReply = new SmartReplyContentScript();
 
 // Clean up on page unload
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   smartReply.destroy();
 });

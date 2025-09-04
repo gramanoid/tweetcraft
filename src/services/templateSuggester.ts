@@ -10,6 +10,7 @@ import type { ToneOption } from '@/content/toneSelector';
 import type { LLMAnalysisResult } from '@/types/llm';
 import { TEMPLATE_SUGGESTER } from '@/config/models';
 import { JSONExtractor } from '@/utils/jsonExtractor';
+import { OpenRouterSmartService } from './openRouterSmart';
 
 interface SuggestionContext {
   tweetText: string;
@@ -824,124 +825,52 @@ export class TemplateSuggester {
 
   /**
    * Get LLM analysis of tweet for better suggestions
+   * PHASE 1.1 - Using robust OpenRouterSmartService with error handling
    */
   private async getLLMAnalysis(tweetText: string, context: SuggestionContext, apiKey: string): Promise<LLMAnalysisResult | null> {
-    try {
-      console.log('%c🧠 LLM ANALYSIS STARTED', 'color: #794BC4; font-weight: bold; font-size: 14px');
-      console.log('%c  Tweet text length:', 'color: #657786', tweetText?.length || 0, 'characters');
-      console.log('%c  Building context for AI analysis...', 'color: #657786');
-      
-      const contextInfo = this.buildContextString(context);
-      console.log('%c  Context built:', 'color: #657786', contextInfo.length, 'characters');
-      
-      const prompt = `You are an expert social media strategist analyzing tweets for optimal reply suggestions. 
-
-TWEET TO ANALYZE: "${tweetText}"
-
-${contextInfo}
-
-ANALYSIS FRAMEWORK:
-1. Read the tweet carefully and understand the author's intent
-2. Consider the conversation context and thread dynamics  
-3. Identify the optimal reply approach and tone
-4. Provide confidence scores and reasoning
-
-EXAMPLES:
-
-Tweet: "Just shipped our new AI feature after 6 months of work! 🚀"
-Analysis: {
-  "sentiment": "positive",
-  "intent": "achievement", 
-  "confidence": 0.95,
-  "reasoning": ["Clear achievement announcement", "Positive sentiment with emoji", "Invites congratulations"],
-  "suggestedCategories": ["celebration", "engagement", "support"],
-  "suggestedTones": ["enthusiastic", "motivational", "wholesome"],
-  "threadAnalysis": {"conversationStage": "opening"},
-  "userContext": {"engagementLevel": "high"}
-}
-
-Tweet: "Why do people still think AI will replace developers? This is such a bad take..."
-Analysis: {
-  "sentiment": "controversial", 
-  "intent": "debate",
-  "confidence": 0.88,
-  "reasoning": ["Controversial opinion stated", "Dismissive language used", "Invites debate/discussion"],
-  "suggestedCategories": ["debate", "challenge", "perspective"],
-  "suggestedTones": ["contrarian", "professional", "philosophical"], 
-  "threadAnalysis": {"conversationStage": "heated"},
-  "userContext": {"communicationStyle": "technical"}
-}
-
-Tweet: "Having trouble with React state management. Anyone know good patterns?"
-Analysis: {
-  "sentiment": "neutral",
-  "intent": "problem", 
-  "confidence": 0.92,
-  "reasoning": ["Clear problem statement", "Direct request for help", "Technical domain"],
-  "suggestedCategories": ["help", "solution", "insight"],
-  "suggestedTones": ["professional", "casual", "academic"],
-  "threadAnalysis": {"conversationStage": "opening"},
-  "userContext": {"userType": "beginner", "communicationStyle": "technical"}
-}
-
-NOW ANALYZE THE TARGET TWEET. Return ONLY valid JSON with all fields:`;
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'chrome-extension://tweetcraft',
-          'X-Title': 'TweetCraft Smart Suggestions'
-        },
-        body: JSON.stringify({
-          model: TEMPLATE_SUGGESTER,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert social media strategist and tweet analysis assistant. Provide detailed, confident analysis in valid JSON format only. Always include confidence scores and reasoning chains.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.2, // Lower temperature for more consistent analysis
-          max_tokens: 800
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+    console.log('%c🧠 LLM ANALYSIS STARTED', 'color: #794BC4; font-weight: bold; font-size: 14px');
+    console.log('%c  Using robust OpenRouterSmartService', 'color: #657786');
+    console.log('%c  Tweet text length:', 'color: #657786', tweetText?.length || 0, 'characters');
+    
+    // Use the new robust service with circuit breaker and retry logic
+    const analysis = await OpenRouterSmartService.analyzeTweetWithLLM(
+      tweetText,
+      context,
+      apiKey,
+      {
+        priority: 'high', // Smart tab suggestions are high priority
+        timeout: 8000 // 8 second timeout
       }
-
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content;
-      
-      if (content) {
-        // Use JSONExtractor for robust parsing
-        const analysis = JSONExtractor.parseJSON<LLMAnalysisResult>(content);
-        
-        if (analysis) {
-          console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
-          console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'not detected');
-          console.log('%c  Intent:', 'color: #657786', analysis.intent || 'not detected');
-          console.log('%c  Suggested categories:', 'color: #657786', analysis.suggestedCategories?.length || 0);
-          console.log('%c  Confidence score:', 'color: #657786', analysis.confidence || 'not provided');
-          console.log('%c  Reasoning steps:', 'color: #657786', analysis.reasoning?.length || 0);
-          console.log('%c  Thread analysis:', 'color: #657786', analysis.threadAnalysis ? '✅ YES' : '❌ NO');
-          console.log('%c  User context:', 'color: #657786', analysis.userContext ? '✅ YES' : '❌ NO');
-          console.log('%c  Topics identified:', 'color: #657786', analysis.topics?.length || 0);
-          return analysis;
-        } else {
-          console.warn('Failed to extract valid JSON from LLM response');
-        }
+    );
+    
+    if (analysis) {
+      // Check if this is a fallback response
+      if (analysis.isFallback) {
+        console.log('%c⚠️ Using fallback analysis (API unavailable)', 'color: #FFA500; font-weight: bold');
+        console.log('%c  Fallback confidence:', 'color: #657786', analysis.confidence);
+      } else {
+        console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
       }
-    } catch (error) {
-      console.log('%c🤖 LLM analysis failed:', 'color: #657786', error);
+      
+      console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'not detected');
+      console.log('%c  Intent:', 'color: #657786', analysis.intent || 'not detected');
+      console.log('%c  Suggested categories:', 'color: #657786', analysis.suggestedCategories?.length || 0);
+      console.log('%c  Confidence score:', 'color: #657786', analysis.confidence || 'not provided');
+      console.log('%c  Reasoning steps:', 'color: #657786', analysis.reasoning?.length || 0);
+      
+      // Log service metrics periodically
+      const metrics = OpenRouterSmartService.getMetrics();
+      if (metrics.totalRequests % 10 === 0) { // Log every 10 requests
+        console.log('%c📊 Service Metrics:', 'color: #1DA1F2; font-weight: bold');
+        console.log('%c  Success rate:', 'color: #657786', metrics.successRate);
+        console.log('%c  Circuit state:', 'color: #657786', metrics.circuitState);
+        console.log('%c  Avg response time:', 'color: #657786', `${Math.round(metrics.averageResponseTime)}ms`);
+      }
+    } else {
+      console.log('%c❌ LLM analysis returned null', 'color: #DC3545');
     }
     
-    return null;
+    return analysis;
   }
 }
 

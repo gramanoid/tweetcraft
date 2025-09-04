@@ -2,8 +2,8 @@
  * Trend Service for fetching trending topics and content suggestions
  */
 
-import { logger } from '@/utils/logger';
-import { API_CONFIG } from '@/config/apiConfig';
+import { logger } from "@/utils/logger";
+import { API_CONFIG } from "@/config/apiConfig";
 
 export interface TrendingTopic {
   topic: string;
@@ -28,72 +28,106 @@ interface CacheEntry {
 }
 
 export class TrendService {
-  private static readonly EXA_API_KEY = API_CONFIG.EXA_API_KEY || '';
-  private static readonly EXA_API_URL = 'https://api.exa.ai/search';
+  private static readonly EXA_API_KEY = API_CONFIG.EXA_API_KEY || "";
+  private static readonly EXA_API_URL = "https://api.exa.ai/search";
   private static readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
   private static readonly MAX_CACHE_SIZE = 50; // Maximum number of cache entries
   private static readonly CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
-  
+
   private static trendCache: Map<string, CacheEntry> = new Map();
   private static lastCleanup = Date.now();
+  private static cleanupIntervalId: NodeJS.Timeout | null = null;
+
+  // Initialize periodic cleanup on first use
+  static {
+    this.startPeriodicCleanup();
+  }
+
+  /**
+   * Start periodic cache cleanup
+   */
+  private static startPeriodicCleanup(): void {
+    // Clear any existing interval
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+    }
+
+    // Schedule periodic cleanup
+    this.cleanupIntervalId = setInterval(() => {
+      this.cleanupCache();
+    }, this.CLEANUP_INTERVAL);
+  }
+
+  /**
+   * Stop periodic cleanup (for cleanup/testing)
+   */
+  static stopPeriodicCleanup(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
+  }
 
   /**
    * Search for content using EXA API
    */
-  static async searchContent(query: string, options?: {
-    numResults?: number;
-    useAutoprompt?: boolean;
-    type?: 'neural' | 'keyword';
-    category?: string;
-  }): Promise<ContentSuggestion[]> {
+  static async searchContent(
+    query: string,
+    options?: {
+      numResults?: number;
+      useAutoprompt?: boolean;
+      type?: "neural" | "keyword";
+      category?: string;
+    },
+  ): Promise<ContentSuggestion[]> {
     const cacheKey = `search_${query}_${JSON.stringify(options)}`;
     const cached = this.getCachedData<ContentSuggestion[]>(cacheKey);
     if (cached) return cached;
 
-    // Return empty array if no API key is configured
-    if (!this.EXA_API_KEY) {
-      logger.warn('EXA API key not configured, returning empty results');
-      return [];
-    }
-
     try {
-      const response = await fetch(this.EXA_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.EXA_API_KEY
-        },
-        body: JSON.stringify({
-          query,
-          num_results: options?.numResults || 10,
-          use_autoprompt: options?.useAutoprompt !== false,
-          type: options?.type || 'neural',
-          contents: {
-            text: true,
-            highlights: true
-          }
-        })
+      // Route via service worker to avoid CORS from content scripts
+      const data = await new Promise<any>((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            type: 'EXA_SEARCH',
+            query,
+            options: {
+              numResults: options?.numResults || 10,
+              useAutoprompt: options?.useAutoprompt !== false,
+              type: options?.type || 'neural',
+            },
+          },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            if (!response?.success) {
+              reject(new Error(response?.error || 'EXA search failed'));
+              return;
+            }
+            resolve(response.data);
+          },
+        );
       });
-
-      if (!response.ok) {
-        throw new Error(`EXA API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const suggestions: ContentSuggestion[] = data.results?.map((result: any) => ({
-        title: result.title,
-        summary: result.text?.substring(0, 200),
-        url: result.url,
-        publishedDate: result.published_date,
-        score: result.score,
-        snippet: result.highlights?.[0]
-      })) || [];
+      const suggestions: ContentSuggestion[] =
+        data.results?.map((result: any) => ({
+          title: result.title,
+          summary: result.text?.substring(0, 200),
+          url: result.url,
+          publishedDate: result.published_date,
+          score: result.score,
+          snippet: result.highlights?.[0],
+        })) || [];
 
       this.setCachedData(cacheKey, suggestions);
-      logger.log('trend', `Fetched ${suggestions.length} content suggestions for: ${query}`);
+      logger.log(
+        "trend",
+        `Fetched ${suggestions.length} content suggestions for: ${query}`,
+      );
       return suggestions;
     } catch (error) {
-      logger.error('trend', 'Failed to fetch content suggestions:', error);
+      logger.error("trend", "Failed to fetch content suggestions:", error);
       return [];
     }
   }
@@ -102,45 +136,119 @@ export class TrendService {
    * Get trending topics based on category
    */
   static async getTrendingTopics(category?: string): Promise<TrendingTopic[]> {
-    const cacheKey = `trends_${category || 'all'}`;
+    const cacheKey = `trends_${category || "all"}`;
     const cached = this.getCachedData<TrendingTopic[]>(cacheKey);
     if (cached) return cached;
 
     try {
       // Search for current trending topics
-      const queries = category ? 
-        [`trending ${category} topics today`, `viral ${category} news`] :
-        ['trending on twitter today', 'viral topics social media'];
-      
+      const queries = category
+        ? [`trending ${category} topics today`, `viral ${category} news`]
+        : ["trending on twitter today", "viral topics social media"];
+
       const results = await Promise.all(
-        queries.map(q => this.searchContent(q, { numResults: 5 }))
+        queries.map((q) => this.searchContent(q, { numResults: 5 })),
       );
-      
+
       const topics: TrendingTopic[] = [];
       const seen = new Set<string>();
-      
-      results.flat().forEach(suggestion => {
-        const topicWords = suggestion.title
-          ?.split(/[\s-]+/)
-          .filter(w => w.length > 3)
-          .slice(0, 3)
-          .join(' ');
-        
-        if (topicWords && !seen.has(topicWords.toLowerCase())) {
-          seen.add(topicWords.toLowerCase());
+
+      // Common stopwords to filter out
+      const stopwords = new Set([
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "that",
+        "this",
+        "what",
+        "when",
+        "where",
+        "who",
+        "why",
+        "how",
+        "are",
+        "was",
+        "were",
+        "been",
+        "have",
+        "has",
+        "had",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "our",
+        "your",
+      ]);
+
+      results.flat().forEach((suggestion) => {
+        let topic = "";
+
+        // Normalize and trim the title
+        const title = suggestion.title?.trim() || "";
+
+        if (title.length <= 40) {
+          // If title is short enough, use it as-is
+          topic = title;
+        } else {
+          // Try to extract noun phrases or significant words
+          // First, try to find capitalized phrases (proper nouns, brand names, etc.)
+          const capitalizedPhrases =
+            title.match(/[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/g) || [];
+
+          if (capitalizedPhrases.length > 0) {
+            // Use the first few capitalized phrases
+            topic = capitalizedPhrases.slice(0, 3).join(" ");
+          } else {
+            // Fall back to filtering significant words
+            const words = title
+              .split(/[\s-]+/)
+              .filter((w) => w.length > 2 && !stopwords.has(w.toLowerCase()));
+
+            if (words.length > 0) {
+              // Take first 2-4 significant words
+              topic = words.slice(0, Math.min(4, words.length)).join(" ");
+            } else if (suggestion.summary) {
+              // If title doesn't yield good results, try the description/summary
+              const summaryWords = suggestion.summary
+                .split(/[\s-]+/)
+                .filter((w) => w.length > 3 && !stopwords.has(w.toLowerCase()));
+              topic = summaryWords.slice(0, 3).join(" ");
+            }
+          }
+        }
+
+        // Limit topic length to 60 chars
+        if (topic.length > 60) {
+          topic = topic.substring(0, 57) + "...";
+        }
+
+        // Only add if we have a meaningful topic
+        const normalizedTopic = topic.toLowerCase().trim();
+        if (
+          normalizedTopic &&
+          normalizedTopic.length > 5 &&
+          !seen.has(normalizedTopic)
+        ) {
+          seen.add(normalizedTopic);
           topics.push({
-            topic: topicWords,
+            topic: topic.trim(),
             description: suggestion.summary,
-            category: category || 'general'
+            category: category || "general",
           });
         }
       });
 
       this.setCachedData(cacheKey, topics);
-      logger.log('trend', `Fetched ${topics.length} trending topics`);
+      logger.log("trend", `Fetched ${topics.length} trending topics`);
       return topics;
     } catch (error) {
-      logger.error('trend', 'Failed to fetch trending topics:', error);
+      logger.error("trend", "Failed to fetch trending topics:", error);
       // Return fallback topics
       return this.getFallbackTopics(category);
     }
@@ -153,15 +261,15 @@ export class TrendService {
     try {
       const suggestions = await this.searchContent(
         `interesting takes opinions about ${topic}`,
-        { numResults: 5, type: 'neural' }
+        { numResults: 5, type: "neural" },
       );
-      
+
       return suggestions
-        .map(s => s.snippet || s.summary)
+        .map((s) => s.snippet || s.summary)
         .filter(Boolean)
         .slice(0, 3) as string[];
     } catch (error) {
-      logger.error('trend', 'Failed to get writing suggestions:', error);
+      logger.error("trend", "Failed to get writing suggestions:", error);
       return [];
     }
   }
@@ -177,34 +285,31 @@ export class TrendService {
     try {
       const suggestions = await this.searchContent(
         `${topic} trending hashtags twitter`,
-        { numResults: 3, type: 'keyword' }
+        { numResults: 3, type: "keyword" },
       );
-      
+
       const hashtags: string[] = [];
       const hashtagRegex = /#\w+/g;
-      
-      suggestions.forEach(s => {
-        const text = `${s.title} ${s.summary || ''}`;
+
+      suggestions.forEach((s) => {
+        const text = `${s.title} ${s.summary || ""}`;
         const matches = text.match(hashtagRegex);
         if (matches) {
           hashtags.push(...matches);
         }
       });
-      
+
       // Generate hashtags from topic if none found
       if (hashtags.length === 0) {
         const words = topic.toLowerCase().split(/\s+/);
-        hashtags.push(
-          `#${words.join('')}`,
-          ...words.map(w => `#${w}`)
-        );
+        hashtags.push(`#${words.join("")}`, ...words.map((w) => `#${w}`));
       }
-      
+
       const unique = [...new Set(hashtags)].slice(0, 5);
       this.setCachedData(cacheKey, unique);
       return unique;
     } catch (error) {
-      logger.error('trend', 'Failed to get hashtags:', error);
+      logger.error("trend", "Failed to get hashtags:", error);
       return [];
     }
   }
@@ -220,7 +325,9 @@ export class TrendService {
     }
   }
 
-  private static getCachedData<T extends TrendingTopic[] | ContentSuggestion[] | string[]>(key: string): T | null {
+  private static getCachedData<
+    T extends TrendingTopic[] | ContentSuggestion[] | string[],
+  >(key: string): T | null {
     // Periodic cleanup check
     this.checkAndCleanupCache();
     const cached = this.trendCache.get(key);
@@ -234,82 +341,92 @@ export class TrendService {
     return null;
   }
 
-  private static setCachedData(key: string, data: TrendingTopic[] | ContentSuggestion[] | string[]): void {
-    // Periodic cleanup check
-    this.checkAndCleanupCache();
-    
+  private static setCachedData(
+    key: string,
+    data: TrendingTopic[] | ContentSuggestion[] | string[],
+  ): void {
+    // Clean up stale entries before adding new ones
+    this.cleanupCache();
+
     // Enforce cache size limit using LRU strategy
-    if (this.trendCache.size >= this.MAX_CACHE_SIZE && !this.trendCache.has(key)) {
+    if (
+      this.trendCache.size >= this.MAX_CACHE_SIZE &&
+      !this.trendCache.has(key)
+    ) {
       // Remove oldest entry (first in map)
       const firstKey = this.trendCache.keys().next().value;
       if (firstKey) {
         this.trendCache.delete(firstKey);
       }
     }
-    
+
     // If updating existing entry, delete and re-add to move to end (LRU)
     if (this.trendCache.has(key)) {
       this.trendCache.delete(key);
     }
-    
+
     this.trendCache.set(key, { data, timestamp: Date.now() });
   }
-  
+
   /**
    * Clear expired cache entries
    */
   private static cleanupCache(): void {
     const now = Date.now();
     const entriesToDelete: string[] = [];
-    
+
     this.trendCache.forEach((entry, key) => {
       if (now - entry.timestamp > this.CACHE_DURATION) {
         entriesToDelete.push(key);
       }
     });
-    
-    entriesToDelete.forEach(key => this.trendCache.delete(key));
+
+    entriesToDelete.forEach((key) => this.trendCache.delete(key));
   }
-  
+
   /**
    * Get cache statistics
    */
-  static getCacheStats(): { size: number; maxSize: number; oldestEntry: number | null } {
+  static getCacheStats(): {
+    size: number;
+    maxSize: number;
+    oldestEntry: number | null;
+  } {
     let oldestTimestamp: number | null = null;
-    
-    this.trendCache.forEach(entry => {
+
+    this.trendCache.forEach((entry) => {
       if (!oldestTimestamp || entry.timestamp < oldestTimestamp) {
         oldestTimestamp = entry.timestamp;
       }
     });
-    
+
     return {
       size: this.trendCache.size,
       maxSize: this.MAX_CACHE_SIZE,
-      oldestEntry: oldestTimestamp
+      oldestEntry: oldestTimestamp,
     };
   }
 
   private static getFallbackTopics(category?: string): TrendingTopic[] {
     const fallbacks: Record<string, TrendingTopic[]> = {
       tech: [
-        { topic: 'AI Agents', category: 'tech' },
-        { topic: 'Web3 Gaming', category: 'tech' },
-        { topic: 'Quantum Computing', category: 'tech' }
+        { topic: "AI Agents", category: "tech" },
+        { topic: "Web3 Gaming", category: "tech" },
+        { topic: "Quantum Computing", category: "tech" },
       ],
       business: [
-        { topic: 'Remote Work', category: 'business' },
-        { topic: 'Startup Funding', category: 'business' },
-        { topic: 'Market Trends', category: 'business' }
+        { topic: "Remote Work", category: "business" },
+        { topic: "Startup Funding", category: "business" },
+        { topic: "Market Trends", category: "business" },
       ],
       general: [
-        { topic: 'Climate Action', category: 'general' },
-        { topic: 'Mental Health', category: 'general' },
-        { topic: 'Space Exploration', category: 'general' }
-      ]
+        { topic: "Climate Action", category: "general" },
+        { topic: "Mental Health", category: "general" },
+        { topic: "Space Exploration", category: "general" },
+      ],
     };
-    
-    return fallbacks[category || 'general'] || fallbacks.general;
+
+    return fallbacks[category || "general"] || fallbacks.general;
   }
 }
 
