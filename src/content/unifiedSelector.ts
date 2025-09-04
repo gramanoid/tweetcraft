@@ -163,20 +163,31 @@ export class UnifiedSelector {
    * Get saved size preferences from localStorage
    */
   private getSavedSize(): { width: number; height: number } {
+    // Get screen width for responsive defaults
+    const screenWidth = window.innerWidth || document.documentElement.clientWidth;
+    
+    // Determine default width based on screen size
+    let defaultWidth = 840;
+    if (screenWidth < 1024) {
+      defaultWidth = Math.min(screenWidth * 0.9, 600); // 90% of screen or 600px max for small screens
+    } else if (screenWidth < 1440) {
+      defaultWidth = 720; // Medium screens
+    }
+    
     try {
       const saved = localStorage.getItem('tweetcraft-selector-size');
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          width: Math.min(Math.max(parsed.width || 760, 480), 900),  // Default 760, max 900 to show all tabs
+          width: Math.min(Math.max(parsed.width || defaultWidth, 480), Math.min(980, screenWidth * 0.95)),  // Responsive max width
           height: Math.min(Math.max(parsed.height || 380, 350), 450) // Default 380, max 450 for compact
         };
       }
     } catch (e) {
       logger.error('Failed to get saved size', e);
     }
-    // Default size - wide enough for all tabs and Quick Generate button
-    return { width: 760, height: 380 };
+    // Default size - responsive to screen width
+    return { width: defaultWidth, height: 380 };
   }
   
   /**
@@ -4479,7 +4490,7 @@ export class UnifiedSelector {
           border-radius: 12px;
           width: ${savedSize.width}px;
           height: ${savedSize.height}px;
-          max-width: 800px;
+          max-width: 980px;
           min-width: 480px;
           max-height: 90vh;
           min-height: 400px;
@@ -4750,6 +4761,7 @@ export class UnifiedSelector {
           white-space: nowrap;
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 3px;
           flex-shrink: 0;
         }
@@ -5124,7 +5136,7 @@ export class UnifiedSelector {
         .personalities-section h3 {
           margin: 0 0 10px 0;
           color: #e7e9ea;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 600;
           padding-bottom: 8px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
@@ -5717,6 +5729,9 @@ export class UnifiedSelector {
         }
         
         .smart-defaults-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           padding: 8px 14px;
           background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
           border: 1px solid rgba(255, 215, 0, 0.3);
@@ -5736,6 +5751,9 @@ export class UnifiedSelector {
         }
         
         .generate-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           padding: 8px 18px;
           background: rgba(29, 155, 240, 0.3);
           border: 1px solid rgba(29, 155, 240, 0.5);
@@ -5776,7 +5794,7 @@ export class UnifiedSelector {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px;
+          padding: 10px 12px;
           background: #1e2732;
           border-bottom: 1px solid #38444d;
         }
@@ -5784,7 +5802,8 @@ export class UnifiedSelector {
         .creation-header h3 {
           margin: 0;
           color: #e7e9ea;
-          font-size: 16px;
+          font-size: 13px;
+          font-weight: 600;
         }
         
         .toggle-creation-btn {
@@ -5809,7 +5828,7 @@ export class UnifiedSelector {
         }
         
         .creation-form {
-          padding: 20px;
+          padding: 12px;
           background: #15202b;
         }
         
@@ -5822,7 +5841,7 @@ export class UnifiedSelector {
           color: #e7e9ea;
           font-weight: 500;
           margin-bottom: 4px;
-          font-size: 14px;
+          font-size: 12px;
         }
         
         .field-description {
@@ -5839,11 +5858,11 @@ export class UnifiedSelector {
           border: 1px solid #38444d;
           border-radius: 8px;
           color: #e7e9ea;
-          padding: 12px;
-          font-size: 14px;
+          padding: 8px;
+          font-size: 12px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           resize: vertical;
-          min-height: 100px;
+          min-height: 80px;
           transition: border-color 0.2s;
         }
         
@@ -5879,6 +5898,9 @@ export class UnifiedSelector {
         }
         
         .save-template-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: #00ba7c;
           border: none;
           border-radius: 8px;
@@ -5901,6 +5923,9 @@ export class UnifiedSelector {
         }
         
         .generate-custom-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           width: 100%;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           border: none;
@@ -5934,9 +5959,10 @@ export class UnifiedSelector {
         }
         
         .saved-templates-section h3 {
-          margin: 0 0 16px 0;
+          margin: 0 0 10px 0;
           color: #e7e9ea;
-          font-size: 16px;
+          font-size: 13px;
+          font-weight: 600;
         }
         
         .no-templates-message {
@@ -6070,6 +6096,9 @@ export class UnifiedSelector {
         }
         
         .bulk-action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(139, 152, 165, 0.3);
           border-radius: 8px;
@@ -6331,6 +6360,49 @@ export class UnifiedSelector {
           background: transparent;
           padding: 2px 4px;
           border-radius: 4px;
+        }
+        
+        /* Compose View Styles */
+        .compose-view {
+          padding: 8px 12px;
+        }
+        
+        .compose-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        
+        .compose-title {
+          margin: 0 0 8px 0;
+          color: #e7e9ea;
+          font-size: 13px;
+          font-weight: 600;
+        }
+        
+        .compose-label {
+          color: #8b98a5;
+          font-size: 12px;
+          margin-bottom: 4px;
+          display: block;
+        }
+        
+        .compose-topic-input {
+          width: 100%;
+          padding: 8px;
+          background: #192734;
+          border: 1px solid #38444d;
+          border-radius: 8px;
+          color: #e7e9ea;
+          font-size: 12px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          resize: vertical;
+          min-height: 60px;
+        }
+        
+        .compose-topic-input:focus {
+          outline: none;
+          border-color: #1d9bf0;
         }
         
         /* Image Generation View Styles */

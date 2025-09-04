@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**TweetCraft v0.0.18** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+**TweetCraft v0.0.19** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Key Features
 - **Multi-platform support**: Twitter/X + HypeFury with full feature parity
@@ -163,6 +163,27 @@ console.log('%c  Property:', 'color: #657786', value);
 - Check for structured, color-coded logging
 - Verify no errors during normal operation
 - Monitor API response times
+
+## UI Features & Controls
+
+### Expanded View Toggle Button (⊞/⊟)
+- **Location**: Left of the Quick Generate button in the header
+- **Function**: Toggles between normal view and Expanded View for power users
+- **Icon States**: 
+  - ⊞ = Click to expand (normal view active)
+  - ⊟ = Click to collapse (expanded view active)
+- **Expanded View Features**:
+  - Shows ALL options at once (Personas, Personalities, Vocabulary, Rhetoric, Length)
+  - Transparency slider: Adjust popup opacity (70%-100%)
+  - Docking options: Float, dock left, or dock right
+  - Keyboard navigation support for rapid selection
+  - Ideal for power users who want to see everything at once
+
+### Quick Generate Button (⚡)
+- **Location**: Next to the Expanded View button
+- **Function**: Instantly generate with last used settings
+- **Shortcut**: Space bar
+- **Uses smart defaults based on usage patterns
 
 ## Common Issues and Solutions
 

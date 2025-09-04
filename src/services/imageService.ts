@@ -34,6 +34,37 @@ interface CachedKeywords {
   timestamp: number;
 }
 
+/**
+ * Rate limiter to prevent API limit issues
+ */
+class RateLimiter {
+  private requests: number[] = [];
+  private readonly maxRequests: number;
+  private readonly timeWindow: number;
+
+  constructor(maxRequests: number = 10, timeWindowMs: number = 60000) {
+    this.maxRequests = maxRequests;
+    this.timeWindow = timeWindowMs;
+  }
+
+  canMakeRequest(): boolean {
+    const now = Date.now();
+    // Remove old requests outside the time window
+    this.requests = this.requests.filter(time => now - time < this.timeWindow);
+    return this.requests.length < this.maxRequests;
+  }
+
+  recordRequest(): void {
+    this.requests.push(Date.now());
+  }
+
+  getWaitTime(): number {
+    if (this.canMakeRequest()) return 0;
+    const oldestRequest = this.requests[0];
+    return this.timeWindow - (Date.now() - oldestRequest);
+  }
+}
+
 export class ImageService {
   // Free API keys for basic functionality - users can replace with their own
   private UNSPLASH_ACCESS_KEY = ''; // User needs to add their key
@@ -41,6 +72,7 @@ export class ImageService {
   private readonly CACHE_TTL = 3600000; // 1 hour TTL for keyword cache
   private PEXELS_API_KEY = ''; // User needs to add their key
   private imageCache = new Map<string, ImageResult[]>();
+  private rateLimiter = new RateLimiter(10, 60000); // 10 requests per minute
   
   constructor() {
     this.loadApiKeys();
@@ -88,6 +120,16 @@ export class ImageService {
     if (retries < 3) {
       console.log('%c🔄 Retry attempt', 'color: #FFA500', `${4 - retries}/3`);
     }
+    
+    // Check rate limit
+    if (!this.rateLimiter.canMakeRequest()) {
+      const waitTime = this.rateLimiter.getWaitTime();
+      const error = new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime/1000)} seconds.`);
+      console.error('%c⚠️ Rate limit exceeded', 'color: #FFA500', error.message);
+      throw error;
+    }
+    
+    this.rateLimiter.recordRequest();
     
     // Check if we have OpenRouter API key
     const apiKey = await this.getOpenRouterApiKey();
@@ -281,6 +323,16 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
       console.log('%c💾 Using cached images', 'color: #657786');
       return this.imageCache.get(cacheKey)!;
     }
+    
+    // Check rate limit
+    if (!this.rateLimiter.canMakeRequest()) {
+      const waitTime = this.rateLimiter.getWaitTime();
+      const error = new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime/1000)} seconds.`);
+      console.error('%c⚠️ Rate limit exceeded', 'color: #FFA500', error.message);
+      throw error;
+    }
+    
+    this.rateLimiter.recordRequest();
 
     try {
       // Try Perplexity via OpenRouter first
@@ -365,7 +417,7 @@ Return ONLY the JSON array, no explanations.`;
           'X-Title': 'TweetCraft Image Search'
         },
         body: JSON.stringify({
-          model: 'perplexity/sonar',
+          model: 'perplexity/llama-3.1-sonar-small-128k-online',
           messages: [
             {
               role: 'system',

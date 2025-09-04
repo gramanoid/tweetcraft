@@ -3,6 +3,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { API_CONFIG } from '@/config/apiConfig';
 
 export interface TrendingTopic {
   topic: string;
@@ -27,12 +28,14 @@ interface CacheEntry {
 }
 
 export class TrendService {
-  private static readonly EXA_API_KEY = process.env.EXA_API_KEY || '';
+  private static readonly EXA_API_KEY = API_CONFIG.EXA_API_KEY || '';
   private static readonly EXA_API_URL = 'https://api.exa.ai/search';
   private static readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
   private static readonly MAX_CACHE_SIZE = 50; // Maximum number of cache entries
+  private static readonly CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
   
   private static trendCache: Map<string, CacheEntry> = new Map();
+  private static lastCleanup = Date.now();
 
   /**
    * Search for content using EXA API
@@ -206,7 +209,20 @@ export class TrendService {
     }
   }
 
+  /**
+   * Check and perform periodic cache cleanup
+   */
+  private static checkAndCleanupCache(): void {
+    const now = Date.now();
+    if (now - this.lastCleanup > this.CLEANUP_INTERVAL) {
+      this.cleanupCache();
+      this.lastCleanup = now;
+    }
+  }
+
   private static getCachedData<T extends TrendingTopic[] | ContentSuggestion[] | string[]>(key: string): T | null {
+    // Periodic cleanup check
+    this.checkAndCleanupCache();
     const cached = this.trendCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data as T;
@@ -219,6 +235,9 @@ export class TrendService {
   }
 
   private static setCachedData(key: string, data: TrendingTopic[] | ContentSuggestion[] | string[]): void {
+    // Periodic cleanup check
+    this.checkAndCleanupCache();
+    
     // Enforce cache size limit using LRU strategy
     if (this.trendCache.size >= this.MAX_CACHE_SIZE && !this.trendCache.has(key)) {
       // Remove oldest entry (first in map)

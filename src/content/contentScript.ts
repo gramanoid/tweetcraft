@@ -1164,6 +1164,45 @@ class SmartReplyContentScript {
    * Determine if a toolbar is in a reply/compose context
    */
   private isReplyToolbar(toolbarElement: Element): boolean {
+    // IMPORTANT: Only add button to the actual compose/reply area at the bottom
+    // Check if this toolbar is associated with an editable textarea
+    const textarea = DOMUtils.findClosestTextarea(toolbarElement);
+    if (!textarea) {
+      return false;
+    }
+    
+    // Check if the textarea is actually editable (not readonly)
+    const isEditable = textarea.getAttribute('contenteditable') === 'true' || 
+                       !textarea.hasAttribute('readonly');
+    if (!isEditable) {
+      return false;
+    }
+    
+    // Platform-specific checks for reply container
+    const isTwitter = window.location.hostname.includes('twitter.com') || 
+                      window.location.hostname.includes('x.com');
+    const isHypeFury = window.location.hostname.includes('hypefury.com');
+    
+    let replyContainer = null;
+    
+    if (isTwitter) {
+      // Twitter-specific selectors
+      replyContainer = textarea.closest('[data-testid="tweetTextarea_0_label"]') ||
+                      textarea.closest('[data-testid="tweetTextarea_1_label"]') ||
+                      textarea.closest('.DraftEditor-root');
+    } else if (isHypeFury) {
+      // HypeFury-specific selectors
+      replyContainer = textarea.closest('.mention-reply-form') ||
+                      textarea.closest('.compose-form') ||
+                      textarea.closest('[data-cy="reply-form"]') ||
+                      textarea.closest('[class*="reply"]') ||
+                      textarea.closest('form');
+    }
+    
+    if (!replyContainer) {
+      return false;
+    }
+    
     // Strategy: Look for specific indicators of a reply composition toolbar
     // vs a tweet's action bar (reply, retweet, like buttons)
     
@@ -1937,13 +1976,16 @@ class SmartReplyContentScript {
       let existingText: string | undefined;
       if (isRewriteMode) {
         existingText = DOMUtils.getTextFromTextarea(textarea);
-        if (!existingText) {
+        
+        // Validate minimum text length
+        if (!existingText || existingText.trim().length < 10) {
           visualFeedback.hideLoading();
           if (button) {
-            visualFeedback.showError(button, 'No text to rewrite');
-            DOMUtils.showError(button, 'No text to rewrite', 'api');
+            const errorMsg = !existingText ? 'No text to rewrite' : 'Please enter at least 10 characters to rewrite';
+            visualFeedback.showError(button, errorMsg);
+            DOMUtils.showError(button, errorMsg, 'validation');
           }
-          console.error('%c❌ No text to rewrite', 'color: #DC3545; font-weight: bold');
+          console.error('%c❌ Text too short for rewrite', 'color: #DC3545; font-weight: bold', `Length: ${existingText?.trim().length || 0}`);
           return;
         }
       }

@@ -568,8 +568,8 @@ class SmartReplyServiceWorker {
         case MessageType.FETCH_TRENDING_TOPICS: {
           console.log('Service Worker: Fetching trending topics via Exa API');
           try {
-            // Directly call Exa API here to avoid document reference issues
-            const EXA_API_KEY = process.env.EXA_API_KEY || '';
+            // Use API_CONFIG for the key instead of process.env
+            const EXA_API_KEY = API_CONFIG.EXA_API_KEY || '';
             const EXA_API_URL = 'https://api.exa.ai/search';
             
             if (!EXA_API_KEY) {

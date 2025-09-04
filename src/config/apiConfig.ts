@@ -8,6 +8,9 @@ export const API_CONFIG = {
   // API key from .env file (injected at build time by webpack)
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
   
+  // Exa API key for trending topics
+  EXA_API_KEY: process.env.EXA_API_KEY || '',
+  
   // API endpoints
   BASE_URL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
   
