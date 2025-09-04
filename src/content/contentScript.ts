@@ -336,16 +336,45 @@ class SmartReplyContentScript {
   /**
    * Convert image URLs to base64 data URLs
    * This runs in the content script where we have access to Twitter's authentication
+   * Optimized to use parallel processing for better performance
+   * Includes user notifications for failed conversions
+   * 
+   * @param imageUrls - Array of image URLs to convert
+   * @returns Promise resolving to array of base64 data URLs (excludes failed conversions)
    */
   private async convertImagesToBase64(imageUrls: string[]): Promise<string[]> {
-    const base64Images: string[] = [];
+    console.log('%c🖼️ Converting images to base64', 'color: #794BC4; font-weight: bold');
+    console.log('%c  Image count:', 'color: #657786', imageUrls.length);
     
-    for (const url of imageUrls) {
+    // Limit maximum number of images to prevent excessive API usage
+    const MAX_IMAGES = 4;
+    let imagesToProcess = imageUrls;
+    
+    if (imageUrls.length > MAX_IMAGES) {
+      console.warn(`%c⚠️ Too many images (${imageUrls.length}). Processing only first ${MAX_IMAGES} images`, 'color: #FFA500');
+      visualFeedback.showToast(
+        `Processing only first ${MAX_IMAGES} images out of ${imageUrls.length} for performance reasons`,
+        { type: 'warning', duration: 4000 }
+      );
+      imagesToProcess = imageUrls.slice(0, MAX_IMAGES);
+    }
+    
+    let failedCount = 0;
+    let oversizedCount = 0;
+    
+    // Process all images in parallel for better performance
+    const conversionPromises = imagesToProcess.map(async (url) => {
       try {
         // Skip if already base64
         if (url.startsWith('data:')) {
-          base64Images.push(url);
-          continue;
+          return url;
+        }
+        
+        // Validate URL for security before fetching
+        if (!this.isValidImageUrl(url)) {
+          console.error('URL validation failed for security reasons:', url);
+          failedCount++;
+          return null;
         }
         
         // Fetch the image using the page's credentials
@@ -356,51 +385,185 @@ class SmartReplyContentScript {
         
         if (!response.ok) {
           console.error('Failed to fetch image:', url, response.status);
-          continue;
+          failedCount++;
+          // Try fallback immediately
+          const fallbackResult = await this.fetchImageWithoutCredentials(url);
+          if (!fallbackResult) failedCount--; // Decrement if fallback also failed (already counted)
+          return fallbackResult;
         }
         
         // Convert to blob then to base64
         const blob = await response.blob();
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => {
-            if (typeof reader.result === 'string') {
-              resolve(reader.result);
-            } else {
-              reject(new Error('Failed to convert image to base64'));
-            }
-          };
-          reader.onerror = reject;
-        });
-        
-        reader.readAsDataURL(blob);
-        const base64Data = await base64Promise;
-        base64Images.push(base64Data);
-        
+        const base64Data = await this.blobToBase64(blob);
         console.log('%c  ✅ Converted image to base64', 'color: #17BF63');
+        return base64Data;
+        
       } catch (error) {
         console.error('Error converting image to base64:', url, error);
-        // Try without credentials as fallback
-        try {
-          const response = await fetch(url);
-          if (response.ok) {
-            const blob = await response.blob();
-            const reader = new FileReader();
-            const base64Data = await new Promise<string>((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-            base64Images.push(base64Data);
-            console.log('%c  ✅ Converted image to base64 (no credentials)', 'color: #17BF63');
-          }
-        } catch (fallbackError) {
-          console.error('Fallback fetch also failed:', fallbackError);
+        // Check if error is due to size limit
+        if (error instanceof Error && error.message.includes('exceeds maximum size')) {
+          oversizedCount++;
+          // Don't retry for oversized images
+          return null;
         }
+        failedCount++;
+        // Try without credentials as fallback for other errors
+        const fallbackResult = await this.fetchImageWithoutCredentials(url);
+        if (!fallbackResult) failedCount--; // Decrement if fallback also failed (already counted)
+        return fallbackResult;
       }
+    });
+    
+    // Wait for all conversions to complete
+    const results = await Promise.all(conversionPromises);
+    
+    // Filter out any null values from failed conversions
+    const base64Images = results.filter((img): img is string => img !== null);
+    
+    // Show user notifications for failed conversions
+    if (oversizedCount > 0) {
+      visualFeedback.showToast(
+        `${oversizedCount} image${oversizedCount > 1 ? 's' : ''} exceeded 5MB size limit and ${oversizedCount > 1 ? 'were' : 'was'} skipped`,
+        { type: 'warning', duration: 4000 }
+      );
     }
     
+    const otherFailures = imagesToProcess.length - base64Images.length - oversizedCount;
+    if (otherFailures > 0) {
+      visualFeedback.showToast(
+        `Failed to process ${otherFailures} image${otherFailures > 1 ? 's' : ''}. They will not be included in the analysis.`,
+        { type: 'error', duration: 4000 }
+      );
+    }
+    
+    // Show success message if some images were processed
+    if (base64Images.length > 0 && base64Images.length < imagesToProcess.length) {
+      visualFeedback.showToast(
+        `Successfully processed ${base64Images.length} of ${imagesToProcess.length} images`,
+        { type: 'info', duration: 3000 }
+      );
+    }
+    
+    console.log('%c  Conversion complete:', 'color: #657786', `${base64Images.length}/${imagesToProcess.length} successful`);
+    
     return base64Images;
+  }
+  
+  /**
+   * Helper function to convert blob to base64
+   * Eliminates code duplication and improves maintainability
+   * Includes size validation to prevent memory issues
+   * 
+   * @param blob - The Blob object to convert
+   * @returns Promise resolving to base64 data URL string
+   * @throws Error if blob exceeds 5MB size limit or conversion fails
+   */
+  private async blobToBase64(blob: Blob): Promise<string> {
+    // Size validation - max 5MB per image
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    
+    if (blob.size > MAX_IMAGE_SIZE) {
+      const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+      console.warn(`%c⚠️ Image too large (${sizeMB}MB), max size is 5MB`, 'color: #FFA500');
+      throw new Error(`Image exceeds maximum size of 5MB (actual: ${sizeMB}MB)`);
+    }
+    
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert blob to base64'));
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  
+  /**
+   * Validate image URL for security (SSRF prevention)
+   * Only allows whitelisted domains and protocols
+   * 
+   * @param url - The URL to validate
+   * @returns true if URL is safe to fetch, false otherwise
+   */
+  private isValidImageUrl(url: string): boolean {
+    try {
+      // Skip validation for data URLs (already base64)
+      if (url.startsWith('data:')) {
+        return true;
+      }
+      
+      const urlObj = new URL(url);
+      
+      // Only allow HTTPS and HTTP protocols
+      if (!['https:', 'http:'].includes(urlObj.protocol)) {
+        console.warn(`%c⚠️ Invalid protocol: ${urlObj.protocol}`, 'color: #FFA500');
+        return false;
+      }
+      
+      // Whitelist trusted image domains
+      const trustedDomains = [
+        'pbs.twimg.com',      // Twitter images
+        'abs.twimg.com',      // Twitter absolute images
+        'video.twimg.com',    // Twitter videos
+        'twitter.com',        // Twitter main domain
+        'x.com',              // X.com domain
+        't.co',               // Twitter short URLs
+        'pic.twitter.com'     // Twitter pic subdomain
+      ];
+      
+      // Check if hostname ends with any trusted domain
+      const isTrusted = trustedDomains.some(domain => 
+        urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+      );
+      
+      if (!isTrusted) {
+        console.warn(`%c⚠️ Untrusted image domain: ${urlObj.hostname}`, 'color: #FFA500');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Invalid URL format:', url, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Fallback function to fetch image without credentials
+   * Used when authenticated fetch fails
+   * Includes size validation for memory safety
+   * 
+   * @param url - The image URL to fetch
+   * @returns Promise resolving to base64 data URL string or null if fetch fails
+   */
+  private async fetchImageWithoutCredentials(url: string): Promise<string | null> {
+    // Validate URL before fetching
+    if (!this.isValidImageUrl(url)) {
+      console.error('URL validation failed for security reasons:', url);
+      return null;
+    }
+    
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        // Size validation is handled in blobToBase64
+        const base64Data = await this.blobToBase64(blob);
+        console.log('%c  ✅ Converted image to base64 (no credentials)', 'color: #17BF63');
+        return base64Data;
+      }
+    } catch (fallbackError) {
+      console.error('Fallback fetch also failed:', fallbackError);
+      // Check if it's a size error
+      if (fallbackError instanceof Error && fallbackError.message.includes('exceeds maximum size')) {
+        console.warn('%c  ⚠️ Image skipped due to size limit', 'color: #FFA500');
+      }
+    }
+    return null;
   }
 
   private cleanupDuplicateButtons(): void {
