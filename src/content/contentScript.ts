@@ -37,7 +37,7 @@ class SmartReplyContentScript {
   private intervals = new Set<ReturnType<typeof setInterval>>();
   
   // Configurable cleanup interval
-  private cleanupIntervalMs: number = 3000; // Default to 3 seconds
+  private cleanupIntervalMs: number = 30000; // Default to 30 seconds (reduced frequency)
   private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
   private navigationTimerId: ReturnType<typeof setTimeout> | null = null;
 
@@ -569,10 +569,9 @@ class SmartReplyContentScript {
   private cleanupDuplicateButtons(): void {
     const allButtons = document.querySelectorAll('.smart-reply-container');
     
-    if (allButtons.length > 0) {
-      console.log('%c🧹 CLEANUP CHECK', 'color: #FFA500; font-weight: bold');
-      console.log('%c  Found buttons:', 'color: #657786', allButtons.length);
-    }
+    // Only log if we're actually going to do cleanup
+    let duplicatesRemoved = 0;
+    let orphansRemoved = 0;
     
     const seenLocations = new Map<string, Element>();
     
@@ -584,10 +583,9 @@ class SmartReplyContentScript {
         
         if (seenLocations.has(locationKey)) {
           // This is a duplicate, remove it
-          console.log('%c🧹 Removing duplicate button at location:', 'color: #FFA500', locationKey);
           button.remove();
+          duplicatesRemoved++;
         } else {
-          console.log('%c  ✅ Keeping button at location:', 'color: #657786', locationKey);
           seenLocations.set(locationKey, button);
         }
       } else {
@@ -599,15 +597,16 @@ class SmartReplyContentScript {
         
         // Only consider it orphaned if it's not in a toolbar AND (disconnected OR invisible)
         if (!isInToolbar && (!isConnected || !isVisible)) {
-          console.log('%c  ⚠️ Found truly orphaned button:', 'color: #FFA500', button);
-          console.log('%c    In toolbar:', 'color: #657786', isInToolbar);
-          console.log('%c    Is connected:', 'color: #657786', isConnected);
-          console.log('%c    Is visible:', 'color: #657786', isVisible);
-          console.log('%c    🗑️ Removing orphaned button', 'color: #FFA500');
           button.remove();
+          orphansRemoved++;
         }
       }
     });
+    
+    // Only log if we actually removed something
+    if (duplicatesRemoved > 0 || orphansRemoved > 0) {
+      console.log('%c🧹 Cleanup:', 'color: #FFA500', `Removed ${duplicatesRemoved} duplicates, ${orphansRemoved} orphans`);
+    }
   }
 
   private connectToServiceWorker(): void {
