@@ -319,6 +319,9 @@ body[style*="background-color: rgb(21, 32, 43)"] {
 // Compose View Styles
 .compose-view {
   padding: 15px;
+  // Dark background to match the rest of the popup
+  background-color: #15202B;
+  color: #FFFFFF;
 
   .compose-section {
     display: flex;
@@ -343,28 +346,35 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   .option-label {
     font-size: 13px;
     font-weight: 600;
-    color: #536471;
+    color: #8899A6; // Light gray for labels in dark theme
   }
 
   .compose-topic-input {
     width: 100%;
     padding: 10px;
-    border: 2px solid #E1E8ED;
+    background: #192734;
+    border: 2px solid #38444D;
     border-radius: 8px;
     font-size: 14px;
+    color: #FFFFFF;
     resize: vertical;
     transition: border-color 0.2s;
+    
+    &::placeholder {
+      color: #8899A6;
+    }
     
     &:focus {
       outline: none;
       border-color: #1DA1F2;
-      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.1);
+      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.2);
     }
   }
 
   .trending-suggestions,
   .hashtag-suggestions {
-    background: #F7F9FA;
+    background: #192734;
+    border: 1px solid #38444D;
     padding: 12px;
     border-radius: 8px;
   }
@@ -374,12 +384,52 @@ body[style*="background-color: rgb(21, 32, 43)"] {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    gap: 8px;
   }
 
   .trending-title {
     font-size: 13px;
     font-weight: 600;
-    color: #536471;
+    color: #8899A6;
+  }
+
+  .fetch-trends-btn {
+    padding: 4px 12px;
+    background: #1DA1F2;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: #1A8CD8;
+      transform: scale(1.05);
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-icon {
+    padding: 4px;
+    background: transparent;
+    border: 1px solid #38444D;
+    border-radius: 4px;
+    color: #8899A6;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 28px;
+    
+    &:hover {
+      background: #253341;
+      border-color: #1DA1F2;
+      color: #1DA1F2;
+    }
   }
 
   .trending-chips,
@@ -391,10 +441,11 @@ body[style*="background-color: rgb(21, 32, 43)"] {
 
   .trend-chip {
     padding: 6px 12px;
-    background: white;
-    border: 1px solid #E1E8ED;
+    background: #253341;
+    border: 1px solid #38444D;
     border-radius: 16px;
     font-size: 13px;
+    color: #FFFFFF;
     cursor: pointer;
     transition: all 0.2s;
 
@@ -403,8 +454,14 @@ body[style*="background-color: rgb(21, 32, 43)"] {
       color: white;
       border-color: #1DA1F2;
       transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 4px rgba(29, 161, 242, 0.3);
     }
+  }
+
+  .loading-trends {
+    color: #8899A6;
+    font-size: 13px;
+    font-style: italic;
   }
 
   .compose-options {
@@ -425,21 +482,27 @@ body[style*="background-color: rgb(21, 32, 43)"] {
 
   .compose-select {
     padding: 8px;
-    border: 1px solid #E1E8ED;
+    background: #192734;
+    border: 1px solid #38444D;
     border-radius: 6px;
     font-size: 13px;
-    background: white;
+    color: #FFFFFF;
     cursor: pointer;
     transition: border-color 0.2s;
 
+    option {
+      background: #192734;
+      color: #FFFFFF;
+    }
+
     &:hover {
-      border-color: #AAB8C2;
+      border-color: #536471;
     }
 
     &:focus {
       outline: none;
       border-color: #1DA1F2;
-      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.1);
+      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.2);
     }
   }
 
@@ -448,12 +511,12 @@ body[style*="background-color: rgb(21, 32, 43)"] {
     margin-bottom: 10px;
     font-size: 13px;
     font-weight: 600;
-    color: #536471;
+    color: #8899A6;
   }
 
   .hashtag-chip {
     padding: 5px 10px;
-    background: #E8F5FD;
+    background: #253341;
     border: 1px solid #1DA1F2;
     border-radius: 12px;
     color: #1DA1F2;

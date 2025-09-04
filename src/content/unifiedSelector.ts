@@ -1920,7 +1920,9 @@ export class UnifiedSelector {
           <div class="trending-suggestions">
             <div class="trending-header">
               <span class="trending-title">🔥 Trending Topics</span>
-              <button id="refresh-trends" class="btn-icon" title="Refresh trends">↻</button>
+              <button id="fetch-trends" class="fetch-trends-btn" title="Fetch trending topics">
+                Fetch
+              </button>
             </div>
             <div id="trending-topics" class="trending-chips">
               ${this.trendingSuggestions.length > 0 ? 
@@ -1930,7 +1932,7 @@ export class UnifiedSelector {
                     ${t.volume ? `<span class="trend-volume">${t.volume > 1000 ? Math.floor(t.volume/1000) + 'K' : t.volume}</span>` : ''}
                   </button>
                 `).join('') : 
-                '<div class="loading-trends">Loading trending topics...</div>'
+                '<div class="loading-trends">Click "Fetch" to load trending topics</div>'
               }
             </div>
           </div>
@@ -2143,9 +2145,8 @@ export class UnifiedSelector {
         this.view = view;
         if (view === 'smart') {
           this.loadSmartSuggestions();
-        } else if (view === 'compose') {
-          this.loadTrendingSuggestions();
         }
+        // Don't auto-load trending topics for compose view - user will click Fetch
         this.render();
       });
     });
@@ -2522,11 +2523,28 @@ export class UnifiedSelector {
         });
       });
 
-      // Refresh trends button
-      const refreshBtn = this.container.querySelector('#refresh-trends');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-          await this.loadTrendingSuggestions();
+      // Fetch trends button
+      const fetchBtn = this.container.querySelector('#fetch-trends');
+      if (fetchBtn) {
+        fetchBtn.addEventListener('click', async () => {
+          const button = fetchBtn as HTMLButtonElement;
+          const originalText = button.textContent;
+          
+          try {
+            // Update button state
+            button.disabled = true;
+            button.textContent = 'Loading...';
+            
+            // Load trending topics
+            await this.loadTrendingSuggestions();
+          } catch (error) {
+            console.error('Failed to fetch trending topics:', error);
+            visualFeedback.showToast('Failed to fetch trending topics', { type: 'error' });
+          } finally {
+            // Restore button state
+            button.disabled = false;
+            button.textContent = originalText || 'Fetch';
+          }
         });
       }
     }
