@@ -47,6 +47,12 @@ export class TrendService {
     const cached = this.getCachedData<ContentSuggestion[]>(cacheKey);
     if (cached) return cached;
 
+    // Return empty array if no API key is configured
+    if (!this.EXA_API_KEY) {
+      logger.warn('EXA API key not configured, returning empty results');
+      return [];
+    }
+
     try {
       const response = await fetch(this.EXA_API_URL, {
         method: 'POST',

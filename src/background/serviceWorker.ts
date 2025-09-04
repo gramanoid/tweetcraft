@@ -72,17 +72,27 @@ class SmartReplyServiceWorker {
     console.log('%c📌 Init method called', 'color: #9146FF; font-weight: bold');
     console.log('Smart Reply: Service worker initialized');
 
+    // Check if chrome runtime API is available
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      console.warn('Chrome runtime API not available');
+      return;
+    }
+
     // Handle extension installation
-    chrome.runtime.onInstalled.addListener((details) => {
-      console.log('📦 onInstalled listener registered');
-      void this.handleInstalled(details);
-    });
+    if (chrome.runtime.onInstalled) {
+      chrome.runtime.onInstalled.addListener((details) => {
+        console.log('📦 onInstalled listener registered');
+        void this.handleInstalled(details);
+      });
+    }
 
     // Handle extension startup
-    chrome.runtime.onStartup.addListener(() => {
-      console.log('🚀 onStartup listener registered');
-      console.log('Smart Reply: Extension started');
-    });
+    if (chrome.runtime.onStartup) {
+      chrome.runtime.onStartup.addListener(() => {
+        console.log('🚀 onStartup listener registered');
+        console.log('Smart Reply: Extension started');
+      });
+    }
 
     // Handle messages from content scripts or popup with proper error handling
     console.log('📨 Registering message listener...');
@@ -277,6 +287,12 @@ class SmartReplyServiceWorker {
             }
           }
           
+            // Check if storage API is available
+            if (!chrome?.storage?.local) {
+              sendResponse({ success: false, error: 'Chrome storage API not available' });
+              break;
+            }
+            
             chrome.storage.local.get(storageKeys, (data) => {
               if (chrome.runtime.lastError) {
                 sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -345,6 +361,12 @@ class SmartReplyServiceWorker {
             break;
           }
           
+            // Check if storage API is available
+            if (!chrome?.storage?.local) {
+              sendResponse({ success: false, error: 'Chrome storage API not available' });
+              break;
+            }
+            
             chrome.storage.local.set(dataToStore, () => {
               if (chrome.runtime.lastError) {
                 sendResponse({ success: false, error: chrome.runtime.lastError.message });
