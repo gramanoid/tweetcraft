@@ -315,3 +315,156 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+// Compose View Styles
+.compose-view {
+  padding: 15px;
+
+  .compose-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .compose-title {
+    margin: 0;
+    color: #1DA1F2;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .topic-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .compose-label,
+  .option-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #536471;
+  }
+
+  .compose-topic-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #E1E8ED;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: vertical;
+    transition: border-color 0.2s;
+    
+    &:focus {
+      outline: none;
+      border-color: #1DA1F2;
+      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.1);
+    }
+  }
+
+  .trending-suggestions,
+  .hashtag-suggestions {
+    background: #F7F9FA;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .trending-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .trending-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #536471;
+  }
+
+  .trending-chips,
+  .hashtag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .trend-chip {
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #E1E8ED;
+    border-radius: 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #1DA1F2;
+      color: white;
+      border-color: #1DA1F2;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .compose-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .option-label {
+    font-size: 12px;
+  }
+
+  .compose-select {
+    padding: 8px;
+    border: 1px solid #E1E8ED;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-color: #AAB8C2;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #1DA1F2;
+      box-shadow: 0 0 0 3px rgba(29, 161, 242, 0.1);
+    }
+  }
+
+  .hashtag-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #536471;
+  }
+
+  .hashtag-chip {
+    padding: 5px 10px;
+    background: #E8F5FD;
+    border: 1px solid #1DA1F2;
+    border-radius: 12px;
+    color: #1DA1F2;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #1DA1F2;
+      color: white;
+      transform: translateY(-1px);
+    }
+  }
+}

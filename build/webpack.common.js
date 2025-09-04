@@ -43,6 +43,7 @@ module.exports = {
       'process.env.OPENROUTER_BASE_URL': JSON.stringify(process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'),
       'process.env.APP_NAME': JSON.stringify(process.env.APP_NAME || 'TweetCraft - AI Reply Assistant'),
       'process.env.APP_VERSION': JSON.stringify(process.env.APP_VERSION || '0.0.15'),
+      'process.env.EXA_API_KEY': JSON.stringify(process.env.EXA_API_KEY || ''),
     }),
     new MiniCssExtractPlugin({
       filename: '[name].css',

@@ -1793,7 +1793,7 @@ class SmartReplyContentScript {
     isRewriteMode: boolean = false,
     vocabulary?: string,
     lengthPacing?: string,
-    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom',
+    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose',
     personaConfig?: any,
     allTabConfig?: any,
     customConfig?: any
@@ -1835,7 +1835,7 @@ class SmartReplyContentScript {
     isRewriteMode: boolean = false,
     vocabulary?: string,
     lengthPacing?: string,
-    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom',
+    tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose',
     personaConfig?: any,
     allTabConfig?: any,
     customConfig?: any

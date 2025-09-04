@@ -17,6 +17,8 @@ import { smartDefaults, SmartDefaultsService } from '@/services/smartDefaults';
 import { usageTracker } from '@/services/usageTracker';
 import { createTemplateId } from '@/types/branded';
 import { logger } from '@/utils/logger';
+import { TrendService, TrendingTopic } from '@/services/trendService';
+import { debounce } from '@/utils/debounce';
 
 export interface SelectionResult {
   template: Template;
@@ -29,7 +31,7 @@ export interface SelectionResult {
   personality?: string;
   rhetoric?: string;
   // Tab type for proper prompt routing
-  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom';
+  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose';
   // Additional configs for prompt architecture
   personaConfig?: {
     personality: string;
@@ -50,10 +52,18 @@ export interface SelectionResult {
     length: string;
     temperature?: number;
   };
+  composeConfig?: {
+    topic: string;
+    style?: string;
+    tone?: string;
+    hashtags?: string[];
+    length?: string;
+  };
 }
 
 export class UnifiedSelector {
   private container: HTMLElement | null = null;
+  private isResizing: boolean = false;
   private selectedTemplate: Template | null = null;
   private selectedPersonality: Personality | null = null;
   private selectedVocabulary: VocabularyStyle | null = null;
@@ -74,7 +84,7 @@ export class UnifiedSelector {
   private get favoriteTones(): Set<string> { return this.favoritePersonalities; }
   private favoriteVocabulary: Set<string> = new Set();
   private favoriteLengthPacing: Set<string> = new Set();
-  private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' | 'expanded' = 'grid';
+  private view: 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' | 'compose' | 'expanded' = 'grid';
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -85,6 +95,11 @@ export class UnifiedSelector {
   private customTemplatesLoaded: Promise<void> | null = null;
   private quickGenerateButton: HTMLElement | null = null;
   private lastUsedSelections: any = null;
+  private composeTopic: string = '';
+  private selectedTrend: TrendingTopic | null = null;
+  private trendingSuggestions: TrendingTopic[] = [];
+  private debouncedHashtagUpdate: ((topic: string) => void) | null = null;
+  private eventListenerCleanups: (() => void)[] = [];
 
   constructor() {
     this.loadFavorites();
@@ -292,9 +307,16 @@ export class UnifiedSelector {
       this.container = null;
     }
     
-    // Remove click outside handler
+    // Reset resizing flag
+    this.isResizing = false;
+    
+    // Clean up all event listeners
+    this.eventListenerCleanups.forEach(cleanup => cleanup());
+    this.eventListenerCleanups = [];
+    
+    // Remove click outside handler (make sure to use same capture flag)
     if (this.clickOutsideHandler) {
-      document.removeEventListener('click', this.clickOutsideHandler);
+      document.removeEventListener('click', this.clickOutsideHandler, true);
       this.clickOutsideHandler = null;
     }
     
@@ -364,15 +386,29 @@ export class UnifiedSelector {
    */
   private setupClickOutsideHandler(): void {
     this.clickOutsideHandler = (e: MouseEvent) => {
+      // Don't hide if we're currently resizing or if the container has the resizing class
+      if (this.isResizing || this.container?.classList.contains('resizing')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      
+      // Check if the click target is the resize handle or part of it
+      const target = e.target as HTMLElement;
+      if (target.closest('.resize-handle')) {
+        return;
+      }
+      
       if (this.container && !this.container.contains(e.target as Node)) {
         this.hide();
       }
     };
     
-    // Delay to avoid immediate trigger
+    // Delay to avoid immediate trigger and use capture phase
     setTimeout(() => {
       if (this.clickOutsideHandler) {
-        document.addEventListener('click', this.clickOutsideHandler);
+        // Use capture phase to intercept events earlier
+        document.addEventListener('click', this.clickOutsideHandler, true);
       }
     }, 100);
   }
@@ -438,6 +474,11 @@ export class UnifiedSelector {
     this.render();
     this.applyStyles();
     
+    // Apply saved size directly as inline styles
+    const savedSize = this.getSavedSize();
+    this.container.style.width = `${savedSize.width}px`;
+    this.container.style.height = `${savedSize.height}px`;
+    
     // Add resize observer to save size when user resizes
     this.observeResize();
     
@@ -453,11 +494,18 @@ export class UnifiedSelector {
     let resizeTimeout: NodeJS.Timeout;
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
+        // Skip if container is being manually resized
+        if (this.container?.classList.contains('resizing')) return;
+        
         // Debounce to avoid excessive saves
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
           const { width, height } = entry.contentRect;
-          this.saveSize(Math.round(width), Math.round(height));
+          // Only save if size actually changed significantly (more than 5px)
+          const currentSaved = this.getSavedSize();
+          if (Math.abs(width - currentSaved.width) > 5 || Math.abs(height - currentSaved.height) > 5) {
+            this.saveSize(Math.round(width), Math.round(height));
+          }
           // Auto-adjust height based on content if needed
           this.adjustHeightToContent();
         }, 500);
@@ -489,55 +537,111 @@ export class UnifiedSelector {
     this.container.appendChild(handle);
 
     // Enable manual resizing
-    let isResizing = false;
     let startX = 0;
     let startY = 0;
     let startWidth = 0;
     let startHeight = 0;
 
+    // Prevent clicks during resize
+    const preventClick = (e: MouseEvent) => {
+      if (this.isResizing) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
-      isResizing = true;
+      this.isResizing = true;
       startX = e.clientX;
       startY = e.clientY;
       const rect = this.container!.getBoundingClientRect();
       startWidth = rect.width;
       startHeight = rect.height;
       e.preventDefault();
+      e.stopPropagation();
       
       // Add cursor style during resize
       document.body.style.cursor = 'se-resize';
       this.container!.classList.add('resizing');
+      
+      // Add click prevention during resize
+      document.addEventListener('click', preventClick, true);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !this.container) return;
+      if (!this.isResizing || !this.container) return;
       
       const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 800);
       const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 400), window.innerHeight * 0.9);
       
       this.container.style.width = `${newWidth}px`;
       this.container.style.height = `${newHeight}px`;
+      
+      // Prevent the container from disappearing
+      e.preventDefault();
+      e.stopPropagation();
     };
 
-    const handleMouseUp = () => {
-      if (isResizing) {
-        isResizing = false;
+    const handleMouseUp = (e?: MouseEvent) => {
+      if (this.isResizing) {
         document.body.style.cursor = '';
         this.container?.classList.remove('resizing');
-        const rect = this.container!.getBoundingClientRect();
-        this.saveSize(Math.round(rect.width), Math.round(rect.height));
+        
+        // Save the final size
+        if (this.container) {
+          const rect = this.container.getBoundingClientRect();
+          const finalWidth = Math.round(rect.width);
+          const finalHeight = Math.round(rect.height);
+          this.saveSize(finalWidth, finalHeight);
+          
+          // Ensure the size is maintained
+          this.container.style.width = `${finalWidth}px`;
+          this.container.style.height = `${finalHeight}px`;
+        }
+        
+        // Prevent event propagation and the subsequent click event
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }
+        
+        // Use requestAnimationFrame to clear the flag after the current event cycle
+        requestAnimationFrame(() => {
+          this.isResizing = false;
+          // Remove the click prevention listener
+          document.removeEventListener('click', preventClick, true);
+        });
+      }
+    };
+
+    // Handle escape key to cancel resize
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && this.isResizing) {
+        this.isResizing = false;
+        document.body.style.cursor = '';
+        this.container?.classList.remove('resizing');
+        document.removeEventListener('click', preventClick, true);
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
 
     handle.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
     
     // Store cleanup function
     (handle as any)._cleanup = () => {
       handle.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', preventClick, true);
+      // Ensure resizing flag is cleared
+      this.isResizing = false;
     };
   }
 
@@ -575,6 +679,10 @@ export class UnifiedSelector {
     const templates = TEMPLATES;
     const personalities = PERSONALITIES;
     
+    // Save current size before re-rendering
+    const currentWidth = this.container.style.width;
+    const currentHeight = this.container.style.height;
+    
     this.container.innerHTML = `
       ${this.renderPersistentSelectionBar()}
       <div class="selector-header">
@@ -596,6 +704,9 @@ export class UnifiedSelector {
           </button>
           <button class="tab-btn ${this.view === 'custom' ? 'active' : ''}" data-view="custom">
             ✨ Custom
+          </button>
+          <button class="tab-btn ${this.view === 'compose' ? 'active' : ''}" data-view="compose">
+            ✍️ Compose
           </button>
         </div>
         <div class="header-actions">
@@ -647,6 +758,10 @@ export class UnifiedSelector {
         </div>
       </div>
     `;
+
+    // Restore size after re-rendering
+    if (currentWidth) this.container.style.width = currentWidth;
+    if (currentHeight) this.container.style.height = currentHeight;
 
     this.attachEventListeners();
   }
@@ -727,6 +842,8 @@ export class UnifiedSelector {
         return this.renderImageGenView();
       case 'custom':
         return this.renderCustomView(templates, personalities);
+      case 'compose':
+        return this.renderComposeView();
       case 'expanded':
         return this.renderExpandedView(templates, personalities);
       default:
@@ -1731,6 +1848,89 @@ export class UnifiedSelector {
   }
 
   /**
+   * Render compose view - for generating original tweets from topics
+   */
+  private renderComposeView(): string {
+    return `
+      <div class="selector-content compose-view">
+        <div class="compose-section">
+          <h3 class="compose-title">📝 Compose Original Tweet</h3>
+          
+          <div class="topic-input-group">
+            <label class="compose-label">Topic or Idea</label>
+            <textarea 
+              id="compose-topic" 
+              class="compose-topic-input"
+              placeholder="Enter a topic, idea, or let me suggest trending topics..."
+              rows="2">${this.composeTopic || ''}</textarea>
+          </div>
+
+          <div class="trending-suggestions">
+            <div class="trending-header">
+              <span class="trending-title">🔥 Trending Topics</span>
+              <button id="refresh-trends" class="btn-icon" title="Refresh trends">↻</button>
+            </div>
+            <div id="trending-topics" class="trending-chips">
+              ${this.trendingSuggestions.length > 0 ? 
+                this.trendingSuggestions.map(t => `
+                  <button class="trend-chip" data-topic="${t.topic}">
+                    ${t.topic}
+                    ${t.volume ? `<span class="trend-volume">${t.volume > 1000 ? Math.floor(t.volume/1000) + 'K' : t.volume}</span>` : ''}
+                  </button>
+                `).join('') : 
+                '<div class="loading-trends">Loading trending topics...</div>'
+              }
+            </div>
+          </div>
+
+          <div class="compose-options">
+            <div class="option-group">
+              <label class="option-label">Style</label>
+              <select id="compose-style" class="compose-select">
+                <option value="casual">Casual</option>
+                <option value="professional">Professional</option>
+                <option value="witty">Witty</option>
+                <option value="thought-leader">Thought Leader</option>
+                <option value="storytelling">Storytelling</option>
+                <option value="educational">Educational</option>
+              </select>
+            </div>
+            
+            <div class="option-group">
+              <label class="option-label">Tone</label>
+              <select id="compose-tone" class="compose-select">
+                <option value="neutral">Neutral</option>
+                <option value="enthusiastic">Enthusiastic</option>
+                <option value="controversial">Controversial</option>
+                <option value="humorous">Humorous</option>
+                <option value="inspirational">Inspirational</option>
+                <option value="analytical">Analytical</option>
+              </select>
+            </div>
+
+            <div class="option-group">
+              <label class="option-label">Length</label>
+              <select id="compose-length" class="compose-select">
+                <option value="short">Short (< 100 chars)</option>
+                <option value="medium" selected>Medium (100-200 chars)</option>
+                <option value="long">Long (200-280 chars)</option>
+                <option value="thread">Thread (2-3 tweets)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="hashtag-suggestions">
+            <label class="hashtag-label">Suggested Hashtags</label>
+            <div id="hashtag-chips" class="hashtag-chips">
+              <!-- Hashtags will be loaded dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * Render expanded view - shows all options at once for power users
    */
   private renderExpandedView(templates: Template[], personalities: Personality[]): string {
@@ -1887,10 +2087,12 @@ export class UnifiedSelector {
       (btn as HTMLElement).addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const view = (e.currentTarget as HTMLElement).dataset.view as 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom';
+        const view = (e.currentTarget as HTMLElement).dataset.view as 'personas' | 'grid' | 'smart' | 'favorites' | 'imagegen' | 'custom' | 'compose';
         this.view = view;
         if (view === 'smart') {
           this.loadSmartSuggestions();
+        } else if (view === 'compose') {
+          this.loadTrendingSuggestions();
         }
         this.render();
       });
@@ -2225,6 +2427,58 @@ export class UnifiedSelector {
       field.addEventListener('input', () => this.updateUI());
     });
 
+    // Compose view handlers
+    if (this.view === 'compose') {
+      // Create debounced hashtag update function
+      this.debouncedHashtagUpdate = debounce(async (topic: string) => {
+        if (topic.length > 3) {
+          try {
+            const hashtags = await TrendService.getRelatedHashtags(topic);
+            this.updateHashtagSuggestions(hashtags);
+          } catch (error) {
+            console.error('Failed to fetch hashtags:', error);
+          }
+        }
+      }, 500); // 500ms delay
+      
+      // Topic input handler
+      const topicInput = this.container.querySelector('#compose-topic') as HTMLTextAreaElement;
+      if (topicInput) {
+        const inputHandler = (e: Event) => {
+          this.composeTopic = (e.target as HTMLTextAreaElement).value;
+          // Use debounced function for hashtag suggestions
+          if (this.debouncedHashtagUpdate) {
+            this.debouncedHashtagUpdate(this.composeTopic);
+          }
+        };
+        topicInput.addEventListener('input', inputHandler);
+        // Store cleanup function
+        this.eventListenerCleanups.push(() => {
+          topicInput.removeEventListener('input', inputHandler);
+        });
+      }
+
+      // Trending topic chip handlers
+      this.container.querySelectorAll('.trend-chip').forEach(chip => {
+        chip.addEventListener('click', async (e) => {
+          const topic = (e.currentTarget as HTMLElement).dataset.topic || '';
+          this.composeTopic = topic;
+          if (topicInput) topicInput.value = topic;
+          // Load hashtags for selected trend
+          const hashtags = await TrendService.getRelatedHashtags(topic);
+          this.updateHashtagSuggestions(hashtags);
+        });
+      });
+
+      // Refresh trends button
+      const refreshBtn = this.container.querySelector('#refresh-trends');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+          await this.loadTrendingSuggestions();
+        });
+      }
+    }
+
     // Template action buttons
     this.container.querySelectorAll('.action-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -2450,6 +2704,65 @@ export class UnifiedSelector {
   }
 
   /**
+   * Load trending topics for compose view
+   */
+  private async loadTrendingSuggestions(): Promise<void> {
+    try {
+      console.log('%c🔥 Loading trending topics', 'color: #1DA1F2');
+      
+      // Get trending topics from the service
+      this.trendingSuggestions = await TrendService.getTrendingTopics();
+      
+      // Re-render to show the loaded topics
+      if (this.view === 'compose') {
+        this.render();
+      }
+    } catch (error) {
+      console.error('Failed to load trending topics:', error);
+      
+      // Use fallback topics
+      this.trendingSuggestions = [
+        { topic: 'AI Technology', category: 'tech' },
+        { topic: 'Climate Change', category: 'news' },
+        { topic: 'Remote Work', category: 'business' }
+      ];
+      
+      if (this.view === 'compose') {
+        this.render();
+      }
+    }
+  }
+
+  /**
+   * Update hashtag suggestions in compose view
+   */
+  private updateHashtagSuggestions(hashtags: string[]): void {
+    const hashtagContainer = this.container?.querySelector('#hashtag-chips');
+    if (!hashtagContainer) return;
+
+    hashtagContainer.innerHTML = hashtags.map(tag => `
+      <button class="hashtag-chip" data-hashtag="${tag}">
+        ${tag}
+      </button>
+    `).join('') || '<div class="no-hashtags">No hashtags available</div>';
+
+    // Add click handlers to hashtag chips
+    hashtagContainer.querySelectorAll('.hashtag-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        const hashtag = (e.currentTarget as HTMLElement).dataset.hashtag;
+        if (hashtag) {
+          // Add hashtag to topic input
+          const topicInput = this.container?.querySelector('#compose-topic') as HTMLTextAreaElement;
+          if (topicInput && !topicInput.value.includes(hashtag)) {
+            topicInput.value += ` ${hashtag}`;
+            this.composeTopic = topicInput.value;
+          }
+        }
+      });
+    });
+  }
+
+  /**
    * Select a template
    */
   private selectTemplate(templateId: string): void {
@@ -2627,6 +2940,47 @@ export class UnifiedSelector {
       
       // Hide and call callback
       this.hide();
+      this.onSelectCallback(result);
+      return;
+    }
+    
+    // Handle compose view
+    if (this.view === 'compose') {
+      if (!this.composeTopic) return;
+      
+      const composeStyle = (this.container?.querySelector('#compose-style') as HTMLSelectElement)?.value || 'casual';
+      const composeTone = (this.container?.querySelector('#compose-tone') as HTMLSelectElement)?.value || 'neutral';
+      const composeLength = (this.container?.querySelector('#compose-length') as HTMLSelectElement)?.value || 'medium';
+      
+      const result: SelectionResult = {
+        template: {
+          id: 'compose_tweet',
+          name: 'Compose Tweet',
+          emoji: '✍️',
+          prompt: `Write an original tweet about: ${this.composeTopic}`,
+          description: 'Generate original tweet',
+          category: 'compose',
+          categoryLabel: 'Compose'
+        },
+        tone: {
+          id: 'compose_tone',
+          systemPrompt: '',
+          emoji: '✍️',
+          label: 'Compose',
+          description: 'Original tweet composition',
+          category: 'neutral'
+        },
+        combinedPrompt: `Write an original tweet about: ${this.composeTopic}`,
+        temperature: 0.8,
+        tabType: 'compose' as const,
+        composeConfig: {
+          topic: this.composeTopic,
+          style: composeStyle,
+          tone: composeTone,
+          length: composeLength
+        }
+      };
+      
       this.onSelectCallback(result);
       return;
     }
@@ -6306,7 +6660,16 @@ export class UnifiedSelector {
   private applyDockStyle(): void {
     if (!this.container) return;
     
-    // Reset styles
+    // Only apply dock styles if we're actually in expanded view
+    if (this.view !== 'expanded') {
+      // For non-expanded views, maintain saved size
+      const savedSize = this.getSavedSize();
+      this.container.style.width = `${savedSize.width}px`;
+      this.container.style.height = `${savedSize.height}px`;
+      return;
+    }
+    
+    // Reset styles for expanded view
     this.container.style.position = 'fixed';
     this.container.style.width = '';
     this.container.style.left = '';

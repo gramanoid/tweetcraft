@@ -11,7 +11,7 @@ export interface PromptConfiguration {
   replyLength?: string;
   
   // Tab-specific inputs
-  tabType: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom';
+  tabType: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose';
   
   // Persona-specific
   personaConfig?: {
@@ -36,6 +36,15 @@ export interface PromptConfiguration {
     tone: string;
     length: string;
     temperature?: number; // Custom temperature override
+  };
+  
+  // Compose tab inputs
+  composeConfig?: {
+    topic: string;
+    style?: string;
+    tone?: string;
+    hashtags?: string[];
+    length?: string;
   };
   
   // Context information
@@ -78,6 +87,11 @@ export interface PromptConfiguration {
  *    - Requires: customConfig with style, tone, length, and optional temperature
  *    - Uses: System-wide prompt + custom instructions
  *    - Special: Can override system temperature with custom value
+ * 
+ * 7. COMPOSE TAB:
+ *    - Requires: composeConfig with topic and optional style/tone/length
+ *    - Uses: Original tweet generation prompts
+ *    - Special: Creates tweets from scratch based on topics/trends
  */
 export class PromptArchitecture {
   /**
@@ -168,7 +182,56 @@ export class PromptArchitecture {
       );
     }
     
-    // 6. CUSTOM TAB WITHOUT CONFIG (edge case)
+    // 6. COMPOSE TAB
+    else if (config.tabType === 'compose' && config.composeConfig) {
+      // Special prompt for original tweet generation
+      systemPrompt = `You are an expert Twitter content creator who writes viral, engaging tweets. Create an original tweet about the given topic that will resonate with the Twitter audience. Make it authentic, engaging, and shareable.`;
+      
+      // Add style instructions
+      if (config.composeConfig.style) {
+        const styleMap: Record<string, string> = {
+          'casual': 'Write in a casual, conversational tone',
+          'professional': 'Use a professional, authoritative voice',
+          'witty': 'Be clever and witty with wordplay',
+          'thought-leader': 'Position as industry insight and expertise',
+          'storytelling': 'Tell a compelling micro-story',
+          'educational': 'Teach something valuable in a concise way'
+        };
+        systemPrompt += ` ${styleMap[config.composeConfig.style] || ''}`;
+      }
+      
+      // Add tone instructions
+      if (config.composeConfig.tone) {
+        const toneMap: Record<string, string> = {
+          'enthusiastic': 'Be enthusiastic and energetic',
+          'controversial': 'Take a bold, controversial stance',
+          'humorous': 'Use humor and make it funny',
+          'inspirational': 'Be inspiring and motivational',
+          'analytical': 'Present data-driven insights'
+        };
+        systemPrompt += ` ${toneMap[config.composeConfig.tone] || ''}`;
+      }
+      
+      // Add length constraints
+      if (config.composeConfig.length) {
+        const lengthMap: Record<string, string> = {
+          'short': 'Keep it under 100 characters for maximum impact',
+          'medium': 'Use 100-200 characters for a balanced tweet',
+          'long': 'Use 200-280 characters to fully develop the idea',
+          'thread': 'Create a 2-3 tweet thread with each tweet building on the previous'
+        };
+        systemPrompt += ` ${lengthMap[config.composeConfig.length] || ''}`;
+      }
+      
+      // Add hashtag instructions if provided
+      if (config.composeConfig.hashtags && config.composeConfig.hashtags.length > 0) {
+        systemPrompt += ` Include relevant hashtags naturally: ${config.composeConfig.hashtags.join(' ')}`;
+      }
+      
+      systemPrompt += ' Write ONLY the tweet text itself, no explanations or meta-commentary.';
+    }
+    
+    // 7. CUSTOM TAB WITHOUT CONFIG (edge case)
     else if (config.tabType === 'custom' && !config.customConfig) {
       // Handle custom tab with missing configuration
       console.error('%c❌ CUSTOM TAB CONFIG ERROR', 'color: #DC3545; font-weight: bold', 
@@ -178,7 +241,7 @@ export class PromptArchitecture {
     
     // DEFAULT: Invalid or unsupported tab type
     else {
-      const validTabs = ['personas', 'all', 'smart', 'favorites', 'custom', 'image_gen'];
+      const validTabs = ['personas', 'all', 'smart', 'favorites', 'custom', 'image_gen', 'compose'];
       console.error('%c❌ INVALID TAB TYPE', 'color: #DC3545; font-weight: bold', 
                    `Tab type "${config.tabType}" is not supported`);
       console.error('%c  Valid tab types:', 'color: #657786', validTabs.join(', '));
@@ -328,6 +391,12 @@ export class PromptArchitecture {
    */
   static buildUserPrompt(config: PromptConfiguration): string {
     let userPrompt = '';
+
+    // Special handling for compose mode
+    if (config.tabType === 'compose' && config.composeConfig) {
+      userPrompt = `Write an original tweet about: ${config.composeConfig.topic}`;
+      return userPrompt;
+    }
 
     // Handle different context modes
     if (config.context && config.contextMode) {

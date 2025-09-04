@@ -34,7 +34,7 @@ export interface ReplyGenerationRequest {
   lengthPacing?: string; // How long/short is the reply
   
   // Prompt Architecture fields
-  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom';
+  tabType?: 'personas' | 'all' | 'smart' | 'favorites' | 'image_gen' | 'custom' | 'compose';
   personaConfig?: {
     personality: string;
     vocabulary: string;
@@ -53,6 +53,13 @@ export interface ReplyGenerationRequest {
     tone: string;
     length: string;
     temperature?: number;
+  };
+  composeConfig?: {
+    topic: string;
+    style?: string;
+    tone?: string;
+    hashtags?: string[];
+    length?: string;
   };
 }
 
