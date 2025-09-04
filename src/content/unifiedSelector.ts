@@ -530,10 +530,18 @@ export class UnifiedSelector {
     if (!this.container) return;
     
     let resizeTimeout: NodeJS.Timeout;
+    let isInitialLoad = true; // Track if this is the first observation
+    
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         // Skip if container is being manually resized
         if (this.container?.classList.contains('resizing')) return;
+        
+        // Skip auto-adjustment on initial load
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          return;
+        }
         
         // Debounce to avoid excessive saves
         clearTimeout(resizeTimeout);
@@ -544,8 +552,8 @@ export class UnifiedSelector {
           if (Math.abs(width - currentSaved.width) > 5 || Math.abs(height - currentSaved.height) > 5) {
             this.saveSize(Math.round(width), Math.round(height));
           }
-          // Auto-adjust height based on content if needed
-          this.adjustHeightToContent();
+          // Don't auto-adjust height - let user control size
+          // this.adjustHeightToContent();
         }, 500);
       }
     });
@@ -687,6 +695,11 @@ export class UnifiedSelector {
    * Auto-adjust height based on content
    */
   private adjustHeightToContent(): void {
+    // This method is now disabled to respect user's manual sizing preferences
+    // Users can manually resize the popup using the resize handle
+    return;
+    
+    /* Original auto-adjust code - preserved for reference
     if (!this.container || this.view === 'expanded') return;
     
     // Only auto-adjust if content overflows or has too much space
@@ -706,6 +719,7 @@ export class UnifiedSelector {
       const newHeight = Math.min(Math.max(totalContentHeight, 400), window.innerHeight * 0.9);
       this.container.style.height = `${newHeight}px`;
     }
+    */
   }
 
   /**
@@ -6739,8 +6753,8 @@ export class UnifiedSelector {
       this.container.style.maxHeight = '90vh';
       this.container.style.top = '5vh';
       
-      // Auto-adjust after a brief delay to let content render
-      setTimeout(() => this.adjustHeightToContent(), 100);
+      // Don't auto-adjust - let user control size
+      // setTimeout(() => this.adjustHeightToContent(), 100);
     }
   }
 
