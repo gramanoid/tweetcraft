@@ -121,7 +121,7 @@ export class UnifiedSelector {
     | "imagegen"
     | "custom"
     | "compose"
-    | "expanded" = "grid";
+    | "expanded" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;

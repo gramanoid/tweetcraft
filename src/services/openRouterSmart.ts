@@ -5,6 +5,7 @@
 
 import { logger } from '@/utils/logger';
 import type { LLMAnalysisResult } from '@/types/llm';
+import { FallbackPresetsService } from './fallbackPresets';
 
 interface RetryConfig {
   maxRetries: number;
@@ -414,60 +415,72 @@ Return JSON with:
   
   /**
    * Get fallback analysis when API fails
+   * PHASE 1.2 - Enhanced with deterministic preset system
    */
   private static getFallbackAnalysis(tweetText: string, context: any): LLMAnalysisResult {
-    // Pattern-based fallback analysis
-    const patterns = {
-      question: /\?|how|what|when|where|why|who|which|could|should|would/i,
-      achievement: /launched|shipped|built|created|finished|completed|proud|excited/i,
-      problem: /issue|problem|error|bug|broken|help|stuck|trouble/i,
-      opinion: /think|believe|feel|seems|appears|opinion|perspective/i,
-      debate: /wrong|terrible|awful|disagree|hate|stupid|worst/i // Changed to 'debate' which is valid
-    };
+    logger.log('🔄 Using enhanced fallback preset system');
     
-    let intent: LLMAnalysisResult['intent'] = 'opinion'; // Default to opinion
-    let sentiment: LLMAnalysisResult['sentiment'] = 'neutral';
-    let suggestedCategories = ['engagement'];
-    let suggestedTones = ['casual'];
+    // Get suggestions from the preset service
+    const presetSuggestions = FallbackPresetsService.getSuggestions(tweetText, context);
     
-    // Detect intent
-    for (const [key, pattern] of Object.entries(patterns)) {
-      if (pattern.test(tweetText)) {
-        intent = key as LLMAnalysisResult['intent'];
-        break;
+    // Map template categories to suggested categories
+    const suggestedCategories = new Set<string>();
+    presetSuggestions.templates.forEach(template => {
+      if (template.category) {
+        suggestedCategories.add(template.category);
       }
+    });
+    
+    // Get tone IDs
+    const suggestedTones = presetSuggestions.tones.map(tone => tone.id);
+    
+    // Determine intent based on matched preset category
+    let intent: LLMAnalysisResult['intent'] = 'opinion';
+    let sentiment: LLMAnalysisResult['sentiment'] = 'neutral';
+    
+    // Simple pattern matching for intent and sentiment
+    if (tweetText.match(/\?|how|what|when|where|why|who|which/i)) {
+      intent = 'question';
+    } else if (tweetText.match(/launched|shipped|built|created|finished|proud|excited|🚀|🎉/i)) {
+      intent = 'achievement';
+      sentiment = 'positive';
+    } else if (tweetText.match(/issue|problem|error|bug|broken|help|stuck/i)) {
+      intent = 'problem';
+      sentiment = 'negative';
+    } else if (tweetText.match(/wrong|terrible|awful|disagree|hate|controversial/i)) {
+      intent = 'debate';
+      sentiment = 'controversial';
+    } else if (tweetText.match(/think|believe|feel|opinion|perspective/i)) {
+      intent = 'opinion';
     }
     
-    // Set suggestions based on intent
-    switch (intent) {
-      case 'question':
-        suggestedCategories = ['help', 'insight', 'value'];
-        suggestedTones = ['professional', 'academic', 'casual'];
-        break;
-      case 'achievement':
-        suggestedCategories = ['celebration', 'support', 'engagement'];
-        suggestedTones = ['enthusiastic', 'motivational', 'wholesome'];
-        sentiment = 'positive';
-        break;
-      case 'problem':
-        suggestedCategories = ['help', 'solution', 'support'];
-        suggestedTones = ['professional', 'casual', 'motivational'];
-        break;
-      case 'debate':
-        suggestedCategories = ['debate', 'challenge', 'perspective'];
-        suggestedTones = ['contrarian', 'philosophical', 'professional'];
-        sentiment = 'controversial';
-        break;
-    }
+    // Build comprehensive reasoning
+    const reasoning = [
+      `Matched preset: ${presetSuggestions.matchedPreset}`,
+      `Confidence: ${(presetSuggestions.confidence * 100).toFixed(0)}%`,
+      ...presetSuggestions.reasoning,
+      'Using deterministic fallback presets (API unavailable)'
+    ];
+    
+    logger.log(`✅ Fallback analysis complete:`, {
+      preset: presetSuggestions.matchedPreset,
+      confidence: presetSuggestions.confidence,
+      templates: presetSuggestions.templates.length,
+      tones: presetSuggestions.tones.length
+    });
     
     return {
       sentiment,
       intent,
-      confidence: 0.5, // Lower confidence for fallback
-      suggestedCategories,
+      confidence: presetSuggestions.confidence,
+      suggestedCategories: Array.from(suggestedCategories),
       suggestedTones,
-      reasoning: ['Using pattern-based analysis (API unavailable)'],
-      isFallback: true // Mark as fallback
+      reasoning,
+      isFallback: true, // Mark as fallback
+      metadata: {
+        presetUsed: presetSuggestions.matchedPreset,
+        presetConfidence: presetSuggestions.confidence
+      }
     };
   }
   
