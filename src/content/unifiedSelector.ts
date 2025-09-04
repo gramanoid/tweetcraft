@@ -167,15 +167,15 @@ export class UnifiedSelector {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          width: Math.min(Math.max(parsed.width || 520, 480), 600),  // Default 520, max 600 for compact
+          width: Math.min(Math.max(parsed.width || 700, 480), 800),  // Default 700, max 800 to show all tabs
           height: Math.min(Math.max(parsed.height || 380, 350), 450) // Default 380, max 450 for compact
         };
       }
     } catch (e) {
       logger.error('Failed to get saved size', e);
     }
-    // Compact default size
-    return { width: 520, height: 380 };
+    // Default size - wide enough for all tabs
+    return { width: 700, height: 380 };
   }
   
   /**
@@ -184,7 +184,7 @@ export class UnifiedSelector {
   private saveSize(width: number, height: number): void {
     try {
       // Apply constraints before saving (matching compact limits)
-      const constrainedWidth = Math.min(Math.max(width, 480), 700);
+      const constrainedWidth = Math.min(Math.max(width, 480), 800);
       const constrainedHeight = Math.min(Math.max(height, 350), 600);
       
       localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ 
@@ -618,7 +618,7 @@ export class UnifiedSelector {
     const handleMouseMove = (e: MouseEvent) => {
       if (!this.isResizing || !this.container) return;
       
-      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 700);  // Reduced max to 700
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 800);  // Max 800 to allow full tabs
       const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 350), 600); // Reduced max to 600
       
       this.container.style.width = `${newWidth}px`;
