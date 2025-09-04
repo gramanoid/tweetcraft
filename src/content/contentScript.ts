@@ -256,15 +256,24 @@ class SmartReplyContentScript {
       HypeFuryPlatform.applyPlatformStyles();
     }
 
-    // Show initialization toast
-    visualFeedback.showToast(
-      `TweetCraft ready on ${platform}! Click AI Reply button on any post.`,
-      {
-        type: "success",
-        duration: 3000,
-        position: "bottom",
-      },
-    );
+    // Check if this is the first launch and show welcome tooltip
+    if (!localStorage.getItem("tweetcraft_has_seen_welcome")) {
+      // Wait a bit for the page to stabilize
+      setTimeout(() => {
+        this.showWelcomeTooltip();
+        localStorage.setItem("tweetcraft_has_seen_welcome", "true");
+      }, 2000);
+    } else {
+      // Show regular initialization toast for returning users
+      visualFeedback.showToast(
+        `TweetCraft ready on ${platform}! Click AI Reply button on any post.`,
+        {
+          type: "success",
+          duration: 3000,
+          position: "bottom",
+        },
+      );
+    }
 
     // Test DOM selector health
     DOMUtils.testSelectorHealth();
@@ -497,6 +506,249 @@ class SmartReplyContentScript {
       sessionStorage.removeItem("tweetcraft_recovery_state");
       return false;
     }
+  }
+
+  /**
+   * Show welcome tooltip for first-time users
+   */
+  private showWelcomeTooltip(): void {
+    // Create the tooltip container
+    const tooltip = document.createElement("div");
+    tooltip.className = "tweetcraft-welcome-tooltip";
+    tooltip.innerHTML = `
+      <div class="welcome-content">
+        <div class="welcome-header">
+          <span class="welcome-emoji">👋</span>
+          <h3>Welcome to TweetCraft!</h3>
+          <button class="welcome-close">×</button>
+        </div>
+        <div class="welcome-body">
+          <p>Generate AI-powered replies with just a click!</p>
+          <div class="welcome-steps">
+            <div class="welcome-step">
+              <span class="step-number">1</span>
+              <span>Find any tweet you want to reply to</span>
+            </div>
+            <div class="welcome-step">
+              <span class="step-number">2</span>
+              <span>Click the <strong>AI Reply</strong> button next to the reply box</span>
+            </div>
+            <div class="welcome-step">
+              <span class="step-number">3</span>
+              <span>Choose your style and click <strong>Generate</strong></span>
+            </div>
+          </div>
+          <div class="welcome-tip">
+            💡 <strong>Pro tip:</strong> Press <strong>Space</strong> for quick generate with smart defaults!
+          </div>
+        </div>
+        <div class="welcome-footer">
+          <button class="welcome-got-it">Got it!</button>
+        </div>
+      </div>
+      <div class="welcome-arrow"></div>
+    `;
+
+    // Add styles
+    const style = document.createElement("style");
+    style.textContent = `
+      .tweetcraft-welcome-tooltip {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        z-index: 10000;
+        animation: welcomeSlideIn 0.3s ease-out;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+      }
+
+      @keyframes welcomeSlideIn {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .welcome-content {
+        background: #15202b;
+        border: 1px solid rgba(29, 155, 240, 0.5);
+        border-radius: 12px;
+        padding: 0;
+        width: 360px;
+        box-shadow: 0 4px 20px rgba(29, 155, 240, 0.2);
+      }
+
+      .welcome-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(139, 152, 165, 0.2);
+      }
+
+      .welcome-emoji {
+        font-size: 24px;
+      }
+
+      .welcome-header h3 {
+        flex: 1;
+        margin: 0;
+        color: #e7e9ea;
+        font-size: 16px;
+      }
+
+      .welcome-close {
+        background: transparent;
+        border: none;
+        color: #8b98a5;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .welcome-close:hover {
+        color: #e7e9ea;
+      }
+
+      .welcome-body {
+        padding: 16px 20px;
+      }
+
+      .welcome-body p {
+        margin: 0 0 16px 0;
+        color: #e7e9ea;
+        font-size: 14px;
+      }
+
+      .welcome-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .welcome-step {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #8b98a5;
+        font-size: 13px;
+      }
+
+      .step-number {
+        background: rgba(29, 155, 240, 0.2);
+        border: 1px solid rgba(29, 155, 240, 0.5);
+        color: #1d9bf0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .welcome-step strong {
+        color: #1d9bf0;
+        font-weight: 600;
+      }
+
+      .welcome-tip {
+        background: rgba(255, 215, 0, 0.1);
+        border: 1px solid rgba(255, 215, 0, 0.3);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #e7e9ea;
+        font-size: 12px;
+      }
+
+      .welcome-tip strong {
+        color: #ffd700;
+      }
+
+      .welcome-footer {
+        padding: 12px 20px;
+        border-top: 1px solid rgba(139, 152, 165, 0.2);
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .welcome-got-it {
+        background: #1d9bf0;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .welcome-got-it:hover {
+        background: #1a8cd8;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(29, 155, 240, 0.3);
+      }
+
+      .welcome-arrow {
+        position: absolute;
+        top: 50px;
+        right: -20px;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 10px 0 10px 20px;
+        border-color: transparent transparent transparent #15202b;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Add to page
+    document.body.appendChild(tooltip);
+
+    // Add event listeners
+    const closeBtn = tooltip.querySelector(".welcome-close");
+    const gotItBtn = tooltip.querySelector(".welcome-got-it");
+    
+    const closeTooltip = () => {
+      tooltip.style.animation = "welcomeSlideOut 0.3s ease-out";
+      setTimeout(() => {
+        tooltip.remove();
+        style.remove();
+      }, 300);
+    };
+
+    closeBtn?.addEventListener("click", closeTooltip);
+    gotItBtn?.addEventListener("click", closeTooltip);
+
+    // Auto-close after 30 seconds
+    setTimeout(closeTooltip, 30000);
+
+    // Add slide out animation
+    const slideOutStyle = document.createElement("style");
+    slideOutStyle.textContent = `
+      @keyframes welcomeSlideOut {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+      }
+    `;
+    document.head.appendChild(slideOutStyle);
   }
 
   /**
