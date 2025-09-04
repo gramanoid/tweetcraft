@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.18-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.19-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
@@ -23,13 +23,21 @@
 
 ## 🚀 **TweetCraft: Current MVP + Future Roadmap**
 
-### ✅ **Currently Working (v0.0.18 - Latest: Smart Scoring & Dynamic Sizing)**
+### ✅ **Currently Working (v0.0.19 - Latest: Security & Architecture Improvements)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
 
-#### 🎨 **NEW: Visual Hierarchy & Enhanced UX (v0.0.18)**
+#### 🔒 **NEW: Security & Architecture Improvements (v0.0.19)**
+- **API Key Security** - All API keys now exclusively managed via .env file
+- **Type-Safe Messaging** - MessageType enum enforced throughout for compile-time safety
+- **Complete Data Cleanup** - Clear Data now removes both chrome.storage AND IndexedDB
+- **Real API Validation** - Validate Key button performs actual OpenRouter connection test
+- **Enhanced UI Controls** - New Clear Data and Validate Key buttons in extension popup
+- **Future-Ready Architecture** - Added message types for upcoming template and image services
+
+#### 🎨 **Visual Hierarchy & Enhanced UX (v0.0.18)**
 - **Section Completion Indicators** - Visual checkmarks (✓) show completed sections with progress bar
 - **Compact Mode Density** - 4-column layout with reduced padding (8px) for maximum visibility
 - **Auto-populate Favorites** - Shows top 5 combinations when empty with Accept/Dismiss buttons

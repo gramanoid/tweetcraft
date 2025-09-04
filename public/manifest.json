@@ -1,7 +1,7 @@
 {
   "name": "TweetCraft",
   "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
-  "version": "0.0.17",
+  "version": "0.0.19",
   "manifest_version": 3,
   "background": {
     "service_worker": "serviceWorker.js"

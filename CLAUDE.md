@@ -34,9 +34,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Network resilience**: Offline queuing, adaptive timeouts, race condition prevention
 
 ### Current Version Status
-- Version: 0.0.18
-- Branch: main (recent merges from feature branches)
-- **API Key**: Hardcoded in `src/config/apiConfig.ts` (personal use only - DO NOT COMMIT to public repos)
+- Version: 0.0.19
+- Branch: feature/test-new-feature (architectural improvements)
+- **API Key**: Managed via .env file with webpack DefinePlugin (NEVER hardcode keys)
 
 ## Quick Start
 
@@ -174,7 +174,17 @@ console.log('%c  Property:', 'color: #657786', value);
 | Text not inserting | Twitter UI may have changed - check domUtils.ts |
 | Smart/Favorites tab errors | Ensure allTabConfig is provided |
 
-## Recent Changes (v0.0.18)
+## Recent Changes (v0.0.19)
+
+### Architectural Security & Consistency Improvements
+- ✅ **API Key Management**: All keys now exclusively from .env via webpack DefinePlugin
+- ✅ **Type-Safe Messaging**: Replaced string literals with MessageType enum throughout
+- ✅ **Complete Data Cleanup**: CLEAR_DATA now removes both chrome.storage AND IndexedDB
+- ✅ **API Validation**: Implemented real OpenRouter API key validation (was stub)
+- ✅ **UI Integration**: Added Clear Data and Validate Key buttons to popup
+- ✅ **Future-Ready**: Added SUGGEST_TEMPLATE and GENERATE_IMAGE message types
+
+## Previous Changes (v0.0.18)
 
 ### Vision API Fixes
 - ✅ Fixed "Failed to extract image(s)" error
@@ -219,19 +229,26 @@ console.log('%c  Property:', 'color: #657786', value);
 
 ```javascript
 // Configuration
-GET_CONFIG / SET_CONFIG         // Configuration management
-GET_API_KEY / SET_API_KEY       // API key management
-GET_STORAGE / SET_STORAGE       // Generic storage (CSP compliance)
+MessageType.GET_CONFIG / SET_CONFIG         // Configuration management
+MessageType.GET_API_KEY / SET_API_KEY       // API key management  
+MessageType.GET_STORAGE / SET_STORAGE       // Generic storage (type-safe)
+MessageType.VALIDATE_API_KEY                // Real API validation ✅
+MessageType.CLEAR_DATA                      // Clears ALL data (storage + IndexedDB) ✅
 
 // Generation
-GENERATE_REPLY                  // Main reply generation
-ANALYZE_IMAGES                  // Vision analysis
-TEST_API_KEY                    // Validate API key
+MessageType.GENERATE_REPLY                  // Main reply generation
+MessageType.ANALYZE_IMAGES                  // Vision analysis
+MessageType.TEST_API_KEY                    // Test API connection
+MessageType.SUGGEST_TEMPLATE                // Template suggestions (future)
+MessageType.GENERATE_IMAGE                  // Image generation (future)
 
 // Analytics
-RESET_USAGE_STATS              // Reset usage counters
-GET_LAST_TONE / SET_LAST_TONE  // Tone preferences
+MessageType.RESET_USAGE_STATS              // Reset usage counters ✅
+MessageType.GET_LAST_TONE / SET_LAST_TONE  // Tone preferences
+MessageType.FETCH_TRENDING_TOPICS          // Exa trending topics
 ```
+
+**IMPORTANT**: Always use MessageType enum, never string literals for type safety.
 
 ## BulkCraft (Pending Integration)
 
@@ -246,8 +263,10 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 1. **Before Committing**:
    - Test on all platforms (Twitter/X, HypeFury)
    - Run `npm run lint` and `npm run type-check`
+   - Run `npm run build` to validate all changes
    - Update version in manifest.json and package.json
-   - Ensure API key is not exposed
+   - Verify API keys are ONLY in .env file, never in source code
+   - Use MessageType enum for all message passing
 
 2. **When Adding Features**:
    - Follow existing patterns (singleton content script, message passing)
@@ -286,3 +305,4 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 - Service worker shows "Inactive" in Chrome extensions page (normal for Manifest V3)
 - Rate limiting depends on OpenRouter account tier
 - Twitter DOM structure changes may break selectors (mitigated with fallbacks)
+- Some services (templateSuggester, imageService) still make direct API calls (to be migrated)
