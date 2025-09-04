@@ -19,6 +19,7 @@ import { createTemplateId } from '@/types/branded';
 import { logger } from '@/utils/logger';
 import { TrendService, TrendingTopic } from '@/services/trendService';
 import { debounce } from '@/utils/debounce';
+import { MessageType } from '@/types/messages';
 
 export interface SelectionResult {
   template: Template;
@@ -2780,8 +2781,17 @@ export class UnifiedSelector {
     try {
       console.log('%c🔥 Loading trending topics', 'color: #1DA1F2');
       
-      // Get trending topics from the service
-      this.trendingSuggestions = await TrendService.getTrendingTopics();
+      // Get trending topics through the service worker (to avoid CORS issues)
+      const response = await chrome.runtime.sendMessage({ 
+        type: MessageType.FETCH_TRENDING_TOPICS 
+      });
+      
+      if (response?.success && response?.data) {
+        this.trendingSuggestions = response.data;
+        console.log(`%c✅ Loaded ${response.data.length} trending topics`, 'color: #17BF63');
+      } else {
+        throw new Error(response?.error || 'Failed to fetch trending topics');
+      }
       
       // Re-render to show the loaded topics
       if (this.view === 'compose') {

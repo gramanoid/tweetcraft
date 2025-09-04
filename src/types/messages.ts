@@ -20,7 +20,8 @@ export enum MessageType {
   TEST_API_KEY = 'TEST_API_KEY',
   FETCH_MODELS = 'FETCH_MODELS',
   RESET_USAGE_STATS = 'RESET_USAGE_STATS',
-  ANALYZE_IMAGES = 'ANALYZE_IMAGES'
+  ANALYZE_IMAGES = 'ANALYZE_IMAGES',
+  FETCH_TRENDING_TOPICS = 'FETCH_TRENDING_TOPICS'
 }
 
 // Base message interface
@@ -100,6 +101,10 @@ export interface AnalyzeImagesMessage extends BaseMessage {
   messages: any[];
 }
 
+export interface FetchTrendingTopicsMessage extends BaseMessage {
+  type: MessageType.FETCH_TRENDING_TOPICS;
+}
+
 // Union type of all messages
 export type ExtensionMessage = 
   | GetConfigMessage
@@ -116,7 +121,8 @@ export type ExtensionMessage =
   | TestApiKeyMessage
   | FetchModelsMessage
   | ResetUsageStatsMessage
-  | AnalyzeImagesMessage;
+  | AnalyzeImagesMessage
+  | FetchTrendingTopicsMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -181,6 +187,10 @@ export function isAnalyzeImagesMessage(msg: any): msg is AnalyzeImagesMessage {
   return msg?.type === MessageType.ANALYZE_IMAGES && 
          typeof msg?.modelId === 'string' && 
          Array.isArray(msg?.messages);
+}
+
+export function isFetchTrendingTopicsMessage(msg: any): msg is FetchTrendingTopicsMessage {
+  return msg?.type === MessageType.FETCH_TRENDING_TOPICS;
 }
 
 // Response types

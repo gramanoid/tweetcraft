@@ -38,7 +38,8 @@ import {
   isTestApiKeyMessage,
   isFetchModelsMessage,
   isResetUsageStatsMessage,
-  isAnalyzeImagesMessage
+  isAnalyzeImagesMessage,
+  isFetchTrendingTopicsMessage
 } from '@/types/messages';
 import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
@@ -499,6 +500,24 @@ class SmartReplyServiceWorker {
           if (isFetchModelsMessage(message)) {
             // Handle fetch models - await it properly
             await this.handleFetchModels(sendResponse);
+          }
+          break;
+        }
+
+        case MessageType.FETCH_TRENDING_TOPICS: {
+          console.log('Service Worker: Fetching trending topics via Exa API');
+          try {
+            // Import TrendService dynamically to avoid circular dependencies
+            const { TrendService } = await import('@/services/trendService');
+            const topics = await TrendService.getTrendingTopics();
+            console.log(`Service Worker: Fetched ${topics.length} trending topics`);
+            sendResponse({ success: true, data: topics });
+          } catch (error) {
+            console.error('Service Worker: Failed to fetch trending topics:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Failed to fetch trending topics' 
+            });
           }
           break;
         }
