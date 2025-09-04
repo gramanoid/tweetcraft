@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const temperatureValue = document.getElementById('temperature-value');
   const refreshModelsBtn = document.getElementById('refresh-models') as HTMLButtonElement | null;
   const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement | null;
+  const clearDataBtn = document.getElementById('clear-data') as HTMLButtonElement | null;
+  const validateKeyBtn = document.getElementById('validate-key') as HTMLButtonElement | null;
   
   
   
@@ -423,6 +425,113 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         refreshModelsBtn.disabled = false;
         refreshModelsBtn.textContent = '↻';
+      }
+    });
+  }
+  
+  // Handle clear data button
+  if (clearDataBtn) {
+    console.log('popup-simple.ts: Clear data button found');
+    clearDataBtn.addEventListener('click', async () => {
+      console.log('popup-simple.ts: Clear data button clicked!');
+      
+      // Show confirmation dialog
+      const confirmed = confirm('Are you sure you want to clear all extension data? This will delete all settings, saved templates, arsenal replies, and usage stats. This cannot be undone.');
+      
+      if (confirmed) {
+        try {
+          // Disable button during operation
+          clearDataBtn.disabled = true;
+          clearDataBtn.textContent = '🗑️ Clearing...';
+          
+          // Send clear data message to service worker
+          const response = await chrome.runtime.sendMessage({
+            type: MessageType.CLEAR_DATA
+          });
+          
+          if (response?.success) {
+            // Show success message
+            const statusDiv = document.getElementById('status-message');
+            if (statusDiv) {
+              statusDiv.textContent = '✅ All data cleared successfully!';
+              statusDiv.style.display = 'block';
+              statusDiv.style.color = 'green';
+              setTimeout(() => {
+                statusDiv.style.display = 'none';
+                // Reload the popup to show default values
+                window.location.reload();
+              }, 2000);
+            }
+            console.log('All data cleared successfully');
+          } else {
+            throw new Error('Failed to clear data');
+          }
+        } catch (error) {
+          console.error('Error clearing data:', error);
+          const statusDiv = document.getElementById('status-message');
+          if (statusDiv) {
+            statusDiv.textContent = '❌ Failed to clear data';
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'red';
+            setTimeout(() => {
+              statusDiv.style.display = 'none';
+            }, 3000);
+          }
+        } finally {
+          // Re-enable button
+          clearDataBtn.disabled = false;
+          clearDataBtn.textContent = '🗑️ Clear Data';
+        }
+      }
+    });
+  }
+
+  // Handle validate API key button
+  if (validateKeyBtn) {
+    console.log('popup-simple.ts: Validate key button found');
+    validateKeyBtn.addEventListener('click', async () => {
+      console.log('popup-simple.ts: Validate key button clicked!');
+      
+      try {
+        // Disable button during operation
+        validateKeyBtn.disabled = true;
+        validateKeyBtn.textContent = '✓ Validating...';
+        
+        // Send validate API key message to service worker
+        const response = await chrome.runtime.sendMessage({
+          type: MessageType.VALIDATE_API_KEY
+        });
+        
+        if (response?.success) {
+          // Show success message
+          const statusDiv = document.getElementById('status-message');
+          if (statusDiv) {
+            statusDiv.textContent = '✅ API key is valid!';
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'green';
+            setTimeout(() => {
+              statusDiv.style.display = 'none';
+            }, 3000);
+          }
+          console.log('API key validated successfully');
+        } else {
+          throw new Error(response?.error || 'API key validation failed');
+        }
+      } catch (error) {
+        console.error('Error validating API key:', error);
+        const statusDiv = document.getElementById('status-message');
+        if (statusDiv) {
+          statusDiv.textContent = `❌ ${error instanceof Error ? error.message : 'Failed to validate API key'}`;
+          statusDiv.style.display = 'block';
+          statusDiv.style.color = 'red';
+          setTimeout(() => {
+            statusDiv.style.display = 'none';
+          }, 5000);
+        }
+      } finally {
+        // Re-enable button
+        validateKeyBtn.disabled = false;
+        validateKeyBtn.textContent = '✓ Validate Key';
       }
     });
   }

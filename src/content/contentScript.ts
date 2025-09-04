@@ -2,6 +2,7 @@ import { DOMUtils, DOMCache } from './domUtils';
 // OpenRouter service now handled by service worker
 import { StorageService } from '@/services/storage';
 import { ReplyGenerationRequest } from '@/types';
+import { MessageType } from '@/types/messages';
 import { debounce } from '@/utils/debounce';
 import { ErrorHandler } from '@/utils/errorHandler';
 import { globalAsyncManager } from '@/utils/asyncOperationManager';
@@ -2049,7 +2050,7 @@ class SmartReplyContentScript {
       
       // Generate the reply through service worker
       const response = await chrome.runtime.sendMessage({
-        type: 'GENERATE_REPLY',
+        type: MessageType.GENERATE_REPLY,
         request,
         context
       });

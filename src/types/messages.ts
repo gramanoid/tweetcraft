@@ -21,7 +21,9 @@ export enum MessageType {
   FETCH_MODELS = 'FETCH_MODELS',
   RESET_USAGE_STATS = 'RESET_USAGE_STATS',
   ANALYZE_IMAGES = 'ANALYZE_IMAGES',
-  FETCH_TRENDING_TOPICS = 'FETCH_TRENDING_TOPICS'
+  FETCH_TRENDING_TOPICS = 'FETCH_TRENDING_TOPICS',
+  SUGGEST_TEMPLATE = 'SUGGEST_TEMPLATE',
+  GENERATE_IMAGE = 'GENERATE_IMAGE'
 }
 
 // Base message interface
@@ -105,6 +107,18 @@ export interface FetchTrendingTopicsMessage extends BaseMessage {
   type: MessageType.FETCH_TRENDING_TOPICS;
 }
 
+export interface SuggestTemplateMessage extends BaseMessage {
+  type: MessageType.SUGGEST_TEMPLATE;
+  tweetText: string;
+  patterns?: any;
+}
+
+export interface GenerateImageMessage extends BaseMessage {
+  type: MessageType.GENERATE_IMAGE;
+  prompt: string;
+  options?: any;
+}
+
 // Union type of all messages
 export type ExtensionMessage = 
   | GetConfigMessage
@@ -122,7 +136,9 @@ export type ExtensionMessage =
   | FetchModelsMessage
   | ResetUsageStatsMessage
   | AnalyzeImagesMessage
-  | FetchTrendingTopicsMessage;
+  | FetchTrendingTopicsMessage
+  | SuggestTemplateMessage
+  | GenerateImageMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -191,6 +207,16 @@ export function isAnalyzeImagesMessage(msg: any): msg is AnalyzeImagesMessage {
 
 export function isFetchTrendingTopicsMessage(msg: any): msg is FetchTrendingTopicsMessage {
   return msg?.type === MessageType.FETCH_TRENDING_TOPICS;
+}
+
+export function isSuggestTemplateMessage(msg: any): msg is SuggestTemplateMessage {
+  return msg?.type === MessageType.SUGGEST_TEMPLATE && 
+         typeof msg?.tweetText === 'string';
+}
+
+export function isGenerateImageMessage(msg: any): msg is GenerateImageMessage {
+  return msg?.type === MessageType.GENERATE_IMAGE && 
+         typeof msg?.prompt === 'string';
 }
 
 // Response types

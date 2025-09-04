@@ -4,6 +4,7 @@
  */
 
 import { API_CONFIG } from '@/config/apiConfig';
+import { MessageType } from '@/types/messages';
 
 export interface ImageResult {
   url: string;
@@ -58,7 +59,7 @@ export class ImageService {
           resolve();
         }, 5000);
         
-        chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['imageApiKeys'] }, (response) => {
+        chrome.runtime.sendMessage({ type: MessageType.GET_STORAGE, keys: ['imageApiKeys'] }, (response) => {
           clearTimeout(timeoutId);
           
           // Check for runtime errors first

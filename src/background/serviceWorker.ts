@@ -223,15 +223,76 @@ class SmartReplyServiceWorker {
 
         case MessageType.VALIDATE_API_KEY:
           if (isValidateApiKeyMessage(message)) {
-            // This could be implemented to validate the API key
-            // For now, just return success
-            sendResponse({ success: true, data: { valid: true } });
+            try {
+              // Get API key from environment configuration
+              const apiKey = message.apiKey || API_CONFIG.OPENROUTER_API_KEY;
+              
+              if (!apiKey || apiKey === 'sk-or-v1-YOUR_API_KEY_HERE' || apiKey === '') {
+                sendResponse({ 
+                  success: false, 
+                  error: 'No API key configured. Please set OPENROUTER_API_KEY in .env file.' 
+                });
+                break;
+              }
+              
+              // Test the API key by making a simple request
+              const testResponse = await fetch('https://openrouter.ai/api/v1/models', {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (testResponse.ok) {
+                sendResponse({ success: true, data: { valid: true } });
+              } else if (testResponse.status === 401) {
+                sendResponse({ 
+                  success: false, 
+                  error: 'Invalid API key. Please check your OpenRouter API key.' 
+                });
+              } else {
+                sendResponse({ 
+                  success: false, 
+                  error: `API validation failed with status: ${testResponse.status}` 
+                });
+              }
+            } catch (error) {
+              console.error('Error validating API key:', error);
+              sendResponse({ 
+                success: false, 
+                error: 'Failed to validate API key. Please check your internet connection.' 
+              });
+            }
           }
           break;
 
         case MessageType.CLEAR_DATA:
           if (isClearDataMessage(message)) {
+            // Clear chrome.storage data
             await StorageService.clearAllData();
+            
+            // Clear IndexedDB (Arsenal Mode data)
+            try {
+              // Get list of all databases
+              const databases = await indexedDB.databases?.() || [];
+              
+              // Delete TweetCraft databases
+              for (const db of databases) {
+                if (db.name && db.name.startsWith('TweetCraft')) {
+                  await indexedDB.deleteDatabase(db.name);
+                  console.log(`Deleted IndexedDB database: ${db.name}`);
+                }
+              }
+              
+              // Specifically delete known Arsenal database
+              await indexedDB.deleteDatabase('TweetCraftArsenal');
+              console.log('Deleted TweetCraftArsenal IndexedDB');
+            } catch (error) {
+              console.error('Error clearing IndexedDB:', error);
+              // Continue even if IndexedDB clearing fails
+            }
+            
             sendResponse({ success: true });
           }
           break;

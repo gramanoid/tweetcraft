@@ -3910,7 +3910,7 @@ export class UnifiedSelector {
   private async saveCustomTemplate(template: Template): Promise<void> {
     try {
       // First get existing templates via message passing
-      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+      chrome.runtime.sendMessage({ type: MessageType.GET_STORAGE, keys: ['customTemplates'] }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('Failed to load templates for saving:', chrome.runtime.lastError);
           return;
@@ -3921,7 +3921,7 @@ export class UnifiedSelector {
         
         // Save updated templates via service worker
         chrome.runtime.sendMessage({ 
-          type: 'SET_STORAGE', 
+          type: MessageType.SET_STORAGE, 
           data: { customTemplates: updatedTemplates } 
         }, (saveResponse) => {
           if (chrome.runtime.lastError) {
@@ -3944,7 +3944,7 @@ export class UnifiedSelector {
   private async loadCustomTemplates(): Promise<void> {
     try {
       // Use message passing to avoid CSP issues
-      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+      chrome.runtime.sendMessage({ type: MessageType.GET_STORAGE, keys: ['customTemplates'] }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('Failed to load custom templates:', chrome.runtime.lastError);
           return;
@@ -4188,7 +4188,7 @@ export class UnifiedSelector {
       }
       
       // Update storage
-      chrome.runtime.sendMessage({ type: 'GET_STORAGE', keys: ['customTemplates'] }, (response) => {
+      chrome.runtime.sendMessage({ type: MessageType.GET_STORAGE, keys: ['customTemplates'] }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('Failed to load templates for deletion:', chrome.runtime.lastError);
           return;
@@ -4198,7 +4198,7 @@ export class UnifiedSelector {
         const updatedTemplates = customTemplates.filter((t: Template) => t.id !== templateId);
         
         chrome.runtime.sendMessage({
-          type: 'SET_STORAGE',
+          type: MessageType.SET_STORAGE,
           data: { customTemplates: updatedTemplates }
         }, () => {
           if (chrome.runtime.lastError) {
@@ -4406,7 +4406,7 @@ export class UnifiedSelector {
           // Save to storage
           const customTemplates = TEMPLATES.filter(t => t.id.startsWith('custom_'));
           chrome.runtime.sendMessage({
-            type: 'SET_STORAGE',
+            type: MessageType.SET_STORAGE,
             data: { customTemplates }
           }, () => {
             if (chrome.runtime.lastError) {
