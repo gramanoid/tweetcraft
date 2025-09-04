@@ -1961,7 +1961,7 @@ export class UnifiedSelector {
         <div class="smart-info">
           <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
             <p style="text-align: center; color: #8b98a5; font-size: 12px; margin: 0;">
-              🤖 AI-suggested combinations based on conversation context
+              🤖 Top 12 AI-suggested combinations with detailed explanations
             </p>
             <button class="refresh-suggestions-btn" title="Get new suggestions">
               <span style="font-size: 12px;">🔄</span>
@@ -1972,7 +1972,7 @@ export class UnifiedSelector {
           ${
             scores.length > 0
               ? scores
-                  .slice(0, 8)
+                  .slice(0, 12)
                   .map((score: any, _index: number) => {
                     const template = TEMPLATES.find(
                       (t) => t.id === score.templateId,
@@ -2004,11 +2004,11 @@ export class UnifiedSelector {
                   </div>
                 </div>
                 <div class="suggestion-preview">
-                  ${template.description.length > 60 ? template.description.substring(0, 60) + "..." : template.description}
+                  ${template.description}
                 </div>
                 <div class="suggestion-reasons">
                   ${score.reasons
-                    .slice(0, 3)
+                    .slice(0, 5)
                     .map((reason: string) => {
                       const enhanced = this.enhanceReasonDescription(reason);
                       return `<span class="reason-chip reason-${enhanced.category}" title="${enhanced.text}">
@@ -3293,7 +3293,8 @@ export class UnifiedSelector {
       const templateIds = new Set<string>();
       const toneIds = new Set<string>();
 
-      suggestions.slice(0, 9).forEach((suggestion) => {
+      // Extract templates and tones from top 12 suggestions for better variety
+      suggestions.slice(0, 12).forEach((suggestion) => {
         templateIds.add(suggestion.templateId);
         toneIds.add(suggestion.toneId);
       });
@@ -3307,27 +3308,27 @@ export class UnifiedSelector {
         .map((id) => PERSONALITIES.find((p) => p.id === id))
         .filter(Boolean) as Personality[];
 
-      // Ensure we have at least 6 suggestions
-      if (suggestedTemplates.length < 6) {
-        const remaining = 6 - suggestedTemplates.length;
+      // Ensure we have at least 12 suggestions for better variety
+      if (suggestedTemplates.length < 12) {
+        const remaining = 12 - suggestedTemplates.length;
         const additionalTemplates = TEMPLATES.filter(
           (t) => !templateIds.has(t.id),
         ).slice(0, remaining);
         suggestedTemplates.push(...additionalTemplates);
       }
 
-      if (suggestedPersonalities.length < 6) {
-        const remaining = 6 - suggestedPersonalities.length;
+      if (suggestedPersonalities.length < 12) {
+        const remaining = 12 - suggestedPersonalities.length;
         const additionalPersonalities = PERSONALITIES.filter(
           (p) => !toneIds.has(p.id),
         ).slice(0, remaining);
         suggestedPersonalities.push(...additionalPersonalities);
       }
 
-      // Store the suggestions
+      // Store the suggestions - expanded to 12 for better variety
       this.smartSuggestions = {
-        templates: suggestedTemplates.slice(0, 6),
-        personalities: suggestedPersonalities.slice(0, 6),
+        templates: suggestedTemplates.slice(0, 12),
+        personalities: suggestedPersonalities.slice(0, 12),
       };
 
       console.log(
@@ -7100,6 +7101,27 @@ export class UnifiedSelector {
           display: flex;
           flex-direction: column;
           gap: 8px;
+          max-height: 600px;
+          overflow-y: auto;
+          padding-right: 8px;
+        }
+        
+        .smart-suggestions-list::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .smart-suggestions-list::-webkit-scrollbar-track {
+          background: rgba(139, 152, 165, 0.1);
+          border-radius: 3px;
+        }
+        
+        .smart-suggestions-list::-webkit-scrollbar-thumb {
+          background: rgba(139, 152, 165, 0.3);
+          border-radius: 3px;
+        }
+        
+        .smart-suggestions-list::-webkit-scrollbar-thumb:hover {
+          background: rgba(139, 152, 165, 0.5);
         }
 
         .suggestion-card {

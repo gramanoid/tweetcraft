@@ -192,8 +192,8 @@ export class TemplateSuggester {
       .sort((a, b) => b.score - a.score)
       .slice(0, 12); // Increased from 10 to 12 for better variety
     
-    console.log('%c🤖 Top suggestions:', 'color: #17BF63');
-    sorted.slice(0, 3).forEach((s, i) => {
+    console.log('%c🤖 Top 12 suggestions with explanations:', 'color: #17BF63');
+    sorted.slice(0, 12).forEach((s, i) => {
       console.log(`  ${i + 1}. ${s.templateId}:${s.toneId} (${s.score.toFixed(2)})`, s.reasons);
     });
     

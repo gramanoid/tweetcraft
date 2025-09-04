@@ -382,6 +382,15 @@ Separate feature in `/bulkcraft` directory for bulk content generation:
 
 ## Development Guidelines
 
+### 📊 Task Progress Documentation Requirements
+
+**IMPORTANT**: Update UX_UI_TRANSFORMATION_REPORT.md after EVERY completed subtask
+- Mark completed tasks with ✅ and date (YYYY-MM-DD)
+- Update "CURRENTLY IN PROGRESS" section with active task
+- Move completed tasks to "COMPLETED TASKS" section
+- Each subtask completion = immediate document update
+- This ensures continuity across Claude memory resets
+
 ## 📜 UX/UI TRANSFORMATION GIT WORKFLOW
 
 ### **PHASE-BASED VERSION CONTROL**
