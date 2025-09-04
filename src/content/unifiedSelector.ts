@@ -168,15 +168,15 @@ export class UnifiedSelector {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          width: Math.min(Math.max(parsed.width || 700, 480), 800),  // Default 700, max 800 to show all tabs
+          width: Math.min(Math.max(parsed.width || 760, 480), 900),  // Default 760, max 900 to show all tabs
           height: Math.min(Math.max(parsed.height || 380, 350), 450) // Default 380, max 450 for compact
         };
       }
     } catch (e) {
       logger.error('Failed to get saved size', e);
     }
-    // Default size - wide enough for all tabs
-    return { width: 700, height: 380 };
+    // Default size - wide enough for all tabs and Quick Generate button
+    return { width: 760, height: 380 };
   }
   
   /**
@@ -185,7 +185,7 @@ export class UnifiedSelector {
   private saveSize(width: number, height: number): void {
     try {
       // Apply constraints before saving (matching compact limits)
-      const constrainedWidth = Math.min(Math.max(width, 480), 800);
+      const constrainedWidth = Math.min(Math.max(width, 480), 900);
       const constrainedHeight = Math.min(Math.max(height, 350), 600);
       
       localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ 
@@ -619,7 +619,7 @@ export class UnifiedSelector {
     const handleMouseMove = (e: MouseEvent) => {
       if (!this.isResizing || !this.container) return;
       
-      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 800);  // Max 800 to allow full tabs
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 900);  // Max 900 to allow full tabs
       const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 350), 600); // Reduced max to 600
       
       this.container.style.width = `${newWidth}px`;
@@ -1835,11 +1835,15 @@ export class UnifiedSelector {
             </div>
             
             <div class="form-group template-name-row">
-              <label for="custom-name-field">Template Name</label>
+              <label for="custom-name-field">Template Name (optional for saving)</label>
               <div class="name-save-row">
                 <input type="text" id="custom-name-field" placeholder="Enter template name..." maxlength="50" />
                 <button class="save-template-btn">💾 Save Template</button>
               </div>
+            </div>
+            
+            <div class="form-group">
+              <button class="generate-custom-btn">🚀 Generate Reply</button>
             </div>
           </div>
         </div>
@@ -2463,6 +2467,14 @@ export class UnifiedSelector {
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
         this.handleSaveCustomTemplate();
+      });
+    }
+    
+    // Generate custom reply button
+    const generateCustomBtn = this.container.querySelector('.generate-custom-btn');
+    if (generateCustomBtn) {
+      generateCustomBtn.addEventListener('click', () => {
+        this.handleGenerateCustomReply();
       });
     }
 
@@ -3984,6 +3996,49 @@ export class UnifiedSelector {
     }
   }
 
+  /**
+   * Handle generating a reply with custom template values
+   */
+  private handleGenerateCustomReply(): void {
+    const customConfig = this.getCustomFormData();
+    
+    if (!customConfig) {
+      visualFeedback.showToast('Please fill in all required fields', { type: 'error' });
+      return;
+    }
+    
+    // Create a selection result with the custom configuration
+    const result: SelectionResult = {
+      template: {
+        id: 'custom_temp',
+        name: 'Custom Template',
+        emoji: '✨',
+        prompt: customConfig.style,
+        description: 'Custom template',
+        category: 'custom',
+        categoryLabel: 'Custom'
+      },
+      tone: {
+        id: 'custom_tone',
+        systemPrompt: customConfig.tone,
+        emoji: '✨',
+        label: 'Custom',
+        description: 'Custom tone',
+        category: 'neutral' // Use neutral as the category since 'custom' is not in the type
+      },
+      combinedPrompt: `${customConfig.style} ${customConfig.tone}`,
+      temperature: customConfig.temperature || 0.7,
+      tabType: 'custom' as const,
+      customConfig: customConfig
+    };
+    
+    // Hide selector and trigger the callback if available
+    this.hide();
+    if (this.onSelectCallback) {
+      this.onSelectCallback(result);
+    }
+  }
+  
   /**
    * Handle saving a custom template from the inline form
    */
@@ -5843,6 +5898,34 @@ export class UnifiedSelector {
         
         .save-template-btn:active {
           transform: translateY(0);
+        }
+        
+        .generate-custom-btn {
+          width: 100%;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          padding: 14px 24px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 16px;
+          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .generate-custom-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .generate-custom-btn:active {
+          transform: translateY(0);
+        }
+        
+        .generate-custom-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         
         /* Saved Templates Section */

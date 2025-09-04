@@ -507,11 +507,81 @@ class SmartReplyServiceWorker {
         case MessageType.FETCH_TRENDING_TOPICS: {
           console.log('Service Worker: Fetching trending topics via Exa API');
           try {
-            // Import TrendService dynamically to avoid circular dependencies
-            const { TrendService } = await import('@/services/trendService');
-            const topics = await TrendService.getTrendingTopics();
+            // Directly call Exa API here to avoid document reference issues
+            const EXA_API_KEY = process.env.EXA_API_KEY || '';
+            const EXA_API_URL = 'https://api.exa.ai/search';
+            
+            if (!EXA_API_KEY) {
+              console.warn('Service Worker: EXA API key not configured');
+              sendResponse({ 
+                success: true, 
+                data: [
+                  { topic: 'AI Technology', category: 'tech' },
+                  { topic: 'Climate Change', category: 'news' },
+                  { topic: 'Remote Work', category: 'business' }
+                ] 
+              });
+              break;
+            }
+            
+            const queries = ['trending on twitter today', 'viral topics social media'];
+            const results = await Promise.all(
+              queries.map(async (query) => {
+                try {
+                  const response = await fetch(EXA_API_URL, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'x-api-key': EXA_API_KEY
+                    },
+                    body: JSON.stringify({
+                      query,
+                      num_results: 5,
+                      use_autoprompt: true,
+                      type: 'neural',
+                      contents: {
+                        text: true,
+                        highlights: true
+                      }
+                    })
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error(`EXA API error: ${response.status}`);
+                  }
+                  
+                  const data = await response.json();
+                  return data.results || [];
+                } catch (error) {
+                  console.error('Service Worker: Error fetching from Exa:', error);
+                  return [];
+                }
+              })
+            );
+            
+            // Process results into trending topics
+            const topics: any[] = [];
+            const seen = new Set<string>();
+            
+            results.flat().forEach((result: any) => {
+              const topicWords = result.title
+                ?.split(/[\s-]+/)
+                .filter((w: string) => w.length > 3)
+                .slice(0, 3)
+                .join(' ');
+              
+              if (topicWords && !seen.has(topicWords.toLowerCase())) {
+                seen.add(topicWords.toLowerCase());
+                topics.push({
+                  topic: topicWords,
+                  description: result.text?.substring(0, 200),
+                  category: 'general'
+                });
+              }
+            });
+            
             console.log(`Service Worker: Fetched ${topics.length} trending topics`);
-            sendResponse({ success: true, data: topics });
+            sendResponse({ success: true, data: topics.slice(0, 10) });
           } catch (error) {
             console.error('Service Worker: Failed to fetch trending topics:', error);
             sendResponse({ 
