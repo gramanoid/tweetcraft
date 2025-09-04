@@ -167,14 +167,15 @@ export class UnifiedSelector {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          width: Math.min(Math.max(parsed.width || 540, 480), 800),
-          height: Math.min(Math.max(parsed.height || 500, 400), window.innerHeight * 0.9)
+          width: Math.min(Math.max(parsed.width || 520, 480), 600),  // Default 520, max 600 for compact
+          height: Math.min(Math.max(parsed.height || 380, 350), 450) // Default 380, max 450 for compact
         };
       }
     } catch (e) {
       logger.error('Failed to get saved size', e);
     }
-    return { width: 540, height: 500 };
+    // Compact default size
+    return { width: 520, height: 380 };
   }
   
   /**
@@ -182,9 +183,9 @@ export class UnifiedSelector {
    */
   private saveSize(width: number, height: number): void {
     try {
-      // Apply constraints before saving
-      const constrainedWidth = Math.min(Math.max(width, 480), 800);
-      const constrainedHeight = Math.min(Math.max(height, 400), window.innerHeight * 0.9);
+      // Apply constraints before saving (matching compact limits)
+      const constrainedWidth = Math.min(Math.max(width, 480), 700);
+      const constrainedHeight = Math.min(Math.max(height, 350), 600);
       
       localStorage.setItem('tweetcraft-selector-size', JSON.stringify({ 
         width: constrainedWidth, 
@@ -417,24 +418,20 @@ export class UnifiedSelector {
     };
     
     this.clickOutsideHandler = (e: MouseEvent) => {
-      // Don't hide if we're currently resizing, if the container has the resizing class,
-      // or if the mouse was pressed down inside the container
-      if (this.isResizing || this.container?.classList.contains('resizing') || 
-          this.mouseDownStartedInside) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      
-      // Check if the click target is the resize handle or part of it
-      const target = e.target as HTMLElement;
-      if (target.closest('.resize-handle')) {
-        return;
-      }
-      
+      // Only handle clicks outside the container
       if (this.container && !this.container.contains(e.target as Node)) {
+        // Don't hide if we're currently resizing or if the mouse was pressed down inside the container
+        if (this.isResizing || this.container?.classList.contains('resizing') || 
+            this.mouseDownStartedInside) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        
+        // Otherwise, hide the popup
         this.hide();
       }
+      // Clicks inside the container should proceed normally
     };
     
     // Set up all handlers immediately
@@ -613,8 +610,8 @@ export class UnifiedSelector {
     const handleMouseMove = (e: MouseEvent) => {
       if (!this.isResizing || !this.container) return;
       
-      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 800);
-      const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 400), window.innerHeight * 0.9);
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 480), 700);  // Reduced max to 700
+      const newHeight = Math.min(Math.max(startHeight + e.clientY - startY, 350), 600); // Reduced max to 600
       
       this.container.style.width = `${newWidth}px`;
       this.container.style.height = `${newHeight}px`;
