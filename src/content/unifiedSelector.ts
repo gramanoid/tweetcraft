@@ -1273,6 +1273,106 @@ export class UnifiedSelector {
   }
 
   /**
+   * Group personalities into visual categories
+   */
+  private getPersonalityGroups(): Array<{
+    id: string;
+    icon: string;
+    label: string;
+    personalities: Personality[];
+  }> {
+    const allPersonalities = PERSONALITIES;
+    
+    return [
+      {
+        id: 'professional',
+        icon: '💼',
+        label: 'Professional',
+        personalities: allPersonalities.filter(p => 
+          ['professional', 'academic', 'diplomatic', 'neutral', 'earnest'].includes(p.id)
+        )
+      },
+      {
+        id: 'friendly',
+        icon: '😊',
+        label: 'Friendly',
+        personalities: allPersonalities.filter(p => 
+          ['friendly', 'supportive', 'motivational', 'enthusiastic', 'gratitude', 'awestruck'].includes(p.id)
+        )
+      },
+      {
+        id: 'humorous',
+        icon: '😄',
+        label: 'Humorous',
+        personalities: allPersonalities.filter(p => 
+          ['witty', 'snarky', 'sarcastic', 'dry', 'shitposter', 'fanstan'].includes(p.id)
+        )
+      },
+      {
+        id: 'spicy',
+        icon: '🔥',
+        label: 'Spicy',
+        personalities: allPersonalities.filter(p => 
+          ['provocative', 'contrarian', 'devils_advocate', 'counter_example', 'skeptical', 'confident', 'mean', 'dismissive'].includes(p.id)
+        )
+      },
+      {
+        id: 'creative',
+        icon: '🎭',
+        label: 'Creative',
+        personalities: allPersonalities.filter(p => 
+          ['philosophical', 'storyteller', 'dramatic', 'pensive', 'inquisitive', 'zoom_out', 'calm', 'weary'].includes(p.id)
+        )
+      },
+      {
+        id: 'extreme',
+        icon: '⚠️',
+        label: 'Extreme (Use Carefully)',
+        personalities: allPersonalities.filter(p => 
+          ['inflammatory', 'condescending', 'swearing', 'controversial', 'threatening'].includes(p.id)
+        )
+      }
+    ].filter(group => group.personalities.length > 0);
+  }
+
+  /**
+   * Get collapsed state for a personality group
+   */
+  private isPersonalityGroupCollapsed(groupId: string): boolean {
+    try {
+      const collapsedGroups = JSON.parse(
+        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]"
+      );
+      return collapsedGroups.includes(groupId);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Toggle collapsed state for a personality group
+   */
+  private togglePersonalityGroup(groupId: string): void {
+    try {
+      const collapsedGroups = JSON.parse(
+        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]"
+      );
+      const index = collapsedGroups.indexOf(groupId);
+      if (index > -1) {
+        collapsedGroups.splice(index, 1);
+      } else {
+        collapsedGroups.push(groupId);
+      }
+      localStorage.setItem(
+        "tweetcraft_collapsed_personality_groups",
+        JSON.stringify(collapsedGroups)
+      );
+    } catch (error) {
+      console.warn("Failed to toggle personality group:", error);
+    }
+  }
+
+  /**
    * Track persona usage
    */
   private trackPersonaUsage(personaId: string): void {
@@ -1334,30 +1434,46 @@ export class UnifiedSelector {
             <span class="part-subtitle">(Who is talking)</span>
             ${this.getSectionCompletionIndicator(!!this.selectedPersonality, !this.selectedPersonality)}
           </h3>
-          <div class="personality-grid selection-grid">
-            ${personalities
-              .map((personality) => {
-                const usageCount = this.getPersonalityUsageCount(
-                  personality.id,
-                );
-                const isFrequent = usageCount > 5;
+          <div class="personality-groups">
+            ${this.getPersonalityGroups()
+              .map((group) => {
+                const isCollapsed = this.isPersonalityGroupCollapsed(group.id);
+                const hasSelection = group.personalities.some(p => p.id === this.selectedPersonality?.id);
                 return `
-              <div class="item-wrapper">
-                <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? "selected" : ""} ${isFrequent ? "frequent" : ""}"
-                        data-personality="${personality.id}"
-                        data-category="${personality.category}"
-                        title="${personality.description}${usageCount > 0 ? " • Used " + usageCount + " times" : ""}">
-                  <span class="personality-emoji">${personality.emoji}</span>
-                  <span class="personality-label">${personality.label}</span>
-                  ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ""}
-                </button>
-                <button class="star-btn ${this.favoritePersonalities.has(personality.id) ? "active" : ""}"
-                        data-personality-star="${personality.id}"
-                        title="${this.favoritePersonalities.has(personality.id) ? "Remove from favorites" : "Add to favorites"}">
-                  ${this.favoritePersonalities.has(personality.id) ? "⭐" : "☆"}
-                </button>
-              </div>
-              `;
+                <div class="personality-group ${hasSelection ? "has-selection" : ""}" data-group-id="${group.id}">
+                  <div class="group-header ${isCollapsed ? "collapsed" : ""}" data-personality-group="${group.id}">
+                    <span class="group-icon">${group.icon}</span>
+                    <span class="group-label">${group.label}</span>
+                    <span class="group-count">(${group.personalities.length})</span>
+                    <span class="group-chevron">${isCollapsed ? "▶" : "▼"}</span>
+                  </div>
+                  <div class="personality-grid selection-grid ${isCollapsed ? "collapsed" : ""}">
+                    ${group.personalities
+                      .map((personality) => {
+                        const usageCount = this.getPersonalityUsageCount(personality.id);
+                        const isFrequent = usageCount > 5;
+                        return `
+                        <div class="item-wrapper">
+                          <button class="personality-btn ${this.selectedPersonality?.id === personality.id ? "selected" : ""} ${isFrequent ? "frequent" : ""}"
+                                  data-personality="${personality.id}"
+                                  data-category="${personality.category}"
+                                  title="${personality.description}${usageCount > 0 ? " • Used " + usageCount + " times" : ""}">
+                            <span class="personality-emoji">${personality.emoji}</span>
+                            <span class="personality-label">${personality.label}</span>
+                            ${usageCount > 0 ? `<span class="usage-counter">${usageCount}</span>` : ""}
+                          </button>
+                          <button class="star-btn ${this.favoritePersonalities.has(personality.id) ? "active" : ""}"
+                                  data-personality-star="${personality.id}"
+                                  title="${this.favoritePersonalities.has(personality.id) ? "Remove from favorites" : "Add to favorites"}">
+                            ${this.favoritePersonalities.has(personality.id) ? "⭐" : "☆"}
+                          </button>
+                        </div>
+                        `;
+                      })
+                      .join("")}
+                  </div>
+                </div>
+                `;
               })
               .join("")}
           </div>
@@ -2759,6 +2875,28 @@ export class UnifiedSelector {
           this.loadSmartSuggestions();
         });
       });
+
+    // Personality group header toggle
+    this.container.querySelectorAll(".group-header[data-personality-group]").forEach((header) => {
+      (header as HTMLElement).addEventListener("click", (e) => {
+        e.stopPropagation();
+        const groupId = (e.currentTarget as HTMLElement).dataset.personalityGroup!;
+        this.togglePersonalityGroup(groupId);
+        
+        // Toggle the collapsed class on the header and grid
+        const groupElement = (e.currentTarget as HTMLElement).closest(".personality-group");
+        if (groupElement) {
+          const header = groupElement.querySelector(".group-header");
+          const grid = groupElement.querySelector(".personality-grid");
+          const chevron = header?.querySelector(".group-chevron");
+          
+          const isCollapsed = this.isPersonalityGroupCollapsed(groupId);
+          if (header) header.classList.toggle("collapsed", isCollapsed);
+          if (grid) grid.classList.toggle("collapsed", isCollapsed);
+          if (chevron) chevron.textContent = isCollapsed ? "▶" : "▼";
+        }
+      });
+    });
 
     // Personality selection
     this.container.querySelectorAll(".personality-btn").forEach((btn) => {
@@ -6123,6 +6261,78 @@ export class UnifiedSelector {
 
         .vocabulary-grid {
           grid-template-columns: repeat(2, 1fr);
+        }
+
+        /* Personality Groups */
+        .personality-groups {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .personality-group {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(139, 152, 165, 0.2);
+          border-radius: 8px;
+          overflow: hidden;
+          transition: all 0.2s;
+        }
+
+        .personality-group.has-selection {
+          border-color: rgba(29, 155, 240, 0.3);
+          background: rgba(29, 155, 240, 0.05);
+        }
+
+        .group-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: rgba(255, 255, 255, 0.03);
+          cursor: pointer;
+          user-select: none;
+          transition: all 0.2s;
+        }
+
+        .group-header:hover {
+          background: rgba(29, 155, 240, 0.1);
+        }
+
+        .group-icon {
+          font-size: 18px;
+        }
+
+        .group-label {
+          flex: 1;
+          font-weight: 600;
+          font-size: 13px;
+          color: #e7e9ea;
+        }
+
+        .group-count {
+          color: #8b98a5;
+          font-size: 12px;
+        }
+
+        .group-chevron {
+          font-size: 12px;
+          color: #8b98a5;
+          transition: transform 0.2s;
+        }
+
+        .group-header.collapsed .group-chevron {
+          transform: rotate(-90deg);
+        }
+
+        .personality-grid.collapsed {
+          display: none;
+        }
+
+        .personality-group .personality-grid {
+          padding: 8px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
         }
 
         .length-pacing-grid {
