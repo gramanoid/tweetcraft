@@ -19,9 +19,9 @@ A Chrome extension that generates AI-powered Twitter/X replies using 24 personal
 - **Phase 2**: ✅ COMPLETED - Stats dashboard, quick presets, top 5 display, arsenal quick access (4/4 tasks done)
 - **Phase 3**: ✅ COMPLETED - Visual polish with CSS variables, settings icon, progressive disclosure, feedback improvements, guided tour (5/5 tasks done)
 - **Phase 4**: ✅ COMPLETED - Smart learning features: send/cancel tracking, time patterns, model fallback, suggestion boost, weekly summaries (5/5 tasks done)
-- **Phase 5**: 🔄 NEXT - Missing features (0/5 tasks)
+- **Phase 5**: 🔄 IN PROGRESS - Missing features (3/5 tasks done)
 - **Phase 6**: ⏳ PENDING - TwitterAPI.io integration (0/4 tasks)
-- **Overall Progress**: 15/23 major tasks completed (65%)
+- **Overall Progress**: 18/23 major tasks completed (78%)
 
 ### Key Context from Previous Session
 - User identified 70% of original plan was wrong (40% features already existed, 30% was overengineered)
@@ -532,49 +532,72 @@ reduceScore(suggestionB, -0.05);
 ## 🆕 PHASE 5: Missing Features (1 Weekend, 4 hours)
 *Features from original plan that still add value*
 
-### Task 5.1: Settings Auto-Sync (30 minutes)
-**File to modify:** `src/background/serviceWorker.ts` - add storage event listener
+### ✅ Task 5.1: Settings Auto-Sync (30 minutes) - COMPLETED (2025-01-09)
+**File modified:** `src/background/serviceWorker.ts` - added storage event listener
 **Original Idea:** "Single source of truth"
 **Consumer Version:** Settings sync across tabs
+**Implementation:**
+- Added `setupSettingsAutoSync()` method in serviceWorker
+- Chrome storage change listener broadcasts to all tabs
+- Content script handles settings change messages
+- UI refreshes automatically with toast notifications
 ```javascript
-// Simple localStorage event listener
-window.addEventListener('storage', (e) => {
-  if (e.key === 'tweetcraft-settings') {
-    updateUIWithNewSettings(e.newValue);
+// Implemented in serviceWorker.ts
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local') {
+    this.broadcastSettingsChange(changes);
   }
 });
 ```
-**Impact:** Change setting once, updates everywhere
+**Impact:** Settings now sync instantly across all tabs
 
-### Task 5.2: Save Custom Combos (1 hour)
+### ✅ Task 5.2: Save Custom Combos (1 hour) - COMPLETED (2025-01-09)
+**Files created:** New service `src/services/customCombos.ts`, UI integrated in `src/content/unifiedSelector.ts`
 **Original Idea:** "Preset model"
 **Consumer Version:** Save and name your combos
-**Files to create:** New service `src/services/customCombos.ts`, UI in `src/content/unifiedSelector.ts`
+**Implementation:**
+- Complete CustomCombosService with CRUD operations
+- UI section in Custom tab with save/edit/delete functionality
+- Usage tracking and sorting by popularity
+- Validation and duplicate name checking
+- Import/export functionality for backup
 ```javascript
-// Different from Arsenal (which saves tweets)
-const myCombo = {
-  name: "Client Meetings",
-  personality: "professional",
-  vocabulary: "academic",
-  rhetoric: "add_insight"
-};
-saveCombo(myCombo);
+// Implemented interface
+export interface CustomCombo {
+  id: string;
+  name: string;
+  personality: string;
+  vocabulary: string;
+  rhetoric: string;
+  lengthPacing: string;
+  createdAt: number;
+  usageCount: number;
+  lastUsed: number;
+}
 ```
-**Impact:** Quick access to role-specific combos
+**Impact:** Users can save, manage, and quickly apply custom combinations
 
-### Task 5.3: Topic Success Tracking (1 hour)
+### ✅ Task 5.3: Topic Success Tracking (1 hour) - COMPLETED (2025-01-09)
+**Files created/modified:** New service `src/services/topicTracker.ts`, enhanced `src/content/unifiedSelector.ts`, `src/content/contentScript.ts`, `src/content/domUtils.ts`
 **Original Idea:** "Tweet correlation system"
 **Consumer Version:** Track what works where
-**Files to modify:** `src/services/usageTracker.ts` - add topic detection and correlation
+**Implementation:**
+- 7 predefined topic categories (Tech, Business, Personal, News, Creative, Social, Educational)
+- Intelligent keyword-based topic detection with confidence scoring
+- Combo performance tracking per topic (success rate, usage count, last used)
+- Topic-aware recommendations in Smart tab with visual indicators
+- Real-time success/failure tracking via send/cancel monitoring
+- Integration with existing DOMUtils tracking system
 ```javascript
-// "Professional works great for tech discussions"
-trackSuccess({
-  combo: "professional+academic",
-  topic: "technology",
-  successRate: 0.85
-});
+// Implemented topic analysis
+analyzeTopic(tweetText): TopicAnalysis {
+  topicId: string;
+  confidence: number;
+  matchedKeywords: string[];
+  alternatives: string[];
+}
 ```
-**Impact:** Know what works for which topics
+**Impact:** System learns which combinations work best for different content types
 
 ### Task 5.4: Content Auto-Suggest (1 hour)
 **Original Idea:** "ML optimization"
@@ -937,17 +960,19 @@ npm run type-check
 - **Created**: 2025-01-04
 - **Last Updated**: 2025-01-09
 - **Type**: Complete development guide and roadmap with memory recovery context
-- **Status**: Phase 4 completed, Phase 5 next
+- **Status**: Phase 5 in progress (3/5 tasks completed)
 - **Philosophy**: Build for consumers, not enterprises
-- **Last Session Context**: Phase 1-4 completed with 100% verification, all 15/23 tasks implemented
+- **Last Session Context**: Phase 1-4 completed with 100% verification, Phase 5 tasks 5.1-5.3 completed, 18/23 tasks implemented
 - **Key Decision**: TwitterAPI.io is acceptable for engagement tracking (not enterprise)
-- **Current Action**: Phase 4 completed, ready for Phase 5
+- **Current Action**: Phase 5 in progress, tasks 5.1-5.3 completed, task 5.4 next
 - **Git Branch**: feature/test-new-feature (check with `git branch`)
 - **Key Files Modified Recently**: 
-  - `src/content/unifiedSelector.ts` (Task 1.1: Personality grouping)
-  - `src/services/openRouterSmart.ts` (circuit breakers)
-  - `src/services/fallbackPresets.ts` (offline mode)
-- **Progress**: 1 of 29 tasks completed (3.4%)
+  - `src/services/topicTracker.ts` (NEW - Task 5.3: Topic success tracking)
+  - `src/services/customCombos.ts` (NEW - Task 5.2: Custom combo saving)
+  - `src/background/serviceWorker.ts` (Task 5.1: Settings auto-sync)
+  - `src/content/unifiedSelector.ts` (Tasks 5.2-5.3: UI integration)
+  - `src/content/domUtils.ts` (Task 5.3: Topic tracking integration)
+- **Progress**: 18 of 23 major tasks completed (78%)
 
 ---
 
