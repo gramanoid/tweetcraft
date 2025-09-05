@@ -773,6 +773,65 @@ class SmartReplyServiceWorker {
           break;
         }
 
+        case MessageType.SUGGEST_TEMPLATE: {
+          console.log('Service Worker: Handling template suggestion request');
+          const { TemplateSuggester } = await import('@/services/templateSuggester');
+          const suggester = new TemplateSuggester();
+          
+          try {
+            const context = {
+              tweetText: (message as any).tweetText || '',
+              isReply: true,
+              threadContext: (message as any).threadContext,
+              userHistory: (message as any).userHistory
+            };
+            
+            const suggestions = await suggester.getSuggestions(context);
+            console.log('Service Worker: Template suggestions generated', suggestions.length);
+            
+            sendResponse({ 
+              success: true, 
+              data: suggestions 
+            });
+          } catch (error) {
+            console.error('Service Worker: Template suggestion failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Template suggestion failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.GENERATE_IMAGE: {
+          console.log('Service Worker: Handling image generation request');
+          const { ImageService } = await import('@/services/imageService');
+          const imageService = new ImageService();
+          
+          try {
+            const prompt = (message as any).prompt || '';
+            const options = (message as any).options || {};
+            
+            const result = await imageService.generateImage({ 
+              prompt, 
+              ...options 
+            });
+            console.log('Service Worker: Image generated successfully');
+            
+            sendResponse({ 
+              success: true, 
+              data: result 
+            });
+          } catch (error) {
+            console.error('Service Worker: Image generation failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Image generation failed' 
+            });
+          }
+          break;
+        }
+
         default:
           console.warn('Smart Reply: Unknown message type:', (message as any).type);
           sendResponse({ success: false, error: 'Unknown message type' });
