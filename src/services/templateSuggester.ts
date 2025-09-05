@@ -45,6 +45,13 @@ interface PatternRule {
 }
 
 export class TemplateSuggester {
+  private suggestionBoosts: Map<string, number> = new Map(); // Stores boost scores for combinations
+  private readonly BOOST_INCREMENT = 0.1;
+  private readonly BOOST_DECREMENT = 0.05;
+  private readonly MAX_BOOST = 0.5;
+  private readonly MIN_BOOST = -0.3;
+  private readonly STORAGE_KEY = 'tweetcraft_suggestion_boosts';
+  
   private patternRules: PatternRule[] = [
     // Question patterns - more comprehensive
     {
@@ -133,6 +140,7 @@ export class TemplateSuggester {
 
   constructor() {
     this.loadHistory();
+    this.loadBoosts();
     console.log('%c🤖 TemplateSuggester initialized', 'color: #1DA1F2; font-weight: bold');
   }
 
@@ -410,6 +418,14 @@ export class TemplateSuggester {
           score += 1.0;
         }
       }
+    }
+    
+    // Apply suggestion boost based on user selection history
+    const boostKey = `${template.id}:${tone.id}`;
+    const boost = this.suggestionBoosts.get(boostKey) || 0;
+    if (boost !== 0) {
+      score += boost;
+      reasons.push(boost > 0 ? `User preference (+${Math.round(boost * 100)}%)` : `Less preferred (${Math.round(boost * 100)}%)`);
     }
     
     return {
@@ -869,6 +885,97 @@ export class TemplateSuggester {
     }
     
     return analysis;
+  }
+  
+  /**
+   * Track user selection to boost future suggestions
+   * Called when user picks a suggestion
+   */
+  trackSuggestionSelected(templateId: string, toneId: string, allSuggestions: SuggestionScore[]): void {
+    const selectedKey = `${templateId}:${toneId}`;
+    
+    // Boost the selected suggestion
+    const currentBoost = this.suggestionBoosts.get(selectedKey) || 0;
+    const newBoost = Math.min(currentBoost + this.BOOST_INCREMENT, this.MAX_BOOST);
+    this.suggestionBoosts.set(selectedKey, newBoost);
+    
+    // Slightly decrease non-selected suggestions
+    allSuggestions.forEach(suggestion => {
+      const key = `${suggestion.templateId}:${suggestion.toneId}`;
+      if (key !== selectedKey) {
+        const boost = this.suggestionBoosts.get(key) || 0;
+        const newBoost = Math.max(boost - this.BOOST_DECREMENT, this.MIN_BOOST);
+        if (newBoost !== 0) {
+          this.suggestionBoosts.set(key, newBoost);
+        } else {
+          this.suggestionBoosts.delete(key); // Clean up zero boosts
+        }
+      }
+    });
+    
+    this.saveBoosts();
+    console.log(`%c📈 Suggestion boost updated for ${selectedKey}: +${Math.round(newBoost * 100)}%`, 'color: #17BF63');
+  }
+  
+  /**
+   * Load boosts from storage
+   */
+  private async loadBoosts(): Promise<void> {
+    try {
+      const stored = await chrome.storage.local.get([this.STORAGE_KEY]);
+      if (stored[this.STORAGE_KEY]) {
+        this.suggestionBoosts = new Map(stored[this.STORAGE_KEY]);
+        console.log(`%c📊 Loaded ${this.suggestionBoosts.size} suggestion boosts`, 'color: #1DA1F2');
+      }
+    } catch (error) {
+      console.warn('Failed to load suggestion boosts:', error);
+    }
+  }
+  
+  /**
+   * Save boosts to storage
+   */
+  private async saveBoosts(): Promise<void> {
+    try {
+      // Only keep significant boosts to save space
+      const significantBoosts = Array.from(this.suggestionBoosts.entries())
+        .filter(([_, boost]) => Math.abs(boost) > 0.01);
+      
+      await chrome.storage.local.set({
+        [this.STORAGE_KEY]: significantBoosts
+      });
+    } catch (error) {
+      console.warn('Failed to save suggestion boosts:', error);
+    }
+  }
+  
+  /**
+   * Reset all boosts
+   */
+  resetBoosts(): void {
+    this.suggestionBoosts.clear();
+    this.saveBoosts();
+    console.log('%c🔄 All suggestion boosts reset', 'color: #FFA500');
+  }
+  
+  /**
+   * Get current boost statistics
+   */
+  getBoostStats(): { total: number; positive: number; negative: number; strongest: string | null } {
+    const boosts = Array.from(this.suggestionBoosts.entries());
+    const positive = boosts.filter(([_, b]) => b > 0);
+    const negative = boosts.filter(([_, b]) => b < 0);
+    
+    const strongest = boosts.length > 0
+      ? boosts.reduce((max, current) => Math.abs(current[1]) > Math.abs(max[1]) ? current : max)
+      : null;
+    
+    return {
+      total: boosts.length,
+      positive: positive.length,
+      negative: negative.length,
+      strongest: strongest ? strongest[0] : null
+    };
   }
 }
 
