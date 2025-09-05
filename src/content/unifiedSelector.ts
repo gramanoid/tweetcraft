@@ -877,6 +877,9 @@ export class UnifiedSelector {
           <span class="quick-generate-icon">⚡</span>
           <span class="quick-generate-text">Quick Generate</span>
         </button>
+        <button class="settings-btn" title="Open Settings">
+          <span class="settings-icon">⚙️</span>
+        </button>
         <div class="selector-tabs">
           <button class="tab-btn ${this.view === "personas" ? "active" : ""}" data-view="personas">
             👤 Personas
@@ -3375,6 +3378,15 @@ export class UnifiedSelector {
         this.handleQuickGenerate();
       });
     }
+    
+    // Settings button
+    const settingsBtn = this.container.querySelector(".settings-btn");
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openSettingsModal();
+      });
+    }
 
     // Toggle creation form
     const toggleBtn = this.container.querySelector(".toggle-creation-btn");
@@ -4540,6 +4552,103 @@ export class UnifiedSelector {
   /**
    * Show Quick Arsenal Modal with top 5 most-used arsenal replies
    */
+  /**
+   * Open settings modal
+   */
+  private openSettingsModal(): void {
+    // Simply open the extension popup window
+    // This is more maintainable than duplicating the settings UI
+    chrome.runtime.sendMessage({ action: 'openOptionsPage' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to open settings:', chrome.runtime.lastError);
+        // Fallback: create a simple inline modal with link to extension settings
+        this.showSettingsInlineModal();
+      }
+    });
+  }
+  
+  /**
+   * Show inline settings modal as fallback
+   */
+  private showSettingsInlineModal(): void {
+    // Create modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'settings-modal-overlay';
+    modalOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999999;
+    `;
+    
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: #15202B;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      border: 1px solid #38444D;
+    `;
+    
+    modal.innerHTML = `
+      <div style="text-align: center;">
+        <h2 style="margin: 0 0 16px 0; color: #1DA1F2; font-size: 20px;">
+          ⚙️ TweetCraft Settings
+        </h2>
+        <p style="color: #8899A6; font-size: 14px; margin-bottom: 20px;">
+          Click the TweetCraft extension icon in your browser toolbar to access all settings.
+        </p>
+        <div style="background: #192734; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="color: #FFFFFF; font-size: 13px; margin: 0 0 8px 0;">
+            <strong>Available Settings:</strong>
+          </p>
+          <ul style="text-align: left; color: #8899A6; font-size: 12px; margin: 0; padding-left: 20px;">
+            <li>AI Model Selection</li>
+            <li>System Prompt (Your Identity)</li>
+            <li>Default Reply Length</li>
+            <li>Temperature Control</li>
+            <li>Context Mode</li>
+          </ul>
+        </div>
+        <button class="close-settings-modal" style="
+          padding: 8px 20px;
+          background: #1DA1F2;
+          border: none;
+          border-radius: 20px;
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">
+          Got it!
+        </button>
+      </div>
+    `;
+    
+    modalOverlay.appendChild(modal);
+    document.body.appendChild(modalOverlay);
+    
+    // Close modal handlers
+    const closeModal = () => {
+      modalOverlay.remove();
+    };
+    
+    modal.querySelector('.close-settings-modal')?.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+  }
+  
   private async showQuickArsenalModal(): Promise<void> {
     try {
       // Create modal overlay
@@ -6783,6 +6892,31 @@ export class UnifiedSelector {
           background: linear-gradient(135deg, #1a8cd8, #1679c2);
           box-shadow: 0 4px 8px rgba(29, 155, 240, 0.4);
           transform: translateY(-1px);
+        }
+        
+        .settings-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 30px;
+          height: 30px;
+          padding: 0;
+          background: transparent;
+          border: 1px solid rgba(139, 152, 165, 0.3);
+          border-radius: 50%;
+          color: #8899a6;
+          font-size: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+          margin-right: 12px;
+        }
+        
+        .settings-btn:hover {
+          background: rgba(29, 155, 240, 0.1);
+          border-color: #1d9bf0;
+          color: #1d9bf0;
+          transform: rotate(45deg);
         }
 
         .quick-generate-btn:active {
