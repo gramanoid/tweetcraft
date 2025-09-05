@@ -123,7 +123,8 @@ export class UnifiedSelector {
     | "favorites"
     | "custom"
     | "compose"
-    | "stats" = "smart";
+    | "stats"
+    | "engagement" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -920,6 +921,9 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "stats" ? "active" : ""}" data-view="stats">
             📊 Stats
           </button>
+          <button class="tab-btn ${this.view === "engagement" ? "active" : ""}" data-view="engagement">
+            📈 Engagement
+          </button>
         </div>
         <div class="header-actions">
           <button class="close-btn" aria-label="Close">×</button>
@@ -1096,6 +1100,8 @@ export class UnifiedSelector {
         return this.renderComposeView();
       case "stats":
         return this.renderStatsView();
+      case "engagement":
+        return this.renderEngagementView();
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -2934,6 +2940,52 @@ export class UnifiedSelector {
         visualFeedback.showToast('A combo with that name already exists', { type: 'error', duration: 3000 });
       } else {
         visualFeedback.showToast('Failed to save combo', { type: 'error', duration: 3000 });
+      }
+    }
+  }
+
+  /**
+   * Render engagement dashboard view
+   */
+  private renderEngagementView(): string {
+    // Show loading state initially, dashboard will be loaded asynchronously
+    this.loadEngagementData();
+    
+    return `
+      <div class="selector-content engagement-view">
+        <div class="engagement-dashboard" id="engagementDashboard">
+          <div class="dashboard-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading engagement data...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load engagement dashboard data asynchronously
+   */
+  private async loadEngagementData(): Promise<void> {
+    try {
+      const { engagementDashboard } = await import('../components/EngagementDashboard');
+      const dashboardHTML = await engagementDashboard.createDashboard();
+      
+      const container = this.container?.querySelector('#engagementDashboard');
+      if (!container) return;
+      
+      container.innerHTML = dashboardHTML;
+      engagementDashboard.attachEventHandlers(container as HTMLElement);
+    } catch (error) {
+      console.error('Failed to load engagement dashboard:', error);
+      const container = this.container?.querySelector('#engagementDashboard');
+      if (container) {
+        container.innerHTML = `
+          <div class="error-message">
+            <p>Failed to load engagement data</p>
+            <small>${error instanceof Error ? error.message : 'Unknown error'}</small>
+          </div>
+        `;
       }
     }
   }

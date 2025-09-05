@@ -9,6 +9,9 @@ This report details several opportunities to improve the TweetCraft codebase, fo
 | 1 | **[Ticket 1]** Harden `promptArchitecture.ts` | **High** | **Medium** | **Low** |
 | 2 | **[Ticket 2]** Secure API Key Handling | **High** | **Low** | **Low** |
 | 3 | **[Ticket 3]** Robust DOM Manipulation | **Medium** | **Low** | **Low** |
+| 4 | **[Ticket 4]** Update DOM Selectors | **High** | **Medium** | **Low** |
+| 5 | **[Ticket 5]** Address Image Fetch CORS Issue | **High** | **High** | **Medium** |
+| 6 | **[Ticket 6]** Improve Vision API Error Handling | **Medium** | **Low** | **Low** |
 
 ## 2. Repo Map
 
@@ -21,10 +24,14 @@ This report details several opportunities to improve the TweetCraft codebase, fo
 ## 3. Search & Anchor Plan
 
 | Fix Ticket | Search & Anchor Strategy |
-| :--- | :--- | :--- |
+| :--- | :--- |
 | **[Ticket 1]** Harden `promptArchitecture.ts` | I analyzed the `buildSystemPrompt` function in `tweetcraft/src/services/promptArchitecture.ts` to identify potential logic gaps and areas for improvement. |
 | **[Ticket 2]** Secure API Key Handling | I searched for `apiConfig` and `apiKey` in the codebase to ensure that API keys are not hardcoded and are handled securely. |
 | **[Ticket 3]** Robust DOM Manipulation | I reviewed `src/content/domUtils.ts` to ensure that DOM manipulation is performed safely and efficiently, with proper fallbacks in place. |
+| **[Ticket 4]** Update DOM Selectors | Searched for `"All fallback strategies failed for"` to locate the error in `src/content/domUtils.ts`. Analyzed the `SELECTOR_CHAINS` constant. |
+| **[Ticket 5]** Address Image Fetch CORS Issue | Searched for `"Error converting image to base64"` to find the failing `fetch` call in `src/content/contentScript.ts`. |
+| **[Ticket 6]** Improve Vision API Error Handling | Searched for `"Vision API error"` and `"Vision analysis failed"` to understand the error handling in `src/background/serviceWorker.ts` and `src/content/contentScript.ts`. |
+
 
 ## 4. Fix Tickets
 
@@ -166,6 +173,31 @@ This report details several opportunities to improve the TweetCraft codebase, fo
 *   **Why:** The `CLAUDE.md` file mentions that the Twitter DOM structure can change. My review of `tweetcraft/src/content/domUtils.ts` revealed a sophisticated and resilient system (`FallbackStrategies`, `DOMCache`, `SELECTOR_CHAINS`) already in place to handle this. The implementation uses `data-testid` attributes and extensive fallback chains, which is a best practice.
 *   **Fix:** No changes are required.
 
+### **[Ticket 4] Update DOM Selectors**
+
+*   **Status:** Not Started
+*   **Why:** The application is unable to find the `replyTextarea` and `toolbar` elements in the DOM. This is because the CSS selectors in `src/content/domUtils.ts` are outdated due to changes in the target website's HTML structure. The error "All fallback strategies failed" confirms that none of the existing selectors are working.
+*   **Fix:** The `SELECTOR_CHAINS` constant in `src/content/domUtils.ts` needs to be updated with new, valid CSS selectors that match the current structure of the website. This will likely involve inspecting the live website's DOM to identify the correct selectors for the `replyTextarea` and `toolbar` elements.
+*   **Proposed Patch:** A patch cannot be generated without inspecting the live DOM. The fix will involve modifying the `primary` and `fallbacks` arrays for `replyTextarea` and `toolbar` in the `SELECTOR_CHAINS` object in `src/content/domUtils.ts`.
+
+### **[Ticket 5] Address Image Fetch CORS Issue**
+
+*   **Status:** Not Started
+*   **Why:** The application fails to convert images to base64 because of a Cross-Origin Resource Sharing (CORS) error. The `fetch` request in `src/content/contentScript.ts` to `pbs.twimg.com` is blocked by the browser's security policy. This prevents the Vision API from receiving image data.
+*   **Fix:** Client-side requests to external domains are restricted by CORS. To fix this, the image fetching logic needs to be moved to the service worker (`src/background/serviceWorker.ts`). The content script should send the image URL to the service worker, which can then fetch the image on the server-side (where CORS is not an issue for server-to-server requests) and return the base64-encoded image to the content script.
+*   **Proposed Patch:** This requires changes in both `src/content/contentScript.ts` and `src/background/serviceWorker.ts`.
+    *   In `contentScript.ts`, the `convertImagesToBase64` function should be modified to send a message to the service worker with the image URLs.
+    *   In `serviceWorker.ts`, a new message handler should be created to receive the image URLs, fetch the images, convert them to base64, and send them back to the content script.
+
+### **[Ticket 6] Improve Vision API Error Handling**
+
+*   **Status:** Not Started
+*   **Why:** The Vision API errors are a direct result of the image fetch failure. While the primary fix is to resolve the CORS issue, the error handling can be improved to provide clearer feedback to the user.
+*   **Fix:** Enhance the error handling in `src/content/contentScript.ts` and `src/background/serviceWorker.ts`. When an image fails to process, the user should be clearly notified that the image analysis could not be completed and why. This prevents silent failures and improves the user experience.
+*   **Proposed Patch:**
+    *   In `contentScript.ts`, when the `convertImagesToBase64` call fails, display a user-friendly error message using the `visualFeedback` utility.
+    *   In `serviceWorker.ts`, if a `ANALYZE_IMAGES` message is received with no valid image data, it should return a specific error message to the content script, which can then be displayed to the user.
+
 ## 5. Additional Findings by File
 
 I have not found any other high-signal issues during my analysis.
@@ -191,3 +223,5 @@ I have no open questions at this time.
 *   `tweetcraft/src/services/promptArchitecture.ts`
 *   `tweetcraft/src/config/apiConfig.ts`
 *   `tweetcraft/src/content/domUtils.ts`
+*   `tweetcraft/src/content/contentScript.ts`
+*   `tweetcraft/src/background/serviceWorker.ts`

@@ -1034,3 +1034,296 @@ body[style*="background-color: rgb(21, 32, 43)"] {
     }
   }
 }
+
+// Engagement Dashboard Styles
+.engagement-dashboard {
+  padding: var(--tweet-spacing-lg);
+  
+  // Loading state
+  .dashboard-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: calc(var(--tweet-spacing-xl) * 2);
+    gap: var(--tweet-spacing-md);
+    
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--tweet-border-light);
+      border-top-color: var(--tweet-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    .loading-text {
+      color: var(--tweet-neutral);
+      font-size: var(--tweet-font-sm);
+    }
+  }
+  
+  // Error state
+  .error-message {
+    text-align: center;
+    padding: var(--tweet-spacing-xl);
+    color: var(--tweet-error);
+    
+    p {
+      margin: 0 0 var(--tweet-spacing-sm) 0;
+      font-size: var(--tweet-font-md);
+    }
+    
+    small {
+      color: var(--tweet-neutral);
+      font-size: var(--tweet-font-sm);
+    }
+  }
+  
+  .dashboard-header {
+    margin-bottom: var(--tweet-spacing-lg);
+    
+    h3 {
+      margin: 0 0 var(--tweet-spacing-xs) 0;
+      font-size: var(--tweet-font-xl);
+      color: var(--tweet-primary);
+    }
+    
+    .dashboard-subtitle {
+      margin: 0;
+      color: var(--tweet-neutral);
+      font-size: var(--tweet-font-sm);
+    }
+  }
+  
+  // Metric cards
+  .metric-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: var(--tweet-spacing-sm);
+    margin-bottom: var(--tweet-spacing-xl);
+    
+    .metric-card {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-radius: var(--tweet-radius);
+      padding: var(--tweet-spacing-md);
+      text-align: center;
+      border: 1px solid var(--tweet-border-light);
+      
+      .metric-value {
+        font-size: 24px;
+        font-weight: var(--tweet-weight-bold);
+        color: var(--tweet-primary);
+        margin-bottom: var(--tweet-spacing-xs);
+      }
+      
+      .metric-label {
+        font-size: var(--tweet-font-xs);
+        color: var(--tweet-neutral);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+  
+  // Dashboard sections
+  .dashboard-section {
+    margin-bottom: var(--tweet-spacing-xl);
+    
+    h4 {
+      margin: 0 0 var(--tweet-spacing-md) 0;
+      font-size: var(--tweet-font-lg);
+      font-weight: var(--tweet-weight-semibold);
+    }
+  }
+  
+  // Top performers
+  .top-performers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tweet-spacing-sm);
+    
+    .performer-item {
+      display: flex;
+      align-items: center;
+      gap: var(--tweet-spacing-md);
+      padding: var(--tweet-spacing-sm) var(--tweet-spacing-md);
+      background: white;
+      border: 1px solid var(--tweet-border-light);
+      border-radius: var(--tweet-radius-sm);
+      transition: all var(--tweet-transition);
+      
+      &:hover {
+        border-color: var(--tweet-primary);
+        box-shadow: var(--tweet-shadow-sm);
+      }
+      
+      .performer-rank {
+        font-size: var(--tweet-font-lg);
+        font-weight: var(--tweet-weight-bold);
+        color: var(--tweet-primary);
+        min-width: 30px;
+      }
+      
+      .performer-details {
+        flex: 1;
+        
+        .performer-combo {
+          font-size: var(--tweet-font-md);
+          font-weight: var(--tweet-weight-medium);
+          margin-bottom: 2px;
+        }
+        
+        .performer-stats {
+          display: flex;
+          gap: var(--tweet-spacing-md);
+          font-size: var(--tweet-font-sm);
+          color: var(--tweet-neutral);
+          
+          .performer-score {
+            color: var(--tweet-success);
+            font-weight: var(--tweet-weight-medium);
+          }
+        }
+      }
+    }
+  }
+  
+  // Performance chart
+  .performance-chart {
+    .chart-container {
+      height: 150px;
+      position: relative;
+      padding: var(--tweet-spacing-md);
+      background: white;
+      border: 1px solid var(--tweet-border-light);
+      border-radius: var(--tweet-radius);
+    }
+    
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      height: 100%;
+      gap: var(--tweet-spacing-xs);
+      
+      .chart-bar-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        
+        .chart-bar {
+          width: 100%;
+          background: var(--tweet-gradient);
+          border-radius: var(--tweet-radius-sm) var(--tweet-radius-sm) 0 0;
+          position: relative;
+          transition: all var(--tweet-transition);
+          min-height: 2px;
+          
+          &:hover {
+            opacity: 0.8;
+          }
+          
+          .chart-value {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: var(--tweet-font-xs);
+            font-weight: var(--tweet-weight-semibold);
+            color: var(--tweet-primary);
+          }
+        }
+        
+        .chart-label {
+          margin-top: var(--tweet-spacing-sm);
+          text-align: center;
+          font-size: var(--tweet-font-xs);
+          color: var(--tweet-neutral);
+          
+          .chart-tweets {
+            font-size: 10px;
+            opacity: 0.8;
+          }
+        }
+      }
+    }
+  }
+  
+  // Recent tweets
+  .recent-tweets {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tweet-spacing-sm);
+    
+    .recent-tweet {
+      padding: var(--tweet-spacing-sm) var(--tweet-spacing-md);
+      background: white;
+      border: 1px solid var(--tweet-border-light);
+      border-radius: var(--tweet-radius-sm);
+      
+      .tweet-combo {
+        font-size: var(--tweet-font-md);
+        margin-bottom: var(--tweet-spacing-xs);
+      }
+      
+      .tweet-metrics {
+        display: flex;
+        gap: var(--tweet-spacing-md);
+        font-size: var(--tweet-font-sm);
+        color: var(--tweet-neutral);
+        
+        .tweet-stat {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+        }
+        
+        .tweet-time {
+          margin-left: auto;
+          font-size: var(--tweet-font-xs);
+        }
+      }
+    }
+  }
+  
+  // Empty state
+  .empty-state {
+    text-align: center;
+    padding: var(--tweet-spacing-xl);
+    color: var(--tweet-neutral);
+    font-style: italic;
+  }
+  
+  // API status
+  .api-status {
+    margin-top: var(--tweet-spacing-lg);
+    padding-top: var(--tweet-spacing-md);
+    border-top: 1px solid var(--tweet-border-light);
+    font-size: var(--tweet-font-sm);
+    
+    .api-status-disabled, .api-status-enabled {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      
+      .enable-tracking-link {
+        color: var(--tweet-primary);
+        text-decoration: none;
+        font-weight: var(--tweet-weight-medium);
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      
+      .api-requests {
+        color: var(--tweet-success);
+        font-weight: var(--tweet-weight-medium);
+      }
+    }
+  }
+}
