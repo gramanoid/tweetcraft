@@ -866,6 +866,10 @@ export class UnifiedSelector {
     this.container.innerHTML = `
       ${this.renderPersistentSelectionBar()}
       <div class="selector-header">
+        <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with randomized settings (Space)">
+          <span class="quick-generate-icon">⚡</span>
+          <span class="quick-generate-text">Quick Generate</span>
+        </button>
         <div class="selector-tabs">
           <button class="tab-btn ${this.view === "personas" ? "active" : ""}" data-view="personas">
             👤 Personas
@@ -887,10 +891,6 @@ export class UnifiedSelector {
           </button>
         </div>
         <div class="header-actions">
-          <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with randomized settings (Space)">
-            <span class="quick-generate-icon">⚡</span>
-            <span class="quick-generate-text">Quick Generate</span>
-          </button>
           <button class="close-btn" aria-label="Close">×</button>
         </div>
       </div>
@@ -1268,13 +1268,15 @@ export class UnifiedSelector {
   }> {
     const allPersonalities = PERSONALITIES;
     
+    // Group by category as defined in personalities.ts
+    // Categories: 'positive' | 'neutral' | 'humorous' | 'critical' | 'naughty'
     return [
       {
         id: 'professional',
         icon: '💼',
         label: 'Professional',
         personalities: allPersonalities.filter(p => 
-          ['professional', 'academic', 'diplomatic', 'neutral', 'earnest'].includes(p.id)
+          p.category === 'neutral'
         )
       },
       {
@@ -1282,7 +1284,7 @@ export class UnifiedSelector {
         icon: '😊',
         label: 'Friendly',
         personalities: allPersonalities.filter(p => 
-          ['friendly', 'supportive', 'motivational', 'enthusiastic', 'gratitude', 'awestruck'].includes(p.id)
+          p.category === 'positive'
         )
       },
       {
@@ -1290,7 +1292,7 @@ export class UnifiedSelector {
         icon: '😄',
         label: 'Humorous',
         personalities: allPersonalities.filter(p => 
-          ['witty', 'snarky', 'sarcastic', 'dry', 'shitposter', 'fanstan'].includes(p.id)
+          p.category === 'humorous'
         )
       },
       {
@@ -1298,7 +1300,7 @@ export class UnifiedSelector {
         icon: '🔥',
         label: 'Spicy',
         personalities: allPersonalities.filter(p => 
-          ['provocative', 'contrarian', 'devils_advocate', 'counter_example', 'skeptical', 'confident', 'mean', 'dismissive'].includes(p.id)
+          p.category === 'critical'
         )
       },
       {
@@ -1306,15 +1308,7 @@ export class UnifiedSelector {
         icon: '🎭',
         label: 'Creative',
         personalities: allPersonalities.filter(p => 
-          ['philosophical', 'storyteller', 'dramatic', 'pensive', 'inquisitive', 'zoom_out', 'calm', 'weary'].includes(p.id)
-        )
-      },
-      {
-        id: 'extreme',
-        icon: '⚠️',
-        label: 'Extreme (Use Carefully)',
-        personalities: allPersonalities.filter(p => 
-          ['inflammatory', 'condescending', 'swearing', 'controversial', 'threatening'].includes(p.id)
+          p.category === 'naughty'
         )
       }
     ].filter(group => group.personalities.length > 0);
@@ -1502,14 +1496,17 @@ export class UnifiedSelector {
         </div>
 
         <!-- Part 3: Rhetoric (Approach to topic) -->
-        <div class="part-section rhetoric-section ${this.selectedTemplate ? "section-completed" : ""}">
-          <h3>
+        <div class="part-section rhetoric-section collapsible-section ${this.selectedTemplate ? "section-completed" : ""}" data-section="rhetoric">
+          <h3 class="collapsible-header" data-toggle="rhetoric">
             <span class="part-number">3</span>
-            Rhetoric
-            <span class="part-subtitle">(Approach to topic)</span>
-            ${this.getSectionCompletionIndicator(!!this.selectedTemplate, !this.selectedTemplate)}
+            <span class="section-title">
+              Rhetoric
+              <span class="part-subtitle">(Approach to topic)</span>
+              ${this.getSectionCompletionIndicator(!!this.selectedTemplate, !this.selectedTemplate)}
+            </span>
+            <span class="collapse-indicator">−</span>
           </h3>
-          <div class="rhetoric-grid selection-grid">
+          <div class="rhetoric-grid selection-grid collapsible-content" id="rhetoric-content">
             ${templates
               .map((template) => {
                 const usageCount = this.getTemplateUsageCount(template.id);
@@ -2803,64 +2800,6 @@ export class UnifiedSelector {
       });
     }
 
-    // Expanded view option selections
-      this.container.querySelectorAll(".expanded-option").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const el = e.currentTarget as HTMLElement;
-
-          // Handle different option types
-          if (el.dataset.expandedPersonality) {
-            const personality = PERSONALITIES.find(
-              (p) => p.id === el.dataset.expandedPersonality,
-            );
-            if (personality) {
-              this.selectedPersonality = personality;
-            }
-          } else if (el.dataset.expandedVocabulary) {
-            const vocab = getAllVocabularyStyles().find(
-              (v: VocabularyStyle) => v.id === el.dataset.expandedVocabulary,
-            );
-            if (vocab) {
-              this.selectedVocabulary = vocab;
-            }
-          } else if (el.dataset.expandedRhetoric) {
-            const rhetoric = TEMPLATES.find(
-              (r: Template) => r.id === el.dataset.expandedRhetoric,
-            );
-            if (rhetoric) {
-              this.selectedTemplate = rhetoric;
-            }
-          } else if (el.dataset.expandedLength) {
-            const length = getAllLengthPacingStyles().find(
-              (l: LengthPacingStyle) => l.id === el.dataset.expandedLength,
-            );
-            if (length) {
-              this.selectedLengthPacing = length;
-            }
-          } else if (el.dataset.expandedPersona) {
-            const persona = getAllQuickPersonas().find(
-              (p: QuickPersona) => p.id === el.dataset.expandedPersona,
-            );
-            if (persona) {
-              this.selectedPersona = persona;
-            }
-          } else if (el.dataset.expandedTemplate) {
-            const template = TEMPLATES.find(
-              (t) => t.id === el.dataset.expandedTemplate,
-            );
-            if (template) {
-              this.selectedTemplate = template;
-            }
-          }
-
-          // Update UI
-          this.render();
-          this.updateUI();
-        });
-      });
-
-    }
 
     // Quick Generate button
     const quickGenerateBtn = this.container.querySelector(
@@ -3957,14 +3896,14 @@ export class UnifiedSelector {
 
     if (isCollapsed) {
       // Expand
-      content.style.display = "grid";
-      content.style.visibility = "visible";
+      content.style.setProperty("display", "grid", "important");
+      content.style.setProperty("visibility", "visible", "important");
       indicator.textContent = "−";
       header.classList.remove("collapsed");
       console.log(`%c📖 Expanded ${sectionName} section`, "color: #1DA1F2");
     } else {
       // Collapse
-      content.style.display = "none";
+      content.style.setProperty("display", "none", "important");
       indicator.textContent = "+";
       header.classList.add("collapsed");
       console.log(`%c📕 Collapsed ${sectionName} section`, "color: #1DA1F2");
@@ -5671,6 +5610,7 @@ export class UnifiedSelector {
           transition: all 0.2s;
           box-shadow: 0 2px 4px rgba(29, 155, 240, 0.3);
           flex-shrink: 0;
+          margin-right: 12px;
         }
 
         .quick-generate-btn:hover {
@@ -5899,7 +5839,7 @@ export class UnifiedSelector {
         }
 
         .part-section {
-          padding: 8px 6px;
+          padding: 6px;
           border-bottom: 1px solid rgba(139, 152, 165, 0.2);
           background: #15202b;
           position: relative;
@@ -6006,11 +5946,13 @@ export class UnifiedSelector {
           border-radius: 8px;
           overflow: hidden;
           transition: all 0.2s;
+          margin-bottom: 8px;
         }
 
         .personality-group.has-selection {
           border-color: rgba(29, 155, 240, 0.3);
           background: rgba(29, 155, 240, 0.05);
+          box-shadow: 0 2px 8px rgba(29, 155, 240, 0.15);
         }
 
         .group-header {
@@ -6563,7 +6505,7 @@ export class UnifiedSelector {
         .rhetoric-emoji,
         .template-emoji,
         .personality-emoji {
-          font-size: 16px;
+          font-size: 14px;
         }
 
         .rhetoric-name,
@@ -6922,13 +6864,13 @@ export class UnifiedSelector {
         }
 
         .template-emoji {
-          font-size: 20px;
+          font-size: 14px;
         }
 
         .template-name {
           color: #e7e9ea;
           font-weight: 600;
-          font-size: 15px;
+          font-size: 12px;
         }
 
         .template-actions {
@@ -7530,12 +7472,7 @@ export class UnifiedSelector {
       document.head.appendChild(style);
     }
   }
-
-
-
-
-
-
+  
   /**
    * Destroy the component
    */
