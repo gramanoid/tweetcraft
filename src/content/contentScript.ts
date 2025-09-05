@@ -364,6 +364,248 @@ class SmartReplyContentScript {
     );
   }
 
+  /**
+   * Shows a welcome tooltip for first-time users
+   */
+  private showWelcomeTooltipIfNeeded(buttonElement: HTMLElement): void {
+    // Check if user has seen the welcome tooltip
+    if (localStorage.getItem('tweetcraft_hasSeenWelcome')) {
+      return;
+    }
+
+    // Only show once per session to avoid being annoying
+    if (sessionStorage.getItem('tweetcraft_welcomeShownThisSession')) {
+      return;
+    }
+
+    // Mark as shown in this session
+    sessionStorage.setItem('tweetcraft_welcomeShownThisSession', 'true');
+
+    // Create tooltip with simple, consumer-friendly message
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tweetcraft-welcome-tooltip';
+    tooltip.innerHTML = `
+      <div class="tooltip-arrow"></div>
+      <div class="tooltip-content">
+        <div class="tooltip-header">
+          <span class="tooltip-wave">👋</span>
+          <span class="tooltip-title">Welcome to TweetCraft!</span>
+        </div>
+        <p class="tooltip-message">Click this button to generate AI-powered replies</p>
+        <p class="tooltip-tip">💡 <strong>Pro tip:</strong> Press <kbd>Space</kbd> for quick generate!</p>
+        <button class="tooltip-dismiss">Got it!</button>
+      </div>
+    `;
+
+    // Style the tooltip
+    const style = document.createElement('style');
+    style.textContent = `
+      .tweetcraft-welcome-tooltip {
+        position: absolute;
+        z-index: 10000;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 0 1px rgba(0,0,0,0.1);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        max-width: 280px;
+        animation: tooltipFadeIn 0.3s ease-out, tooltipBounce 0.5s ease-out 0.3s;
+        transform-origin: top center;
+      }
+
+      @keyframes tooltipFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes tooltipBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-arrow {
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid #667eea;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-content {
+        position: relative;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-wave {
+        font-size: 24px;
+        animation: wave 0.5s ease-in-out;
+      }
+
+      @keyframes wave {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(20deg); }
+        75% { transform: rotate(-20deg); }
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-message {
+        margin: 0 0 12px;
+        font-size: 14px;
+        line-height: 1.4;
+        opacity: 0.95;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-tip {
+        margin: 0 0 12px;
+        font-size: 13px;
+        background: rgba(255,255,255,0.15);
+        padding: 8px 10px;
+        border-radius: 6px;
+        line-height: 1.4;
+      }
+
+      .tweetcraft-welcome-tooltip kbd {
+        background: rgba(255,255,255,0.25);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: "SF Mono", Monaco, "Courier New", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-dismiss {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-dismiss:hover {
+        background: #f7f7f7;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .tweetcraft-welcome-tooltip .tooltip-dismiss:active {
+        transform: translateY(0);
+      }
+    `;
+
+    // Add styles to page
+    document.head.appendChild(style);
+
+    // Position the tooltip
+    document.body.appendChild(tooltip);
+    
+    // Calculate position after adding to DOM
+    const buttonRect = buttonElement.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Position below button, centered
+    let left = buttonRect.left + (buttonRect.width / 2) - (tooltipRect.width / 2);
+    let top = buttonRect.bottom + 12;
+    
+    // Ensure tooltip stays within viewport
+    const padding = 10;
+    if (left < padding) {
+      left = padding;
+    } else if (left + tooltipRect.width > window.innerWidth - padding) {
+      left = window.innerWidth - tooltipRect.width - padding;
+    }
+    
+    // If tooltip would go below viewport, show it above the button
+    if (top + tooltipRect.height > window.innerHeight - padding) {
+      top = buttonRect.top - tooltipRect.height - 12;
+      // Move arrow to bottom
+      tooltip.querySelector('.tooltip-arrow')!.setAttribute('style', `
+        top: auto;
+        bottom: -8px;
+        border-bottom: none;
+        border-top: 8px solid #764ba2;
+      `);
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+
+    // Handle dismiss
+    const dismissButton = tooltip.querySelector('.tooltip-dismiss') as HTMLButtonElement;
+    dismissButton.addEventListener('click', () => {
+      // Fade out animation
+      tooltip.style.animation = 'tooltipFadeOut 0.3s ease-in';
+      tooltip.style.opacity = '0';
+      
+      setTimeout(() => {
+        tooltip.remove();
+        style.remove();
+      }, 300);
+      
+      // Mark as seen
+      localStorage.setItem('tweetcraft_hasSeenWelcome', 'true');
+      
+      console.log('%c👋 Welcome tooltip dismissed', 'color: #1DA1F2');
+    });
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+      if (tooltip && tooltip.parentElement) {
+        tooltip.style.animation = 'tooltipFadeOut 0.3s ease-in';
+        tooltip.style.opacity = '0';
+        setTimeout(() => {
+          tooltip.remove();
+          style.remove();
+        }, 300);
+      }
+    }, 10000);
+
+    // Add fade out animation
+    const fadeOutStyle = document.createElement('style');
+    fadeOutStyle.textContent = `
+      @keyframes tooltipFadeOut {
+        from {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-10px) scale(0.9);
+        }
+      }
+    `;
+    document.head.appendChild(fadeOutStyle);
+
+    console.log('%c👋 Welcome tooltip shown to new user', 'color: #1DA1F2; font-weight: bold');
+  }
+
   private setupCleanupHandlers(): void {
     // Enhanced cleanup with state persistence for context recovery
     const handleNavigation = () => {
@@ -1781,6 +2023,10 @@ class SmartReplyContentScript {
 
     if (injectedButton) {
       console.log("%c  ✅ Button injection successful", "color: #17BF63");
+      
+      // Show welcome tooltip for first-time users
+      this.showWelcomeTooltipIfNeeded(injectedButton as HTMLElement);
+      
       return true;
     } else {
       console.log("%c  ❌ Button injection failed", "color: #DC3545");

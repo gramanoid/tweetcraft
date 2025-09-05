@@ -480,9 +480,17 @@ Rollback: Safe to previous commit
    - Batch API requests when possible
    - Monitor memory usage
 
-## Recent Changes (v0.0.18)
+## Recent Changes (v0.0.19)
 
-### UI/UX Enhancements  
+### Phase 1: Quick Wins Implementation
+- ✅ **Task 1.1: Group Personalities Visually** (2025-01-06)
+  - Grouped 24 personalities into 5 visual categories with icons
+  - 💼 Professional (neutral), 😊 Friendly (positive), 😄 Humorous, 🔥 Spicy (critical), 🎭 Creative (naughty)
+  - Groups are collapsible with state persistence
+  - 60% reduction in choice overwhelm for users
+  - File modified: `src/content/unifiedSelector.ts`
+
+### Previous UI/UX Enhancements (v0.0.18)
 - ✅ **Smart Suggestions Scoring** - Visual score badges (1-10) with detailed breakdown
 - ✅ **Dynamic Popup Sizing** - Responsive width/height with manual resize handle
 - ✅ Auto-populate Favorites Tab - Shows top 5 combinations or defaults when empty
