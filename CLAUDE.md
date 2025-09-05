@@ -27,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Each phase = new git version with proper commits for rollback capability
 - Each task completion requires individual commit with comprehensive documentation
 
-**CURRENT STATUS:** Phase 1 (Smart Tab Resurrection) - fixing OpenRouter integration issues
+**CURRENT STATUS:** Phase 3 (Visual Polish) - COMPLETED ✅ | Ready for Phase 4 (Smart Learning)
 
 ### **🚨 CRITICAL SUCCESS FACTORS**
 **READ THIS EVERY SESSION**: Essential requirements for transformation success
@@ -481,6 +481,54 @@ Rollback: Safe to previous commit
    - Monitor memory usage
 
 ## Recent Changes (v0.0.19)
+
+### Phase 3: Visual Polish (2025-01-06)
+- ✅ **Task 3.1: Tighter Visual Design with CSS Variables**
+  - Created centralized CSS variables for consistent spacing, colors, typography
+  - Defined variables for spacing (8px base), primary colors, border radius, transitions
+  - Updated all SCSS files to use variables instead of hardcoded values
+  - Files: `src/styles/variables.scss` (new), `src/content/contentScript.scss`, `src/content/arsenalMode.scss`, `src/popup/popup.scss`
+
+- ✅ **Task 3.2: Settings Icon in Main UI**
+  - Added settings gear icon (⚙️) in selector header for quick access
+  - Opens Chrome extension settings or inline modal as fallback
+  - Smooth hover effects and visual feedback
+  - Files: `src/content/unifiedSelector.ts`, `src/content/contentScript.scss`
+
+- ✅ **Task 3.3: Progressive Disclosure**
+  - Made Vocabulary, Rhetoric, and Length/Pacing sections collapsible
+  - Sections start collapsed by default to reduce initial overwhelm
+  - State persists via localStorage for user preferences
+  - Visual indicators (+ / −) with smooth animations
+  - Hover hints show "click to expand" for collapsed sections
+  - Files: `src/content/unifiedSelector.ts`, `src/content/contentScript.scss`
+
+- ✅ **Task 3.4: Visual Feedback Improvements**
+  - Enhanced button loading states with inline spinner animation
+  - Pulsing animation while generating replies
+  - Success checkmark animation when copying text
+  - Subtle shake animation on errors
+  - Progress indicator for slow requests (>3 seconds)
+  - Copy success with inline checkmark
+  - Files: `src/ui/visualFeedback.ts`
+
+- ✅ **Task 3.5: Guided First Use**
+  - Simple 3-arrow onboarding tour for first-time users
+  - Step 1: Pick a personality (points to Personas tab)
+  - Step 2: Choose your style (points to selection options)
+  - Step 3: Click Generate! (points to generate button)
+  - Auto-advances after 3 seconds or on click
+  - Skip button for experienced users
+  - Remembers completion via localStorage
+  - 30-second learning curve
+  - Files: `src/components/GuidedTour.ts` (new), `src/content/unifiedSelector.ts`
+
+### Bug Fixes
+- ✅ **Reduced fallback selector console noise**
+  - Added context-aware warning logic for missing DOM elements
+  - Only warns about missing toolbar/textarea when in reply context
+  - Prevents false positive errors during normal browsing
+  - Files: `src/content/domUtils.ts`
 
 ### Phase 2: Consumer-Focused Features (2025-01-06)
 - ✅ **Task 2.1: Personal Stats Dashboard** 

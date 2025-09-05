@@ -1,5 +1,6 @@
 import { TwitterContext } from '@/types';
 import { URLCleaner } from '@/utils/urlCleaner';
+import { usageTracker } from '@/services/usageTracker';
 
 // Performance Optimization Suite: DOM Query Caching
 class DOMCache {
@@ -423,6 +424,9 @@ class FallbackStrategies {
 }
 
 export class DOMUtils {
+  private static generatedReplyObserver: MutationObserver | null = null;
+  private static lastGeneratedReply: string | null = null;
+  private static trackingSendAction: boolean = false;
   // Legacy selectors for backward compatibility
   static readonly REPLY_TEXTAREA_SELECTOR = SELECTOR_CHAINS.replyTextarea.primary;
   static readonly TOOLBAR_SELECTOR = SELECTOR_CHAINS.toolbar.primary;
@@ -1245,5 +1249,103 @@ export class DOMUtils {
       console.log(`%c  ${icon} ${type}:`, `color: ${color}`, 
                   result.success ? `Found via ${result.strategy}` : 'Not found');
     });
+  }
+
+  /**
+   * Start tracking whether generated reply is sent or canceled
+   */
+  static startTrackingSendAction(generatedReply: string): void {
+    // Store the generated reply for comparison
+    this.lastGeneratedReply = generatedReply;
+    this.trackingSendAction = true;
+    
+    console.log('%c📊 Tracking send/cancel for reply', 'color: #1DA1F2');
+    
+    // Stop any existing observer
+    if (this.generatedReplyObserver) {
+      this.generatedReplyObserver.disconnect();
+      this.generatedReplyObserver = null;
+    }
+    
+    // Create observer to watch for Tweet button click or dialog close
+    this.generatedReplyObserver = new MutationObserver(() => {
+      if (!this.trackingSendAction) return;
+      
+      // Check if Tweet button was clicked (reply sent)
+      const tweetButton = document.querySelector('[data-testid="tweetButtonInline"], [data-testid="tweetButton"], button[data-testid*="reply"]');
+      const replyTextarea = this.findReplyTextarea();
+      
+      // Check if dialog was closed (canceled)
+      const composeDialog = document.querySelector('[aria-label*="Compose"], [role="dialog"]');
+      const hasDialog = !!composeDialog;
+      
+      // If textarea is empty or dialog closed, user canceled
+      if (replyTextarea && replyTextarea instanceof HTMLElement) {
+        const currentText = this.getTextareaContent(replyTextarea);
+        
+        // If text is different from what we generated, track as edited
+        if (currentText && currentText !== this.lastGeneratedReply && currentText.trim() !== '') {
+          usageTracker.trackReplyOutcome('edited', currentText.length);
+          console.log('%c📊 Reply edited before sending', 'color: #FFA500');
+        }
+      }
+      
+      // If no dialog and no textarea, reply was either sent or canceled
+      if (!hasDialog && !replyTextarea) {
+        // Try to determine if it was sent by checking for success indicators
+        const successToast = document.querySelector('[data-testid="toast"]');
+        if (successToast && successToast.textContent?.includes('sent')) {
+          usageTracker.trackReplyOutcome('sent', this.lastGeneratedReply?.length);
+          console.log('%c📊 Reply sent!', 'color: #17BF63');
+        } else {
+          usageTracker.trackReplyOutcome('discarded');
+          console.log('%c📊 Reply canceled', 'color: #DC3545');
+        }
+        
+        this.stopTrackingSendAction();
+      }
+    });
+    
+    // Start observing the body for changes
+    this.generatedReplyObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-testid', 'aria-label']
+    });
+    
+    // Set a timeout to stop tracking after 5 minutes
+    setTimeout(() => {
+      if (this.trackingSendAction) {
+        console.log('%c📊 Send tracking timeout - assuming canceled', 'color: #FFA500');
+        usageTracker.trackReplyOutcome('discarded');
+        this.stopTrackingSendAction();
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Stop tracking send action
+   */
+  static stopTrackingSendAction(): void {
+    this.trackingSendAction = false;
+    this.lastGeneratedReply = null;
+    
+    if (this.generatedReplyObserver) {
+      this.generatedReplyObserver.disconnect();
+      this.generatedReplyObserver = null;
+    }
+  }
+
+  /**
+   * Get textarea content safely
+   */
+  private static getTextareaContent(textarea: HTMLElement): string {
+    if (textarea.tagName === 'TEXTAREA') {
+      return (textarea as HTMLTextAreaElement).value;
+    } else if (textarea.contentEditable === 'true') {
+      return textarea.textContent || '';
+    }
+    return '';
   }
 }

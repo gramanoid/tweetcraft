@@ -3235,6 +3235,9 @@ class SmartReplyContentScript {
           "Smart Reply: Reply generated successfully:",
           response.data.reply,
         );
+        
+        // Start tracking whether user sends or cancels this reply
+        DOMUtils.startTrackingSendAction(response.data.reply);
 
         // Hide loading and show success toast only (no duplicate icon)
         visualFeedback.hideLoading();
