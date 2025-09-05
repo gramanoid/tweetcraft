@@ -75,6 +75,23 @@
           </select>
           <small>Choose how much conversation context to include when generating replies</small>
         </div>
+
+        <div class="setting-group">
+          <h3>📈 Engagement Tracking (Optional)</h3>
+          <label>
+            <input type="checkbox" id="twitter-api-enabled"> Enable real engagement tracking
+          </label>
+          <small>Track likes, retweets, and replies on your generated tweets to improve suggestions</small>
+          
+          <div id="twitter-api-settings" style="margin-top: 10px; display: none;">
+            <label for="twitter-api-key">TwitterAPI.io API Key:</label>
+            <input type="password" id="twitter-api-key" placeholder="Enter your TwitterAPI.io key">
+            <small>Get your free API key from <a href="https://twitterapi.io" target="_blank">TwitterAPI.io</a> (100 requests/day free)</small>
+            
+            <button id="test-twitter-api" class="btn-secondary" style="margin-top: 8px;">Test Connection</button>
+            <div id="twitter-api-status" style="margin-top: 8px; font-size: 0.9em;"></div>
+          </div>
+        </div>
         
       </main>
       

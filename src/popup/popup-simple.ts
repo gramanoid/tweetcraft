@@ -47,6 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const validateKeyBtn = document.getElementById('validate-key') as HTMLButtonElement | null;
   const selfTestBtn = document.getElementById('self-test') as HTMLButtonElement | null;
   
+  // TwitterAPI settings
+  const twitterApiEnabledCheckbox = document.getElementById('twitter-api-enabled') as HTMLInputElement | null;
+  const twitterApiSettings = document.getElementById('twitter-api-settings');
+  const twitterApiKeyInput = document.getElementById('twitter-api-key') as HTMLInputElement | null;
+  const testTwitterApiBtn = document.getElementById('test-twitter-api') as HTMLButtonElement | null;
+  const twitterApiStatus = document.getElementById('twitter-api-status');
+  
   
   
   // Early return if critical elements are missing
@@ -604,5 +611,98 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Load TwitterAPI settings
+  const loadTwitterApiSettings = async () => {
+    try {
+      const { twitterAPI } = await import('../services/twitterAPI');
+      const config = await twitterAPI.getConfig();
+      
+      if (twitterApiEnabledCheckbox) {
+        twitterApiEnabledCheckbox.checked = config.enabled;
+      }
+      
+      if (twitterApiKeyInput && config.apiKey) {
+        twitterApiKeyInput.value = config.apiKey;
+      }
+      
+      // Show/hide settings based on checkbox
+      if (twitterApiSettings) {
+        twitterApiSettings.style.display = config.enabled ? 'block' : 'none';
+      }
+      
+    } catch (error) {
+      console.error('Failed to load TwitterAPI settings:', error);
+    }
+  };
+
+  // Handle TwitterAPI enabled checkbox
+  if (twitterApiEnabledCheckbox && twitterApiSettings) {
+    twitterApiEnabledCheckbox.addEventListener('change', async () => {
+      const enabled = twitterApiEnabledCheckbox.checked;
+      twitterApiSettings.style.display = enabled ? 'block' : 'none';
+      
+      try {
+        const { twitterAPI } = await import('../services/twitterAPI');
+        await twitterAPI.updateConfig({ enabled });
+        console.log('TwitterAPI enabled status updated:', enabled);
+      } catch (error) {
+        console.error('Failed to update TwitterAPI enabled status:', error);
+      }
+    });
+  }
+
+  // Handle TwitterAPI key input
+  if (twitterApiKeyInput) {
+    twitterApiKeyInput.addEventListener('blur', async () => {
+      const apiKey = twitterApiKeyInput.value.trim();
+      
+      try {
+        const { twitterAPI } = await import('../services/twitterAPI');
+        await twitterAPI.updateConfig({ apiKey: apiKey || undefined });
+        console.log('TwitterAPI key updated');
+      } catch (error) {
+        console.error('Failed to update TwitterAPI key:', error);
+      }
+    });
+  }
+
+  // Handle test TwitterAPI connection
+  if (testTwitterApiBtn && twitterApiStatus) {
+    testTwitterApiBtn.addEventListener('click', async () => {
+      const originalText = testTwitterApiBtn.textContent;
+      
+      try {
+        testTwitterApiBtn.disabled = true;
+        testTwitterApiBtn.textContent = 'Testing...';
+        
+        const { twitterAPI } = await import('../services/twitterAPI');
+        const apiKey = twitterApiKeyInput?.value.trim();
+        const result = await twitterAPI.testConnection(apiKey);
+        
+        if (result.success) {
+          twitterApiStatus.innerHTML = '<span style="color: #17BF63;">✅ Connection successful!</span>';
+        } else {
+          twitterApiStatus.innerHTML = `<span style="color: #DC3545;">❌ ${result.error}</span>`;
+        }
+        
+        // Auto-hide status after 5 seconds
+        setTimeout(() => {
+          if (twitterApiStatus) {
+            twitterApiStatus.innerHTML = '';
+          }
+        }, 5000);
+        
+      } catch (error) {
+        twitterApiStatus.innerHTML = `<span style="color: #DC3545;">❌ Test failed: ${error instanceof Error ? error.message : 'Unknown error'}</span>`;
+      } finally {
+        testTwitterApiBtn.disabled = false;
+        testTwitterApiBtn.textContent = originalText;
+      }
+    });
+  }
+
+  // Initialize TwitterAPI settings
+  loadTwitterApiSettings();
   
 });
