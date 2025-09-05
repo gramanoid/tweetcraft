@@ -194,6 +194,205 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
   }
 };
 
+/**
+ * Enhanced fallback strategies for DOM selection
+ * Task 1.4: Implement 4-strategy fallback system
+ */
+class FallbackStrategies {
+  /**
+   * Strategy 1: Try primary selector (data-testid, aria-label)
+   */
+  static tryPrimarySelector(container: Element, selector: string): Element | null {
+    try {
+      return domCache.query(container, selector);
+    } catch (e) {
+      console.log(`%c⚠️ Primary selector failed: ${selector}`, 'color: #FFA500');
+      return null;
+    }
+  }
+
+  /**
+   * Strategy 2: Try by class combinations
+   */
+  static tryByClassCombination(container: Element, elementType: string): Element | null {
+    const classCombinations: Record<string, string[]> = {
+      replyTextarea: [
+        'div.DraftEditor-root div[contenteditable="true"]',
+        'div[class*="DraftEditor"] [contenteditable="true"]',
+        'div[class*="public-DraftEditor"] [contenteditable="true"]',
+        '[class*="tweet"][class*="text"] [contenteditable="true"]',
+        '[class*="compose"] [contenteditable="true"]'
+      ],
+      toolbar: [
+        'div[class*="toolbar"]',
+        'div[class*="ToolBar"]',
+        'div[class*="actions"]',
+        '[class*="tweet"][class*="action"]',
+        '[class*="engagement"] [role="group"]'
+      ],
+      replyButton: [
+        'button[class*="reply"]',
+        '[class*="reply"][role="button"]',
+        '[class*="action"][class*="reply"]',
+        'div[class*="reply"] button'
+      ]
+    };
+
+    const combinations = classCombinations[elementType] || [];
+    for (const selector of combinations) {
+      const element = container.querySelector(selector);
+      if (element) {
+        console.log(`%c✅ Found by class combination: ${selector}`, 'color: #17BF63');
+        return element as Element;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Strategy 3: Try by structure/position
+   */
+  static tryByStructure(container: Element, elementType: string): Element | null {
+    const structuralPatterns: Record<string, () => Element | null> = {
+      replyTextarea: () => {
+        // Look for contenteditable that's a sibling of toolbar elements
+        const toolbars = container.querySelectorAll('[role="group"]');
+        for (const toolbar of toolbars) {
+          const sibling = toolbar.previousElementSibling || toolbar.parentElement?.querySelector('[contenteditable="true"]');
+          if (sibling && sibling.getAttribute('contenteditable') === 'true') {
+            console.log('%c✅ Found textarea by structure', 'color: #17BF63');
+            return sibling;
+          }
+        }
+        
+        // Look for contenteditable within compose areas
+        const composeAreas = container.querySelectorAll('form, [role="dialog"], [aria-modal="true"]');
+        for (const area of composeAreas) {
+          const editable = area.querySelector('[contenteditable="true"]');
+          if (editable) {
+            console.log('%c✅ Found textarea in compose area', 'color: #17BF63');
+            return editable;
+          }
+        }
+        return null;
+      },
+      toolbar: () => {
+        // Find toolbar near contenteditable
+        const editables = container.querySelectorAll('[contenteditable="true"]');
+        for (const editable of editables) {
+          // Check siblings
+          let sibling = editable.nextElementSibling;
+          while (sibling) {
+            if (sibling.getAttribute('role') === 'group' || sibling.querySelector('[role="group"]')) {
+              console.log('%c✅ Found toolbar by structure', 'color: #17BF63');
+              return sibling.querySelector('[role="group"]') || sibling;
+            }
+            sibling = sibling.nextElementSibling;
+          }
+          // Check parent's siblings
+          const parent = editable.parentElement;
+          if (parent) {
+            const toolbar = parent.querySelector('[role="group"]') || 
+                          parent.nextElementSibling?.querySelector('[role="group"]');
+            if (toolbar) {
+              console.log('%c✅ Found toolbar in parent structure', 'color: #17BF63');
+              return toolbar;
+            }
+          }
+        }
+        return null;
+      },
+      replyButton: () => {
+        // Find first button in toolbar groups
+        const groups = container.querySelectorAll('[role="group"]');
+        for (const group of groups) {
+          const firstButton = group.querySelector('button, [role="button"]');
+          if (firstButton) {
+            // Verify it's likely a reply button by position (usually first)
+            const allButtons = group.querySelectorAll('button, [role="button"]');
+            if (allButtons[0] === firstButton) {
+              console.log('%c✅ Found reply button by position', 'color: #17BF63');
+              return firstButton;
+            }
+          }
+        }
+        return null;
+      }
+    };
+
+    const finder = structuralPatterns[elementType];
+    return finder ? finder() : null;
+  }
+
+  /**
+   * Strategy 4: Try by text content search
+   */
+  static tryByTextContent(container: Element, elementType: string): Element | null {
+    const textPatterns: Record<string, string[]> = {
+      replyButton: ['Reply', 'reply', '回复', 'Responder', 'Répondre', 'Antworten'],
+      toolbar: ['Reply', 'Retweet', 'Like', 'Share']
+    };
+
+    const patterns = textPatterns[elementType];
+    if (!patterns) return null;
+
+    // Search for elements containing the text
+    const allElements = container.querySelectorAll('button, [role="button"], [role="group"]');
+    for (const element of allElements) {
+      const text = element.textContent || '';
+      const ariaLabel = element.getAttribute('aria-label') || '';
+      
+      for (const pattern of patterns) {
+        if (text.includes(pattern) || ariaLabel.includes(pattern)) {
+          console.log(`%c✅ Found by text content: "${pattern}"`, 'color: #17BF63');
+          return element;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Main fallback method that tries all strategies
+   */
+  static findWithFallback(container: Element, elementType: string): Element | null {
+    const chain = SELECTOR_CHAINS[elementType];
+    if (!chain) {
+      console.warn(`%c⚠️ No fallback chain for: ${elementType}`, 'color: #FFA500');
+      return null;
+    }
+
+    // Strategy 1: Try primary selector
+    let element = this.tryPrimarySelector(container, chain.primary);
+    if (element) return element;
+
+    // Try CSS fallbacks from the chain
+    for (const fallback of chain.fallbacks) {
+      element = this.tryPrimarySelector(container, fallback);
+      if (element) {
+        console.log(`%c✅ Found with CSS fallback: ${fallback}`, 'color: #17BF63');
+        return element;
+      }
+    }
+
+    // Strategy 2: Try class combinations
+    element = this.tryByClassCombination(container, elementType);
+    if (element) return element;
+
+    // Strategy 3: Try structural patterns
+    element = this.tryByStructure(container, elementType);
+    if (element) return element;
+
+    // Strategy 4: Try text content (last resort)
+    element = this.tryByTextContent(container, elementType);
+    if (element) return element;
+
+    console.warn(`%c❌ All fallback strategies failed for: ${elementType}`, 'color: #DC3545');
+    return null;
+  }
+}
+
 export class DOMUtils {
   // Legacy selectors for backward compatibility
   static readonly REPLY_TEXTAREA_SELECTOR = SELECTOR_CHAINS.replyTextarea.primary;
@@ -207,9 +406,9 @@ export class DOMUtils {
 
   /**
    * Resilient selector finder with automatic fallback
+   * Enhanced with 4-strategy fallback system (Task 1.4)
    */
   static findWithFallback(selectorType: keyof typeof SELECTOR_CHAINS, parent?: Element): Element | null {
-    const chain = SELECTOR_CHAINS[selectorType];
     const searchRoot = parent || document;
     
     // Initialize stats if needed
@@ -218,36 +417,24 @@ export class DOMUtils {
     }
     const stats = this.selectorStats.get(selectorType)!;
     
-    // Try primary selector first (with caching for Element parents)
-    let element: Element | null;
-    if (parent) {
-      element = domCache.query(parent, chain.primary);
-    } else {
-      element = searchRoot.querySelector(chain.primary);
-    }
+    // Use the enhanced fallback system (cast document to Element for compatibility)
+    const element = FallbackStrategies.findWithFallback(searchRoot as Element, selectorType);
     
     if (element) {
-      stats.primary++;
-      return element;
-    }
-    
-    // Try fallback selectors
-    for (let i = 0; i < chain.fallbacks.length; i++) {
-      if (parent) {
-        element = domCache.query(parent, chain.fallbacks[i]);
-      } else {
-        element = searchRoot.querySelector(chain.fallbacks[i]);
-      }
+      // Determine if it was primary or fallback based on the selector
+      const chain = SELECTOR_CHAINS[selectorType];
+      const isPrimary = searchRoot.querySelector(chain.primary) === element;
       
-      if (element) {
+      if (isPrimary) {
+        stats.primary++;
+      } else {
         stats.fallback++;
         // Log when fallback is used (only first time or every 10 uses)
         if (stats.fallback === 1 || stats.fallback % 10 === 0) {
-          console.log(`%c⚠️ DOM Resilience: Using fallback #${i + 1} for ${selectorType}`, 'color: #FFA500');
-          console.log(`%c  Fallback selector: ${chain.fallbacks[i]}`, 'color: #657786');
+          console.log(`%c⚠️ DOM Resilience: Using fallback for ${selectorType}`, 'color: #FFA500');
         }
-        return element;
       }
+      return element;
     }
     
     // Failed to find element
@@ -951,5 +1138,83 @@ export class DOMUtils {
       console.log('%c  Cache Efficiency:', 'color: #657786', 
                  `${efficiency} - ${Math.round((stats.cacheHits / stats.totalQueries) * 100)}% CPU savings`);
     }
+  }
+
+  /**
+   * Enhanced convenience methods using the 4-strategy fallback system
+   * Task 1.4: Provide easy access to common elements with resilient fallbacks
+   */
+  static findReplyTextarea(parent?: Element): Element | null {
+    return this.findWithFallback('replyTextarea', parent);
+  }
+
+  static findToolbar(parent?: Element): Element | null {
+    return this.findWithFallback('toolbar', parent);
+  }
+
+  static findTweetText(parent?: Element): Element | null {
+    return this.findWithFallback('tweetText', parent);
+  }
+
+  static findOriginalTweet(parent?: Element): Element | null {
+    return this.findWithFallback('originalTweet', parent);
+  }
+
+  static findReplyButton(parent?: Element): Element | null {
+    return this.findWithFallback('replyButton', parent);
+  }
+
+  static findAuthorHandle(parent?: Element): Element | null {
+    return this.findWithFallback('authorHandle', parent);
+  }
+
+  /**
+   * Test the health of all fallback strategies
+   * Useful for debugging and monitoring selector robustness
+   */
+  static testFallbackStrategies(): void {
+    console.log('%c🔍 Testing Enhanced Fallback Strategies', 'color: #1DA1F2; font-weight: bold');
+    
+    const testResults: Record<string, { strategy: string; success: boolean }> = {};
+    
+    Object.keys(SELECTOR_CHAINS).forEach(elementType => {
+      // Test each strategy (use document.body as container)
+      const container = document.body;
+      
+      // Test primary
+      const primary = FallbackStrategies.tryPrimarySelector(
+        container, 
+        SELECTOR_CHAINS[elementType as keyof typeof SELECTOR_CHAINS].primary
+      );
+      
+      // Test class combinations
+      const byClass = FallbackStrategies.tryByClassCombination(container, elementType);
+      
+      // Test structural patterns
+      const byStructure = FallbackStrategies.tryByStructure(container, elementType);
+      
+      // Test text content
+      const byText = FallbackStrategies.tryByTextContent(container, elementType);
+      
+      // Determine which strategy worked
+      let strategy = 'NONE';
+      if (primary) strategy = 'Primary';
+      else if (byClass) strategy = 'Class Combination';
+      else if (byStructure) strategy = 'Structure';
+      else if (byText) strategy = 'Text Content';
+      
+      testResults[elementType] = {
+        strategy,
+        success: strategy !== 'NONE'
+      };
+    });
+    
+    // Report results
+    Object.entries(testResults).forEach(([type, result]) => {
+      const icon = result.success ? '✅' : '❌';
+      const color = result.success ? '#17BF63' : '#DC3545';
+      console.log(`%c  ${icon} ${type}:`, `color: ${color}`, 
+                  result.success ? `Found via ${result.strategy}` : 'Not found');
+    });
   }
 }
