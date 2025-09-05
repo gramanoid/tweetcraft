@@ -1,0 +1,82 @@
+// TweetCraft CSS Variables - Phase 3: Visual Polish
+// Consumer-friendly design tokens for consistent UI
+
+:root {
+  // Spacing (tighter than current 12px)
+  --tweet-spacing-xs: 4px;
+  --tweet-spacing-sm: 8px;   // Default tight spacing
+  --tweet-spacing-md: 12px;
+  --tweet-spacing-lg: 16px;
+  --tweet-spacing-xl: 24px;
+  
+  // Colors
+  --tweet-primary: #1DA1F2;        // Twitter blue
+  --tweet-primary-hover: #1a8cd8;  // Darker blue for hover
+  --tweet-success: #17BF63;        // Green for success
+  --tweet-error: #F4405F;          // Red for errors
+  --tweet-warning: #FFA500;        // Orange for warnings
+  --tweet-neutral: #657786;        // Gray for details
+  
+  // Gradient (from existing design)
+  --tweet-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --tweet-gradient-hover: linear-gradient(135deg, #7788ee 0%, #8659a9 100%);
+  
+  // Border
+  --tweet-border-color: rgb(207, 217, 222);
+  --tweet-border-light: rgb(239, 243, 244);
+  --tweet-radius-sm: 8px;
+  --tweet-radius: 12px;    // Consistent rounded corners
+  --tweet-radius-lg: 16px;
+  --tweet-radius-full: 9999px;
+  
+  // Typography
+  --tweet-font-xs: 11px;
+  --tweet-font-sm: 12px;
+  --tweet-font-md: 14px;
+  --tweet-font-lg: 16px;
+  --tweet-font-xl: 18px;
+  
+  // Font weights
+  --tweet-weight-normal: 400;
+  --tweet-weight-medium: 500;
+  --tweet-weight-semibold: 600;
+  --tweet-weight-bold: 700;
+  
+  // Shadows
+  --tweet-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --tweet-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  --tweet-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --tweet-shadow-hover: 0 4px 12px rgba(102, 126, 234, 0.4);
+  
+  // Transitions
+  --tweet-transition-fast: 150ms ease;
+  --tweet-transition: 200ms ease;
+  --tweet-transition-slow: 300ms ease;
+  
+  // Z-index layers
+  --tweet-z-base: 1;
+  --tweet-z-dropdown: 1000;
+  --tweet-z-modal: 10000;
+  --tweet-z-tooltip: 10001;
+  
+  // Opacity states
+  --tweet-opacity-disabled: 0.5;
+  --tweet-opacity-hover: 0.9;
+  --tweet-opacity-dimmed: 0.85;
+  
+  // Category colors (from Phase 1 personality groups)
+  --tweet-category-professional: #4B5563;  // Gray for neutral
+  --tweet-category-friendly: #10B981;      // Green for positive
+  --tweet-category-humorous: #F59E0B;      // Amber for humorous
+  --tweet-category-spicy: #EF4444;         // Red for critical
+  --tweet-category-creative: #8B5CF6;      // Purple for naughty
+}
+
+// Dark mode support (future enhancement)
+[data-theme="dark"] {
+  --tweet-primary: #1DA1F2;
+  --tweet-success: #17BF63;
+  --tweet-error: #F4405F;
+  --tweet-border-color: rgb(56, 68, 77);
+  --tweet-border-light: rgb(47, 51, 54);
+}

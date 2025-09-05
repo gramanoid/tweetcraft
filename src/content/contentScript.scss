@@ -1,9 +1,12 @@
+// Import CSS variables for consistent design
+@import '../styles/variables.scss';
+
 // Smart Reply Extension Styles
 .smart-reply-container {
   position: relative;
   display: inline-flex;
-  margin-left: 8px;
-  margin-right: 8px;
+  margin-left: var(--tweet-spacing-sm);
+  margin-right: var(--tweet-spacing-sm);
   align-self: center;
   flex-shrink: 0;
   
@@ -11,19 +14,19 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: var(--tweet-spacing-sm) var(--tweet-spacing-md);
     border: none;
-    border-radius: 9999px;
+    border-radius: var(--tweet-radius-full);
     // Beautiful gradient from HypeFury
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--tweet-gradient);
     color: white;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: var(--tweet-font-md);
+    font-weight: var(--tweet-weight-medium);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--tweet-transition);
     position: relative;
-    z-index: 1;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    z-index: var(--tweet-z-base);
+    box-shadow: var(--tweet-shadow);
     
     svg {
       width: 16px;
@@ -33,14 +36,14 @@
     
     &:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: var(--tweet-shadow-hover);
       // Slightly brighten the gradient on hover
-      background: linear-gradient(135deg, #7788ee 0%, #8659a9 100%);
+      background: var(--tweet-gradient-hover);
     }
     
     &:active {
       transform: translateY(0);
-      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+      box-shadow: var(--tweet-shadow);
     }
     
     &.loading {
@@ -59,7 +62,7 @@
     }
     
     &:disabled {
-      opacity: 0.5;
+      opacity: var(--tweet-opacity-disabled);
       cursor: not-allowed;
     }
   }
@@ -71,20 +74,20 @@
 .smart-reply-dropdown {
   position: fixed !important;
   background: white !important;
-  border: 1px solid rgb(207, 217, 222) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid var(--tweet-border-color) !important;
+  border-radius: var(--tweet-radius) !important;
+  box-shadow: var(--tweet-shadow-lg) !important;
   min-width: 180px !important;
-  z-index: 10000 !important;
+  z-index: var(--tweet-z-modal) !important;
   overflow: hidden !important;
-  padding: 4px 0 !important;
+  padding: var(--tweet-spacing-xs) 0 !important;
   
   // Character count container (simplified)
   .smart-reply-char-count {
-    padding: 8px 16px !important;
+    padding: var(--tweet-spacing-sm) var(--tweet-spacing-lg) !important;
     background-color: rgb(247, 249, 250) !important;
-    border-bottom: 1px solid rgb(239, 243, 244) !important;
-    font-size: 13px !important;
+    border-bottom: 1px solid var(--tweet-border-light) !important;
+    font-size: var(--tweet-font-sm) !important;
     text-align: right !important;
     
     .char-count {
@@ -98,12 +101,12 @@
   }
   
   .smart-reply-option {
-    padding: 12px 16px !important;
+    padding: var(--tweet-spacing-md) var(--tweet-spacing-lg) !important;
     cursor: pointer !important;
-    font-size: 14px !important;
+    font-size: var(--tweet-font-md) !important;
     color: rgb(15, 20, 25) !important;
     background-color: white !important;
-    transition: background-color 0.2s ease !important;
+    transition: background-color var(--tweet-transition) !important;
     display: block !important;
     text-decoration: none !important;
     border: none !important;
@@ -119,7 +122,7 @@
     }
     
     &:not(:last-child) {
-      border-bottom: 1px solid rgb(239, 243, 244) !important;
+      border-bottom: 1px solid var(--tweet-border-light) !important;
     }
   }
 }
@@ -318,7 +321,7 @@ body[style*="background-color: rgb(21, 32, 43)"] {
 
 // Compose View Styles
 .compose-view {
-  padding: 15px;
+  padding: var(--tweet-spacing-lg);
   // Dark background to match the rest of the popup
   background-color: #15202B;
   color: #FFFFFF;
@@ -326,14 +329,14 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   .compose-section {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--tweet-spacing-xl);
   }
 
   .compose-title {
     margin: 0;
-    color: #1DA1F2;
-    font-size: 18px;
-    font-weight: 600;
+    color: var(--tweet-primary);
+    font-size: var(--tweet-font-xl);
+    font-weight: var(--tweet-weight-semibold);
   }
 
   .topic-input-group {
@@ -394,15 +397,15 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   }
 
   .fetch-trends-btn {
-    padding: 4px 12px;
-    background: #1DA1F2;
+    padding: var(--tweet-spacing-xs) var(--tweet-spacing-md);
+    background: var(--tweet-primary);
     color: white;
     border: none;
     border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: var(--tweet-font-sm);
+    font-weight: var(--tweet-weight-medium);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--tweet-transition);
     
     &:hover {
       background: #1A8CD8;
@@ -534,7 +537,7 @@ body[style*="background-color: rgb(21, 32, 43)"] {
 
 // Stats Dashboard Styles
 .stats-container {
-  padding: 20px;
+  padding: var(--tweet-spacing-xl);
   background: #15202B;
   color: #FFFFFF;
   min-height: 400px;
@@ -551,18 +554,18 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   .stats-dashboard {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--tweet-spacing-xl);
   }
   
   .stats-header {
     text-align: center;
-    padding-bottom: 16px;
+    padding-bottom: var(--tweet-spacing-lg);
     border-bottom: 1px solid #38444D;
     
     h2 {
-      margin: 0 0 8px 0;
+      margin: 0 0 var(--tweet-spacing-sm) 0;
       font-size: 20px;
-      color: #1DA1F2;
+      color: var(--tweet-primary);
       display: flex;
       align-items: center;
       justify-content: center;
