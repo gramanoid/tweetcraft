@@ -337,65 +337,110 @@ export class OpenRouterService {
       // Adaptive timeout based on connection quality
       const adaptiveTimeout = this.getAdaptiveTimeout();
       
+      // Task 4.3: Simple Model Fallback - Try multiple models if one fails
+      const modelFallbackChain = [
+        request.model || config.model || 'openai/gpt-4o-mini',  // Fast & cheap primary
+        'anthropic/claude-3-haiku',    // Reliable backup
+        'meta-llama/llama-3.1-8b-instruct'  // Free fallback
+      ];
+      
       // Log temperature setting and connection adaptation
       console.log('%c⚙️ TweetCraft Settings & Connection Adaptation', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
       console.log(`%c  Temperature: ${temperature}`, 'color: #657786');
-      console.log(`%c  Model: ${request.model || config.model || 'openai/gpt-4o'}`, 'color: #657786');
+      console.log(`%c  Model Chain: ${modelFallbackChain.join(' → ')}`, 'color: #657786');
       console.log(`%c  Adaptive Timeout: ${adaptiveTimeout}ms (based on ${this.connectionMetrics.effectiveType})`, 'color: #657786');
       
-      const openRouterRequest: OpenRouterRequest = {
-        model: request.model || config.model || 'openai/gpt-4o',
-        messages,
-        temperature,
-        // max_tokens intentionally omitted for unlimited output
-        top_p: 0.9
-      };
-
-      // Create combined AbortController for timeout and cancellation
-      const timeoutController = new AbortController();
-      const combinedController = new AbortController();
+      // Try each model in the fallback chain
+      let lastError: any = null;
       
-      // Set up timeout based on connection quality
-      const timeoutId = setTimeout(() => {
-        timeoutController.abort();
-      }, adaptiveTimeout);
-      
-      // Combine signals - abort if either the original signal or timeout triggers
-      const abortHandler = () => combinedController.abort();
-      signal?.addEventListener('abort', abortHandler);
-      timeoutController.signal.addEventListener('abort', abortHandler);
-
-      try {
-        const response = await this.fetchWithRetry(
-          `${this.BASE_URL}/chat/completions`,
-          {
-            method: 'POST',
-            headers: {
-              ...this.HEADERS,
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(openRouterRequest),
-            signal: combinedController.signal
-          }
-        );
+      for (let modelIndex = 0; modelIndex < modelFallbackChain.length; modelIndex++) {
+        const currentModel = modelFallbackChain[modelIndex];
         
-        clearTimeout(timeoutId);
-        return await this.processSuccessfulResponse(response, request, context);
-        
-      } catch (error: any) {
-        clearTimeout(timeoutId);
-        
-        // Handle timeout specifically
-        if (error.name === 'AbortError' && timeoutController.signal.aborted && !signal?.aborted) {
-          console.log('%c⏱️ Request timeout due to poor connection', 'color: #FFA500; font-weight: bold');
-          return {
-            success: false,
-            error: `Request timed out after ${adaptiveTimeout}ms due to poor connection quality. Please check your internet connection and try again.`
-          };
+        if (modelIndex > 0) {
+          console.log(`%c🔄 Trying fallback model ${modelIndex + 1}/${modelFallbackChain.length}: ${currentModel}`, 'color: #FFA500');
         }
         
-        throw error; // Re-throw other errors to be handled normally
+        const openRouterRequest: OpenRouterRequest = {
+          model: currentModel,
+          messages,
+          temperature,
+          // max_tokens intentionally omitted for unlimited output
+          top_p: 0.9
+        };
+
+        // Create combined AbortController for timeout and cancellation
+        const timeoutController = new AbortController();
+        const combinedController = new AbortController();
+        
+        // Set up timeout based on connection quality
+        const timeoutId = setTimeout(() => {
+          timeoutController.abort();
+        }, adaptiveTimeout);
+        
+        // Combine signals - abort if either the original signal or timeout triggers
+        const abortHandler = () => combinedController.abort();
+        signal?.addEventListener('abort', abortHandler);
+        timeoutController.signal.addEventListener('abort', abortHandler);
+
+        try {
+          const response = await this.fetchWithRetry(
+            `${this.BASE_URL}/chat/completions`,
+            {
+              method: 'POST',
+              headers: {
+                ...this.HEADERS,
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify(openRouterRequest),
+              signal: combinedController.signal
+            }
+          );
+          
+          clearTimeout(timeoutId);
+          
+          // Success! Log which model worked
+          if (modelIndex > 0) {
+            console.log(`%c✅ Fallback model ${currentModel} succeeded!`, 'color: #17BF63');
+          }
+          
+          // Track which model was successful (for stats)
+          const result = await this.processSuccessfulResponse(response, request, context);
+          if (result.success) {
+            // Add model tracking info to the result
+            (result as any).modelUsed = currentModel;
+            (result as any).modelFallbackIndex = modelIndex;
+          }
+          return result;
+          
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          lastError = error;
+          
+          // Handle timeout specifically
+          if (error.name === 'AbortError' && timeoutController.signal.aborted && !signal?.aborted) {
+            console.log(`%c⏱️ Model ${currentModel} timed out`, 'color: #FFA500');
+            // Continue to next model in chain
+            continue;
+          }
+          
+          // Log model-specific failure
+          console.log(`%c❌ Model ${currentModel} failed: ${error.message}`, 'color: #DC3545');
+          
+          // If this isn't the last model, continue to next
+          if (modelIndex < modelFallbackChain.length - 1) {
+            continue;
+          }
+          
+          // This was the last model, handle final failure
+          throw error;
+        }
       }
+      
+      // All models failed, return error
+      return {
+        success: false,
+        error: `All models failed. Last error: ${lastError?.message || 'Unknown error'}`
+      };
 
     } catch (error: any) {
       console.error('OpenRouter service error:', error);
