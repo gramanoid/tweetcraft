@@ -1,7 +1,10 @@
 /**
- * TwitterAPI.io Integration Service
- * Provides real engagement tracking for TweetCraft-generated replies
+ * TwitterAPI.io Integration Service (NOT official Twitter API)
+ * Uses TwitterAPI.io for engagement tracking - no CORS issues
+ * API calls should be made from service worker only
  */
+
+import { API_CONFIG } from '@/config/apiConfig';
 
 export interface TwitterAPIConfig {
   apiKey?: string;
@@ -40,7 +43,7 @@ export class TwitterAPIService {
   private readonly DAILY_REQUESTS_KEY = 'tweetcraft_daily_requests';
   
   private readonly DEFAULT_CONFIG: TwitterAPIConfig = {
-    endpoint: 'https://api.twitter.com/2/tweets',
+    endpoint: API_CONFIG.TWITTERAPI_IO_BASE_URL || 'https://twitterapi.io/api/v1',
     rateLimit: 100, // Conservative limit for TwitterAPI.io free tier
     enabled: false
   };
@@ -95,12 +98,18 @@ export class TwitterAPIService {
         };
       }
 
-      // Test with a simple request to validate the key
-      const response = await fetch('https://api.twitter.com/2/users/me', {
+      // Test with TwitterAPI.io endpoint
+      // Note: TwitterAPI.io uses different auth and endpoints
+      const response = await fetch(`${API_CONFIG.TWITTERAPI_IO_BASE_URL}/tweets/search`, {
         headers: {
-          'Authorization': `Bearer ${testKey}`,
+          'X-API-KEY': testKey,
           'Content-Type': 'application/json'
-        }
+        },
+        method: 'POST',
+        body: JSON.stringify({ 
+          query: 'test', 
+          limit: 1 
+        })
       });
 
       if (response.ok) {
@@ -244,11 +253,13 @@ export class TwitterAPIService {
         return null;
       }
 
-      const response = await fetch(`https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`, {
+      // TwitterAPI.io endpoint for tweet metrics
+      const response = await fetch(`${API_CONFIG.TWITTERAPI_IO_BASE_URL}/tweets/${tweetId}/metrics`, {
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
+          'X-API-KEY': config.apiKey || API_CONFIG.TWITTERAPI_IO_KEY,
           'Content-Type': 'application/json'
-        }
+        },
+        method: 'GET'
       });
 
       await this.incrementRequestCount();

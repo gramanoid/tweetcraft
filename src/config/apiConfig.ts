@@ -11,6 +11,10 @@ export const API_CONFIG = {
   // Exa API key for trending topics
   EXA_API_KEY: process.env.EXA_API_KEY || '',
   
+  // TwitterAPI.io configuration (NOT official Twitter API)
+  TWITTERAPI_IO_KEY: process.env.TWITTERAPI_IO_KEY || '',
+  TWITTERAPI_IO_BASE_URL: process.env.TWITTERAPI_IO_BASE_URL || 'https://twitterapi.io/api/v1',
+  
   // API endpoints
   BASE_URL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
   

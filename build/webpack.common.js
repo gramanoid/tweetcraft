@@ -44,6 +44,8 @@ module.exports = {
       'process.env.APP_NAME': JSON.stringify(process.env.APP_NAME || 'TweetCraft - AI Reply Assistant'),
       'process.env.APP_VERSION': JSON.stringify(process.env.APP_VERSION || '0.0.19'),
       'process.env.EXA_API_KEY': JSON.stringify(process.env.EXA_API_KEY || ''),
+      'process.env.TWITTERAPI_IO_KEY': JSON.stringify(process.env.TWITTERAPI_IO_KEY || ''),
+      'process.env.TWITTERAPI_IO_BASE_URL': JSON.stringify(process.env.TWITTERAPI_IO_BASE_URL || 'https://twitterapi.io/api/v1'),
     }),
     new MiniCssExtractPlugin({
       filename: '[name].css',
