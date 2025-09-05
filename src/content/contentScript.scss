@@ -531,3 +531,292 @@ body[style*="background-color: rgb(21, 32, 43)"] {
     }
   }
 }
+
+// Stats Dashboard Styles
+.stats-container {
+  padding: 20px;
+  background: #15202B;
+  color: #FFFFFF;
+  min-height: 400px;
+  
+  .stats-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+    color: #8899A6;
+    font-size: 14px;
+  }
+  
+  .stats-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .stats-header {
+    text-align: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #38444D;
+    
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+      color: #1DA1F2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .last-updated {
+      font-size: 12px;
+      color: #8899A6;
+    }
+  }
+  
+  .stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .stats-section {
+    background: #192734;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #38444D;
+  }
+  
+  .stats-title {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8899A6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  // Overall Performance Section
+  .overall-performance {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      
+      .stat-card {
+        background: #15202B;
+        border: 1px solid #38444D;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        
+        .stat-value {
+          font-size: 24px;
+          font-weight: 700;
+          color: #1DA1F2;
+          margin-bottom: 4px;
+        }
+        
+        .stat-label {
+          font-size: 12px;
+          color: #8899A6;
+        }
+        
+        &.success-stat .stat-value {
+          color: #17BF63;
+        }
+      }
+    }
+  }
+  
+  // Top Patterns Section
+  .top-patterns {
+    .patterns-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      
+      .pattern-category {
+        h4 {
+          margin: 0 0 8px 0;
+          font-size: 12px;
+          color: #8899A6;
+          font-weight: 600;
+        }
+        
+        .pattern-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        .pattern-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          padding: 4px 8px;
+          background: #253341;
+          border-radius: 6px;
+          
+          .pattern-rank {
+            font-weight: 700;
+            color: #1DA1F2;
+            min-width: 16px;
+          }
+          
+          .pattern-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          
+          .pattern-percentage {
+            color: #8899A6;
+            font-size: 11px;
+          }
+        }
+      }
+    }
+  }
+  
+  // Time Patterns Section
+  .time-patterns {
+    .time-charts {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      
+      .daily-chart, .peak-hours {
+        h4 {
+          margin: 0 0 8px 0;
+          font-size: 12px;
+          color: #8899A6;
+        }
+      }
+    }
+  }
+  
+  // Engagement Insights Section
+  .engagement-insights {
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      
+      .insight-card {
+        background: #253341;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        
+        .insight-icon {
+          font-size: 20px;
+          margin-bottom: 4px;
+        }
+        
+        .insight-value {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1DA1F2;
+          margin-bottom: 2px;
+        }
+        
+        .insight-label {
+          font-size: 11px;
+          color: #8899A6;
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+        
+        .insight-desc {
+          font-size: 10px;
+          color: #536471;
+        }
+      }
+    }
+  }
+  
+  // Performance Metrics Section
+  .performance-stats {
+    .performance-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      
+      .performance-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #253341;
+        border-radius: 6px;
+        
+        .performance-label {
+          font-size: 12px;
+          color: #8899A6;
+        }
+        
+        .performance-value {
+          font-size: 12px;
+          font-weight: 600;
+          color: #1DA1F2;
+        }
+      }
+    }
+  }
+  
+  // Mini chart styles for CSS-only charts
+  .mini-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 60px;
+    padding: 4px;
+    background: #15202B;
+    border-radius: 4px;
+    
+    .chart-bar {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      
+      .bar-fill {
+        width: 100%;
+        background: linear-gradient(to top, #1DA1F2, #1A8CD8);
+        border-radius: 2px 2px 0 0;
+        transition: height 0.3s ease;
+      }
+      
+      .bar-label {
+        font-size: 9px;
+        color: #536471;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+        text-align: center;
+      }
+    }
+  }
+  
+  .no-data {
+    text-align: center;
+    padding: 20px;
+    color: #536471;
+    font-size: 13px;
+    font-style: italic;
+  }
+  
+  .sparkline {
+    display: block;
+    margin: 8px 0;
+  }
+}

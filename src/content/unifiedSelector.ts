@@ -25,6 +25,7 @@ import { DOMUtils } from "@/content/domUtils";
 import { imageService } from "@/services/imageService";
 import { smartDefaults, SmartDefaultsService } from "@/services/smartDefaults";
 import { usageTracker } from "@/services/usageTracker";
+import { statsAggregator } from "@/services/statsAggregator";
 import { createTemplateId } from "@/types/branded";
 import { logger } from "@/utils/logger";
 import { TrendService, TrendingTopic } from "@/services/trendService";
@@ -120,7 +121,8 @@ export class UnifiedSelector {
     | "smart"
     | "favorites"
     | "custom"
-    | "compose" = "smart";
+    | "compose"
+    | "stats" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -894,6 +896,9 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "compose" ? "active" : ""}" data-view="compose">
             ✍️ Compose
           </button>
+          <button class="tab-btn ${this.view === "stats" ? "active" : ""}" data-view="stats">
+            📊 Stats
+          </button>
         </div>
         <div class="header-actions">
           <button class="close-btn" aria-label="Close">×</button>
@@ -1068,6 +1073,8 @@ export class UnifiedSelector {
         return this.renderCustomView(templates, personalities);
       case "compose":
         return this.renderComposeView();
+      case "stats":
+        return this.renderStatsView();
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -2502,6 +2509,203 @@ export class UnifiedSelector {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Task 2.1: Render stats dashboard view
+   */
+  private renderStatsView(): string {
+    // Show loading state initially, stats will be loaded asynchronously
+    this.loadStatsData();
+    
+    return `
+      <div class="selector-content stats-view">
+        <div class="stats-dashboard" id="statsDashboard">
+          <div class="stats-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading your stats...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  /**
+   * Load stats data asynchronously and update the view
+   */
+  private async loadStatsData(): Promise<void> {
+    try {
+      const stats = await statsAggregator.getDashboardStats();
+      const dashboard = this.container?.querySelector('#statsDashboard');
+      
+      if (!dashboard) return;
+      
+      dashboard.innerHTML = `
+          <!-- Overall Performance -->
+          <div class="stats-section overall-stats">
+            <h3 class="stats-title">📈 Overall Performance</h3>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${stats.totalReplies}</div>
+                <div class="stat-label">Replies Generated</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${stats.repliesSent}</div>
+                <div class="stat-label">Replies Sent</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${stats.successRate.toFixed(1)}%</div>
+                <div class="stat-label">Success Rate</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${stats.cacheHitRate.toFixed(1)}%</div>
+                <div class="stat-label">Cache Hit Rate</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Usage Patterns -->
+          <div class="stats-section usage-patterns">
+            <h3 class="stats-title">🎭 Your Favorites (Last 30 Days)</h3>
+            
+            <div class="usage-subsection">
+              <h4>Top Personalities</h4>
+              <div class="usage-list">
+                ${stats.topPersonalities.map(item => `
+                  <div class="usage-item">
+                    <span class="usage-name">${item.name}</span>
+                    <div class="usage-bar">
+                      <div class="usage-bar-fill" style="width: ${item.percentage}%"></div>
+                    </div>
+                    <span class="usage-count">${item.count}</span>
+                  </div>
+                `).join('')}
+                ${stats.topPersonalities.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+              </div>
+            </div>
+
+            <div class="usage-subsection">
+              <h4>Top Vocabulary Styles</h4>
+              <div class="usage-list">
+                ${stats.topVocabulary.map(item => `
+                  <div class="usage-item">
+                    <span class="usage-name">${item.name}</span>
+                    <div class="usage-bar">
+                      <div class="usage-bar-fill" style="width: ${item.percentage}%"></div>
+                    </div>
+                    <span class="usage-count">${item.count}</span>
+                  </div>
+                `).join('')}
+                ${stats.topVocabulary.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+              </div>
+            </div>
+
+            <div class="usage-subsection">
+              <h4>Top Rhetoric Styles</h4>
+              <div class="usage-list">
+                ${stats.topRhetoric.map(item => `
+                  <div class="usage-item">
+                    <span class="usage-name">${item.name}</span>
+                    <div class="usage-bar">
+                      <div class="usage-bar-fill" style="width: ${item.percentage}%"></div>
+                    </div>
+                    <span class="usage-count">${item.count}</span>
+                  </div>
+                `).join('')}
+                ${stats.topRhetoric.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Patterns -->
+          <div class="stats-section time-patterns">
+            <h3 class="stats-title">📅 Activity Patterns</h3>
+            
+            <div class="pattern-subsection">
+              <h4>Peak Hours</h4>
+              ${statsAggregator.createMiniBarChart(
+                stats.peakHours.map(h => ({ 
+                  label: h.hour < 12 ? `${h.hour || 12}am` : h.hour === 12 ? '12pm' : `${h.hour - 12}pm`,
+                  value: h.count 
+                }))
+              )}
+            </div>
+
+            <div class="pattern-subsection">
+              <h4>Daily Trend (Last 7 Days)</h4>
+              ${statsAggregator.createMiniBarChart(
+                stats.dailyTrend.map(d => ({
+                  label: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                  value: d.count
+                }))
+              )}
+            </div>
+          </div>
+
+          <!-- Engagement Insights -->
+          <div class="stats-section engagement-stats">
+            <h3 class="stats-title">💡 Engagement Insights</h3>
+            <div class="insights-grid">
+              <div class="insight-card">
+                <div class="insight-icon">✏️</div>
+                <div class="insight-value">${stats.editRate.toFixed(1)}%</div>
+                <div class="insight-label">Edit Rate</div>
+                <div class="insight-desc">How often you edit generated replies</div>
+              </div>
+              <div class="insight-card">
+                <div class="insight-icon">🗑️</div>
+                <div class="insight-value">${stats.discardRate.toFixed(1)}%</div>
+                <div class="insight-label">Discard Rate</div>
+                <div class="insight-desc">How often you discard replies</div>
+              </div>
+              <div class="insight-card">
+                <div class="insight-icon">⭐</div>
+                <div class="insight-value">${stats.favoriteRate.toFixed(1)}%</div>
+                <div class="insight-label">Favorite Rate</div>
+                <div class="insight-desc">How often you favorite combinations</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Performance Metrics -->
+          <div class="stats-section performance-stats">
+            <h3 class="stats-title">⚡ Performance</h3>
+            <div class="performance-grid">
+              <div class="performance-item">
+                <span class="performance-label">Avg Response Time:</span>
+                <span class="performance-value">${stats.avgResponseTime}ms</span>
+              </div>
+              ${stats.modelUsage.length > 0 ? `
+                <div class="performance-item">
+                  <span class="performance-label">Top Model:</span>
+                  <span class="performance-value">${stats.modelUsage[0]?.model || 'N/A'}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    } catch (error) {
+      console.error('%c📊 Failed to load stats', 'color: #DC3545', error);
+      const dashboard = this.container?.querySelector('#statsDashboard');
+      if (dashboard) {
+        dashboard.innerHTML = `
+          <div class="stats-error">
+            <p>Failed to load stats. Please try again later.</p>
+            <button class="retry-stats-btn">Retry</button>
+          </div>
+        `;
+        
+        // Add retry handler
+        const retryBtn = dashboard.querySelector('.retry-stats-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => {
+            this.loadStatsData();
+          });
+        }
+      }
+    }
   }
 
   /**
