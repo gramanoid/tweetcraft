@@ -25,7 +25,13 @@ export enum MessageType {
   ANALYZE_IMAGES = 'ANALYZE_IMAGES',
   FETCH_TRENDING_TOPICS = 'FETCH_TRENDING_TOPICS',
   SUGGEST_TEMPLATE = 'SUGGEST_TEMPLATE',
-  GENERATE_IMAGE = 'GENERATE_IMAGE'
+  GENERATE_IMAGE = 'GENERATE_IMAGE',
+  ANALYZE_TWEET_LLM = 'ANALYZE_TWEET_LLM',
+  IMAGE_SEARCH_PERPLEXITY = 'IMAGE_SEARCH_PERPLEXITY',
+  IMAGE_EXTRACT_CONTEXT = 'IMAGE_EXTRACT_CONTEXT',
+  IMAGE_GENERATE_PROMPT = 'IMAGE_GENERATE_PROMPT',
+  GET_WEEKLY_SUMMARY = 'GET_WEEKLY_SUMMARY',
+  GET_TIME_RECOMMENDATIONS = 'GET_TIME_RECOMMENDATIONS'
 }
 
 // Base message interface
@@ -121,6 +127,20 @@ export interface GenerateImageMessage extends BaseMessage {
   options?: any;
 }
 
+export interface AnalyzeTweetLLMMessage extends BaseMessage {
+  type: MessageType.ANALYZE_TWEET_LLM;
+  tweetText: string;
+  context: any;
+}
+
+export interface GetWeeklySummaryMessage extends BaseMessage {
+  type: MessageType.GET_WEEKLY_SUMMARY;
+}
+
+export interface GetTimeRecommendationsMessage extends BaseMessage {
+  type: MessageType.GET_TIME_RECOMMENDATIONS;
+}
+
 export interface PingMessage extends BaseMessage {
   type: MessageType.PING;
 }
@@ -156,7 +176,10 @@ export type ExtensionMessage =
   | AnalyzeImagesMessage
   | FetchTrendingTopicsMessage
   | SuggestTemplateMessage
-  | GenerateImageMessage;
+  | GenerateImageMessage
+  | AnalyzeTweetLLMMessage
+  | GetWeeklySummaryMessage
+  | GetTimeRecommendationsMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -235,6 +258,20 @@ export function isSuggestTemplateMessage(msg: any): msg is SuggestTemplateMessag
 export function isGenerateImageMessage(msg: any): msg is GenerateImageMessage {
   return msg?.type === MessageType.GENERATE_IMAGE && 
          typeof msg?.prompt === 'string';
+}
+
+export function isAnalyzeTweetLLMMessage(msg: any): msg is AnalyzeTweetLLMMessage {
+  return msg?.type === MessageType.ANALYZE_TWEET_LLM && 
+         typeof msg?.tweetText === 'string' &&
+         msg?.context !== undefined;
+}
+
+export function isGetWeeklySummaryMessage(msg: any): msg is GetWeeklySummaryMessage {
+  return msg?.type === MessageType.GET_WEEKLY_SUMMARY;
+}
+
+export function isGetTimeRecommendationsMessage(msg: any): msg is GetTimeRecommendationsMessage {
+  return msg?.type === MessageType.GET_TIME_RECOMMENDATIONS;
 }
 
 export function isPingMessage(msg: any): msg is PingMessage {

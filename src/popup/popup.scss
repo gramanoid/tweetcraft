@@ -473,3 +473,196 @@ body {
     }
   }
 }
+
+// Best Time Indicator Styles
+#best-time-indicator {
+  margin-top: 10px;
+  
+  .time-loading {
+    text-align: center;
+    color: #657786;
+    padding: 15px;
+  }
+  
+  .time-empty {
+    text-align: center;
+    color: #657786;
+    padding: 15px;
+    background: #f7f9fa;
+    border-radius: 8px;
+    
+    p {
+      margin: 0;
+      font-size: 0.9em;
+    }
+  }
+  
+  .time-error {
+    text-align: center;
+    color: #DC3545;
+    padding: 15px;
+    background: #fee;
+    border-radius: 8px;
+    
+    p {
+      margin: 0;
+      font-size: 0.9em;
+    }
+  }
+  
+  .time-indicator {
+    background: #f7f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    
+    .current-time {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e1e8ed;
+      
+      .time-now {
+        font-weight: 600;
+        color: #14171A;
+      }
+      
+      .period-badge {
+        background: #1DA1F2;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.85em;
+      }
+    }
+    
+    .best-time-info {
+      .recommendation {
+        color: #14171A;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+      }
+      
+      .confidence-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .confidence-label {
+          color: #657786;
+          font-size: 0.85em;
+        }
+        
+        .confidence-value {
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 0.85em;
+          text-transform: capitalize;
+        }
+        
+        &.confidence-high {
+          .confidence-value {
+            background: #d4edda;
+            color: #155724;
+          }
+        }
+        
+        &.confidence-medium {
+          .confidence-value {
+            background: #fff3cd;
+            color: #856404;
+          }
+        }
+        
+        &.confidence-low {
+          .confidence-value {
+            background: #f8d7da;
+            color: #721c24;
+          }
+        }
+      }
+    }
+    
+    .suggestion-text {
+      color: #657786;
+      font-size: 0.9em;
+      font-style: italic;
+    }
+  }
+}
+
+// Weekly Summary Styles
+#weekly-summary-container {
+  margin-top: 10px;
+  
+  .summary-loading {
+    text-align: center;
+    color: #657786;
+    padding: 15px;
+  }
+  
+  .summary-empty {
+    text-align: center;
+    color: #657786;
+    padding: 15px;
+    background: #f7f9fa;
+    border-radius: 8px;
+    
+    p {
+      margin: 0;
+      font-size: 0.9em;
+    }
+  }
+  
+  .summary-error {
+    text-align: center;
+    color: #DC3545;
+    padding: 15px;
+    background: #fee;
+    border-radius: 8px;
+    
+    p {
+      margin: 0;
+      font-size: 0.9em;
+    }
+  }
+  
+  .summary-stats {
+    background: #f7f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #e1e8ed;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .stat-label {
+        color: #657786;
+        font-size: 0.9em;
+      }
+      
+      .stat-value {
+        font-weight: 600;
+        color: #14171A;
+      }
+    }
+  }
+  
+  .summary-footer {
+    margin-top: 10px;
+    text-align: center;
+    
+    small {
+      color: #657786;
+      font-size: 0.85em;
+    }
+  }
+}

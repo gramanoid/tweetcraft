@@ -82,11 +82,12 @@ This document provides a comprehensive mapping between frontend UI elements and 
 
 ## ⚠️ Services Bypassing Service Worker
 
-### 1. templateSuggester.ts
-- **Current**: Makes direct OpenRouter API calls
-- **Issue**: Bypasses central auth, rate limiting, and offline queue
+### 1. templateSuggester.ts ✅ FIXED (2025-09-05)
+- **Previous**: Made direct OpenRouter API calls
+- **Issue**: Bypassed central auth, rate limiting, and offline queue
 - **Location**: `src/services/templateSuggester.ts`
-- **Recommendation**: Already partially fixed - now callable via service worker
+- **Fix Applied**: Now uses service worker via ANALYZE_TWEET_LLM message type
+- **Status**: ✅ Migration complete - all API calls now go through service worker
 
 ### 2. imageService.ts
 - **Current**: Makes direct API calls
@@ -96,18 +97,25 @@ This document provides a comprehensive mapping between frontend UI elements and 
 
 ## 🔍 Hidden Backend Features (Not Visible in UI)
 
-### 1. Weekly Summary Notifications
+### 1. Weekly Summary Notifications ✅ UI ADDED (2025-09-05)
 - **Backend**: Chrome alarms trigger every Sunday at 7PM
 - **Data Collected**: Total replies, success rate, top personality
-- **Issue**: No UI to view summaries
-- **Code**: `serviceWorker.ts` → alarm handler
-- **Recommendation**: Add summary view in popup
+- **UI Added**: Weekly summary section in popup.html showing:
+  - Total replies and sent count with success rate
+  - Top personality, vocabulary, rhetoric preferences
+  - Most active day of the week
+- **Code**: `serviceWorker.ts` → GET_WEEKLY_SUMMARY handler
+- **Status**: ✅ Basic UI implemented, still needs historical view
 
-### 2. Time Pattern Tracking
+### 2. Time Pattern Tracking ✅ UI ADDED (2025-09-05)
 - **Backend**: Tracks personality usage by hour
 - **Data**: Stored in smartDefaults service
-- **UI**: Only shown in stats dashboard
-- **Recommendation**: Show "Best time to tweet" indicator
+- **UI Added**: Best Time to Tweet section in popup showing:
+  - Current time period with emoji indicator
+  - Personalized recommendation based on usage patterns
+  - Confidence level (high/medium/low)
+- **Code**: `serviceWorker.ts` → GET_TIME_RECOMMENDATIONS handler
+- **Status**: ✅ Basic indicator implemented in popup
 
 ### 3. Exa Trending Topics
 - **Backend**: `FETCH_TRENDING_TOPICS` handler exists
@@ -229,6 +237,6 @@ After implementing fixes:
 
 ---
 
-*Last updated: 2025-01-09*
+*Last updated: 2025-09-05*
 *Version: 0.0.19*
-*Status: 2 critical issues fixed, 5 features to expose*
+*Status: 5 improvements completed (templateSuggester migration + Weekly Summary UI + Best Time indicator), 3 features to expose*

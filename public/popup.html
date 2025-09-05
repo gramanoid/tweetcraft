@@ -79,7 +79,7 @@
         <div class="setting-group">
           <h3>📈 Engagement Tracking (Optional)</h3>
           <label>
-            <input type="checkbox" id="twitter-api-enabled" aria-controls="twitter-api-settings" aria-expanded="false"> Enable real engagement tracking
+            <input type="checkbox" id="twitter-api-enabled" data-setting="twitterApiEnabled" aria-controls="twitter-api-settings" aria-expanded="false"> Enable real engagement tracking
           </label>
           <small>Track likes, retweets, and replies on your generated tweets to improve suggestions</small>
           
@@ -93,15 +93,31 @@
           </div>
         </div>
         
+        <div class="setting-group">
+          <h3>📊 Weekly Summary</h3>
+          <div id="weekly-summary-container">
+            <div class="summary-loading">Loading summary...</div>
+          </div>
+        </div>
+        
+        <div class="setting-group">
+          <h3>⏰ Best Time to Tweet</h3>
+          <div id="best-time-indicator">
+            <div class="time-loading">Analyzing patterns...</div>
+          </div>
+        </div>
+        
       </main>
       
       <footer class="popup-footer">
         <div class="footer-buttons">
           <button id="save-settings" class="btn-primary">Save Settings</button>
           <button id="reset-usage" class="btn-secondary reset-btn" title="Reset all usage counters to 0">🔄 Reset Usage</button>
-          <button id="clear-data" class="btn-secondary reset-btn" title="Clear all extension data">🗑️ Clear Data</button>
           <button id="validate-key" class="btn-secondary" title="Validate API Key">✓ Validate Key</button>
           <button id="self-test" class="btn-secondary" title="Run health check of all extension components">🔍 Self-Test</button>
+        </div>
+        <div class="footer-buttons" style="margin-top: 10px;">
+          <button id="clear-data" class="btn-danger" title="Clear all extension data">🗑️ Clear Data</button>
         </div>
         <div id="status-message"></div>
       </footer>

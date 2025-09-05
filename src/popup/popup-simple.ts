@@ -31,7 +31,6 @@ interface Features {
 const MAX_IMAGES_PER_REQUEST = 2;
 
 console.log('popup-simple.ts: Script loaded');
-
 document.addEventListener('DOMContentLoaded', () => {
   console.log('popup-simple.ts: DOM loaded');
   
@@ -705,4 +704,181 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize TwitterAPI settings
   loadTwitterApiSettings();
   
+  // Load weekly summary
+  loadWeeklySummary();
+  
+  // Load best time indicator
+  loadBestTimeIndicator();
+  
 });
+
+// Load and display weekly summary
+async function loadWeeklySummary(): Promise<void> {
+  const container = document.getElementById('weekly-summary-container');
+  if (!container) return;
+  
+  try {
+    // Fetch summary from service worker
+    const response = await new Promise<any>((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: MessageType.GET_WEEKLY_SUMMARY },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to fetch weekly summary:', chrome.runtime.lastError);
+            resolve(null);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
+    
+    if (response?.success && response.data) {
+      displayWeeklySummary(container, response.data);
+    } else {
+      container.innerHTML = `
+        <div class="summary-empty">
+          <p>No data available yet. Start using TweetCraft to see your weekly statistics!</p>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading weekly summary:', error);
+    container.innerHTML = `
+      <div class="summary-error">
+        <p>Failed to load summary. Please try again later.</p>
+      </div>
+    `;
+  }
+}
+
+// Display weekly summary in the popup
+function displayWeeklySummary(container: HTMLElement, data: any): void {
+  const { 
+    totalReplies = 0, 
+    totalSent = 0, 
+    successRate = 0, 
+    topPersonality = 'N/A',
+    topVocabulary = 'N/A',
+    topRhetoric = 'N/A',
+    mostActiveDay = 'N/A'
+  } = data;
+  
+  container.innerHTML = `
+    <div class="summary-stats">
+      <div class="stat-row">
+        <span class="stat-label">Total Replies:</span>
+        <span class="stat-value">${totalReplies}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Sent:</span>
+        <span class="stat-value">${totalSent} (${successRate}%)</span>
+      </div>
+      ${topPersonality !== 'N/A' ? `
+        <div class="stat-row">
+          <span class="stat-label">Top Personality:</span>
+          <span class="stat-value">${topPersonality}</span>
+        </div>
+      ` : ''}
+      ${mostActiveDay !== 'N/A' ? `
+        <div class="stat-row">
+          <span class="stat-label">Most Active Day:</span>
+          <span class="stat-value">${mostActiveDay}</span>
+        </div>
+      ` : ''}
+    </div>
+    <div class="summary-footer">
+      <small>Updates every Sunday at 7PM</small>
+    </div>
+  `;
+}
+
+// Load and display best time to tweet indicator
+async function loadBestTimeIndicator(): Promise<void> {
+  const container = document.getElementById('best-time-indicator');
+  if (!container) return;
+  
+  try {
+    // Fetch time recommendations from service worker
+    const response = await new Promise<any>((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: MessageType.GET_TIME_RECOMMENDATIONS },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to fetch time recommendations:', chrome.runtime.lastError);
+            resolve(null);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
+    
+    if (response?.success && response.data) {
+      displayBestTimeIndicator(container, response.data);
+    } else {
+      container.innerHTML = `
+        <div class="time-empty">
+          <p>No time patterns detected yet. Keep tweeting to discover your optimal posting times!</p>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading time recommendations:', error);
+    container.innerHTML = `
+      <div class="time-error">
+        <p>Failed to load recommendations.</p>
+      </div>
+    `;
+  }
+}
+
+// Display best time indicator in the popup
+function displayBestTimeIndicator(container: HTMLElement, data: any): void {
+  const { currentPeriod, bestTime, suggestion } = data;
+  
+  // Get current time display
+  const now = new Date();
+  const timeString = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+  
+  // Format current period nicely
+  const periodLabels: { [key: string]: string } = {
+    morning: '🌅 Morning',
+    midMorning: '☀️ Mid-Morning',
+    noon: '🌞 Noon',
+    afternoon: '☕ Afternoon',
+    evening: '🌇 Evening',
+    night: '🌙 Night',
+    lateNight: '🌜 Late Night'
+  };
+  
+  const currentPeriodLabel = periodLabels[currentPeriod] || currentPeriod;
+  
+  container.innerHTML = `
+    <div class="time-indicator">
+      <div class="current-time">
+        <span class="time-now">Now: ${timeString}</span>
+        <span class="period-badge">${currentPeriodLabel}</span>
+      </div>
+      ${bestTime && bestTime.confidence !== 'low' ? `
+        <div class="best-time-info">
+          <div class="recommendation">
+            ${suggestion}
+          </div>
+          <div class="confidence-indicator confidence-${bestTime.confidence}">
+            <span class="confidence-label">Confidence:</span>
+            <span class="confidence-value">${bestTime.confidence}</span>
+          </div>
+        </div>
+      ` : `
+        <div class="suggestion-text">
+          ${suggestion}
+        </div>
+      `}
+    </div>
+  `;
+}

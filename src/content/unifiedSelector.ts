@@ -26,6 +26,9 @@ type Tone = Personality;
 import { visualFeedback } from "@/ui/visualFeedback";
 import { guidedTour, GuidedTour } from "@/components/GuidedTour";
 import { weeklySummaryView } from "@/components/WeeklySummaryView";
+import { timeRecommendations } from "@/components/TimeRecommendations";
+import { trendingTopicsView } from "@/components/TrendingTopics";
+import { cacheDebugView } from "@/components/CacheDebugView";
 import { templateSuggester } from "@/services/templateSuggester";
 import { DOMUtils } from "@/content/domUtils";
 import { imageService } from "@/services/imageService";
@@ -126,8 +129,11 @@ export class UnifiedSelector {
     | "compose"
     | "stats"
     | "weekly"
+    | "timing"
+    | "trending"
     | "engagement"
-    | "abtest" = "smart";
+    | "abtest"
+    | "cache" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -927,11 +933,20 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "weekly" ? "active" : ""}" data-view="weekly">
             📅 Weekly
           </button>
+          <button class="tab-btn ${this.view === "timing" ? "active" : ""}" data-view="timing">
+            ⏰ Timing
+          </button>
+          <button class="tab-btn ${this.view === "trending" ? "active" : ""}" data-view="trending">
+            🔥 Trending
+          </button>
           <button class="tab-btn ${this.view === "engagement" ? "active" : ""}" data-view="engagement">
             📈 Engagement
           </button>
           <button class="tab-btn ${this.view === "abtest" ? "active" : ""}" data-view="abtest">
             🧪 A/B Test
+          </button>
+          <button class="tab-btn ${this.view === "cache" ? "active" : ""}" data-view="cache">
+            💾 Cache
           </button>
         </div>
         <div class="header-actions">
@@ -1111,10 +1126,16 @@ export class UnifiedSelector {
         return this.renderStatsView();
       case "weekly":
         return this.renderWeeklySummaryView();
+      case "timing":
+        return this.renderTimeRecommendationsView();
+      case "trending":
+        return this.renderTrendingTopicsView();
       case "engagement":
         return this.renderEngagementView();
       case "abtest":
         return this.renderABTestView();
+      case "cache":
+        return this.renderCacheDebugView();
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -1203,6 +1224,73 @@ export class UnifiedSelector {
             .join("")}
         </div>
       </div>
+    `;
+  }
+
+  /**
+   * Render boost stats summary
+   */
+  private renderBoostStats(): string {
+    const stats = templateSuggester.getBoostStats();
+    
+    if (stats.total === 0) {
+      return ''; // No boosts tracked yet
+    }
+    
+    return `
+      <div class="boost-stats-summary" style="
+        background: linear-gradient(135deg, rgba(23, 191, 99, 0.1) 0%, rgba(29, 161, 242, 0.1) 100%);
+        border: 1px solid rgba(29, 161, 242, 0.2);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      ">
+        <span style="font-weight: 600; color: #1DA1F2;">📊 Learning from your choices:</span>
+        <span style="color: #17BF63;">
+          <strong>${stats.positive}</strong> boosted
+        </span>
+        <span style="color: #F4405F;">
+          <strong>${stats.negative}</strong> reduced
+        </span>
+        ${stats.strongest ? `
+          <span style="color: #657786; margin-left: auto; font-style: italic;">
+            Top preference: ${stats.strongest.split(':')[0]}
+          </span>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Render boost/decay indicator for suggestions
+   */
+  private renderBoostIndicator(score: any): string {
+    // Check if this score has boost/decay information in reasons
+    if (!score || !score.reasons) return '';
+    
+    const boostReason = score.reasons.find((r: string) => 
+      r.includes('User preference') || r.includes('Less preferred')
+    );
+    
+    if (!boostReason) return '';
+    
+    // Extract the boost percentage
+    const match = boostReason.match(/([+-]?\d+)%/);
+    if (!match) return '';
+    
+    const boostPercent = parseInt(match[1]);
+    const isPositive = boostPercent > 0;
+    
+    return `
+      <span class="boost-indicator ${isPositive ? 'boost-positive' : 'boost-negative'}" 
+            title="${isPositive ? 'Boosted based on your selections' : 'Score reduced based on past skips'}">
+        <span class="boost-icon">${isPositive ? '📈' : '📉'}</span>
+        <span class="boost-value">${isPositive ? '+' : ''}${boostPercent}%</span>
+      </span>
     `;
   }
 
@@ -2247,6 +2335,7 @@ export class UnifiedSelector {
               ⚡ Quick Arsenal
             </button>
           </div>
+          ${this.renderBoostStats()}
           ${this.currentTopicAnalysis ? `
             <div class="topic-analysis-section" style="background: rgba(155, 89, 182, 0.1); border: 1px solid rgba(155, 89, 182, 0.3); border-radius: 6px; padding: 8px; margin-bottom: 12px; font-size: 12px;">
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -2297,6 +2386,7 @@ export class UnifiedSelector {
                           style="background-color: ${scoreInfo.color}">
                       ${scoreInfo.numericScore}/10
                     </span>
+                    ${this.renderBoostIndicator(score)}
                     <button class="why-recommended-btn"
                             data-score-index="${_index}"
                             title="View scoring breakdown">
@@ -2958,6 +3048,94 @@ export class UnifiedSelector {
   }
 
   /**
+   * Render time recommendations view
+   */
+  private renderTimeRecommendationsView(): string {
+    // Show loading state initially, time recommendations will be loaded asynchronously
+    this.loadTimeRecommendationsData();
+
+    return `
+      <div class="selector-content timing-view">
+        <div class="time-recommendations-container" id="timeRecommendationsContainer">
+          <div class="timing-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Analyzing your tweet patterns...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load time recommendations data asynchronously and update the view
+   */
+  private async loadTimeRecommendationsData(): Promise<void> {
+    try {
+      const container = this.container?.querySelector("#timeRecommendationsContainer");
+      if (!container) return;
+
+      // Create and append the time recommendations view
+      const recommendationsElement = timeRecommendations.create();
+      container.innerHTML = '';
+      container.appendChild(recommendationsElement);
+    } catch (error) {
+      console.error('Failed to load time recommendations:', error);
+      const container = this.container?.querySelector("#timeRecommendationsContainer");
+      if (container) {
+        container.innerHTML = `
+          <div class="error-state">
+            <span>⚠️ Failed to load time recommendations</span>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /**
+   * Render trending topics view
+   */
+  private renderTrendingTopicsView(): string {
+    // Show loading state initially, trending topics will be loaded asynchronously
+    this.loadTrendingTopicsData();
+
+    return `
+      <div class="selector-content trending-view">
+        <div class="trending-topics-container" id="trendingTopicsContainer">
+          <div class="trending-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Fetching trending topics...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load trending topics data asynchronously and update the view
+   */
+  private async loadTrendingTopicsData(): Promise<void> {
+    try {
+      const container = this.container?.querySelector("#trendingTopicsContainer");
+      if (!container) return;
+
+      // Create and append the trending topics view
+      const trendingElement = trendingTopicsView.create();
+      container.innerHTML = '';
+      container.appendChild(trendingElement);
+    } catch (error) {
+      console.error('Failed to load trending topics:', error);
+      const container = this.container?.querySelector("#trendingTopicsContainer");
+      if (container) {
+        container.innerHTML = `
+          <div class="error-state">
+            <span>⚠️ Failed to load trending topics</span>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /**
    * Render engagement dashboard view
    */
   private renderEngagementView(): string {
@@ -3042,6 +3220,51 @@ export class UnifiedSelector {
         container.innerHTML = `
           <div class="error-message">
             <p>Failed to load A/B testing data</p>
+            <small>${error instanceof Error ? error.message : 'Unknown error'}</small>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /**
+   * Render cache debug statistics view
+   */
+  private renderCacheDebugView(): string {
+    // Show loading state initially, cache stats will be loaded asynchronously
+    this.loadCacheDebugData();
+    
+    return `
+      <div class="selector-content cache-view">
+        <div class="cache-debug-container" id="cacheDebugContainer">
+          <div class="cache-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading cache statistics...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load cache debug data asynchronously
+   */
+  private async loadCacheDebugData(): Promise<void> {
+    try {
+      const container = this.container?.querySelector('#cacheDebugContainer');
+      if (!container) return;
+      
+      // Create and append the cache debug view
+      const debugElement = cacheDebugView.create();
+      container.innerHTML = '';
+      container.appendChild(debugElement);
+    } catch (error) {
+      console.error('Failed to load cache debug view:', error);
+      const container = this.container?.querySelector('#cacheDebugContainer');
+      if (container) {
+        container.innerHTML = `
+          <div class="error-message">
+            <p>Failed to load cache debug data</p>
             <small>${error instanceof Error ? error.message : 'Unknown error'}</small>
           </div>
         `;
@@ -3836,6 +4059,33 @@ export class UnifiedSelector {
         const templateId = (e.currentTarget as HTMLElement).dataset.template!;
         const personalityId = (e.currentTarget as HTMLElement).dataset
           .personality!;
+        const scoreIndex = (e.currentTarget as HTMLElement).dataset.scoreIndex;
+        
+        // Track this selection for boost/decay algorithm
+        if (scoreIndex && this.smartSuggestionsScores) {
+          const allScores = this.smartSuggestionsScores;
+          const selectedScore = allScores[parseInt(scoreIndex)];
+          
+          if (selectedScore) {
+            // Map scores to the format expected by trackSuggestionSelected
+            const allSuggestions = allScores.map((s: any) => ({
+              templateId: s.templateId,
+              toneId: s.toneId,
+              score: s.score,
+              reasons: s.reasons || []
+            }));
+            
+            templateSuggester.trackSuggestionSelected(
+              templateId,
+              personalityId,
+              allSuggestions
+            );
+            
+            console.log('%c📈 Boost updated for selection', 'color: #17BF63; font-weight: bold', 
+              `${templateId}:${personalityId}`);
+          }
+        }
+        
         this.selectTemplate(templateId);
         this.selectPersonality(personalityId);
       });
@@ -9229,6 +9479,37 @@ export class UnifiedSelector {
           color: #15202b;
           min-width: 35px;
           text-align: center;
+        }
+
+        .boost-indicator {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          padding: 2px 6px;
+          border-radius: 8px;
+          font-size: 10px;
+          font-weight: 600;
+          margin-left: 4px;
+        }
+
+        .boost-indicator.boost-positive {
+          background: rgba(23, 191, 99, 0.15);
+          color: #17BF63;
+          border: 1px solid rgba(23, 191, 99, 0.3);
+        }
+
+        .boost-indicator.boost-negative {
+          background: rgba(244, 64, 95, 0.15);
+          color: #F4405F;
+          border: 1px solid rgba(244, 64, 95, 0.3);
+        }
+
+        .boost-icon {
+          font-size: 12px;
+        }
+
+        .boost-value {
+          font-weight: bold;
         }
 
         .why-recommended-btn {

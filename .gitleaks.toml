@@ -25,11 +25,12 @@ files = [
 
 # Custom patterns to exclude (false positives)
 regexes = [
-  '''process\.env\.[A-Z_]+''',  # Environment variable references are OK
-  '''OPENROUTER_API_KEY''',      # Variable name mentions are OK
-  '''EXA_API_KEY''',              # Variable name mentions are OK
-  '''example[_-]?key''',          # Example keys are OK
-  '''test[_-]?api[_-]?key'''     # Test keys are OK
+   '''process\.env\.[A-Z0-9_]+''',  # Environment variable references are OK
+   '''OPENROUTER_API_KEY''',      # Variable name mentions are OK
+   '''EXA_API_KEY''',              # Variable name mentions are OK
+   '''TWITTERAPI_IO_KEY''',      # Variable name mentions are OK
+   '''example[_-]?key''',          # Example keys are OK
+   '''test[_-]?api[_-]?key'''     # Test keys are OK
 ]
 
 # Additional rules for TweetCraft specific secrets
@@ -60,13 +61,13 @@ tags = ["api", "twitter"]
 [[rules]]
 id = "chrome-extension-key"
 description = "Chrome Extension Private Key"
-regex = '''-----BEGIN (RSA |EC )?PRIVATE KEY-----'''
+regex = '''-----BEGIN (?:RSA|EC)?PRIVATE KEY-----'''
 tags = ["chrome", "private-key"]
 
 # Ensure dist/ folder is strictly checked
 [[rules]]
 id = "dist-folder-secrets"
 description = "Any secrets in dist/ folder"
-regex = '''(api[_-]?key|secret|token|password|bearer|credential)['"]?\s*[:=]\s*['"][^'"]+['"]'''
+regex = '''(api[_-]?key|secret|token|password|bearer|credential)['"]?\s*[:=]\s*['"][^'"]+['"]|eyJ[A-Za-z0-9_-]+\.([A-Za-z0-9_-]+\.)[A-Za-z0-9_-]+|[A-Za-z0-9+/=]{40,}'''
 path = '''dist/.*'''
 tags = ["dist", "build"]

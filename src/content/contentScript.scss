@@ -1,6 +1,9 @@
 // Import CSS variables for consistent design
 @import '../styles/variables.scss';
 @import '../components/WeeklySummaryView.scss';
+@import '../components/TimeRecommendations.scss';
+@import '../components/TrendingTopics.scss';
+@import '../components/CacheDebugView.scss';
 
 // Smart Reply Extension Styles
 .smart-reply-container {

@@ -6,6 +6,21 @@ const webpack = require('webpack');
 // Load environment variables from .env file
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
+const validateUrl = (url, defaultUrl) => {
+  if (!url) return defaultUrl;
+  try {
+    const validated = new URL(url);
+    if (validated.protocol !== 'http:' && validated.protocol !== 'https:') {
+      console.warn(`Invalid protocol for ${url}. Falling back to ${defaultUrl}`);
+      return defaultUrl;
+    }
+    return url;
+  } catch (e) {
+    console.warn(`Invalid URL: ${url}. Falling back to ${defaultUrl}`);
+    return defaultUrl;
+  }
+};
+
 module.exports = {
   entry: {
     contentScript: './src/content/contentScript.ts',
@@ -45,7 +60,7 @@ module.exports = {
       'process.env.APP_VERSION': JSON.stringify(process.env.APP_VERSION || '0.0.19'),
       'process.env.EXA_API_KEY': JSON.stringify(process.env.EXA_API_KEY || ''),
       'process.env.TWITTERAPI_IO_KEY': JSON.stringify(process.env.TWITTERAPI_IO_KEY || ''),
-      'process.env.TWITTERAPI_IO_BASE_URL': JSON.stringify(process.env.TWITTERAPI_IO_BASE_URL || 'https://twitterapi.io/api/v1'),
+      'process.env.TWITTERAPI_IO_BASE_URL': JSON.stringify(validateUrl(process.env.TWITTERAPI_IO_BASE_URL, 'https://twitterapi.io/api/v1')),
     }),
     new MiniCssExtractPlugin({
       filename: '[name].css',

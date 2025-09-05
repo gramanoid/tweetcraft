@@ -562,6 +562,123 @@ export class SmartDefaultsService {
   }
 
   /**
+   * Get weekly statistics from usage tracker
+   */
+  getWeeklyStats(): {
+    totalReplies: number;
+    totalSent: number;
+    successRate: number;
+    topPersonality: string;
+    topVocabulary: string;
+    topRhetoric: string;
+    mostActiveDay: string;
+    weekStart: Date;
+    weekEnd: Date;
+  } {
+    const stats = usageTracker.getStats();
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    
+    // Count replies and sent
+    const totalReplies = stats.eventsByType['reply_generated'] || 0;
+    const totalSent = stats.eventsByType['reply_sent'] || 0;
+    const successRate = totalReplies > 0 ? (totalSent / totalReplies) * 100 : 0;
+    
+    // Find top personality from personalityUsage map
+    let topPersonality = 'Professional';
+    let maxPersonalityCount = 0;
+    stats.personalityUsage.forEach((count, personality) => {
+      if (count > maxPersonalityCount) {
+        maxPersonalityCount = count;
+        topPersonality = personality;
+      }
+    });
+    
+    // If no personality data, try from templateUsage
+    if (maxPersonalityCount === 0 && stats.templateUsage.size > 0) {
+      const templateCounts = new Map<string, number>();
+      stats.templateUsage.forEach((count, templateId) => {
+        const personality = templateId.split('_')[0] || 'professional';
+        templateCounts.set(personality, (templateCounts.get(personality) || 0) + count);
+      });
+      templateCounts.forEach((count, personality) => {
+        if (count > maxPersonalityCount) {
+          maxPersonalityCount = count;
+          topPersonality = personality.charAt(0).toUpperCase() + personality.slice(1);
+        }
+      });
+    }
+    
+    // Find top vocabulary
+    let topVocabulary = 'Sophisticated';
+    let maxVocabCount = 0;
+    stats.vocabularyUsage.forEach((count, vocab) => {
+      if (count > maxVocabCount) {
+        maxVocabCount = count;
+        topVocabulary = vocab;
+      }
+    });
+    
+    // Find top rhetoric
+    let topRhetoric = 'Logical';
+    let maxRhetoricCount = 0;
+    // Try to get from template usage patterns
+    const rhetoricPatterns = new Map<string, number>();
+    stats.templateUsage.forEach((count, templateId) => {
+      // Extract rhetoric from template ID pattern if available
+      const parts = templateId.split('_');
+      if (parts.length > 1) {
+        const rhetoric = parts[1] || 'logical';
+        rhetoricPatterns.set(rhetoric, (rhetoricPatterns.get(rhetoric) || 0) + count);
+      }
+    });
+    rhetoricPatterns.forEach((count, rhetoric) => {
+      if (count > maxRhetoricCount) {
+        maxRhetoricCount = count;
+        topRhetoric = rhetoric.charAt(0).toUpperCase() + rhetoric.slice(1);
+      }
+    });
+    
+    // Find most active day of the week
+    const dayActivity = new Map<string, number>();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    // Count activity per day from daily usage
+    stats.dailyUsage.forEach((count, dateStr) => {
+      const date = new Date(dateStr);
+      const dayName = days[date.getDay()];
+      dayActivity.set(dayName, (dayActivity.get(dayName) || 0) + count);
+    });
+    
+    // Find most active day
+    let mostActiveDay = 'Monday';
+    let maxDayActivity = 0;
+    dayActivity.forEach((count, day) => {
+      if (count > maxDayActivity) {
+        maxDayActivity = count;
+        mostActiveDay = day;
+      }
+    });
+    
+    return {
+      totalReplies,
+      totalSent,
+      successRate: Math.round(successRate),
+      topPersonality,
+      topVocabulary,
+      topRhetoric,
+      mostActiveDay,
+      weekStart,
+      weekEnd
+    };
+  }
+
+  /**
    * Analyze and return time-of-day patterns
    */
   async getTimeOfDayPatterns(): Promise<TimeOfDayPatterns | null> {

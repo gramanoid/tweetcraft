@@ -8,6 +8,7 @@ import { EncryptionService } from '@/utils/encryption';
 import { cleanupReply } from '@/utils/textUtils';
 import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
 import { usageTracker } from '@/services/usageTracker';
+import { smartDefaults } from '@/services/smartDefaults';
 
 // Log after imports
 console.log('Service Worker: Imports completed');
@@ -827,6 +828,117 @@ class SmartReplyServiceWorker {
             sendResponse({ 
               success: false, 
               error: error instanceof Error ? error.message : 'Image generation failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.ANALYZE_TWEET_LLM: {
+          console.log('Service Worker: Handling LLM tweet analysis request');
+          const { OpenRouterSmartService } = await import('@/services/openRouterSmart');
+          
+          try {
+            const tweetText = (message as any).tweetText || '';
+            const context = (message as any).context || {};
+            
+            // Retrieve API key from secure storage
+            const apiKeyData = await chrome.storage.local.get(['apiKey']);
+            const apiKey = apiKeyData.apiKey || '';
+            
+            if (!apiKey) {
+              throw new Error('API key not configured');
+            }
+            
+            const analysis = await OpenRouterSmartService.analyzeTweetWithLLM(
+              tweetText,
+              context,
+              apiKey,
+              {
+                priority: 'high',
+                timeout: 8000
+              }
+            );
+            
+            console.log('Service Worker: LLM analysis completed');
+            
+            sendResponse({ 
+              success: true, 
+              data: analysis 
+            });
+          } catch (error) {
+            console.error('Service Worker: LLM analysis failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'LLM analysis failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.GET_TIME_RECOMMENDATIONS: {
+          console.log('Service Worker: Fetching time recommendations');
+          try {
+            const { smartDefaults } = await import('@/services/smartDefaults');
+            
+            // Get time-based defaults which includes best time patterns
+            const timeDefaults = await smartDefaults.getTimeBasedDefaults();
+            
+            // Get current hour for comparison
+            const currentHour = new Date().getHours();
+            const currentPeriod = 
+              currentHour >= 5 && currentHour < 9 ? 'morning' :
+              currentHour >= 9 && currentHour < 12 ? 'midMorning' :
+              currentHour >= 12 && currentHour < 14 ? 'noon' :
+              currentHour >= 14 && currentHour < 17 ? 'afternoon' :
+              currentHour >= 17 && currentHour < 20 ? 'evening' :
+              currentHour >= 20 && currentHour < 24 ? 'night' :
+              'lateNight';
+            
+            const recommendations = {
+              currentPeriod,
+              bestTime: timeDefaults ? {
+                period: timeDefaults.reason?.match(/Your (\w+) favorite/)?.[1] || 'Unknown',
+                personality: timeDefaults.personality,
+                confidence: timeDefaults.confidence
+              } : null,
+              suggestion: timeDefaults ? 
+                `Best time: ${timeDefaults.reason}` : 
+                'Keep using TweetCraft to discover your best posting times!'
+            };
+            
+            console.log('Service Worker: Time recommendations retrieved', recommendations);
+            
+            sendResponse({ 
+              success: true, 
+              data: recommendations 
+            });
+          } catch (error) {
+            console.error('Service Worker: Failed to get time recommendations:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Failed to get recommendations' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.GET_WEEKLY_SUMMARY: {
+          console.log('Service Worker: Fetching weekly summary');
+          try {
+            // Get real stats from smartDefaults service
+            const summary = smartDefaults.getWeeklyStats();
+            
+            console.log('Service Worker: Weekly summary retrieved', summary);
+            
+            sendResponse({ 
+              success: true, 
+              data: summary 
+            });
+          } catch (error) {
+            console.error('Service Worker: Failed to get weekly summary:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Failed to get weekly summary' 
             });
           }
           break;

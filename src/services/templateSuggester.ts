@@ -11,6 +11,7 @@ import type { LLMAnalysisResult } from '@/types/llm';
 import { TEMPLATE_SUGGESTER } from '@/config/models';
 import { JSONExtractor } from '@/utils/jsonExtractor';
 import { OpenRouterSmartService } from './openRouterSmart';
+import { MessageType } from '@/types/messages';
 
 interface SuggestionContext {
   tweetText: string;
@@ -839,52 +840,91 @@ export class TemplateSuggester {
 
   /**
    * Get LLM analysis of tweet for better suggestions
-   * PHASE 1.1 - Using robust OpenRouterSmartService with error handling
+   * PHASE 1.1 - Using service worker for API calls (security improvement)
    */
   private async getLLMAnalysis(tweetText: string, context: SuggestionContext, apiKey: string): Promise<LLMAnalysisResult | null> {
     console.log('%c🧠 LLM ANALYSIS STARTED', 'color: #794BC4; font-weight: bold; font-size: 14px');
-    console.log('%c  Using robust OpenRouterSmartService', 'color: #657786');
+    console.log('%c  Using service worker for secure API calls', 'color: #657786');
     console.log('%c  Tweet text length:', 'color: #657786', tweetText?.length || 0, 'characters');
     
-    // Use the new robust service with circuit breaker and retry logic
-    const analysis = await OpenRouterSmartService.analyzeTweetWithLLM(
-      tweetText,
-      context,
-      apiKey,
-      {
-        priority: 'high', // Smart tab suggestions are high priority
-        timeout: 8000 // 8 second timeout
-      }
-    );
-    
-    if (analysis) {
-      // Check if this is a fallback response
-      if (analysis.isFallback) {
-        console.log('%c⚠️ Using fallback analysis (API unavailable)', 'color: #FFA500; font-weight: bold');
-        console.log('%c  Fallback confidence:', 'color: #657786', analysis.confidence);
-      } else {
-        console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+    // Check if we're in a service worker context (when called from service worker)
+    // In that case, use direct OpenRouterSmartService
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
+      console.log('%c  Running in service worker context, using direct API', 'color: #657786');
+      // Use the direct service when called from service worker
+      const analysis = await OpenRouterSmartService.analyzeTweetWithLLM(
+        tweetText,
+        context,
+        apiKey,
+        {
+          priority: 'high',
+          timeout: 8000
+        }
+      );
+      
+      if (analysis) {
+        if (analysis.isFallback) {
+          console.log('%c⚠️ Using fallback analysis (API unavailable)', 'color: #FFA500; font-weight: bold');
+        } else {
+          console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+        }
       }
       
-      console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'not detected');
-      console.log('%c  Intent:', 'color: #657786', analysis.intent || 'not detected');
-      console.log('%c  Suggested categories:', 'color: #657786', analysis.suggestedCategories?.length || 0);
-      console.log('%c  Confidence score:', 'color: #657786', analysis.confidence || 'not provided');
-      console.log('%c  Reasoning steps:', 'color: #657786', analysis.reasoning?.length || 0);
-      
-      // Log service metrics periodically
-      const metrics = OpenRouterSmartService.getMetrics();
-      if (metrics.totalRequests % 10 === 0) { // Log every 10 requests
-        console.log('%c📊 Service Metrics:', 'color: #1DA1F2; font-weight: bold');
-        console.log('%c  Success rate:', 'color: #657786', metrics.successRate);
-        console.log('%c  Circuit state:', 'color: #657786', metrics.circuitState);
-        console.log('%c  Avg response time:', 'color: #657786', `${Math.round(metrics.averageResponseTime)}ms`);
-      }
-    } else {
-      console.log('%c❌ LLM analysis returned null', 'color: #DC3545');
+      return analysis;
     }
     
-    return analysis;
+    // Use service worker when in content script context (more secure)
+    try {
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.error('LLM analysis request timed out after 8 seconds');
+          resolve(null);
+        }, 8000); // 8 second timeout
+        
+        // Send message to service worker for LLM analysis
+        chrome.runtime.sendMessage(
+          { 
+            type: MessageType.ANALYZE_TWEET_LLM,
+            tweetText,
+            context
+          }, 
+          (response) => {
+            clearTimeout(timeout);
+            
+            if (chrome.runtime.lastError) {
+              console.error('Failed to get LLM analysis:', chrome.runtime.lastError);
+              resolve(null);
+            } else if (response && response.success) {
+              const analysis = response.data;
+              
+              if (analysis) {
+                // Check if this is a fallback response
+                if (analysis.isFallback) {
+                  console.log('%c⚠️ Using fallback analysis (API unavailable)', 'color: #FFA500; font-weight: bold');
+                  console.log('%c  Fallback confidence:', 'color: #657786', analysis.confidence);
+                } else {
+                  console.log('%c✅ LLM ANALYSIS COMPLETE', 'color: #17BF63; font-weight: bold; font-size: 14px');
+                }
+                
+                console.log('%c  Sentiment:', 'color: #657786', analysis.sentiment || 'not detected');
+                console.log('%c  Intent:', 'color: #657786', analysis.intent || 'not detected');
+                console.log('%c  Suggested categories:', 'color: #657786', analysis.suggestedCategories?.length || 0);
+                console.log('%c  Confidence score:', 'color: #657786', analysis.confidence || 'not provided');
+                console.log('%c  Reasoning steps:', 'color: #657786', analysis.reasoning?.length || 0);
+              }
+              
+              resolve(analysis);
+            } else {
+              console.error('LLM analysis failed:', response?.error);
+              resolve(null);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Failed to get LLM analysis:', error);
+      return null;
+    }
   }
   
   /**
