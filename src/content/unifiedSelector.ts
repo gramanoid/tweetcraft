@@ -2328,16 +2328,68 @@ export class UnifiedSelector {
       this.favoritePersonalities.has(p.id),
     );
 
-    // Auto-populate with suggestions when favorites is empty
+    // Get top 5 most-used combinations from usage tracker
+    const stats = usageTracker.getStats();
+    const topCombinations = stats.combinationUsage ? 
+      Array.from(stats.combinationUsage.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5) : [];
+
+    // Auto-populate with suggestions when favorites is empty and no usage data
     if (
       favoriteTemplatesList.length === 0 &&
-      favoritePersonalitiesList.length === 0
+      favoritePersonalitiesList.length === 0 &&
+      topCombinations.length === 0
     ) {
       return this.renderFavoriteSuggestions(templates, personalities);
     }
 
     return `
       <div class="selector-content favorites-view">
+        ${topCombinations.length > 0 ? `
+          <div class="your-top-5-section">
+            <div class="top-5-header">
+              <span class="top-5-title">🔥 Your Top 5 Go-To Combos</span>
+              <span class="top-5-subtitle">One-click to apply your most-used combinations</span>
+            </div>
+            <div class="top-5-grid">
+              ${topCombinations.map((combo, index) => {
+                const [templateId, personalityId] = combo[0].split(':');
+                const template = templates.find(t => t.id === templateId);
+                const personality = personalities.find(p => p.id === personalityId);
+                
+                if (!template || !personality) return '';
+                
+                const isCurrentSelection = 
+                  this.selectedTemplate?.id === templateId && 
+                  this.selectedPersonality?.id === personalityId;
+                
+                return `
+                  <button class="top-5-combo-btn ${isCurrentSelection ? 'active' : ''}"
+                          data-combo-template="${templateId}"
+                          data-combo-personality="${personalityId}"
+                          title="Used ${combo[1]} times">
+                    <div class="combo-rank">#${index + 1}</div>
+                    <div class="combo-content">
+                      <div class="combo-emojis">
+                        ${template.emoji} + ${personality.emoji}
+                      </div>
+                      <div class="combo-names">
+                        ${template.name} + ${personality.label}
+                      </div>
+                      <div class="combo-usage">
+                        <span class="usage-count">${combo[1]}</span>
+                        <span class="usage-label">uses</span>
+                      </div>
+                    </div>
+                    ${isCurrentSelection ? '<div class="active-indicator">✓</div>' : ''}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+          <div class="favorites-divider"></div>
+        ` : ''}
         ${
           favoriteTemplatesList.length > 0
             ? `
@@ -3180,6 +3232,35 @@ export class UnifiedSelector {
           if (grid) grid.classList.toggle("collapsed", isCollapsed);
           if (chevron) chevron.textContent = isCollapsed ? "▶" : "▼";
         }
+      });
+    });
+
+    // Top 5 combo buttons (Favorites tab)
+    this.container.querySelectorAll(".top-5-combo-btn").forEach((btn) => {
+      (btn as HTMLElement).addEventListener("click", (e) => {
+        e.stopPropagation();
+        const element = e.currentTarget as HTMLElement;
+        const templateId = element.dataset.comboTemplate!;
+        const personalityId = element.dataset.comboPersonality!;
+        
+        // Select both template and personality
+        this.selectTemplate(templateId);
+        this.selectPersonality(personalityId);
+        
+        // Track usage
+        usageTracker.trackTemplateSelection(templateId as any, 'favorite');
+        usageTracker.trackPersonaSelection(personalityId, 'favorite');
+        
+        // Update UI to show active state
+        this.container?.querySelectorAll(".top-5-combo-btn").forEach(b => {
+          b.classList.remove("active");
+        });
+        btn.classList.add("active");
+        
+        console.log('%c🔥 Top 5 Combo Applied', 'color: #FFA500; font-weight: bold', {
+          template: templateId,
+          personality: personalityId
+        });
       });
     });
 

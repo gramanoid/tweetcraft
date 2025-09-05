@@ -820,3 +820,128 @@ body[style*="background-color: rgb(21, 32, 43)"] {
     margin: 8px 0;
   }
 }
+
+// Top 5 Go-To Combos Section
+.your-top-5-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(29, 161, 242, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(29, 161, 242, 0.2);
+  
+  .top-5-header {
+    margin-bottom: 16px;
+    
+    .top-5-title {
+      display: block;
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    
+    .top-5-subtitle {
+      display: block;
+      font-size: 12px;
+      color: #8899a6;
+    }
+  }
+  
+  .top-5-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  
+  .top-5-combo-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    background: #192734;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: #1c2938;
+      border-color: #1da1f2;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(29, 161, 242, 0.2);
+    }
+    
+    &.active {
+      background: rgba(29, 161, 242, 0.1);
+      border-color: #1da1f2;
+      
+      .combo-rank {
+        background: #1da1f2;
+      }
+    }
+    
+    .combo-rank {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #38444d;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .combo-content {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      
+      .combo-emojis {
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      
+      .combo-names {
+        font-size: 12px;
+        color: #ffffff;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      
+      .combo-usage {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        margin-top: 4px;
+        
+        .usage-count {
+          font-size: 16px;
+          font-weight: bold;
+          color: #1da1f2;
+        }
+        
+        .usage-label {
+          font-size: 10px;
+          color: #8899a6;
+        }
+      }
+    }
+    
+    .active-indicator {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      color: #17bf63;
+      font-size: 16px;
+    }
+  }
+}
+
+.favorites-divider {
+  height: 1px;
+  background: #38444d;
+  margin: 20px 0;
+}
