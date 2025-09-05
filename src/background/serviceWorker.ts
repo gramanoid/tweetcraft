@@ -95,6 +95,9 @@ class SmartReplyServiceWorker {
       });
     }
 
+    // Task 5.1: Settings Auto-Sync - listen for storage changes
+    this.setupSettingsAutoSync();
+
     // Handle messages from content scripts or popup with proper error handling
     console.log('📨 Registering message listener...');
     chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
@@ -1372,6 +1375,57 @@ class SmartReplyServiceWorker {
   private cleanup(): void {
     console.log('Smart Reply: Performing cleanup');
     // Any cleanup logic can go here
+  }
+
+  // Task 5.1: Settings Auto-Sync
+  private setupSettingsAutoSync(): void {
+    console.log('%c🔄 Setting up settings auto-sync', 'color: #1DA1F2; font-weight: bold');
+    
+    // Listen for chrome.storage changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local') {
+        console.log('%c📡 Storage changed:', 'color: #17BF63; font-weight: bold', changes);
+        
+        // Check if settings-related keys changed
+        const settingsKeys = ['tweetcraft-settings', 'config', 'apiKey', 'customTones', 'customStylePrompt'];
+        const changedSettingKeys = Object.keys(changes).filter(key => 
+          settingsKeys.some(settingKey => key.includes(settingKey))
+        );
+        
+        if (changedSettingKeys.length > 0) {
+          console.log('%c🔄 Settings changed:', 'color: #E1AD01', changedSettingKeys);
+          
+          // Broadcast to all tabs that settings have changed
+          this.broadcastSettingsChange(changes);
+        }
+      }
+    });
+  }
+
+  private async broadcastSettingsChange(changes: {[key: string]: chrome.storage.StorageChange}): Promise<void> {
+    console.log('%c📢 Broadcasting settings change to all tabs', 'color: #9146FF; font-weight: bold');
+    
+    try {
+      // Get all tabs
+      const tabs = await chrome.tabs.query({});
+      
+      // Send message to each tab's content script
+      tabs.forEach(tab => {
+        if (tab.id && tab.url && (tab.url.includes('twitter.com') || tab.url.includes('x.com') || tab.url.includes('hypefury.com'))) {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'SETTINGS_CHANGED',
+            changes: changes
+          }).catch(error => {
+            // Ignore errors for tabs that don't have content script loaded
+            console.log(`%cSkipping tab ${tab.id} (no content script)`, 'color: #657786', error.message);
+          });
+        }
+      });
+      
+      console.log('%c✅ Settings broadcast complete', 'color: #17BF63');
+    } catch (error) {
+      console.error('Failed to broadcast settings change:', error);
+    }
   }
 
   // Weekly Summary Methods

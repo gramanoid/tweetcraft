@@ -285,6 +285,9 @@ class SmartReplyContentScript {
     // Set up listener for keyboard shortcut events
     this.setupKeyboardShortcutListener();
 
+    // Task 5.1: Set up listener for settings changes from service worker
+    this.setupSettingsChangeListener();
+
     // Check for previous state recovery
     const recovered = this.attemptStateRecovery();
     if (recovered) {
@@ -363,6 +366,75 @@ class SmartReplyContentScript {
       "tweetcraft:generate-reply",
       generateReplyListener,
     );
+  }
+
+  // Task 5.1: Settings Auto-Sync - listen for settings changes from service worker
+  private setupSettingsChangeListener(): void {
+    console.log('%c🔄 Setting up settings change listener', 'color: #1DA1F2; font-weight: bold');
+    
+    const settingsChangeListener = ((event: MessageEvent) => {
+      // Only handle messages from our extension
+      if (event.data && event.data.type === 'SETTINGS_CHANGED') {
+        console.log('%c📡 Settings changed:', 'color: #17BF63; font-weight: bold', event.data.changes);
+        this.handleSettingsChange(event.data.changes);
+      }
+    }) as EventListener;
+
+    // Store reference for cleanup
+    this.customEventListeners.set('settings-change', settingsChangeListener);
+    
+    // Also listen for chrome runtime messages
+    const runtimeMessageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+      if (message.type === 'SETTINGS_CHANGED') {
+        console.log('%c📡 Settings changed (runtime):', 'color: #17BF63; font-weight: bold', message.changes);
+        this.handleSettingsChange(message.changes);
+      }
+    };
+    
+    // Listen for runtime messages from service worker
+    chrome.runtime.onMessage.addListener(runtimeMessageListener);
+  }
+
+  private handleSettingsChange(changes: {[key: string]: chrome.storage.StorageChange}): void {
+    console.log('%c🔄 Handling settings change', 'color: #E1AD01; font-weight: bold');
+    
+    // Check which settings changed and refresh UI accordingly
+    const settingsKeys = Object.keys(changes);
+    let shouldRefreshUI = false;
+    
+    // Check for important setting changes that require UI refresh
+    if (settingsKeys.some(key => 
+      key.includes('config') || 
+      key.includes('customTones') || 
+      key.includes('customStylePrompt') ||
+      key.includes('temperature') ||
+      key.includes('model')
+    )) {
+      shouldRefreshUI = true;
+    }
+    
+    if (shouldRefreshUI) {
+      console.log('%c♻️ Refreshing UI due to settings change', 'color: #9146FF');
+      
+      // Refresh any open selector UI
+      const existingSelector = document.querySelector('.unified-selector');
+      if (existingSelector) {
+        // Force refresh by simulating button click (which recreates the selector)
+        const button = document.querySelector('.tweetcraft-button:not(.arsenal-mode)');
+        if (button) {
+          console.log('%c🔄 Refreshing selector UI', 'color: #657786');
+          // Remove existing selector and let it recreate
+          existingSelector.remove();
+        }
+      }
+      
+      // Show brief notification
+      visualFeedback.showToast('Settings synced across tabs', {
+        type: 'success',
+        duration: 2000,
+        position: 'bottom'
+      });
+    }
   }
 
   /**
