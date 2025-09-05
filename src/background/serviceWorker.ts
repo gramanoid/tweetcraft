@@ -133,6 +133,9 @@ class SmartReplyServiceWorker {
       
       // Task 4.5: Schedule weekly summary
       await this.scheduleWeeklySummary();
+      
+      // Task 6.2: Schedule engagement monitoring
+      await this.scheduleEngagementMonitoring();
     } else if (details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
       // Extension updated
       console.log('Smart Reply: Extension updated from', details.previousVersion);
@@ -142,6 +145,9 @@ class SmartReplyServiceWorker {
       
       // Task 4.5: Ensure weekly summary is scheduled
       await this.scheduleWeeklySummary();
+      
+      // Task 6.2: Schedule engagement monitoring
+      await this.scheduleEngagementMonitoring();
     }
   }
 
@@ -1569,6 +1575,52 @@ class SmartReplyServiceWorker {
         personalityUsage: {},
         dailyActivity: {}
       };
+    }
+  }
+
+  /**
+   * Schedule engagement monitoring (Task 6.2)
+   */
+  private async scheduleEngagementMonitoring(): Promise<void> {
+    console.log('%c📈 Scheduling engagement monitoring', 'color: #1DA1F2; font-weight: bold');
+    
+    // Clear any existing alarm
+    chrome.alarms.clear('engagementCheck');
+    
+    // Create alarm to check every 6 hours
+    chrome.alarms.create('engagementCheck', {
+      delayInMinutes: 1, // Start in 1 minute
+      periodInMinutes: 6 * 60 // Check every 6 hours
+    });
+    
+    // Set up alarm listener
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === 'engagementCheck') {
+        this.processEngagementChecks();
+      }
+    });
+  }
+
+  /**
+   * Process pending engagement checks
+   */
+  private async processEngagementChecks(): Promise<void> {
+    console.log('%c📈 Processing engagement checks', 'color: #1DA1F2');
+    
+    try {
+      const { twitterAPI } = await import('../services/twitterAPI');
+      const config = await twitterAPI.getConfig();
+      
+      if (!config.enabled) {
+        console.log('%c📈 TwitterAPI disabled, skipping engagement checks', 'color: #657786');
+        return;
+      }
+
+      await twitterAPI.processPendingChecks();
+      console.log('%c📈 Engagement checks completed', 'color: #17BF63');
+      
+    } catch (error) {
+      console.error('Failed to process engagement checks:', error);
     }
   }
 }

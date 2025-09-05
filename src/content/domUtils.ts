@@ -1657,6 +1657,9 @@ export class DOMUtils {
           if (this.currentTopicContext) {
             this.updateTopicTracking(true);
           }
+
+          // Track for TwitterAPI engagement monitoring
+          this.trackSentTweetForEngagement();
         } else {
           usageTracker.trackReplyOutcome("discarded");
           console.log("%c📊 Reply canceled", "color: #DC3545");
@@ -1744,5 +1747,98 @@ export class DOMUtils {
       return textarea.textContent || "";
     }
     return "";
+  }
+
+  /**
+   * Track sent tweet for engagement monitoring via TwitterAPI
+   */
+  private static async trackSentTweetForEngagement(): Promise<void> {
+    try {
+      // Only proceed if we have the necessary context
+      if (!this.currentTopicContext || !this.lastGeneratedReply) {
+        console.log('%c📈 No context available for engagement tracking', 'color: #657786');
+        return;
+      }
+
+      // Try to extract tweet ID from the page
+      const tweetId = await this.extractSentTweetId();
+      if (!tweetId) {
+        console.log('%c📈 Could not extract tweet ID for engagement tracking', 'color: #FFA500');
+        return;
+      }
+
+      // Import and track with TwitterAPI
+      const { twitterAPI } = await import('../services/twitterAPI');
+      await twitterAPI.trackTweet(tweetId, this.currentTopicContext.combo);
+      
+      console.log('%c📈 Tweet tracked for engagement monitoring', 'color: #1DA1F2; font-weight: bold', {
+        tweetId,
+        combo: this.currentTopicContext.combo
+      });
+
+    } catch (error) {
+      console.error('Failed to track tweet for engagement:', error);
+    }
+  }
+
+  /**
+   * Extract tweet ID from the current page after sending
+   */
+  private static async extractSentTweetId(): Promise<string | null> {
+    try {
+      // Method 1: Look for tweet ID in URL (works for compose page)
+      const urlMatch = window.location.href.match(/\/status\/(\d+)/);
+      if (urlMatch) {
+        return urlMatch[1];
+      }
+
+      // Method 2: Look for tweet ID in recent network requests
+      // This is more complex and requires monitoring network traffic
+      // For now, we'll use a simpler approach
+
+      // Method 3: Try to find tweet ID in DOM elements
+      // Wait a bit for the page to update
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Look for tweet elements that might contain the ID
+      const tweetElements = document.querySelectorAll('[data-testid="tweet"]');
+      for (const element of tweetElements) {
+        const link = element.querySelector('a[href*="/status/"]') as HTMLAnchorElement;
+        if (link) {
+          const idMatch = link.href.match(/\/status\/(\d+)/);
+          if (idMatch) {
+            return idMatch[1];
+          }
+        }
+      }
+
+      // Method 4: Look in recent tweets timeline
+      const timelineElements = document.querySelectorAll('[data-testid="primaryColumn"] article');
+      for (const article of timelineElements) {
+        const link = article.querySelector('a[href*="/status/"]') as HTMLAnchorElement;
+        if (link) {
+          const idMatch = link.href.match(/\/status\/(\d+)/);
+          if (idMatch) {
+            // Check if this might be our recently sent tweet by looking at timestamp
+            const timeElement = article.querySelector('time');
+            if (timeElement) {
+              const tweetTime = new Date(timeElement.getAttribute('datetime') || '');
+              const now = new Date();
+              const timeDiff = now.getTime() - tweetTime.getTime();
+              
+              // If tweet was posted within the last 30 seconds, likely ours
+              if (timeDiff < 30000) {
+                return idMatch[1];
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to extract tweet ID:', error);
+      return null;
+    }
   }
 }
