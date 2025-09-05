@@ -1417,6 +1417,10 @@ export class UnifiedSelector {
         `
             : ""
         }
+        
+        <!-- Quick Start Presets -->
+        ${this.renderQuickStartPresets()}
+        
         <!-- Part 1: Personality (Who is talking) -->
         <div class="part-section personalities-section ${this.selectedPersonality ? "section-completed" : ""}">
           <h3>
@@ -2043,6 +2047,118 @@ export class UnifiedSelector {
 
     // Fallback
     return { text: reason, icon: "💡", category: "general" };
+  }
+
+  /**
+   * Render quick start presets for the ALL tab
+   */
+  private renderQuickStartPresets(): string {
+    // Define quick start presets for common scenarios
+    const QUICK_STARTS = [
+      { 
+        id: 'work',
+        personality: 'professional', 
+        vocabulary: 'corporate',
+        rhetoric: 'agree_and_build',
+        lengthPacing: 'concise',
+        icon: '💼',
+        label: 'Work'
+      },
+      { 
+        id: 'friendly',
+        personality: 'supportive', 
+        vocabulary: 'plain_english',
+        rhetoric: 'empathetic',
+        lengthPacing: 'balanced',
+        icon: '😊',
+        label: 'Friendly'
+      },
+      { 
+        id: 'funny',
+        personality: 'witty', 
+        vocabulary: 'gen_z',
+        rhetoric: 'hot_take',
+        lengthPacing: 'punchy',
+        icon: '😄',
+        label: 'Funny'
+      },
+      { 
+        id: 'debate',
+        personality: 'contrarian', 
+        vocabulary: 'provocative',
+        rhetoric: 'devils_advocate',
+        lengthPacing: 'comprehensive',
+        icon: '🔥',
+        label: 'Debate'
+      }
+    ];
+
+    // Get recent combinations for "Recent" preset
+    const stats = usageTracker.getStats();
+    const topCombination = stats.combinationUsage ? 
+      Array.from(stats.combinationUsage.entries())
+        .sort((a, b) => b[1] - a[1])[0] : null;
+
+    // Get recommended preset based on context or time of day
+    const hour = new Date().getHours();
+    const recommendedPreset = hour >= 9 && hour < 17 ? QUICK_STARTS[0] : // Work hours
+                             hour >= 17 && hour < 22 ? QUICK_STARTS[1] : // Evening
+                             QUICK_STARTS[2]; // Late night/early morning
+
+    return `
+      <div class="quick-start-presets">
+        <div class="quick-start-header">
+          <span class="quick-start-title">⚡ Quick Start</span>
+          <span class="quick-start-subtitle">One-click presets for common scenarios</span>
+        </div>
+        <div class="quick-start-grid">
+          <!-- Recommended Preset -->
+          <button class="quick-start-btn recommended"
+                  data-personality="${recommendedPreset.personality}"
+                  data-vocabulary="${recommendedPreset.vocabulary}"
+                  data-rhetoric="${recommendedPreset.rhetoric}"
+                  data-length-pacing="${recommendedPreset.lengthPacing}"
+                  title="Recommended based on time of day">
+            <div class="preset-badge">Recommended</div>
+            <div class="preset-icon">${recommendedPreset.icon}</div>
+            <div class="preset-label">${recommendedPreset.label}</div>
+          </button>
+
+          <!-- Top Combo Preset -->
+          ${topCombination ? `
+            <button class="quick-start-btn top-combo"
+                    data-combination="${topCombination[0]}"
+                    title="Your most-used combination (${topCombination[1]} times)">
+              <div class="preset-badge">Top Combo</div>
+              <div class="preset-icon">⭐</div>
+              <div class="preset-label">Most Used</div>
+            </button>
+          ` : ''}
+
+          <!-- Recent Preset -->
+          <button class="quick-start-btn recent"
+                  data-action="apply-recent"
+                  title="Apply your most recent settings">
+            <div class="preset-badge">Recent</div>
+            <div class="preset-icon">🕐</div>
+            <div class="preset-label">Last Used</div>
+          </button>
+
+          <!-- Scenario Presets -->
+          ${QUICK_STARTS.map(preset => `
+            <button class="quick-start-btn scenario"
+                    data-personality="${preset.personality}"
+                    data-vocabulary="${preset.vocabulary}"
+                    data-rhetoric="${preset.rhetoric}"
+                    data-length-pacing="${preset.lengthPacing}"
+                    title="${preset.label} mode">
+              <div class="preset-icon">${preset.icon}</div>
+              <div class="preset-label">${preset.label}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -2858,6 +2974,73 @@ export class UnifiedSelector {
       });
     });
 
+    // Quick start preset buttons (new implementation)
+    this.container.querySelectorAll(".quick-start-btn").forEach((btn) => {
+      (btn as HTMLElement).addEventListener("click", (e) => {
+        e.stopPropagation();
+        const button = e.currentTarget as HTMLElement;
+        
+        // Check if it's a combination preset
+        if (button.dataset.combination) {
+          const combo = button.dataset.combination.split('+');
+          if (combo.length >= 4) {
+            const [personality, vocabulary, rhetoric, lengthPacing] = combo;
+            
+            this.selectedPersonality = PERSONALITIES.find(p => p.id === personality) || null;
+            this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === vocabulary) || null;
+            this.selectedTemplate = TEMPLATES.find(t => t.id === rhetoric) || null;
+            this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === lengthPacing) || null;
+            
+            // Track usage
+            if (this.selectedPersonality) {
+              usageTracker.trackPersonaSelection(personality, "favorite");
+            }
+            
+            // Show feedback
+            if (this.anchorButton) {
+              visualFeedback.showSuccess(this.anchorButton, "Applied your top combo");
+            }
+            
+            this.render();
+            return;
+          }
+        }
+        
+        // Check if it's a "recent" action
+        if (button.dataset.action === "apply-recent") {
+          this.applyRecentSettings();
+          return;
+        }
+        
+        // Otherwise it's a regular preset with all attributes
+        const personalityId = button.dataset.personality;
+        const vocabularyId = button.dataset.vocabulary;
+        const rhetoricId = button.dataset.rhetoric;
+        const lengthPacingId = button.dataset.lengthPacing;
+        
+        if (personalityId && vocabularyId && rhetoricId && lengthPacingId) {
+          // Apply all selections
+          this.selectedPersonality = PERSONALITIES.find(p => p.id === personalityId) || null;
+          this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === vocabularyId) || null;
+          this.selectedTemplate = TEMPLATES.find(t => t.id === rhetoricId) || null;
+          this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === lengthPacingId) || null;
+          
+          // Track usage
+          if (this.selectedPersonality) {
+            usageTracker.trackPersonaSelection(personalityId, "suggestion");
+          }
+          
+          // Show feedback
+          const presetLabel = button.querySelector('.preset-label')?.textContent || 'preset';
+          if (this.anchorButton) {
+            visualFeedback.showSuccess(this.anchorButton, `Applied ${presetLabel} preset`);
+          }
+          
+          this.render();
+        }
+      });
+    });
+
     // Persona selection (quick personas)
     this.container
       .querySelectorAll(".persona-card, .persona-card-compact")
@@ -3612,6 +3795,46 @@ export class UnifiedSelector {
   }
 
   /**
+   * Apply the most recent settings used
+   */
+  private applyRecentSettings(): void {
+    try {
+      // Get recent settings from localStorage
+      const recentSettings = localStorage.getItem('tweetcraft_recent_settings');
+      if (recentSettings) {
+        const settings = JSON.parse(recentSettings);
+        
+        // Apply recent selections
+        if (settings.personality) {
+          this.selectedPersonality = PERSONALITIES.find(p => p.id === settings.personality) || null;
+        }
+        if (settings.vocabulary) {
+          this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === settings.vocabulary) || null;
+        }
+        if (settings.rhetoric) {
+          this.selectedTemplate = TEMPLATES.find(t => t.id === settings.rhetoric) || null;
+        }
+        if (settings.lengthPacing) {
+          this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === settings.lengthPacing) || null;
+        }
+        
+        // Show feedback
+        if (this.anchorButton) {
+          visualFeedback.showSuccess(this.anchorButton, "Applied recent settings");
+        }
+        
+        this.render();
+      } else {
+        // No recent settings, apply smart defaults instead
+        this.applySmartDefaults();
+      }
+    } catch (error) {
+      console.error("Failed to apply recent settings:", error);
+      this.applySmartDefaults();
+    }
+  }
+
+  /**
    * Select a quick persona
    */
   private selectPersona(personaId: string): void {
@@ -3976,6 +4199,18 @@ export class UnifiedSelector {
       combinedPrompt.length,
     );
     console.log("%c  Temperature:", "color: #657786", temperature);
+
+    // Save recent settings for quick apply later
+    if (this.view === "grid") {
+      const recentSettings = {
+        personality: this.selectedPersonality?.id,
+        vocabulary: this.selectedVocabulary?.id,
+        rhetoric: this.selectedTemplate?.id,
+        lengthPacing: this.selectedLengthPacing?.id,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('tweetcraft_recent_settings', JSON.stringify(recentSettings));
+    }
 
     // Hide the popup immediately when generating starts
     this.hide();
@@ -5974,6 +6209,111 @@ export class UnifiedSelector {
           background: rgba(0, 0, 0, 0.4);
           padding: 2px 4px;
           border-radius: 4px;
+        }
+
+        /* Quick Start Presets (New for Task 2.2) */
+        .quick-start-presets {
+          margin-bottom: 16px;
+          padding: 12px;
+          background: rgba(29, 161, 242, 0.05);
+          border-radius: 8px;
+          border: 1px solid rgba(29, 161, 242, 0.2);
+        }
+
+        .quick-start-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+
+        .quick-start-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #1DA1F2;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .quick-start-subtitle {
+          font-size: 11px;
+          color: #8899A6;
+        }
+
+        .quick-start-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+          gap: 8px;
+        }
+
+        .quick-start-btn {
+          position: relative;
+          padding: 10px 8px;
+          background: #192734;
+          border: 1px solid #38444D;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+          text-align: center;
+        }
+
+        .quick-start-btn:hover {
+          background: #253341;
+          border-color: #1DA1F2;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(29, 161, 242, 0.2);
+        }
+
+        .quick-start-btn.recommended {
+          border-color: #17BF63;
+          background: rgba(23, 191, 99, 0.1);
+        }
+
+        .quick-start-btn.top-combo {
+          border-color: #FFD700;
+          background: rgba(255, 215, 0, 0.1);
+        }
+
+        .quick-start-btn.recent {
+          border-color: #9146FF;
+          background: rgba(145, 70, 255, 0.1);
+        }
+
+        .preset-badge {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          background: #1DA1F2;
+          color: white;
+          font-size: 9px;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-weight: 600;
+        }
+
+        .quick-start-btn.recommended .preset-badge {
+          background: #17BF63;
+        }
+
+        .quick-start-btn.top-combo .preset-badge {
+          background: #FFD700;
+          color: #15202B;
+        }
+
+        .quick-start-btn.recent .preset-badge {
+          background: #9146FF;
+        }
+
+        .preset-icon {
+          font-size: 20px;
+          margin-bottom: 4px;
+        }
+
+        .preset-label {
+          font-size: 11px;
+          color: #E7E9EA;
+          font-weight: 500;
         }
 
         /* Responsive design for smaller screens */
