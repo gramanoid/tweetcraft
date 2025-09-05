@@ -124,7 +124,8 @@ export class UnifiedSelector {
     | "custom"
     | "compose"
     | "stats"
-    | "engagement" = "smart";
+    | "engagement"
+    | "abtest" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -924,6 +925,9 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "engagement" ? "active" : ""}" data-view="engagement">
             📈 Engagement
           </button>
+          <button class="tab-btn ${this.view === "abtest" ? "active" : ""}" data-view="abtest">
+            🧪 A/B Test
+          </button>
         </div>
         <div class="header-actions">
           <button class="close-btn" aria-label="Close">×</button>
@@ -1102,6 +1106,8 @@ export class UnifiedSelector {
         return this.renderStatsView();
       case "engagement":
         return this.renderEngagementView();
+      case "abtest":
+        return this.renderABTestView();
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -2983,6 +2989,52 @@ export class UnifiedSelector {
         container.innerHTML = `
           <div class="error-message">
             <p>Failed to load engagement data</p>
+            <small>${error instanceof Error ? error.message : 'Unknown error'}</small>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /**
+   * Render A/B testing view
+   */
+  private renderABTestView(): string {
+    // Show loading state initially, A/B test will be loaded asynchronously
+    this.loadABTestData();
+    
+    return `
+      <div class="selector-content abtest-view">
+        <div class="ab-testing-container" id="abTestContainer">
+          <div class="ab-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading A/B test data...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load A/B testing data asynchronously
+   */
+  private async loadABTestData(): Promise<void> {
+    try {
+      const { abTestingView } = await import('../components/ABTestingView');
+      const viewHTML = await abTestingView.createView();
+      
+      const container = this.container?.querySelector('#abTestContainer');
+      if (!container) return;
+      
+      container.innerHTML = viewHTML;
+      abTestingView.attachEventHandlers(container as HTMLElement);
+    } catch (error) {
+      console.error('Failed to load A/B testing view:', error);
+      const container = this.container?.querySelector('#abTestContainer');
+      if (container) {
+        container.innerHTML = `
+          <div class="error-message">
+            <p>Failed to load A/B testing data</p>
             <small>${error instanceof Error ? error.message : 'Unknown error'}</small>
           </div>
         `;
