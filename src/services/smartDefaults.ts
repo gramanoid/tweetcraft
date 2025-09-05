@@ -42,6 +42,16 @@ export interface TimeOfDayPatterns {
   weekend?: { preferred: string; rate: number; count: number };   // Sat-Sun
 }
 
+export interface ContentSuggestion {
+  personality: string;
+  vocabulary?: string;
+  rhetoric?: string;
+  lengthPacing?: string;
+  confidence: number; // 0-1
+  reason: string;
+  matchedKeywords: string[];
+}
+
 export class SmartDefaultsService {
   private readonly STORAGE_KEY = 'tweetcraft_smart_defaults';
   private readonly LAST_USED_KEY = 'tweetcraft_last_selections';
@@ -49,13 +59,159 @@ export class SmartDefaultsService {
   private readonly MIN_USAGE_FOR_HIGH_CONFIDENCE = 5;
   private readonly MIN_USAGE_FOR_MEDIUM_CONFIDENCE = 3;
 
+  // Content auto-suggest keyword mappings
+  private readonly KEYWORD_SUGGESTIONS = {
+    // Technical content
+    'bug': { personality: 'professional', rhetoric: 'analyze_problem', confidence: 0.9 },
+    'issue': { personality: 'professional', rhetoric: 'analyze_problem', confidence: 0.8 },
+    'broken': { personality: 'professional', rhetoric: 'analyze_problem', confidence: 0.8 },
+    'error': { personality: 'professional', rhetoric: 'analyze_problem', confidence: 0.9 },
+    'fix': { personality: 'professional', rhetoric: 'solve_and_verify', confidence: 0.8 },
+    'debug': { personality: 'professional', rhetoric: 'analyze_problem', confidence: 0.9 },
+    'code': { personality: 'professional', vocabulary: 'technical', confidence: 0.7 },
+    'API': { personality: 'professional', vocabulary: 'technical', confidence: 0.8 },
+    'database': { personality: 'professional', vocabulary: 'technical', confidence: 0.8 },
+
+    // Excitement & Launches  
+    '🚀': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.9 },
+    'launch': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.9 },
+    'excited': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.8 },
+    'amazing': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.8 },
+    'awesome': { personality: 'friendly', rhetoric: 'highlight_excitement', confidence: 0.7 },
+    'celebrate': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.8 },
+    'milestone': { personality: 'enthusiastic', rhetoric: 'highlight_excitement', confidence: 0.8 },
+
+    // Support & Help
+    'problem': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.9 },
+    'help': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.9 },
+    'stuck': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.8 },
+    'struggling': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.9 },
+    'advice': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.8 },
+    'guidance': { personality: 'supportive', rhetoric: 'offer_guidance', confidence: 0.8 },
+
+    // Debates & Opinions
+    'hot take': { personality: 'contrarian', rhetoric: 'challenge_premise', confidence: 0.9 },
+    'unpopular opinion': { personality: 'contrarian', rhetoric: 'challenge_premise', confidence: 0.9 },
+    'disagree': { personality: 'contrarian', rhetoric: 'challenge_premise', confidence: 0.8 },
+    'debate': { personality: 'analytical', rhetoric: 'analyze_problem', confidence: 0.8 },
+    'controversial': { personality: 'contrarian', rhetoric: 'challenge_premise', confidence: 0.8 },
+    'wrong': { personality: 'critical', rhetoric: 'challenge_premise', confidence: 0.7 },
+
+    // Humor & Fun
+    '😂': { personality: 'witty', rhetoric: 'add_humor', confidence: 0.9 },
+    '🤣': { personality: 'witty', rhetoric: 'add_humor', confidence: 0.9 },
+    'funny': { personality: 'witty', rhetoric: 'add_humor', confidence: 0.8 },
+    'joke': { personality: 'witty', rhetoric: 'add_humor', confidence: 0.9 },
+    'hilarious': { personality: 'witty', rhetoric: 'add_humor', confidence: 0.8 },
+    'meme': { personality: 'witty', vocabulary: 'gen_z', confidence: 0.8 },
+
+    // Achievements & Success
+    'achievement': { personality: 'enthusiastic', rhetoric: 'celebrate_win', confidence: 0.8 },
+    'success': { personality: 'enthusiastic', rhetoric: 'celebrate_win', confidence: 0.8 },
+    'proud': { personality: 'enthusiastic', rhetoric: 'celebrate_win', confidence: 0.8 },
+    'win': { personality: 'enthusiastic', rhetoric: 'celebrate_win', confidence: 0.8 },
+
+    // Learning & Growth
+    'learned': { personality: 'thoughtful', rhetoric: 'share_insight', confidence: 0.8 },
+    'insight': { personality: 'thoughtful', rhetoric: 'share_insight', confidence: 0.8 },
+    'lesson': { personality: 'thoughtful', rhetoric: 'share_insight', confidence: 0.8 },
+    'growth': { personality: 'thoughtful', rhetoric: 'share_insight', confidence: 0.8 },
+
+    // Trends & News
+    'breaking': { personality: 'professional', rhetoric: 'share_news', lengthPacing: 'breaking_news', confidence: 0.9 },
+    'news': { personality: 'professional', rhetoric: 'share_news', confidence: 0.8 },
+    'update': { personality: 'professional', rhetoric: 'share_news', confidence: 0.7 },
+    'trending': { personality: 'enthusiastic', rhetoric: 'highlight_trend', confidence: 0.8 },
+
+    // Personal & Casual
+    'coffee': { personality: 'casual', vocabulary: 'conversational', confidence: 0.7 },
+    'monday': { personality: 'casual', rhetoric: 'casual_observation', confidence: 0.6 },
+    'weekend': { personality: 'casual', vocabulary: 'conversational', confidence: 0.7 },
+    'tired': { personality: 'casual', rhetoric: 'casual_observation', confidence: 0.6 },
+
+    // Business & Professional
+    'meeting': { personality: 'professional', vocabulary: 'business', confidence: 0.8 },
+    'strategy': { personality: 'analytical', vocabulary: 'business', confidence: 0.8 },
+    'team': { personality: 'supportive', vocabulary: 'business', confidence: 0.7 },
+    'client': { personality: 'professional', vocabulary: 'business', confidence: 0.8 },
+    'project': { personality: 'professional', vocabulary: 'business', confidence: 0.7 }
+  } as const;
+
   /**
-   * Get smart defaults based on usage patterns
+   * Analyze tweet content and suggest appropriate personality/style
    */
-  async getSmartDefaults(): Promise<SmartDefaults | null> {
+  analyzeContent(tweetText: string): ContentSuggestion | null {
+    if (!tweetText || tweetText.trim().length === 0) {
+      return null;
+    }
+
+    const text = tweetText.toLowerCase();
+    const matchedKeywords: string[] = [];
+    const suggestions: Array<{
+      personality: string;
+      vocabulary?: string;
+      rhetoric?: string;
+      lengthPacing?: string;
+      confidence: number;
+      keywords: string[];
+    }> = [];
+
+    // Check for keyword matches
+    for (const [keyword, suggestion] of Object.entries(this.KEYWORD_SUGGESTIONS)) {
+      if (text.includes(keyword.toLowerCase())) {
+        matchedKeywords.push(keyword);
+        suggestions.push({
+          ...suggestion,
+          keywords: [keyword]
+        });
+      }
+    }
+
+    if (suggestions.length === 0) {
+      return null;
+    }
+
+    // Sort by confidence and find best match
+    suggestions.sort((a, b) => b.confidence - a.confidence);
+    const best = suggestions[0];
+
+    // Combine all matched keywords
+    const allKeywords = [...new Set(suggestions.flatMap(s => s.keywords))];
+
+    return {
+      personality: best.personality,
+      vocabulary: best.vocabulary || 'plain_english',
+      rhetoric: best.rhetoric || 'agree_build',
+      lengthPacing: best.lengthPacing || 'drive_by',
+      confidence: best.confidence,
+      reason: `Suggested based on keywords: ${allKeywords.join(', ')}`,
+      matchedKeywords: allKeywords
+    };
+  }
+
+  /**
+   * Get smart defaults based on usage patterns and content analysis
+   */
+  async getSmartDefaults(tweetContent?: string): Promise<SmartDefaults | null> {
+    // Priority 1: Content analysis (if tweet content provided)
+    if (tweetContent) {
+      const contentSuggestion = this.analyzeContent(tweetContent);
+      if (contentSuggestion && contentSuggestion.confidence >= 0.8) {
+        console.log('%c🎯 Content-based suggestion', 'color: #1DA1F2; font-weight: bold', contentSuggestion);
+        return {
+          personality: contentSuggestion.personality,
+          vocabulary: contentSuggestion.vocabulary,
+          rhetoric: contentSuggestion.rhetoric,
+          lengthPacing: contentSuggestion.lengthPacing,
+          confidence: 'high',
+          reason: contentSuggestion.reason
+        };
+      }
+    }
+
     const stats = usageTracker.getStats();
     
-    // Check time-based patterns first
+    // Priority 2: Time-based patterns
     const timeBasedDefaults = await this.getTimeBasedDefaults();
     if (timeBasedDefaults && timeBasedDefaults.confidence !== 'low') {
       return timeBasedDefaults;

@@ -6047,11 +6047,32 @@ export class UnifiedSelector {
   }
 
   /**
-   * Apply smart defaults based on usage patterns
+   * Get current tweet content for context analysis
+   */
+  private getCurrentTweetContent(): string {
+    try {
+      const textarea = DOMUtils.findReplyTextarea();
+      if (textarea && textarea instanceof HTMLElement) {
+        if (textarea.tagName === "TEXTAREA") {
+          return (textarea as HTMLTextAreaElement).value;
+        } else if (textarea.contentEditable === "true") {
+          return textarea.textContent || "";
+        }
+      }
+      return "";
+    } catch (error) {
+      console.error("Failed to get tweet content:", error);
+      return "";
+    }
+  }
+
+  /**
+   * Apply smart defaults based on usage patterns and content analysis
    */
   private async applySmartDefaults(): Promise<void> {
     const smartDefaultsService = new SmartDefaultsService();
-    const defaults = await smartDefaultsService.getSmartDefaults();
+    const currentContent = this.getCurrentTweetContent();
+    const defaults = await smartDefaultsService.getSmartDefaults(currentContent);
 
     if (!defaults) {
       visualFeedback.showToast("Unable to determine smart defaults", {
