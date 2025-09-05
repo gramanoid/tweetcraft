@@ -36,6 +36,7 @@ import { logger } from "@/utils/logger";
 import { TrendService, TrendingTopic } from "@/services/trendService";
 import { debounce } from "@/utils/debounce";
 import { MessageType } from "@/types/messages";
+import { customCombos, CustomCombo } from "@/services/customCombos";
 
 export interface SelectionResult {
   template: Template;
@@ -2555,6 +2556,19 @@ export class UnifiedSelector {
           </div>
         </div>
 
+        <!-- Custom Combos Section -->
+        <div class="custom-combos-section">
+          <div class="combos-header">
+            <h3>💫 Custom Combos</h3>
+            <button class="create-combo-btn" title="Save current selections as a custom combo">
+              ➕ Save Combo
+            </button>
+          </div>
+          <div class="combos-list" id="customCombosList">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+
         <!-- Saved Templates List -->
         <div class="saved-templates-section">
           <h3>Saved Templates (${customTemplates.length})</h3>
@@ -2625,6 +2639,277 @@ export class UnifiedSelector {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Task 5.2: Populate custom combos list
+   */
+  private async populateCustomCombosList(): Promise<void> {
+    const combosList = document.getElementById('customCombosList');
+    if (!combosList) return;
+
+    try {
+      const combos = await customCombos.getAllCombos();
+      
+      if (combos.length === 0) {
+        combosList.innerHTML = `
+          <div class="no-combos-message">
+            <p>🚀 No custom combos yet!</p>
+            <p>Save your favorite personality + vocabulary + rhetoric combinations for quick reuse.</p>
+          </div>
+        `;
+        return;
+      }
+
+      combosList.innerHTML = combos.map(combo => `
+        <div class="combo-item" data-combo-id="${combo.id}">
+          <div class="combo-header">
+            <div class="combo-title">
+              <span class="combo-name">${combo.name}</span>
+              <span class="combo-usage" title="Used ${combo.usageCount} times">
+                ${combo.usageCount > 0 ? `(${combo.usageCount}x)` : '(new)'}
+              </span>
+            </div>
+            <div class="combo-actions">
+              <button class="action-btn apply-btn" title="Apply this combo" data-action="apply">
+                ✨ Apply
+              </button>
+              <button class="action-btn edit-combo-btn" title="Edit combo name" data-action="edit">
+                ✏️
+              </button>
+              <button class="action-btn delete-combo-btn" title="Delete combo" data-action="delete">
+                🗑️
+              </button>
+            </div>
+          </div>
+          <div class="combo-details">
+            <div class="combo-config">
+              <span class="config-item">👤 ${this.getPersonalityLabel(combo.personality)}</span>
+              <span class="config-item">💬 ${this.getVocabularyLabel(combo.vocabulary)}</span>
+              <span class="config-item">🎭 ${this.getRhetoricalLabel(combo.rhetoric)}</span>
+              <span class="config-item">📏 ${this.getLengthPacingLabel(combo.lengthPacing)}</span>
+            </div>
+            <div class="combo-meta">
+              <span class="created-date">Created: ${new Date(combo.createdAt).toLocaleDateString()}</span>
+              ${combo.lastUsed > 0 ? `<span class="last-used">Last used: ${new Date(combo.lastUsed).toLocaleDateString()}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Add event listeners for combo actions
+      this.attachComboEventListeners();
+      
+    } catch (error) {
+      console.error('Failed to populate custom combos:', error);
+      combosList.innerHTML = `
+        <div class="error-message">
+          <p>⚠️ Failed to load custom combos</p>
+          <button class="retry-btn" onclick="this.closest('.custom-combos-section').querySelector('.create-combo-btn').click()">
+            Retry
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Task 5.2: Get display labels for combo components
+   */
+  private getPersonalityLabel(personalityId: string): string {
+    const personality = PERSONALITIES.find(p => p.id === personalityId);
+    return personality ? `${personality.emoji} ${personality.label}` : personalityId;
+  }
+
+  private getVocabularyLabel(vocabularyId: string): string {
+    const vocabulary = Object.values(VOCABULARY_STYLES).find((v: VocabularyStyle) => v.id === vocabularyId);
+    return vocabulary ? `${vocabulary.emoji} ${vocabulary.label}` : vocabularyId;
+  }
+
+  private getRhetoricalLabel(rhetoricId: string): string {
+    const rhetoric = TEMPLATES.find(t => t.id === rhetoricId);
+    return rhetoric ? `${rhetoric.emoji} ${rhetoric.name}` : rhetoricId;
+  }
+
+  private getLengthPacingLabel(lengthPacingId: string): string {
+    const lengthPacing = Object.values(LENGTH_PACING_STYLES).find((lp: LengthPacingStyle) => lp.id === lengthPacingId);
+    return lengthPacing ? lengthPacing.label : lengthPacingId;
+  }
+
+  /**
+   * Task 5.2: Attach event listeners for combo management
+   */
+  private attachComboEventListeners(): void {
+    // Apply combo button
+    document.querySelectorAll('.apply-btn[data-action="apply"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const comboItem = (e.target as HTMLElement).closest('.combo-item') as HTMLElement;
+        const comboId = comboItem?.dataset.comboId;
+        if (comboId) {
+          await this.applyCustomCombo(comboId);
+        }
+      });
+    });
+
+    // Edit combo button
+    document.querySelectorAll('.edit-combo-btn[data-action="edit"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const comboItem = (e.target as HTMLElement).closest('.combo-item') as HTMLElement;
+        const comboId = comboItem?.dataset.comboId;
+        if (comboId) {
+          await this.editCustomComboName(comboId);
+        }
+      });
+    });
+
+    // Delete combo button
+    document.querySelectorAll('.delete-combo-btn[data-action="delete"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const comboItem = (e.target as HTMLElement).closest('.combo-item') as HTMLElement;
+        const comboId = comboItem?.dataset.comboId;
+        if (comboId) {
+          await this.deleteCustomCombo(comboId);
+        }
+      });
+    });
+  }
+
+  /**
+   * Task 5.2: Apply a custom combo to current selections
+   */
+  private async applyCustomCombo(comboId: string): Promise<void> {
+    try {
+      const combo = await customCombos.getCombo(comboId);
+      if (!combo) {
+        visualFeedback.showToast('Combo not found', { type: 'error', duration: 3000 });
+        return;
+      }
+
+      // Apply the combo settings
+      const personality = PERSONALITIES.find(p => p.id === combo.personality);
+      const vocabulary = Object.values(VOCABULARY_STYLES).find((v: VocabularyStyle) => v.id === combo.vocabulary);
+      const rhetoric = TEMPLATES.find(t => t.id === combo.rhetoric);
+      const lengthPacing = Object.values(LENGTH_PACING_STYLES).find((lp: LengthPacingStyle) => lp.id === combo.lengthPacing);
+
+      if (personality) this.selectedPersonality = personality;
+      if (vocabulary) this.selectedVocabulary = vocabulary;
+      if (rhetoric) this.selectedTemplate = rhetoric;
+      if (lengthPacing) this.selectedLengthPacing = lengthPacing;
+
+      // Increment usage count
+      await customCombos.incrementUsage(comboId);
+
+      // Switch to All tab to see the applied combination
+      this.view = 'grid';
+      this.render();
+
+      visualFeedback.showToast(`Applied combo: ${combo.name}`, { 
+        type: 'success', 
+        duration: 3000 
+      });
+
+    } catch (error) {
+      console.error('Failed to apply custom combo:', error);
+      visualFeedback.showToast('Failed to apply combo', { type: 'error', duration: 3000 });
+    }
+  }
+
+  /**
+   * Task 5.2: Edit combo name
+   */
+  private async editCustomComboName(comboId: string): Promise<void> {
+    try {
+      const combo = await customCombos.getCombo(comboId);
+      if (!combo) return;
+
+      const newName = prompt(`Edit combo name:`, combo.name);
+      if (newName && newName.trim() && newName !== combo.name) {
+        await customCombos.updateCombo(comboId, { name: newName.trim() });
+        await this.populateCustomCombosList();
+        visualFeedback.showToast('Combo name updated', { type: 'success', duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Failed to edit combo name:', error);
+      if (error instanceof Error && error.message.includes('already exists')) {
+        visualFeedback.showToast('A combo with that name already exists', { type: 'error', duration: 3000 });
+      } else {
+        visualFeedback.showToast('Failed to update combo name', { type: 'error', duration: 3000 });
+      }
+    }
+  }
+
+  /**
+   * Task 5.2: Delete a custom combo
+   */
+  private async deleteCustomCombo(comboId: string): Promise<void> {
+    try {
+      const combo = await customCombos.getCombo(comboId);
+      if (!combo) return;
+
+      if (confirm(`Delete combo "${combo.name}"? This cannot be undone.`)) {
+        await customCombos.deleteCombo(comboId);
+        await this.populateCustomCombosList();
+        visualFeedback.showToast('Combo deleted', { type: 'success', duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Failed to delete combo:', error);
+      visualFeedback.showToast('Failed to delete combo', { type: 'error', duration: 3000 });
+    }
+  }
+
+  /**
+   * Task 5.2: Save current selections as a new custom combo
+   */
+  private async saveCurrentAsCustomCombo(): Promise<void> {
+    try {
+      // Validate current selections
+      if (!this.selectedPersonality || !this.selectedVocabulary || !this.selectedTemplate || !this.selectedLengthPacing) {
+        visualFeedback.showToast('Please select personality, vocabulary, rhetoric, and length/pacing first', {
+          type: 'warning',
+          duration: 4000
+        });
+        return;
+      }
+
+      const name = prompt('Enter a name for this combo:', 
+        `${this.selectedPersonality.label} + ${this.selectedVocabulary.label}`);
+      
+      if (!name || !name.trim()) {
+        return; // User cancelled or entered empty name
+      }
+
+      const combo = customCombos.createComboFromSettings({
+        personality: this.selectedPersonality.id,
+        vocabulary: this.selectedVocabulary.id,
+        rhetoric: this.selectedTemplate.id,
+        lengthPacing: this.selectedLengthPacing.id
+      }, name.trim());
+
+      await customCombos.saveCombo(combo);
+      await this.populateCustomCombosList();
+      
+      visualFeedback.showToast(`Combo "${name}" saved successfully!`, {
+        type: 'success',
+        duration: 3000
+      });
+
+    } catch (error) {
+      console.error('Failed to save custom combo:', error);
+      if (error instanceof Error && error.message.includes('already exists')) {
+        visualFeedback.showToast('A combo with that name already exists', { type: 'error', duration: 3000 });
+      } else {
+        visualFeedback.showToast('Failed to save combo', { type: 'error', duration: 3000 });
+      }
+    }
   }
 
   /**
@@ -3154,6 +3439,9 @@ export class UnifiedSelector {
         this.view = view;
         if (view === "smart") {
           this.loadSmartSuggestions();
+        } else if (view === "custom") {
+          // Task 5.2: Populate custom combos when custom tab is selected
+          setTimeout(() => this.populateCustomCombosList(), 100);
         }
         // Don't auto-load trending topics for compose view - user will click Fetch
         this.render();
@@ -3547,6 +3835,16 @@ export class UnifiedSelector {
     if (closeBtn) {
       closeBtn.addEventListener("click", () => {
         this.hide();
+      });
+    }
+
+    // Task 5.2: Create Custom Combo button
+    const createComboBtn = this.container.querySelector(".create-combo-btn");
+    if (createComboBtn) {
+      createComboBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.saveCurrentAsCustomCombo();
       });
     }
 
