@@ -1,6 +1,7 @@
 import { TwitterContext } from "@/types";
 import { URLCleaner } from "@/utils/urlCleaner";
 import { usageTracker } from "@/services/usageTracker";
+import { topicTracker } from "@/services/topicTracker";
 
 // Performance Optimization Suite: DOM Query Caching
 class DOMCache {
@@ -570,6 +571,18 @@ export class DOMUtils {
   private static generatedReplyObserver: MutationObserver | null = null;
   private static lastGeneratedReply: string | null = null;
   private static trackingSendAction: boolean = false;
+  
+  // Topic tracking context for current reply
+  private static currentTopicContext: {
+    tweetText: string;
+    combo: {
+      personality: string;
+      vocabulary: string;
+      rhetoric: string;
+      lengthPacing: string;
+    };
+    topicId?: string;
+  } | null = null;
   // Legacy selectors for backward compatibility
   static readonly REPLY_TEXTAREA_SELECTOR =
     SELECTOR_CHAINS.replyTextarea.primary;
@@ -1569,12 +1582,28 @@ export class DOMUtils {
   /**
    * Start tracking whether generated reply is sent or canceled
    */
+  static setTopicTrackingContext(
+    tweetText: string,
+    combo: {
+      personality: string;
+      vocabulary: string;
+      rhetoric: string;
+      lengthPacing: string;
+    },
+    topicId?: string
+  ): void {
+    this.currentTopicContext = { tweetText, combo, topicId };
+  }
+
   static startTrackingSendAction(generatedReply: string): void {
     // Store the generated reply for comparison
     this.lastGeneratedReply = generatedReply;
     this.trackingSendAction = true;
 
     console.log("%c📊 Tracking send/cancel for reply", "color: #1DA1F2");
+    if (this.currentTopicContext) {
+      console.log("%c🎯 Topic context stored for tracking", "color: #9B59B6", this.currentTopicContext);
+    }
 
     // Stop any existing observer
     if (this.generatedReplyObserver) {
@@ -1623,9 +1652,17 @@ export class DOMUtils {
             this.lastGeneratedReply?.length,
           );
           console.log("%c📊 Reply sent!", "color: #17BF63");
+          
+          // Update topic tracking with successful outcome
+          if (this.currentTopicContext) {
+            this.updateTopicTracking(true);
+          }
         } else {
           usageTracker.trackReplyOutcome("discarded");
           console.log("%c📊 Reply canceled", "color: #DC3545");
+          
+          // Topic tracking remains as initially tracked (unsuccessful)
+          // No need to update as it was already tracked as unsuccessful
         }
 
         this.stopTrackingSendAction();
@@ -1649,11 +1686,39 @@ export class DOMUtils {
             "color: #FFA500",
           );
           usageTracker.trackReplyOutcome("discarded");
+          // Topic tracking remains as initially tracked (unsuccessful)
           this.stopTrackingSendAction();
         }
       },
       5 * 60 * 1000,
     );
+  }
+
+  /**
+   * Update topic tracking with successful outcome
+   */
+  private static async updateTopicTracking(wasSuccessful: boolean): Promise<void> {
+    if (!this.currentTopicContext) return;
+
+    try {
+      const analysis = topicTracker.analyzeTopic(this.currentTopicContext.tweetText);
+      await topicTracker.trackComboPerformance(
+        analysis.topicId,
+        this.currentTopicContext.combo,
+        wasSuccessful
+      );
+      
+      console.log('%c🎯 Topic performance updated:', 'color: #9B59B6', {
+        topic: analysis.topicId,
+        combo: `${this.currentTopicContext.combo.personality}/${this.currentTopicContext.combo.vocabulary}`,
+        successful: wasSuccessful
+      });
+      
+      // Clear the context after successful tracking
+      this.currentTopicContext = null;
+    } catch (error) {
+      console.error('Failed to update topic tracking:', error);
+    }
   }
 
   /**

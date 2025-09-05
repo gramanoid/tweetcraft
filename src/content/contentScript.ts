@@ -21,6 +21,7 @@ import { ContextRecovery } from "@/utils/contextRecovery";
 import { ContextExtractor, TweetContext } from "@/utils/contextExtractor";
 import { visionService, VisionService } from "@/services/visionService";
 import { smartDefaults } from "@/services/smartDefaults";
+import { topicTracker } from "@/services/topicTracker";
 import "./contentScript.scss";
 
 class SmartReplyContentScript {
@@ -3309,6 +3310,29 @@ class SmartReplyContentScript {
           response.data.reply,
         );
         
+        // Set topic tracking context before starting send tracking
+        if (request.allTabConfig && context.tweetText) {
+          DOMUtils.setTopicTrackingContext(
+            context.tweetText,
+            {
+              personality: request.allTabConfig.personality,
+              vocabulary: request.allTabConfig.vocabulary,
+              rhetoric: request.allTabConfig.rhetoric,
+              lengthPacing: request.allTabConfig.lengthPacing
+            }
+          );
+        } else if (request.personaConfig && context.tweetText) {
+          DOMUtils.setTopicTrackingContext(
+            context.tweetText,
+            {
+              personality: request.personaConfig.personality || 'persona_default',
+              vocabulary: request.personaConfig.vocabulary || 'plain_english',
+              rhetoric: request.personaConfig.rhetoricMove || 'supportive',
+              lengthPacing: request.personaConfig.lengthPacing || 'conversational_clause'
+            }
+          );
+        }
+
         // Start tracking whether user sends or cancels this reply
         DOMUtils.startTrackingSendAction(response.data.reply);
         
@@ -3440,6 +3464,63 @@ class SmartReplyContentScript {
       );
     } finally {
       // Loading states are handled by LoadingStateManager
+    }
+  }
+
+  /**
+   * Track topic-specific combo performance
+   */
+  private async trackTopicPerformance(
+    request: ReplyGenerationRequest,
+    tweetText: string,
+    wasSuccessful: boolean
+  ): Promise<void> {
+    try {
+      // Only track if we have tweet content to analyze
+      if (!tweetText || tweetText.trim().length < 10) {
+        return;
+      }
+
+      const analysis = topicTracker.analyzeTopic(tweetText);
+      
+      // Extract combo info from request
+      let combo: any = {};
+      
+      if (request.allTabConfig) {
+        combo = {
+          personality: request.allTabConfig.personality,
+          vocabulary: request.allTabConfig.vocabulary,
+          rhetoric: request.allTabConfig.rhetoric,
+          lengthPacing: request.allTabConfig.lengthPacing
+        };
+      } else if (request.personaConfig) {
+        // For persona tab, use the persona ID as personality
+        combo = {
+          personality: request.personaConfig.personality || 'persona_default',
+          vocabulary: request.personaConfig.vocabulary || 'plain_english',
+          rhetoric: request.personaConfig.rhetoricMove || 'supportive',
+          lengthPacing: request.personaConfig.lengthPacing || 'conversational_clause'
+        };
+      } else {
+        console.log('%c⚠️ No combo configuration found for topic tracking', 'color: #FFA500');
+        return;
+      }
+
+      // Track the combo performance for the detected topic
+      await topicTracker.trackComboPerformance(
+        analysis.topicId,
+        combo,
+        wasSuccessful
+      );
+
+      console.log('%c🎯 Topic performance tracked:', 'color: #9B59B6', {
+        topic: analysis.topicId,
+        combo: `${combo.personality}/${combo.vocabulary}`,
+        successful: wasSuccessful,
+        confidence: Math.round(analysis.confidence * 100) + '%'
+      });
+    } catch (error) {
+      console.error('Failed to track topic performance:', error);
     }
   }
 

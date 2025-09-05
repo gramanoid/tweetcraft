@@ -37,6 +37,7 @@ import { TrendService, TrendingTopic } from "@/services/trendService";
 import { debounce } from "@/utils/debounce";
 import { MessageType } from "@/types/messages";
 import { customCombos, CustomCombo } from "@/services/customCombos";
+import { topicTracker, TopicAnalysis, ComboPerformance } from "@/services/topicTracker";
 
 export interface SelectionResult {
   template: Template;
@@ -139,6 +140,10 @@ export class UnifiedSelector {
   private trendingSuggestions: TrendingTopic[] = [];
   private debouncedHashtagUpdate: ((topic: string) => void) | null = null;
   private eventListenerCleanups: (() => void)[] = [];
+  
+  // Topic tracking properties
+  private currentTopicAnalysis: TopicAnalysis | null = null;
+  private topicRecommendations: ComboPerformance[] = [];
 
   // Trending suggestions cache
   private trendingCache: { data: TrendingTopic[]; fetchedAt: number } | null =
@@ -2223,6 +2228,27 @@ export class UnifiedSelector {
               ⚡ Quick Arsenal
             </button>
           </div>
+          ${this.currentTopicAnalysis ? `
+            <div class="topic-analysis-section" style="background: rgba(155, 89, 182, 0.1); border: 1px solid rgba(155, 89, 182, 0.3); border-radius: 6px; padding: 8px; margin-bottom: 12px; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span>🎯</span>
+                <strong>Topic: ${this.getTopicLabel(this.currentTopicAnalysis.topicId)}</strong>
+                <span style="background: rgba(155, 89, 182, 0.2); padding: 2px 6px; border-radius: 3px; font-size: 10px;">
+                  ${Math.round(this.currentTopicAnalysis.confidence * 100)}% confidence
+                </span>
+              </div>
+              ${this.currentTopicAnalysis.matchedKeywords.length > 0 ? `
+                <div style="color: #657786; font-size: 10px;">
+                  Keywords: ${this.currentTopicAnalysis.matchedKeywords.slice(0, 3).join(', ')}
+                </div>
+              ` : ''}
+              ${this.topicRecommendations.length > 0 ? `
+                <div style="color: #17BF63; font-size: 10px; margin-top: 4px;">
+                  ✨ ${this.topicRecommendations.length} topic-specific recommendations available
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
         </div>
         <div class="smart-suggestions-list">
           ${
@@ -4187,6 +4213,29 @@ export class UnifiedSelector {
         };
       }
 
+      // Get topic-aware recommendations if we have tweet content
+      if (context.tweetText && context.tweetText.trim().length > 10) {
+        try {
+          const topicRecommendations = await topicTracker.getTopicRecommendations(context.tweetText);
+          this.currentTopicAnalysis = topicRecommendations.analysis;
+          this.topicRecommendations = [
+            ...topicRecommendations.recommendations,
+            ...topicRecommendations.fallbackRecommendations
+          ];
+          
+          console.log('%c🎯 Topic analysis:', 'color: #9B59B6', {
+            topic: this.currentTopicAnalysis.topicId,
+            confidence: Math.round(this.currentTopicAnalysis.confidence * 100) + '%',
+            keywords: this.currentTopicAnalysis.matchedKeywords,
+            recommendations: this.topicRecommendations.length
+          });
+        } catch (error) {
+          console.error('Failed to get topic recommendations:', error);
+          this.currentTopicAnalysis = null;
+          this.topicRecommendations = [];
+        }
+      }
+
       // Get suggestions from the template suggester
       const suggestions = await templateSuggester.getSuggestions({
         tweetText: context.tweetText || "",
@@ -4260,6 +4309,15 @@ export class UnifiedSelector {
 
       this.render();
     }
+  }
+
+  /**
+   * Get readable label for topic ID
+   */
+  private getTopicLabel(topicId: string): string {
+    const topicCategories = topicTracker.getTopicCategories();
+    const category = topicCategories.find(c => c.id === topicId);
+    return category?.label || topicId;
   }
 
   /**
