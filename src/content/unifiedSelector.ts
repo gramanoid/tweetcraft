@@ -20,6 +20,7 @@ import { QuickPersona, getAllQuickPersonas } from "@/config/quickPersonas";
 // Type alias for backward compatibility
 type Tone = Personality;
 import { visualFeedback } from "@/ui/visualFeedback";
+import { guidedTour, GuidedTour } from "@/components/GuidedTour";
 import { templateSuggester } from "@/services/templateSuggester";
 import { DOMUtils } from "@/content/domUtils";
 import { imageService } from "@/services/imageService";
@@ -403,6 +404,19 @@ export class UnifiedSelector {
 
     // Add scroll handler to keep popup positioned relative to button
     this.setupScrollHandler();
+
+    // Start guided tour if first time
+    if (guidedTour.shouldShowTour()) {
+      // Inject styles for tour
+      GuidedTour.injectStyles();
+      
+      // Start tour after a short delay to let UI settle
+      setTimeout(() => {
+        if (this.container) {
+          guidedTour.start(this.container);
+        }
+      }, 500);
+    }
   }
 
   /**
