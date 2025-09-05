@@ -136,6 +136,7 @@ export class VisualFeedback {
 
   /**
    * Show loading overlay (deprecated - now just logs)
+   * @deprecated Use showButtonLoading instead
    */
   showLoading(message: string = 'Loading...'): void {
     // No longer show full-screen overlay, just log for debugging
@@ -144,10 +145,51 @@ export class VisualFeedback {
 
   /**
    * Hide loading overlay (deprecated - now just logs)
+   * @deprecated Use hideButtonLoading instead
    */
   hideLoading(): void {
     // No longer needed since we don't show overlay
     console.log('%c✅ Loading complete', 'color: #17BF63');
+  }
+
+  /**
+   * Show loading state on button with pulsing animation
+   */
+  showButtonLoading(button: HTMLElement, message: string = 'Generating...'): void {
+    // Store original content
+    const originalContent = button.innerHTML;
+    button.setAttribute('data-original-content', originalContent);
+    
+    // Add loading class and update content
+    button.classList.add('tweetcraft-loading');
+    button.innerHTML = `
+      <span class="loading-spinner-inline"></span>
+      <span>${message}</span>
+    `;
+    
+    // Disable button
+    button.setAttribute('disabled', 'true');
+    
+    console.log('%c⏳ Button loading:', 'color: #FFA500', message);
+  }
+
+  /**
+   * Hide loading state on button
+   */
+  hideButtonLoading(button: HTMLElement): void {
+    // Restore original content
+    const originalContent = button.getAttribute('data-original-content');
+    if (originalContent) {
+      button.innerHTML = originalContent;
+    }
+    
+    // Remove loading class
+    button.classList.remove('tweetcraft-loading');
+    
+    // Enable button
+    button.removeAttribute('disabled');
+    
+    console.log('%c✅ Button loading complete', 'color: #17BF63');
   }
 
   /**
@@ -209,7 +251,7 @@ export class VisualFeedback {
   }
 
   /**
-   * Show success animation
+   * Show success animation with checkmark
    */
   showSuccess(element: HTMLElement, message?: string): void {
     const successIcon = document.createElement('div');
@@ -231,8 +273,25 @@ export class VisualFeedback {
     }, 1500);
     
     if (message) {
-      this.showToast(message, { type: 'success' });
+      this.showToast(message, { type: 'success', duration: 2000 });
     }
+  }
+
+  /**
+   * Show copy success with inline checkmark
+   */
+  showCopySuccess(element: HTMLElement): void {
+    const originalContent = element.innerHTML;
+    
+    // Temporarily change to checkmark
+    element.innerHTML = '✓ Copied!';
+    element.classList.add('tweetcraft-copy-success');
+    
+    // Restore after delay
+    setTimeout(() => {
+      element.innerHTML = originalContent;
+      element.classList.remove('tweetcraft-copy-success');
+    }, 2000);
   }
 
   /**
@@ -295,6 +354,33 @@ export class VisualFeedback {
         setTimeout(() => progressBar.remove(), 300);
       }, 500);
     }
+  }
+
+  /**
+   * Start indeterminate progress for slow requests
+   */
+  startSlowProgress(message: string = 'This is taking longer than expected...'): () => void {
+    let progress = 0;
+    let slowMessageShown = false;
+    
+    // Start progress bar
+    this.showProgress(10, 'Generating...');
+    
+    // Simulate slow progress
+    const interval = setInterval(() => {
+      progress = Math.min(90, progress + Math.random() * 10);
+      this.showProgress(progress, progress > 50 && !slowMessageShown ? message : 'Generating...');
+      
+      if (progress > 50) {
+        slowMessageShown = true;
+      }
+    }, 500);
+    
+    // Return function to stop progress
+    return () => {
+      clearInterval(interval);
+      this.showProgress(100, 'Complete!');
+    };
   }
 
   /**
@@ -407,10 +493,47 @@ export class VisualFeedback {
           color: #e7e9ea;
         }
         
-        /* Loading overlay removed - now using button-only loading animation */
+        /* Button loading states */
+        .tweetcraft-loading {
+          position: relative;
+          pointer-events: none;
+          opacity: 0.9;
+        }
         
+        .loading-spinner-inline {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(29, 155, 240, 0.3);
+          border-top-color: #1d9bf0;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-right: 8px;
+          vertical-align: middle;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        /* Enhanced pulse animation for generating state */
         .tweetcraft-pulse {
-          animation: pulse 0.6s ease;
+          animation: enhanced-pulse 1.5s ease infinite;
+        }
+        
+        @keyframes enhanced-pulse {
+          0% { 
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.7);
+          }
+          50% { 
+            transform: scale(1.02);
+            box-shadow: 0 0 20px 10px rgba(29, 155, 240, 0);
+          }
+          100% { 
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(29, 155, 240, 0);
+          }
         }
         
         @keyframes pulse {
@@ -467,6 +590,18 @@ export class VisualFeedback {
         .tweetcraft-success-icon.show {
           transform: translate(-50%, -50%) scale(1);
           opacity: 1;
+        }
+        
+        .tweetcraft-copy-success {
+          color: #17BF63 !important;
+          font-weight: bold;
+          animation: copy-success 0.3s ease;
+        }
+        
+        @keyframes copy-success {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
         }
         
         .tweetcraft-progress-bar {
