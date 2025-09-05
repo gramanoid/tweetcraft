@@ -25,6 +25,7 @@ import { QuickPersona, getAllQuickPersonas } from "@/config/quickPersonas";
 type Tone = Personality;
 import { visualFeedback } from "@/ui/visualFeedback";
 import { guidedTour, GuidedTour } from "@/components/GuidedTour";
+import { weeklySummaryView } from "@/components/WeeklySummaryView";
 import { templateSuggester } from "@/services/templateSuggester";
 import { DOMUtils } from "@/content/domUtils";
 import { imageService } from "@/services/imageService";
@@ -124,6 +125,7 @@ export class UnifiedSelector {
     | "custom"
     | "compose"
     | "stats"
+    | "weekly"
     | "engagement"
     | "abtest" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
@@ -922,6 +924,9 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "stats" ? "active" : ""}" data-view="stats">
             📊 Stats
           </button>
+          <button class="tab-btn ${this.view === "weekly" ? "active" : ""}" data-view="weekly">
+            📅 Weekly
+          </button>
           <button class="tab-btn ${this.view === "engagement" ? "active" : ""}" data-view="engagement">
             📈 Engagement
           </button>
@@ -1104,6 +1109,8 @@ export class UnifiedSelector {
         return this.renderComposeView();
       case "stats":
         return this.renderStatsView();
+      case "weekly":
+        return this.renderWeeklySummaryView();
       case "engagement":
         return this.renderEngagementView();
       case "abtest":
@@ -3152,6 +3159,51 @@ export class UnifiedSelector {
   }
 
   /**
+   * Render weekly summary view
+   */
+  private renderWeeklySummaryView(): string {
+    // Show loading state initially, weekly summary will be loaded asynchronously
+    this.loadWeeklySummaryData();
+
+    return `
+      <div class="selector-content weekly-view">
+        <div class="weekly-summary-container" id="weeklySummaryContainer">
+          <div class="weekly-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading weekly summary...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Load weekly summary data asynchronously and update the view
+   */
+  private async loadWeeklySummaryData(): Promise<void> {
+    try {
+      const container = this.container?.querySelector("#weeklySummaryContainer");
+      if (!container) return;
+
+      // Create and append the weekly summary view
+      const summaryElement = weeklySummaryView.create();
+      container.innerHTML = '';
+      container.appendChild(summaryElement);
+    } catch (error) {
+      console.error('Failed to load weekly summary:', error);
+      const container = this.container?.querySelector("#weeklySummaryContainer");
+      if (container) {
+        container.innerHTML = `
+          <div class="error-state">
+            <span>⚠️ Failed to load weekly summary</span>
+            <button class="retry-btn" onclick="location.reload()">Retry</button>
+          </div>
+        `;
+      }
+    }
+  }
+
+  /**
    * Load stats data asynchronously and update the view
    */
   private async loadStatsData(): Promise<void> {
@@ -3565,7 +3617,11 @@ export class UnifiedSelector {
           | "smart"
           | "favorites"
           | "custom"
-          | "compose";
+          | "compose"
+          | "stats"
+          | "weekly"
+          | "engagement"
+          | "abtest";
         this.view = view;
         if (view === "smart") {
           this.loadSmartSuggestions();
