@@ -277,7 +277,7 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
             if (Array.isArray(results) && results.length > 0) {
               // Prefer reliable image hosts
               const allowedHosts = ['images.unsplash.com', 'unsplash.com', 'images.pexels.com', 'pexels.com', 'pixabay.com', 'cdn.pixabay.com'];
-              const pick = (results as any[]).find(r => {
+              const pick = (results).find(r => {
                 try {
                   const u = new URL(r.url);
                   return allowedHosts.some(h => u.hostname.endsWith(h));

@@ -319,7 +319,7 @@ export class PromptCache {
         const entries = JSON.parse(saved);
         let loadedCount = 0;
         
-        for (const [key, data] of Object.entries(entries as any)) {
+        for (const [key, data] of Object.entries(entries)) {
           const entry = data as any;
           // Only load if not expired
           if (Date.now() - entry.timestamp < this.MAX_AGE_MS) {

@@ -38,8 +38,7 @@ import {
   isTestApiKeyMessage,
   isFetchModelsMessage,
   isResetUsageStatsMessage,
-  isAnalyzeImagesMessage,
-  isFetchTrendingTopicsMessage
+  isAnalyzeImagesMessage
 } from '@/types/messages';
 import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
@@ -102,19 +101,30 @@ class SmartReplyServiceWorker {
     console.log('📨 Registering message listener...');
     chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
       console.log('%c📩 Message received:', 'color: #1DA1F2; font-weight: bold', message);
-      // handleMessage calls sendResponse internally, so we just need to catch errors
-      this.handleMessage(message as ExtensionMessage, sender, sendResponse)
+      
+      // Create a flag to track if response has been sent
+      let responseSent = false;
+      const safeSendResponse = (response: MessageResponse) => {
+        if (!responseSent) {
+          responseSent = true;
+          sendResponse(response);
+        } else {
+          console.warn('Attempted to send response multiple times for message:', message);
+        }
+      };
+      
+      // Handle message asynchronously with proper error handling
+      this.handleMessage(message as ExtensionMessage, sender, safeSendResponse)
         .catch(error => {
-          // Send error response only if handleMessage didn't already send one
           console.error('Service worker message handling error:', error);
-          if (!chrome.runtime.lastError) {
-            sendResponse({ 
-              success: false, 
-              error: error instanceof Error ? error.message : 'Unknown error occurred'
-            });
-          }
+          safeSendResponse({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+          });
         });
-      return true; // Keep the message channel open for async responses
+      
+      // Keep the message channel open for async responses
+      return true;
     });
   }
 
@@ -202,7 +212,16 @@ class SmartReplyServiceWorker {
     try {
       switch (message.type) {
         case MessageType.EXA_SEARCH: {
-          const { query, options } = message as any;
+          interface ExaSearchMessage {
+            type: MessageType.EXA_SEARCH;
+            query: string;
+            options?: {
+              numResults?: number;
+              useAutoprompt?: boolean;
+              type?: 'neural' | 'keyword';
+            };
+          }
+          const exaMessage = message as ExaSearchMessage;
           try {
             const EXA_API_KEY = API_CONFIG.EXA_API_KEY || '';
             const EXA_API_URL = 'https://api.exa.ai/search';
@@ -211,12 +230,12 @@ class SmartReplyServiceWorker {
               break;
             }
             const body = {
-              query,
-              num_results: options?.numResults || 10,
-              use_autoprompt: options?.useAutoprompt !== false,
-              type: options?.type || 'neural',
+              query: exaMessage.query,
+              num_results: exaMessage.options?.numResults || 10,
+              use_autoprompt: exaMessage.options?.useAutoprompt !== false,
+              type: exaMessage.options?.type || 'neural',
               contents: { text: true, highlights: true }
-            } as any;
+            };
             const response = await fetch(EXA_API_URL, {
               method: 'POST',
               headers: {
@@ -563,11 +582,11 @@ class SmartReplyServiceWorker {
                 throw new Error(errorMessage);
               }
 
-              const data = await response.json() as any;
+              const data = await response.json();
               console.log('%c✅ Vision API Response', 'color: #17BF63; font-weight: bold');
               console.log('%c  Data:', 'color: #657786', data);
               
-              const content = (data as any).choices?.[0]?.message?.content;
+              const content = (data).choices?.[0]?.message?.content;
               
               if (content) {
                 sendResponse({ success: true, data: content });
@@ -989,12 +1008,12 @@ class SmartReplyServiceWorker {
         return;
       }
 
-      const result = await response.json() as any;
+      const result = await response.json();
       
       console.log('%c✅ API RESPONSE RECEIVED', 'color: #17BF63; font-weight: bold; font-size: 14px');
       console.log('%c  Response Time:', 'color: #657786', `${responseTime}ms`);
-      console.log('%c  Model Used:', 'color: #657786', (result as any).model);
-      console.log('%c  Tokens Used:', 'color: #657786', (result as any).usage);
+      console.log('%c  Model Used:', 'color: #657786', (result).model);
+      console.log('%c  Tokens Used:', 'color: #657786', (result).usage);
       console.log('%c  Finish Reason:', 'color: #657786', result.choices?.[0]?.finish_reason);
       
       const reply = result.choices?.[0]?.message?.content?.trim();

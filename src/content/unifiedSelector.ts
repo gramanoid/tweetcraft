@@ -5591,7 +5591,7 @@ export class UnifiedSelector {
         const request = store.getAll();
 
         request.onsuccess = () => {
-          const replies = request.result as any[];
+          const replies = request.result;
           // Sort by usage count and take top N
           const topReplies = replies
             .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))

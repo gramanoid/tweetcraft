@@ -79,6 +79,11 @@ class SmartReplyContentScript {
     callback: () => void,
     delay: number,
   ): ReturnType<typeof setTimeout> {
+    // Don't set timer if already destroyed
+    if (this.isDestroyed) {
+      return 0 as any;
+    }
+    
     const timerId = setTimeout(() => {
       this.timers.delete(timerId);
       if (!this.isDestroyed) {
@@ -94,6 +99,11 @@ class SmartReplyContentScript {
     callback: () => void,
     delay: number,
   ): ReturnType<typeof setInterval> {
+    // Don't set interval if already destroyed
+    if (this.isDestroyed) {
+      return 0 as any;
+    }
+    
     const intervalId = setInterval(() => {
       if (!this.isDestroyed) {
         callback();
@@ -1710,7 +1720,7 @@ class SmartReplyContentScript {
 
     // Filter to only include textareas that are visible and likely for replies
     const replyTextareas = Array.from(allTextareas).filter((textarea) => {
-      const elem = textarea as HTMLTextAreaElement;
+      const elem = textarea;
 
       // Log details for debugging
       const placeholder = elem.placeholder || "";
@@ -1749,7 +1759,7 @@ class SmartReplyContentScript {
       // Log first few textareas for debugging
       allTextareas.forEach((ta, i) => {
         if (i < 3) {
-          const elem = ta as HTMLTextAreaElement;
+          const elem = ta;
           console.log(
             `  Textarea ${i}: placeholder="${elem.placeholder}", height=${elem.offsetHeight}, width=${elem.offsetWidth}`,
           );

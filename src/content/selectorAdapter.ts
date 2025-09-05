@@ -44,7 +44,7 @@ export class SelectorAdapter {
   show(
     button: HTMLElement,
     callback: (
-      template: PresetTemplate | CustomTemplate, 
+      template: PresetTemplate  , 
       tone: ToneOption, 
       vocabulary?: string, 
       lengthPacing?: string,

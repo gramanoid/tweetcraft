@@ -323,7 +323,7 @@ class FallbackStrategies {
           `%c✅ Found by class combination: ${selector}`,
           "color: #17BF63",
         );
-        return element as Element;
+        return element;
       }
     }
     return null;
@@ -702,7 +702,7 @@ export class DOMUtils {
     // Test each selector chain
     Object.keys(SELECTOR_CHAINS).forEach((selectorType) => {
       const chain =
-        SELECTOR_CHAINS[selectorType as keyof typeof SELECTOR_CHAINS];
+        SELECTOR_CHAINS[selectorType];
 
       // Test primary
       let element = document.querySelector(chain.primary);
@@ -1266,7 +1266,7 @@ export class DOMUtils {
     button.classList.add("loading");
 
     // Try to find span element first
-    let span = button.querySelector("span");
+    const span = button.querySelector("span");
     if (span) {
       span.textContent = `${stage}...`;
     } else {
@@ -1533,7 +1533,7 @@ export class DOMUtils {
       // Test primary
       const primary = FallbackStrategies.tryPrimarySelector(
         container,
-        SELECTOR_CHAINS[elementType as keyof typeof SELECTOR_CHAINS].primary,
+        SELECTOR_CHAINS[elementType].primary,
       );
 
       // Test class combinations
