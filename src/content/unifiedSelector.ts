@@ -3388,6 +3388,20 @@ export class UnifiedSelector {
       });
     }
 
+    // Collapsible sections functionality
+    this.container.querySelectorAll(".collapsible-header[data-toggle]").forEach((header) => {
+      (header as HTMLElement).addEventListener("click", (e) => {
+        e.stopPropagation();
+        const section = (e.currentTarget as HTMLElement).dataset.toggle!;
+        this.toggleSection(section);
+      });
+    });
+
+    // Initialize collapsed states on first render
+    if (this.view === "grid") {
+      this.initializeCollapsedStates();
+    }
+
     // Toggle creation form
     const toggleBtn = this.container.querySelector(".toggle-creation-btn");
     if (toggleBtn) {
@@ -5070,14 +5084,38 @@ export class UnifiedSelector {
       content.style.setProperty("visibility", "visible", "important");
       indicator.textContent = "−";
       header.classList.remove("collapsed");
+      localStorage.setItem(`tweetcraft-section-${sectionName}-collapsed`, "false");
       console.log(`%c📖 Expanded ${sectionName} section`, "color: #1DA1F2");
     } else {
       // Collapse
       content.style.setProperty("display", "none", "important");
       indicator.textContent = "+";
       header.classList.add("collapsed");
+      localStorage.setItem(`tweetcraft-section-${sectionName}-collapsed`, "true");
       console.log(`%c📕 Collapsed ${sectionName} section`, "color: #1DA1F2");
     }
+  }
+
+  /**
+   * Initialize collapsed states for sections
+   */
+  private initializeCollapsedStates(): void {
+    const sections = ["vocabulary", "rhetoric", "lengthPacing"];
+    
+    sections.forEach(sectionName => {
+      // Default to collapsed for vocabulary, rhetoric, and lengthPacing to reduce overwhelm
+      const shouldCollapse = localStorage.getItem(`tweetcraft-section-${sectionName}-collapsed`) !== "false";
+      
+      if (shouldCollapse) {
+        const content = this.container?.querySelector(`#${sectionName}-content`) as HTMLElement;
+        const indicator = this.container?.querySelector(`.collapsible-header[data-toggle="${sectionName}"] .collapse-indicator`) as HTMLElement;
+        
+        if (content && indicator) {
+          content.style.setProperty("display", "none", "important");
+          indicator.textContent = "+";
+        }
+      }
+    });
   }
 
   /**
