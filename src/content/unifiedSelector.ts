@@ -9,11 +9,13 @@ import {
   TEMPLATES,
   PERSONALITIES,
 } from "@/config/templatesAndTones";
-import { VocabularyStyle, getAllVocabularyStyles } from "@/config/vocabulary";
+import { VocabularyStyle, getAllVocabularyStyles, VOCABULARY_STYLES } from "@/config/vocabulary";
 import {
   LengthPacingStyle,
   getAllLengthPacingStyles,
+  LENGTH_PACING_STYLES,
 } from "@/config/lengthPacing";
+import { RHETORICAL_MOVES } from "@/config/rhetoric";
 import { QuickPersona, getAllQuickPersonas } from "@/config/quickPersonas";
 // Type alias for backward compatibility
 type Tone = Personality;
@@ -866,6 +868,9 @@ export class UnifiedSelector {
     this.container.innerHTML = `
       ${this.renderPersistentSelectionBar()}
       <div class="selector-header">
+        <button class="expanded-view-toggle-btn" title="Toggle Expanded View" data-expanded="false">
+          <span class="expand-icon">⊞</span>
+        </button>
         <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with randomized settings (Space)">
           <span class="quick-generate-icon">⚡</span>
           <span class="quick-generate-text">Quick Generate</span>
@@ -2502,6 +2507,70 @@ export class UnifiedSelector {
   /**
    * Render expanded view - shows all options at once for power users
    */
+  private renderExpandedView(): string {
+    // Load saved preferences
+    const savedTransparency = localStorage.getItem('tweetcraft_expandedTransparency') || '100';
+    const savedDocking = localStorage.getItem('tweetcraft_expandedDocking') || 'float';
+    
+    return `
+      <div class="expanded-view-container">
+        <div class="expanded-controls">
+          <div class="transparency-control">
+            <label>Transparency:</label>
+            <input type="range" class="transparency-slider" min="70" max="100" value="${savedTransparency}" />
+            <span class="transparency-value">${savedTransparency}%</span>
+          </div>
+          <div class="docking-control">
+            <button class="dock-btn ${savedDocking === 'float' ? 'active' : ''}" data-dock="float" title="Float">⬜</button>
+            <button class="dock-btn ${savedDocking === 'left' ? 'active' : ''}" data-dock="left" title="Dock Left">⬅️</button>
+            <button class="dock-btn ${savedDocking === 'right' ? 'active' : ''}" data-dock="right" title="Dock Right">➡️</button>
+          </div>
+        </div>
+        
+        <div class="expanded-sections">
+          <!-- Personas Section -->
+          <div class="expanded-section">
+            <h3>👤 Personas</h3>
+            <div class="expanded-grid personas-grid">
+              ${this.renderPersonaCards()}
+            </div>
+          </div>
+          
+          <!-- Personalities Section -->
+          <div class="expanded-section">
+            <h3>🎭 Personalities</h3>
+            <div class="expanded-grid personalities-grid">
+              ${this.renderPersonalityOptions()}
+            </div>
+          </div>
+          
+          <!-- Vocabulary Section -->
+          <div class="expanded-section">
+            <h3>📚 Vocabulary</h3>
+            <div class="expanded-grid vocabulary-grid">
+              ${this.renderVocabularyOptions()}
+            </div>
+          </div>
+          
+          <!-- Rhetoric Section -->
+          <div class="expanded-section">
+            <h3>💬 Rhetoric</h3>
+            <div class="expanded-grid rhetoric-grid">
+              ${this.renderRhetoricOptions()}
+            </div>
+          </div>
+          
+          <!-- Length Section -->
+          <div class="expanded-section">
+            <h3>📏 Length & Pacing</h3>
+            <div class="expanded-grid length-grid">
+              ${this.renderLengthPacingOptions()}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
 
   /**
@@ -2800,6 +2869,15 @@ export class UnifiedSelector {
       });
     }
 
+
+    // Expanded View toggle button
+    const expandedViewBtn = this.container.querySelector(".expanded-view-toggle-btn");
+    if (expandedViewBtn) {
+      expandedViewBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleExpandedView();
+      });
+    }
 
     // Quick Generate button
     const quickGenerateBtn = this.container.querySelector(
@@ -3705,6 +3783,222 @@ export class UnifiedSelector {
   /**
    * Handle quick generate with last used selections or smart defaults
    */
+  private toggleExpandedView(): void {
+    if (!this.container) return;
+    
+    const btn = this.container.querySelector('.expanded-view-toggle-btn') as HTMLButtonElement;
+    const isExpanded = btn?.getAttribute('data-expanded') === 'true';
+    
+    if (!isExpanded) {
+      // Show expanded view
+      btn?.setAttribute('data-expanded', 'true');
+      const icon = btn?.querySelector('.expand-icon');
+      if (icon) icon.textContent = '⊟';
+      
+      // Replace content with expanded view
+      const content = this.container.querySelector('.selector-content');
+      if (content) {
+        content.innerHTML = this.renderExpandedView();
+        content.classList.add('expanded-view');
+        
+        // Apply saved docking
+        const savedDocking = localStorage.getItem('tweetcraft_expandedDocking') || 'float';
+        this.applyDocking(savedDocking);
+        
+        // Apply saved transparency
+        const savedTransparency = localStorage.getItem('tweetcraft_expandedTransparency') || '100';
+        this.applyTransparency(parseInt(savedTransparency));
+        
+        // Attach expanded view event listeners
+        this.attachExpandedViewListeners();
+      }
+      
+      // Make container larger for expanded view
+      this.container.style.width = '800px';
+      this.container.style.maxWidth = '90vw';
+      this.container.style.height = '600px';
+      this.container.style.maxHeight = '90vh';
+      
+      console.log('%c⊞ Expanded View activated', 'color: #1DA1F2; font-weight: bold');
+    } else {
+      // Hide expanded view
+      btn?.setAttribute('data-expanded', 'false');
+      const icon = btn?.querySelector('.expand-icon');
+      if (icon) icon.textContent = '⊞';
+      
+      // Restore normal view
+      const content = this.container.querySelector('.selector-content');
+      if (content) {
+        content.classList.remove('expanded-view');
+        this.render(); // Re-render normal view
+      }
+      
+      console.log('%c⊟ Expanded View deactivated', 'color: #1DA1F2');
+    }
+  }
+  
+  private attachExpandedViewListeners(): void {
+    if (!this.container) return;
+    
+    // Transparency slider
+    const transparencySlider = this.container.querySelector('.transparency-slider') as HTMLInputElement;
+    const transparencyValue = this.container.querySelector('.transparency-value');
+    if (transparencySlider) {
+      transparencySlider.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        this.applyTransparency(value);
+        if (transparencyValue) transparencyValue.textContent = `${value}%`;
+        localStorage.setItem('tweetcraft_expandedTransparency', value.toString());
+      });
+    }
+    
+    // Docking buttons
+    this.container.querySelectorAll('.dock-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dockType = (e.currentTarget as HTMLElement).getAttribute('data-dock')!;
+        this.applyDocking(dockType);
+        localStorage.setItem('tweetcraft_expandedDocking', dockType);
+        
+        // Update active state
+        this.container?.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+      });
+    });
+    
+    // Selection in expanded view
+    this.container.querySelectorAll('.expanded-grid .persona-card, .expanded-grid .option-btn').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const element = e.currentTarget as HTMLElement;
+        
+        // Handle different types of selections
+        if (element.dataset.persona) {
+          this.selectPersona(element.dataset.persona);
+        } else if (element.dataset.personality) {
+          this.selectedPersonality = PERSONALITIES.find(p => p.id === element.dataset.personality)!;
+        } else if (element.dataset.vocabulary) {
+          this.selectedVocabulary = element.dataset.vocabulary as any;
+        } else if (element.dataset.rhetoric) {
+          this.selectedRhetoric = element.dataset.rhetoric as any;
+        } else if (element.dataset.pacing) {
+          this.selectedLengthPacing = element.dataset.pacing as any;
+        }
+        
+        // Visual feedback
+        element.parentElement?.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+      });
+    });
+  }
+  
+  private applyTransparency(value: number): void {
+    if (!this.container) return;
+    this.container.style.opacity = (value / 100).toString();
+  }
+  
+  private applyDocking(dockType: string): void {
+    if (!this.container) return;
+    
+    // Reset positioning
+    this.container.style.position = 'fixed';
+    this.container.style.top = '';
+    this.container.style.left = '';
+    this.container.style.right = '';
+    this.container.style.bottom = '';
+    this.container.style.transform = '';
+    
+    switch (dockType) {
+      case 'left':
+        this.container.style.left = '10px';
+        this.container.style.top = '50%';
+        this.container.style.transform = 'translateY(-50%)';
+        this.container.style.width = '350px';
+        this.container.style.height = '90vh';
+        break;
+        
+      case 'right':
+        this.container.style.right = '10px';
+        this.container.style.top = '50%';
+        this.container.style.transform = 'translateY(-50%)';
+        this.container.style.width = '350px';
+        this.container.style.height = '90vh';
+        break;
+        
+      case 'float':
+      default:
+        // Center floating
+        this.container.style.left = '50%';
+        this.container.style.top = '50%';
+        this.container.style.transform = 'translate(-50%, -50%)';
+        this.container.style.width = '800px';
+        this.container.style.maxWidth = '90vw';
+        this.container.style.height = '600px';
+        this.container.style.maxHeight = '90vh';
+        break;
+    }
+    
+    // Ensure proper z-index to avoid Twitter UI overlap
+    this.container.style.zIndex = '10000';
+  }
+  
+  /**
+   * Render persona cards for expanded view
+   */
+  private renderPersonaCards(): string {
+    const personas = getAllQuickPersonas();
+    return personas.map(persona => `
+      <div class="persona-card option-btn" data-persona="${persona.id}" ${(this.selectedPersona as any) === persona.id ? 'class="selected"' : ''}>
+        <span class="persona-icon">${(persona as any).icon || '👤'}</span>
+        <span class="persona-name">${persona.name}</span>
+      </div>
+    `).join('');
+  }
+  
+  /**
+   * Render personality options for expanded view
+   */
+  private renderPersonalityOptions(): string {
+    return PERSONALITIES.map(p => `
+      <button class="option-btn" data-personality="${p.id}" ${this.selectedPersonality?.id === p.id ? 'class="selected"' : ''}>
+        ${p.label}
+      </button>
+    `).join('');
+  }
+  
+  /**
+   * Render vocabulary options for expanded view
+   */
+  private renderVocabularyOptions(): string {
+    return Object.keys(VOCABULARY_STYLES).map(key => `
+      <button class="option-btn" data-vocabulary="${key}" ${(this.selectedVocabulary as any) === key ? 'class="selected"' : ''}>
+        ${VOCABULARY_STYLES[key].label}
+      </button>
+    `).join('');
+  }
+  
+  /**
+   * Render rhetoric options for expanded view
+   */
+  private renderRhetoricOptions(): string {
+    return RHETORICAL_MOVES.map(move => `
+      <button class="option-btn" data-rhetoric="${move.id}" ${(this.selectedRhetoric as any) === move.id ? 'class="selected"' : ''}>
+        ${move.name}
+      </button>
+    `).join('');
+  }
+  
+  /**
+   * Render length/pacing options for expanded view
+   */
+  private renderLengthPacingOptions(): string {
+    return Object.keys(LENGTH_PACING_STYLES).map(key => `
+      <button class="option-btn" data-pacing="${key}" ${(this.selectedLengthPacing as any) === key ? 'class="selected"' : ''}>
+        ${LENGTH_PACING_STYLES[key].label}
+      </button>
+    `).join('');
+  }
+
   private async handleQuickGenerate(): Promise<void> {
     if (!this.onSelectCallback) return;
 
