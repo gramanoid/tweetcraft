@@ -2192,6 +2192,9 @@ export class UnifiedSelector {
             <button class="refresh-suggestions-btn" title="Get new suggestions">
               <span style="font-size: 12px;">🔄</span>
             </button>
+            <button class="quick-arsenal-btn" title="Quick access to your top 5 arsenal replies">
+              ⚡ Quick Arsenal
+            </button>
           </div>
         </div>
         <div class="smart-suggestions-list">
@@ -3210,6 +3213,21 @@ export class UnifiedSelector {
           // Update scores based on recent usage patterns
           this.updateSmartSuggestionScores();
           this.loadSmartSuggestions();
+        });
+      });
+
+    // Quick Arsenal button handler
+    this.container
+      .querySelectorAll(".quick-arsenal-btn")
+      .forEach((btn) => {
+        (btn as HTMLElement).addEventListener("click", async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          console.log(
+            "%c⚡ Opening Quick Arsenal",
+            "color: #FFA500; font-weight: bold",
+          );
+          await this.showQuickArsenalModal();
         });
       });
 
@@ -4517,6 +4535,235 @@ export class UnifiedSelector {
         ${LENGTH_PACING_STYLES[key].label}
       </button>
     `).join('');
+  }
+
+  /**
+   * Show Quick Arsenal Modal with top 5 most-used arsenal replies
+   */
+  private async showQuickArsenalModal(): Promise<void> {
+    try {
+      // Create modal overlay
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'quick-arsenal-overlay';
+      modalOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+
+      // Create modal container
+      const modal = document.createElement('div');
+      modal.className = 'quick-arsenal-modal';
+      modal.style.cssText = `
+        background: #15202B;
+        border-radius: 16px;
+        border: 1px solid #38444D;
+        width: 500px;
+        max-height: 600px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      `;
+
+      // Get top 5 arsenal replies from IndexedDB
+      const db = await this.openArsenalDB();
+      const replies = await this.getTopArsenalReplies(db, 5);
+
+      modal.innerHTML = `
+        <div class="quick-arsenal-header" style="padding: 16px; border-bottom: 1px solid #38444D;">
+          <h3 style="margin: 0; color: #FFFFFF; font-size: 18px;">
+            ⚡ Quick Arsenal - Top 5 Replies
+          </h3>
+          <p style="margin: 4px 0 0 0; color: #8899A6; font-size: 12px;">
+            Your most-used pre-generated replies
+          </p>
+        </div>
+        <div class="quick-arsenal-content" style="flex: 1; overflow-y: auto; padding: 16px;">
+          ${replies.length > 0 ? replies.map((reply, index) => `
+            <div class="arsenal-reply-item" 
+                 data-reply-id="${reply.id}"
+                 style="
+                   background: #192734;
+                   border: 1px solid #38444D;
+                   border-radius: 12px;
+                   padding: 12px;
+                   margin-bottom: 12px;
+                   cursor: pointer;
+                   transition: all 0.2s;
+                 "
+                 onmouseover="this.style.background='#1C2938'; this.style.borderColor='#1DA1F2';"
+                 onmouseout="this.style.background='#192734'; this.style.borderColor='#38444D';">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; gap: 8px;">
+                  <span style="background: #1C2938; color: #8899A6; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                    #${index + 1}
+                  </span>
+                  <span style="background: #1C2938; color: #8899A6; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                    ${reply.category}
+                  </span>
+                  <span style="background: rgba(29, 161, 242, 0.1); color: #1DA1F2; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                    ${reply.usageCount} uses
+                  </span>
+                </div>
+              </div>
+              <div style="color: #FFFFFF; font-size: 14px; line-height: 1.4;">
+                ${reply.text}
+              </div>
+            </div>
+          `).join('') : `
+            <div style="text-align: center; padding: 32px; color: #8899A6;">
+              <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+              <p>No arsenal replies yet!</p>
+              <p style="font-size: 12px; margin-top: 8px;">Use the Arsenal Mode button to create pre-generated replies.</p>
+            </div>
+          `}
+        </div>
+        <div class="quick-arsenal-footer" style="padding: 16px; border-top: 1px solid #38444D; display: flex; justify-content: space-between;">
+          <button class="close-modal-btn" style="
+            padding: 8px 16px;
+            background: #38444D;
+            border: none;
+            border-radius: 8px;
+            color: #FFFFFF;
+            cursor: pointer;
+            font-size: 14px;
+          ">Close</button>
+          <button class="open-full-arsenal-btn" style="
+            padding: 8px 16px;
+            background: #1DA1F2;
+            border: none;
+            border-radius: 8px;
+            color: #FFFFFF;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+          ">Open Full Arsenal ⚔️</button>
+        </div>
+      `;
+
+      modalOverlay.appendChild(modal);
+      document.body.appendChild(modalOverlay);
+
+      // Handle reply item clicks
+      modal.querySelectorAll('.arsenal-reply-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const replyText = (e.currentTarget as HTMLElement).querySelector('div:last-child')?.textContent || '';
+          this.insertReplyToTextarea(replyText);
+          document.body.removeChild(modalOverlay);
+        });
+      });
+
+      // Handle close button
+      modal.querySelector('.close-modal-btn')?.addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+      });
+
+      // Handle open full arsenal button
+      modal.querySelector('.open-full-arsenal-btn')?.addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+        // Trigger the Arsenal Mode
+        const event = new CustomEvent("tweetcraft:open-arsenal", {
+          detail: { textarea: document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root') },
+        });
+        document.dispatchEvent(event);
+      });
+
+      // Close on overlay click
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          document.body.removeChild(modalOverlay);
+        }
+      });
+
+    } catch (error) {
+      console.error('%c⚡ Failed to show Quick Arsenal:', 'color: #DC3545', error);
+    }
+  }
+
+  /**
+   * Open Arsenal IndexedDB
+   */
+  private async openArsenalDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('TweetCraftArsenal', 1);
+      
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      
+      request.onerror = () => {
+        reject(request.error);
+      };
+      
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('replies')) {
+          const store = db.createObjectStore('replies', { keyPath: 'id' });
+          store.createIndex('usageCount', 'usageCount', { unique: false });
+        }
+      };
+    });
+  }
+
+  /**
+   * Get top N arsenal replies by usage count
+   */
+  private async getTopArsenalReplies(db: IDBDatabase, limit: number): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(['replies'], 'readonly');
+        const store = transaction.objectStore('replies');
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          const replies = request.result as any[];
+          // Sort by usage count and take top N
+          const topReplies = replies
+            .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+            .slice(0, limit);
+          resolve(topReplies);
+        };
+        
+        request.onerror = () => {
+          reject(request.error);
+        };
+      } catch (error) {
+        resolve([]); // Return empty array on error
+      }
+    });
+  }
+
+  /**
+   * Insert reply text into the active textarea
+   */
+  private insertReplyToTextarea(text: string): void {
+    const textarea = document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root') as HTMLElement;
+    if (textarea) {
+      // For Twitter's contenteditable div
+      if (textarea.contentEditable === 'true') {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(textarea);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        
+        document.execCommand('insertText', false, text);
+        
+        const inputEvent = new InputEvent('input', { 
+          inputType: 'insertText', 
+          data: text 
+        });
+        textarea.dispatchEvent(inputEvent);
+      }
+    }
   }
 
   private async handleQuickGenerate(): Promise<void> {

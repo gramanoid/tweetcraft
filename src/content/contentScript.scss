@@ -945,3 +945,27 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   background: #38444d;
   margin: 20px 0;
 }
+
+// Quick Arsenal button styling
+.quick-arsenal-btn {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
+  border: none;
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: linear-gradient(135deg, #FFB520 0%, #FF9C10 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
