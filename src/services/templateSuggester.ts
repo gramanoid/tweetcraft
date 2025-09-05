@@ -324,8 +324,6 @@ export class TemplateSuggester {
       if (tonePatternScore > 0) {
         reasons.push(`Tone pattern (${tonePatternScore.toFixed(1)})`);
       }
-      
-      reasons.push('⚠️ Using fallback pattern matching (AI unavailable)');
     }
     
     // Favorite bonus

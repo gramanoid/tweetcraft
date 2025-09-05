@@ -45,7 +45,6 @@ export interface SelectionResult {
     | "all"
     | "smart"
     | "favorites"
-    | "image_gen"
     | "custom"
     | "compose";
   // Additional configs for prompt architecture
@@ -118,10 +117,8 @@ export class UnifiedSelector {
     | "grid"
     | "smart"
     | "favorites"
-    | "imagegen"
     | "custom"
-    | "compose"
-    | "expanded" = "smart";
+    | "compose" = "smart";
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
   private scrollHandler: (() => void) | null = null;
   private anchorButton: HTMLElement | null = null;
@@ -129,8 +126,6 @@ export class UnifiedSelector {
     templates: Template[];
     personalities: Personality[];
   } = { templates: [], personalities: [] };
-  private expandedViewTransparency: number = 0.95;
-  private expandedViewDocked: "left" | "right" | "none" = "none";
   private smartSuggestionsScores: any[] = [];
   private customTemplatesLoaded: Promise<void> | null = null;
   private quickGenerateButton: HTMLElement | null = null;
@@ -884,9 +879,6 @@ export class UnifiedSelector {
           <button class="tab-btn ${this.view === "favorites" ? "active" : ""}" data-view="favorites">
             ⭐ Favorites
           </button>
-          <button class="tab-btn ${this.view === "imagegen" ? "active" : ""}" data-view="imagegen">
-            🖼️ Image Gen
-          </button>
           <button class="tab-btn ${this.view === "custom" ? "active" : ""}" data-view="custom">
             ✨ Custom
           </button>
@@ -895,10 +887,7 @@ export class UnifiedSelector {
           </button>
         </div>
         <div class="header-actions">
-          <button class="expanded-view-toggle-btn" title="Expanded View (Show all options)">
-            <span class="expanded-view-icon">${this.view === "expanded" ? "⊟" : "⊞"}</span>
-          </button>
-          <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with last used settings (Space)">
+          <button class="quick-generate-btn" id="quickGenerateBtn" title="Generate with randomized settings (Space)">
             <span class="quick-generate-icon">⚡</span>
             <span class="quick-generate-text">Quick Generate</span>
           </button>
@@ -1070,14 +1059,10 @@ export class UnifiedSelector {
         return this.renderSmartSuggestionsView(templates, personalities);
       case "favorites":
         return this.renderFavoritesView(templates, personalities);
-      case "imagegen":
-        return this.renderImageGenView();
       case "custom":
         return this.renderCustomView(templates, personalities);
       case "compose":
         return this.renderComposeView();
-      case "expanded":
-        return this.renderExpandedView(templates, personalities);
       default:
         return this.renderGridView(templates, personalities);
     }
@@ -2520,159 +2505,7 @@ export class UnifiedSelector {
   /**
    * Render expanded view - shows all options at once for power users
    */
-  private renderExpandedView(
-    templates: Template[],
-    personalities: Personality[],
-  ): string {
-    // Apply transparency if in expanded mode
-    if (this.container) {
-      this.container.style.opacity = this.expandedViewTransparency.toString();
-    }
 
-    // Get all options for expanded view
-    const vocabularyStyles = getAllVocabularyStyles();
-    const rhetoricOptions = templates; // Templates are rhetoric options
-    const lengthPacingOptions = getAllLengthPacingStyles();
-    const QUICK_PERSONAS = getAllQuickPersonas();
-
-    return `
-      <div class="selector-content expanded-view" ${this.expandedViewDocked !== "none" ? `data-docked="${this.expandedViewDocked}"` : ""}>
-        <!-- Expanded View Controls -->
-        <div class="expanded-controls">
-          <div class="control-group">
-            <label>Transparency:</label>
-            <input type="range" class="transparency-slider" min="0.7" max="1" step="0.05" value="${this.expandedViewTransparency}">
-            <span class="transparency-value">${Math.round(this.expandedViewTransparency * 100)}%</span>
-          </div>
-          <div class="control-group">
-            <label>Dock:</label>
-            <button class="dock-btn ${this.expandedViewDocked === "left" ? "active" : ""}" data-dock="left">◀ Left</button>
-            <button class="dock-btn ${this.expandedViewDocked === "none" ? "active" : ""}" data-dock="none">⬜ Float</button>
-            <button class="dock-btn ${this.expandedViewDocked === "right" ? "active" : ""}" data-dock="right">Right ▶</button>
-          </div>
-        </div>
-
-        <!-- All Options Grid -->
-        <div class="expanded-grid">
-          <!-- Personalities Section -->
-          <div class="expanded-section">
-            <h4>🎭 Personalities</h4>
-            <div class="expanded-options-grid">
-              ${personalities
-                .map(
-                  (p) => `
-                <button class="expanded-option personality-option ${this.selectedPersonality?.id === p.id ? "selected" : ""}"
-                        data-expanded-personality="${p.id}"
-                        title="${p.description}">
-                  <span class="option-emoji">${p.emoji}</span>
-                  <span class="option-label">${p.label}</span>
-                </button>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-
-          <!-- Vocabulary Section -->
-          <div class="expanded-section">
-            <h4>📝 Vocabulary</h4>
-            <div class="expanded-options-grid">
-              ${vocabularyStyles
-                .map(
-                  (v) => `
-                <button class="expanded-option vocabulary-option ${this.selectedVocabulary?.id === v.id ? "selected" : ""}"
-                        data-expanded-vocabulary="${v.id}"
-                        title="${v.description}">
-                  <span class="option-emoji">${v.emoji}</span>
-                  <span class="option-label">${v.label}</span>
-                </button>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-
-          <!-- Rhetoric Section -->
-          <div class="expanded-section">
-            <h4>💭 Rhetoric</h4>
-            <div class="expanded-options-grid">
-              ${rhetoricOptions
-                .map(
-                  (r) => `
-                <button class="expanded-option rhetoric-option ${this.selectedTemplate?.id === r.id ? "selected" : ""}"
-                        data-expanded-rhetoric="${r.id}"
-                        title="${r.description}">
-                  <span class="option-emoji">${r.emoji}</span>
-                  <span class="option-label">${r.name}</span>
-                </button>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-
-          <!-- Length & Pacing Section -->
-          <div class="expanded-section">
-            <h4>⏱️ Length & Pacing</h4>
-            <div class="expanded-options-grid">
-              ${lengthPacingOptions
-                .map(
-                  (l) => `
-                <button class="expanded-option length-option ${this.selectedLengthPacing?.id === l.id ? "selected" : ""}"
-                        data-expanded-length="${l.id}"
-                        title="${l.description}">
-                  <span class="option-label">${l.label}</span>
-                </button>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-
-          <!-- Quick Personas Section -->
-          <div class="expanded-section">
-            <h4>🚀 Quick Personas</h4>
-            <div class="expanded-options-grid">
-              ${QUICK_PERSONAS.map(
-                (persona) => `
-                <button class="expanded-option persona-quick ${this.selectedPersona?.id === persona.id ? "selected" : ""}"
-                        data-expanded-persona="${persona.id}"
-                        title="${persona.description}">
-                  <span class="option-emoji">${persona.emoji}</span>
-                  <span class="option-label">${persona.name}</span>
-                </button>
-              `,
-              ).join("")}
-            </div>
-          </div>
-
-          <!-- Templates Section -->
-          <div class="expanded-section">
-            <h4>📋 Templates</h4>
-            <div class="expanded-options-grid">
-              ${templates
-                .map(
-                  (t) => `
-                <button class="expanded-option template-option ${this.selectedTemplate?.id === t.id ? "selected" : ""}"
-                        data-expanded-template="${t.id}"
-                        title="${t.description}">
-                  <span class="option-emoji">${t.emoji}</span>
-                  <span class="option-label">${t.name}</span>
-                </button>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-        </div>
-
-        <!-- Keyboard Navigation Helper -->
-        <div class="keyboard-helper">
-          <span>💡 Use Tab/Shift+Tab to navigate, Space/Enter to select, Esc to close expanded view</span>
-        </div>
-      </div>
-    `;
-  }
 
   /**
    * Attach event listeners
@@ -2704,8 +2537,7 @@ export class UnifiedSelector {
           | "grid"
           | "smart"
           | "favorites"
-          | "imagegen"
-          | "custom"
+                | "custom"
           | "compose";
         this.view = view;
         if (view === "smart") {
@@ -2971,57 +2803,7 @@ export class UnifiedSelector {
       });
     }
 
-    // Expanded view toggle button
-    const expandedViewToggle = this.container.querySelector(
-      ".expanded-view-toggle-btn",
-    );
-    if (expandedViewToggle) {
-      expandedViewToggle.addEventListener("click", () => {
-        this.view = this.view === "expanded" ? "grid" : "expanded";
-        // Save preference for session
-        sessionStorage.setItem("tweetcraft-expanded-view", this.view);
-        this.render();
-      });
-    }
-
-    // Expanded view controls
-    if (this.view === "expanded") {
-      // Transparency slider
-      const transparencySlider = this.container.querySelector(
-        ".transparency-slider",
-      ) as HTMLInputElement;
-      if (transparencySlider) {
-        transparencySlider.addEventListener("input", (e) => {
-          this.expandedViewTransparency = parseFloat(
-            (e.target as HTMLInputElement).value,
-          );
-          if (this.container) {
-            this.container.style.opacity =
-              this.expandedViewTransparency.toString();
-          }
-          const valueSpan = this.container?.querySelector(
-            ".transparency-value",
-          );
-          if (valueSpan) {
-            valueSpan.textContent = `${Math.round(this.expandedViewTransparency * 100)}%`;
-          }
-        });
-      }
-
-      // Dock buttons
-      this.container.querySelectorAll(".dock-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          const dock = (e.currentTarget as HTMLElement).dataset.dock as
-            | "left"
-            | "right"
-            | "none";
-          this.expandedViewDocked = dock;
-          this.applyDockStyle();
-          this.render();
-        });
-      });
-
-      // Expanded view option selections
+    // Expanded view option selections
       this.container.querySelectorAll(".expanded-option").forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -3078,8 +2860,6 @@ export class UnifiedSelector {
         });
       });
 
-      // Keyboard navigation for expanded view
-      this.setupExpandedViewKeyboardNavigation();
     }
 
     // Quick Generate button
@@ -3247,23 +3027,6 @@ export class UnifiedSelector {
       });
     });
 
-    // Image search button
-    const searchBtn = this.container.querySelector(".image-search-btn");
-    if (searchBtn) {
-      searchBtn.addEventListener("click", () => {
-        this.handleImageSearch();
-      });
-    }
-
-    // Image generate button
-    const generateImageBtn = this.container.querySelector(
-      ".image-generate-btn",
-    );
-    if (generateImageBtn) {
-      generateImageBtn.addEventListener("click", () => {
-        this.handleImageGenerate();
-      });
-    }
 
     // Accept suggestion buttons in Favorites tab
     this.container
@@ -3291,17 +3054,6 @@ export class UnifiedSelector {
         });
       });
 
-    // Enter key on image search input
-    const searchInput = this.container.querySelector(
-      ".image-search-input",
-    ) as HTMLInputElement;
-    if (searchInput) {
-      searchInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          this.handleImageSearch();
-        }
-      });
-    }
 
     // Collapsible section headers
     this.container.querySelectorAll(".collapsible-header").forEach((header) => {
@@ -4018,66 +3770,44 @@ export class UnifiedSelector {
     if (!this.onSelectCallback) return;
 
     console.log(
-      "%c⚡ Quick Generate triggered",
+      "%c⚡ Quick Generate triggered (with randomization)",
       "color: #1DA1F2; font-weight: bold",
     );
 
     try {
-      // Get quick options from smart defaults service
-      const quickOptions = await smartDefaults.getQuickOptions();
-
-      let selections = null;
-      let source = "";
-
-      // Prefer last used selections if available
-      if (quickOptions.lastUsed) {
-        selections = quickOptions.lastUsed;
-        source = "last used";
-      } else if (quickOptions.smartDefaults) {
-        selections = {
-          personality: quickOptions.smartDefaults.personality,
-          vocabulary: quickOptions.smartDefaults.vocabulary,
-          rhetoric: quickOptions.smartDefaults.rhetoric,
-          lengthPacing: quickOptions.smartDefaults.lengthPacing,
-        };
-        source = quickOptions.smartDefaults.reason;
-      } else {
-        // Fallback to sensible defaults
-        selections = {
-          personality: "friendly",
-          vocabulary: "plain_english",
-          rhetoric: "agree_build",
-          lengthPacing: "drive_by",
-        };
-        source = "default fallback";
-      }
-
-      console.log("%c  Using selections from:", "color: #657786", source);
-      console.log("%c  Selections:", "color: #657786", selections);
-
-      // Find the corresponding objects
-      const template = TEMPLATES.find((t) => t.id === selections.rhetoric);
-      const personality = PERSONALITIES.find(
-        (p) => p.id === selections.personality,
-      );
-
-      if (!template || !personality) {
-        console.error(
-          "Failed to find template or personality for quick generate",
-        );
-        return;
-      }
-
-      // Create the result using the same logic as handleGenerate
+      // Randomize all 4 parameters
+      const personalities = PERSONALITIES;
+      const templates = TEMPLATES;
       const vocabularyStyles = getAllVocabularyStyles();
       const lengthPacingStyles = getAllLengthPacingStyles();
+      
+      // Pick random selections
+      const randomPersonality = personalities[Math.floor(Math.random() * personalities.length)];
+      const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+      const randomVocabulary = vocabularyStyles[Math.floor(Math.random() * vocabularyStyles.length)];
+      const randomLengthPacing = lengthPacingStyles[Math.floor(Math.random() * lengthPacingStyles.length)];
+      
+      const selections = {
+        personality: randomPersonality.id,
+        vocabulary: randomVocabulary.id,
+        rhetoric: randomTemplate.id,
+        lengthPacing: randomLengthPacing.id,
+      };
+      
+      const source = "randomized";
 
-      const vocabularyStyle = vocabularyStyles.find(
-        (v) => v.id === selections.vocabulary,
-      );
-      const lengthPacingStyle = lengthPacingStyles.find(
-        (l) => l.id === selections.lengthPacing,
-      );
+      console.log("%c  Using randomized selections:", "color: #657786", {
+        personality: randomPersonality.label,
+        vocabulary: randomVocabulary.label,
+        rhetoric: randomTemplate.name,
+        lengthPacing: randomLengthPacing.label,
+      });
+
+      // Use the random selections directly
+      const template = randomTemplate;
+      const personality = randomPersonality;
+      const vocabularyStyle = randomVocabulary;
+      const lengthPacingStyle = randomLengthPacing;
 
       // Build the combined prompt
       let combinedPrompt = `${personality.systemPrompt}\n\nReply approach: ${template.prompt}`;
@@ -6292,6 +6022,7 @@ export class UnifiedSelector {
           cursor: pointer;
           user-select: none;
           transition: all 0.2s;
+          border-radius: 6px;
         }
 
         .group-header:hover {
@@ -6325,7 +6056,7 @@ export class UnifiedSelector {
         }
 
         .personality-grid.collapsed {
-          display: none;
+          display: none !important;
         }
 
         .personality-group .personality-grid {
@@ -6398,6 +6129,12 @@ export class UnifiedSelector {
         /* Personas view styles */
         .personas-view {
           padding: 8px;
+        }
+        
+        /* Favorites view font normalization */
+        .favorites-view .template-name,
+        .favorites-view .personality-label {
+          font-size: 12px !important;
         }
 
         .personas-grid {
@@ -7794,462 +7531,10 @@ export class UnifiedSelector {
     }
   }
 
-  /**
-   * Handle image search
-   */
-  private async handleImageSearch(): Promise<void> {
-    if (!this.container) return;
 
-    const input = this.container.querySelector(
-      ".image-search-input",
-    ) as HTMLInputElement;
-    const query = input?.value.trim();
 
-    if (!query) {
-      visualFeedback.showToast("Please enter a search query", {
-        type: "error",
-      });
-      return;
-    }
 
-    console.log("%c🔍 Searching for images:", "color: #1DA1F2", query);
 
-    // Show loading state
-    const emptyState = this.container.querySelector(
-      ".image-empty-state",
-    ) as HTMLElement;
-    const loadingState = this.container.querySelector(
-      ".image-loading-state",
-    ) as HTMLElement;
-    const resultsGrid = this.container.querySelector(
-      ".image-results-grid",
-    ) as HTMLElement;
-
-    if (emptyState) emptyState.style.display = "none";
-    if (loadingState) loadingState.style.display = "flex";
-    if (resultsGrid) resultsGrid.innerHTML = "";
-
-    try {
-      const results = await imageService.searchImages({
-        query,
-        limit: 12,
-      });
-
-      if (loadingState) loadingState.style.display = "none";
-
-      if (results.length === 0) {
-        if (emptyState) {
-          emptyState.innerHTML = `
-            <p>No images found for "${query}"</p>
-            <p style="font-size: 12px; color: #8b98a5;">Try a different search term</p>
-          `;
-          emptyState.style.display = "block";
-        }
-        return;
-      }
-
-      // Display results
-      this.displayImageResults(results);
-    } catch (error) {
-      console.error("Image search failed:", error);
-      if (loadingState) loadingState.style.display = "none";
-      visualFeedback.showToast("Failed to search images", { type: "error" });
-
-      if (emptyState) {
-        emptyState.innerHTML = `
-          <p>Failed to search images</p>
-          <p style="font-size: 12px; color: #8b98a5;">${error instanceof Error ? error.message : "Unknown error"}</p>
-        `;
-        emptyState.style.display = "block";
-      }
-    }
-  }
-
-  /**
-   * Handle AI image generation
-   */
-  private async handleImageGenerate(): Promise<void> {
-    if (!this.container) return;
-
-    const input = this.container.querySelector(
-      ".image-search-input",
-    ) as HTMLInputElement;
-    const styleSelect = this.container.querySelector(
-      ".image-style-select",
-    ) as HTMLSelectElement;
-    const prompt = input?.value.trim();
-    const style = styleSelect?.value as
-      | "realistic"
-      | "cartoon"
-      | "artistic"
-      | "sketch";
-
-    if (!prompt) {
-      visualFeedback.showToast("Please enter an image description", {
-        type: "error",
-      });
-      return;
-    }
-
-    console.log("%c✨ Generating AI image:", "color: #9146FF", {
-      prompt,
-      style,
-    });
-
-    // Show loading state
-    const emptyState = this.container.querySelector(
-      ".image-empty-state",
-    ) as HTMLElement;
-    const loadingState = this.container.querySelector(
-      ".image-loading-state",
-    ) as HTMLElement;
-    const resultsGrid = this.container.querySelector(
-      ".image-results-grid",
-    ) as HTMLElement;
-
-    if (emptyState) emptyState.style.display = "none";
-    if (loadingState) {
-      loadingState.style.display = "flex";
-      loadingState.innerHTML = `
-        <div class="spinner"></div>
-        <p>Generating AI image...</p>
-      `;
-    }
-    if (resultsGrid) resultsGrid.innerHTML = "";
-
-    // Get configured image size or use default
-    const allowedSizes = ["256x256", "512x512", "1024x1024"] as const;
-    let imageSize: "256x256" | "512x512" | "1024x1024" = "512x512"; // Default size
-
-    // Get size from config or UI if available
-    const sizeSelector = this.container.querySelector(
-      ".image-size-selector",
-    ) as HTMLSelectElement;
-    if (
-      sizeSelector &&
-      sizeSelector.value &&
-      allowedSizes.includes(sizeSelector.value as any)
-    ) {
-      imageSize = sizeSelector.value as "256x256" | "512x512" | "1024x1024";
-    }
-
-    try {
-      const result = await imageService.generateImage({
-        prompt,
-        style,
-        size: imageSize,
-      });
-
-      if (loadingState) loadingState.style.display = "none";
-
-      // Display the generated image
-      this.displayImageResults([result]);
-
-      visualFeedback.showToast("AI image generated!", { type: "success" });
-    } catch (error) {
-      console.error("Image generation failed:", error);
-      if (loadingState) loadingState.style.display = "none";
-
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      visualFeedback.showToast(`Failed to generate image: ${errorMsg}`, {
-        type: "error",
-      });
-
-      if (emptyState) {
-        emptyState.innerHTML = `
-          <p>Failed to generate image</p>
-          <p style="font-size: 12px; color: #8b98a5;">${errorMsg}</p>
-        `;
-        emptyState.style.display = "block";
-      }
-    }
-  }
-
-  /**
-   * Display image results in the grid
-   */
-  private displayImageResults(results: any[]): void {
-    if (!this.container) return;
-
-    const resultsGrid = this.container.querySelector(
-      ".image-results-grid",
-    ) as HTMLElement;
-    if (!resultsGrid) return;
-
-    // Clear previous results
-    resultsGrid.innerHTML = "";
-
-    // Create elements using DOM API to prevent XSS
-    results.forEach((img) => {
-      // Validate URL protocol
-      let url = img.url;
-      try {
-        const urlObj = new URL(url);
-        if (!["https:", "http:", "data:"].includes(urlObj.protocol)) {
-          console.warn("Invalid image URL protocol:", urlObj.protocol);
-          return;
-        }
-        // Only allow specific data image types
-        if (urlObj.protocol === "data:" && !url.startsWith("data:image/")) {
-          console.warn("Invalid data URL type");
-          return;
-        }
-      } catch (e) {
-        console.warn("Invalid URL:", url);
-        return;
-      }
-
-      const item = document.createElement("div");
-      item.className = "image-result-item";
-      item.setAttribute("data-url", url);
-
-      // Sanitize and limit alt text
-      const altText = (img.alt || "Image")
-        .substring(0, 200)
-        .replace(/[<>]/g, "");
-      item.setAttribute("data-alt", altText);
-
-      const imgElement = document.createElement("img");
-      imgElement.src = img.thumbnail || url;
-      imgElement.alt = altText;
-
-      const overlay = document.createElement("div");
-      overlay.className = "image-overlay";
-
-      const button = document.createElement("button");
-      button.className = "use-image-btn";
-      button.title = "Use this image";
-      button.textContent = "✓";
-
-      const sourceSpan = document.createElement("span");
-      sourceSpan.className = "image-source";
-      sourceSpan.textContent = img.source === "generated" ? "✨ AI" : "🔍 Web";
-
-      overlay.appendChild(button);
-      overlay.appendChild(sourceSpan);
-
-      item.appendChild(imgElement);
-      item.appendChild(overlay);
-
-      resultsGrid.appendChild(item);
-    });
-
-    // Add click handlers for using images
-    resultsGrid.querySelectorAll(".use-image-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const item = (e.target as HTMLElement).closest(".image-result-item");
-        if (item) {
-          const url = item.getAttribute("data-url");
-          const alt = item.getAttribute("data-alt");
-          if (url) {
-            this.handleImageSelection(url, alt || "");
-          }
-        }
-      });
-    });
-
-    // Click on image also selects it
-    resultsGrid.querySelectorAll(".image-result-item").forEach((item) => {
-      item.addEventListener("click", () => {
-        const url = item.getAttribute("data-url");
-        const alt = item.getAttribute("data-alt");
-        if (url) {
-          this.handleImageSelection(url, alt || "");
-        }
-      });
-    });
-  }
-
-  /**
-   * Handle image selection
-   */
-  private handleImageSelection(url: string, alt: string): void {
-    console.log("%c🖼️ Image selected:", "color: #17BF63", { url, alt });
-
-    // Insert image URL into the tweet textarea
-    const replyBox = document.querySelector(
-      '[data-testid="tweetTextarea_0"], .DraftEditor-root',
-    ) as HTMLElement;
-    if (replyBox) {
-      // Get current text and append image URL
-      const currentText = DOMUtils.getTextFromTextarea(replyBox);
-      const newText = currentText ? `${currentText}\n${url}` : url;
-      DOMUtils.setTextareaValue(replyBox, newText);
-      visualFeedback.showToast("Image URL added to tweet!", {
-        type: "success",
-      });
-    }
-
-    // Hide the selector
-    this.hide();
-  }
-
-  /**
-   * Render image generation view
-   */
-  private renderImageGenView(): string {
-    return `
-      <div class="selector-content imagegen-view">
-        <div class="image-gen-controls">
-          <div class="search-input-wrapper">
-            <input type="text"
-                   class="image-search-input"
-                   placeholder="Search for images or describe what you want..." />
-            <button class="image-search-btn" title="Search Images">🔍</button>
-            <button class="image-generate-btn" title="Generate AI Image">✨</button>
-          </div>
-
-          <div class="image-style-options">
-            <label class="style-label">Style:</label>
-            <select class="image-style-select">
-              <option value="realistic">Realistic</option>
-              <option value="cartoon">Cartoon</option>
-              <option value="artistic">Artistic</option>
-              <option value="sketch">Sketch</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="image-results-container">
-          <div class="image-results-grid" id="image-results">
-            <!-- Results will be inserted here -->
-          </div>
-          <div class="image-empty-state">
-            <p>🖼️ Search for images or generate AI images</p>
-            <p style="font-size: 12px; color: #8b98a5;">Enter a description and click search or generate</p>
-          </div>
-        </div>
-
-        <div class="image-loading-state" style="display: none;">
-          <div class="spinner"></div>
-          <p>Loading images...</p>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Apply dock style for expanded view
-   */
-  private applyDockStyle(): void {
-    if (!this.container) return;
-
-    // Only apply dock styles if we're actually in expanded view
-    if (this.view !== "expanded") {
-      // For non-expanded views, maintain saved size
-      const savedSize = this.getSavedSize();
-      this.container.style.width = `${savedSize.width}px`;
-      this.container.style.height = `${savedSize.height}px`;
-      return;
-    }
-
-    // Reset styles for expanded view
-    this.container.style.position = "fixed";
-    this.container.style.width = "";
-    this.container.style.left = "";
-    this.container.style.right = "";
-    this.container.style.top = "0";
-    this.container.style.height = "100vh";
-
-    if (this.expandedViewDocked === "left") {
-      this.container.style.left = "0";
-      this.container.style.width = "400px";
-      this.container.style.minWidth = "400px";
-      this.container.style.maxWidth = "400px";
-      this.container.style.boxShadow = "4px 0 20px rgba(0, 0, 0, 0.3)";
-    } else if (this.expandedViewDocked === "right") {
-      this.container.style.right = "0";
-      this.container.style.width = "400px";
-      this.container.style.minWidth = "400px";
-      this.container.style.maxWidth = "400px";
-      this.container.style.boxShadow = "-4px 0 20px rgba(0, 0, 0, 0.3)";
-    } else {
-      // Float mode - dynamic sizing
-      const savedSize = this.getSavedSize();
-      this.container.style.left = "50%";
-      this.container.style.transform = "translateX(-50%)";
-      this.container.style.width = `${Math.min(savedSize.width * 1.5, window.innerWidth * 0.9)}px`;
-      this.container.style.maxWidth = "1200px";
-      this.container.style.minWidth = "600px";
-      this.container.style.height = "auto";
-      this.container.style.maxHeight = "90vh";
-      this.container.style.top = "5vh";
-
-      // Don't auto-adjust - let user control size
-      // setTimeout(() => this.adjustHeightToContent(), 100);
-    }
-  }
-
-  /**
-   * Setup keyboard navigation for expanded view
-   */
-  private setupExpandedViewKeyboardNavigation(): void {
-    if (!this.container) return;
-
-    const options = this.container.querySelectorAll(".expanded-option");
-    let currentIndex = 0;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (this.view !== "expanded") return;
-
-      switch (e.key) {
-        case "Tab":
-          // Use Tab/Shift+Tab for navigation
-          if (e.shiftKey) {
-            currentIndex = Math.max(0, currentIndex - 1);
-          } else {
-            currentIndex = Math.min(options.length - 1, currentIndex + 1);
-          }
-          (options[currentIndex] as HTMLElement)?.focus();
-          e.preventDefault();
-          break;
-
-        case "Enter":
-        case " ":
-          // Select the focused option
-          (options[currentIndex] as HTMLElement)?.click();
-          e.preventDefault();
-          break;
-
-        case "Escape":
-          // Exit expanded view
-          this.view = "grid";
-          this.render();
-          break;
-
-        case "ArrowUp":
-        case "ArrowDown":
-        case "ArrowLeft":
-        case "ArrowRight":
-          // Grid navigation
-          const cols = 6; // Approximate columns in grid
-          if (e.key === "ArrowUp") {
-            currentIndex = Math.max(0, currentIndex - cols);
-          } else if (e.key === "ArrowDown") {
-            currentIndex = Math.min(options.length - 1, currentIndex + cols);
-          } else if (e.key === "ArrowLeft") {
-            currentIndex = Math.max(0, currentIndex - 1);
-          } else if (e.key === "ArrowRight") {
-            currentIndex = Math.min(options.length - 1, currentIndex + 1);
-          }
-          (options[currentIndex] as HTMLElement)?.focus();
-          e.preventDefault();
-          break;
-      }
-    };
-
-    // Add keyboard listener
-    document.addEventListener("keydown", handleKeyDown);
-
-    // Store the handler so we can remove it later
-    (this.container as any).__expandedKeyHandler = handleKeyDown;
-
-    // Focus the first option
-    if (options.length > 0) {
-      (options[0] as HTMLElement).focus();
-    }
-  }
 
   /**
    * Destroy the component
