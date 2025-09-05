@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const replyLengthSelect = document.getElementById('reply-length') as HTMLSelectElement | null;
   const clearDataBtn = document.getElementById('clear-data') as HTMLButtonElement | null;
   const validateKeyBtn = document.getElementById('validate-key') as HTMLButtonElement | null;
+  const selfTestBtn = document.getElementById('self-test') as HTMLButtonElement | null;
   
   
   
@@ -532,6 +533,74 @@ document.addEventListener('DOMContentLoaded', () => {
         // Re-enable button
         validateKeyBtn.disabled = false;
         validateKeyBtn.textContent = '✓ Validate Key';
+      }
+    });
+  }
+
+  // Handle self-test button
+  if (selfTestBtn) {
+    console.log('popup-simple.ts: Self-test button found');
+    selfTestBtn.addEventListener('click', async () => {
+      console.log('popup-simple.ts: Self-test button clicked!');
+      
+      try {
+        // Disable button during operation
+        selfTestBtn.disabled = true;
+        selfTestBtn.textContent = '🔍 Testing...';
+        
+        // Import and run self-test
+        const { selfTest } = await import('../utils/selfTest');
+        const results = await selfTest.runHealthCheck();
+        
+        // Show results in status message
+        const statusDiv = document.getElementById('status-message');
+        if (statusDiv) {
+          const statusEmoji = results.overall === 'pass' ? '✅' : results.overall === 'warning' ? '⚠️' : '❌';
+          const statusText = `${statusEmoji} Health Check Complete - Score: ${results.score}%`;
+          
+          statusDiv.innerHTML = `
+            <div class="status-success">
+              ${statusText}
+              <details style="margin-top: 8px;">
+                <summary style="cursor: pointer; font-size: 0.9em;">View Details</summary>
+                <pre style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 0.8em; overflow-x: auto; white-space: pre-wrap;">${selfTest.formatResults(results)}</pre>
+              </details>
+            </div>
+          `;
+          statusDiv.style.display = 'block';
+          
+          // Auto-hide after 10 seconds unless details are expanded
+          setTimeout(() => {
+            const details = statusDiv.querySelector('details') as HTMLDetailsElement;
+            if (details && !details.open) {
+              statusDiv.style.display = 'none';
+            }
+          }, 10000);
+        }
+        
+        // Log detailed results to console
+        console.log('%c🔍 TweetCraft Self-Test Results', 'color: #1DA1F2; font-weight: bold', results);
+        
+      } catch (error) {
+        console.error('Self-test failed:', error);
+        
+        const statusDiv = document.getElementById('status-message');
+        if (statusDiv) {
+          statusDiv.innerHTML = `
+            <div class="status-error">
+              ❌ Self-test failed: ${error instanceof Error ? error.message : 'Unknown error'}
+            </div>
+          `;
+          statusDiv.style.display = 'block';
+          
+          setTimeout(() => {
+            statusDiv.style.display = 'none';
+          }, 5000);
+        }
+      } finally {
+        // Re-enable button
+        selfTestBtn.disabled = false;
+        selfTestBtn.textContent = '🔍 Self-Test';
       }
     });
   }
