@@ -32,7 +32,7 @@ A Chrome extension that generates AI-powered Twitter/X replies using 24 personal
 
 ### Technical Architecture
 - **Frontend Only**: Chrome extension with content scripts
-- **Storage**: localStorage for settings, IndexedDB for Arsenal Mode
+- **Storage**: chrome.storage for settings, IndexedDB for Arsenal Mode
 - **APIs**: OpenRouter for LLM generation, TwitterAPI.io for engagement metrics
 - **No Backend**: Everything runs client-side, no servers needed
 - **Message Passing**: Service worker ↔ content script communication
@@ -641,10 +641,13 @@ async function selfTest() {
 ```javascript
 // In settings modal
 const TWITTER_API_CONFIG = {
-  apiKey: localStorage.getItem('twitterApiKey'),
-  endpoint: 'https://api.twitter.com/v2/tweets',
+  apiKey: chrome.storage.local.get('twitterApiKey'),
+  endpoint: 'https://api.twitterapi.io/v1/tweets',  // Using TwitterAPI.io
   rateLimit: 100 // requests per day
 };
+
+// Note: Browser extensions must include TwitterAPI.io in host permissions:
+// manifest.json: "host_permissions": ["https://api.twitterapi.io/*"]
 ```
 **Implementation:**
 - Add TwitterAPI.io key field in settings

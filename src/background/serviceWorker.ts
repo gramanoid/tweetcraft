@@ -330,20 +330,32 @@ class SmartReplyServiceWorker {
             
             // Clear IndexedDB (Arsenal Mode data)
             try {
-              // Get list of all databases
-              const databases = await indexedDB.databases?.() || [];
-              
-              // Delete TweetCraft databases
-              for (const db of databases) {
-                if (db.name && db.name.startsWith('TweetCraft')) {
-                  await indexedDB.deleteDatabase(db.name);
-                  console.log(`Deleted IndexedDB database: ${db.name}`);
+              // Check if indexedDB.databases() is available
+              if (typeof indexedDB.databases === 'function') {
+                // Get list of all databases
+                const databases = await indexedDB.databases() || [];
+                
+                // Delete TweetCraft databases
+                for (const db of databases) {
+                  if (db.name && db.name.startsWith('TweetCraft')) {
+                    await indexedDB.deleteDatabase(db.name);
+                    console.log(`Deleted IndexedDB database: ${db.name}`);
+                  }
+                }
+              } else {
+                // Fallback for browsers without indexedDB.databases()
+                console.log('indexedDB.databases() not available, using fallback');
+                const knownDatabases = ['TweetCraftArsenal', 'TweetCraft'];
+                
+                for (const dbName of knownDatabases) {
+                  try {
+                    await indexedDB.deleteDatabase(dbName);
+                    console.log(`Deleted IndexedDB database: ${dbName}`);
+                  } catch (dbError) {
+                    console.log(`Database ${dbName} may not exist:`, dbError);
+                  }
                 }
               }
-              
-              // Specifically delete known Arsenal database
-              await indexedDB.deleteDatabase('TweetCraftArsenal');
-              console.log('Deleted TweetCraftArsenal IndexedDB');
             } catch (error) {
               console.error('Error clearing IndexedDB:', error);
               // Continue even if IndexedDB clearing fails
@@ -1530,16 +1542,29 @@ class SmartReplyServiceWorker {
       
       // Process stats for the past week
       Object.entries(stats).forEach(([key, value]: [string, any]) => {
-        if (value.timestamp && value.timestamp > oneWeekAgo) {
+        // Validate entry is an object with valid timestamp
+        if (value && typeof value === 'object' && 
+            typeof value.timestamp === 'number' && 
+            value.timestamp > oneWeekAgo) {
           totalReplies++;
-          if (value.successful) successfulReplies++;
           
-          if (value.personality) {
+          // Validate successful field exists and is boolean
+          if (typeof value.successful === 'boolean' && value.successful) {
+            successfulReplies++;
+          }
+          
+          // Validate personality field exists and is string
+          if (typeof value.personality === 'string' && value.personality) {
             personalityUsage[value.personality] = (personalityUsage[value.personality] || 0) + 1;
           }
           
-          const day = new Date(value.timestamp).toLocaleDateString('en-US', { weekday: 'long' });
-          dailyActivity[day] = (dailyActivity[day] || 0) + 1;
+          // Only derive day if timestamp is valid
+          try {
+            const day = new Date(value.timestamp).toLocaleDateString('en-US', { weekday: 'long' });
+            dailyActivity[day] = (dailyActivity[day] || 0) + 1;
+          } catch (dateError) {
+            console.warn('Invalid timestamp for stats entry:', value.timestamp);
+          }
         }
       });
       

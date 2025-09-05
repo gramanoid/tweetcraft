@@ -4,10 +4,23 @@
  */
 
 import { abTesting, type ABTestCombo, type ABTestResult } from '../services/abTesting';
+import { encodeDataAttribute, decodeDataAttribute } from '../utils/htmlEscape';
+
+interface ABTest {
+  id: string;
+  name: string;
+  combos: ABTestCombo[];
+  groupA: ABTestCombo;
+  groupB: ABTestCombo;
+  status: 'active' | 'completed';
+  winner?: 'A' | 'B';
+  startDate?: string;
+  endDate?: string;
+}
 
 export class ABTestingView {
   private container: HTMLElement | null = null;
-  private activeTest: any = null;
+  private activeTest: ABTest | null = null;
 
   /**
    * Create the A/B testing view HTML
@@ -27,6 +40,10 @@ export class ABTestingView {
    * Render active test view
    */
   private async renderActiveTest(): Promise<string> {
+    if (!this.activeTest) {
+      return this.renderTestSetup([]);
+    }
+    
     const result = await abTesting.compareStyles(this.activeTest.combos);
     
     return `
@@ -106,7 +123,7 @@ export class ABTestingView {
               <div class="suggested-test">
                 <div class="test-header">
                   <h5>${test.name}</h5>
-                  <button class="start-test-btn" data-test='${JSON.stringify(test)}'>
+                  <button class="start-test-btn" data-test='${encodeDataAttribute(test)}'>
                     Start Test
                   </button>
                 </div>
@@ -229,7 +246,18 @@ export class ABTestingView {
     // Start suggested test buttons
     container.querySelectorAll('.start-test-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const testData = JSON.parse((e.target as HTMLElement).dataset.test || '{}');
+        const dataset = (e.target as HTMLElement).dataset.test;
+        if (!dataset) {
+          console.error('No test data found');
+          return;
+        }
+        
+        const testData = decodeDataAttribute(dataset);
+        if (!testData) {
+          console.error('Failed to parse test data');
+          return;
+        }
+        
         await abTesting.startABTest(testData.name, testData.combos);
         this.refresh();
       });

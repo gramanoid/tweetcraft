@@ -1,7 +1,12 @@
 const { merge } = require('webpack-merge');
 const common = require('./webpack.common.js');
 
-module.exports = merge(common, {
-  mode: 'development',
-  devtool: 'inline-source-map',
-});
+// Handle array of configs from common.js
+const configs = Array.isArray(common) ? common : [common];
+
+module.exports = configs.map(config => 
+  merge(config, {
+    mode: 'development',
+    devtool: 'inline-source-map',
+  })
+);

@@ -21,11 +21,14 @@
   "permissions": [
     "storage",
     "scripting",
+    "activeTab",
     "notifications",
     "alarms"
   ],
   "host_permissions": [
     "https://openrouter.ai/*",
+    "https://api.openrouter.ai/*",
+    "https://api.twitterapi.io/*",
     "https://api.exa.ai/*",
     "https://api.unsplash.com/*",
     "https://images.unsplash.com/*",
