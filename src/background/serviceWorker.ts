@@ -127,12 +127,18 @@ class SmartReplyServiceWorker {
       
       // Open welcome page or show notification
       this.showWelcomeNotification();
+      
+      // Task 4.5: Schedule weekly summary
+      await this.scheduleWeeklySummary();
     } else if (details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
       // Extension updated
       console.log('Smart Reply: Extension updated from', details.previousVersion);
       
       // Handle any migration logic here if needed
       this.handleUpdate(details.previousVersion);
+      
+      // Task 4.5: Ensure weekly summary is scheduled
+      await this.scheduleWeeklySummary();
     }
   }
 
@@ -1366,6 +1372,150 @@ class SmartReplyServiceWorker {
   private cleanup(): void {
     console.log('Smart Reply: Performing cleanup');
     // Any cleanup logic can go here
+  }
+
+  // Weekly Summary Methods
+  private async scheduleWeeklySummary(): Promise<void> {
+    console.log('%c📅 Scheduling weekly summary', 'color: #1DA1F2; font-weight: bold');
+    
+    // Clear any existing alarm
+    chrome.alarms.clear('weeklySummary');
+    
+    // Calculate next Sunday at 7 PM
+    const nextSunday = this.getNextSundayEvening();
+    
+    // Create alarm for next Sunday
+    chrome.alarms.create('weeklySummary', {
+      when: nextSunday.getTime(),
+      periodInMinutes: 7 * 24 * 60 // Repeat weekly
+    });
+    
+    // Set up alarm listener
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === 'weeklySummary') {
+        this.generateWeeklySummary();
+      }
+    });
+  }
+  
+  private getNextSundayEvening(): Date {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysUntilSunday = dayOfWeek === 0 ? 7 : (7 - dayOfWeek);
+    
+    const nextSunday = new Date(now);
+    nextSunday.setDate(now.getDate() + daysUntilSunday);
+    nextSunday.setHours(19, 0, 0, 0); // 7 PM
+    
+    // If it's already past Sunday 7 PM this week, schedule for next week
+    if (nextSunday <= now) {
+      nextSunday.setDate(nextSunday.getDate() + 7);
+    }
+    
+    return nextSunday;
+  }
+  
+  private async generateWeeklySummary(): Promise<void> {
+    console.log('%c📊 Generating weekly summary', 'color: #17BF63; font-weight: bold');
+    
+    try {
+      const stats = await this.getWeeklyStats();
+      
+      if (stats.totalReplies === 0) {
+        console.log('No activity this week, skipping summary');
+        return;
+      }
+      
+      // Create notification
+      chrome.notifications.create('weeklySummary', {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: '🎉 Your TweetCraft Weekly Summary',
+        message: `${stats.totalReplies} replies generated this week!\n` +
+                `Top personality: ${stats.topPersonality}\n` +
+                `Most active: ${stats.mostActiveDay}\n` +
+                `Success rate: ${stats.successRate}%`,
+        priority: 2,
+        requireInteraction: true,
+        buttons: [
+          { title: 'View Details' },
+          { title: 'Dismiss' }
+        ]
+      });
+      
+      // Handle button clicks
+      chrome.notifications.onButtonClicked.addListener((notifId, buttonIndex) => {
+        if (notifId === 'weeklySummary' && buttonIndex === 0) {
+          // Open extension popup with stats tab
+          chrome.action.openPopup();
+        }
+      });
+      
+    } catch (error) {
+      console.error('Failed to generate weekly summary:', error);
+    }
+  }
+  
+  private async getWeeklyStats(): Promise<any> {
+    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    try {
+      const storage = await chrome.storage.local.get(['usageStats']);
+      const stats = storage.usageStats || {};
+      
+      let totalReplies = 0;
+      let successfulReplies = 0;
+      const personalityUsage: Record<string, number> = {};
+      const dailyActivity: Record<string, number> = {};
+      
+      // Process stats for the past week
+      Object.entries(stats).forEach(([key, value]: [string, any]) => {
+        if (value.timestamp && value.timestamp > oneWeekAgo) {
+          totalReplies++;
+          if (value.successful) successfulReplies++;
+          
+          if (value.personality) {
+            personalityUsage[value.personality] = (personalityUsage[value.personality] || 0) + 1;
+          }
+          
+          const day = new Date(value.timestamp).toLocaleDateString('en-US', { weekday: 'long' });
+          dailyActivity[day] = (dailyActivity[day] || 0) + 1;
+        }
+      });
+      
+      // Find top personality
+      const topPersonality = Object.entries(personalityUsage)
+        .sort(([,a], [,b]) => b - a)[0]?.[0] || 'None';
+      
+      // Find most active day
+      const mostActiveDay = Object.entries(dailyActivity)
+        .sort(([,a], [,b]) => b - a)[0]?.[0] || 'None';
+      
+      const successRate = totalReplies > 0 
+        ? Math.round((successfulReplies / totalReplies) * 100) 
+        : 0;
+      
+      return {
+        totalReplies,
+        successfulReplies,
+        topPersonality,
+        mostActiveDay,
+        successRate,
+        personalityUsage,
+        dailyActivity
+      };
+    } catch (error) {
+      console.error('Failed to get weekly stats:', error);
+      return {
+        totalReplies: 0,
+        successfulReplies: 0,
+        topPersonality: 'Unknown',
+        mostActiveDay: 'Unknown',
+        successRate: 0,
+        personalityUsage: {},
+        dailyActivity: {}
+      };
+    }
   }
 }
 
