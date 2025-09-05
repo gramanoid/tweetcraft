@@ -354,6 +354,32 @@ class FallbackStrategies {
   }
 
   /**
+   * Check if we should warn about missing element based on context
+   */
+  static shouldWarnForMissingElement(elementType: string): boolean {
+    switch (elementType) {
+      case 'replyTextarea':
+      case 'toolbar':
+        // Only warn if we're in a compose/reply context
+        const hasComposeModal = !!document.querySelector('[aria-label*="Compose"]');
+        const hasReplyContext = !!document.querySelector('[data-testid*="reply"]');
+        const isReplyPage = window.location.pathname.includes('/compose') || 
+                           window.location.href.includes('reply');
+        return hasComposeModal || hasReplyContext || isReplyPage;
+      
+      case 'tweetText':
+      case 'originalTweet':
+        // Only warn if we're on a page with tweets
+        return !!document.querySelector('article');
+      
+      default:
+        // For other elements, don't warn unless we're on Twitter
+        return window.location.hostname.includes('twitter.com') || 
+               window.location.hostname.includes('x.com');
+    }
+  }
+
+  /**
    * Main fallback method that tries all strategies
    */
   static findWithFallback(container: Element, elementType: string): Element | null {
@@ -388,7 +414,10 @@ class FallbackStrategies {
     element = this.tryByTextContent(container, elementType);
     if (element) return element;
 
-    console.warn(`%c❌ All fallback strategies failed for: ${elementType}`, 'color: #DC3545');
+    // Only log error if we're in a context where we'd expect this element
+    if (this.shouldWarnForMissingElement(elementType)) {
+      console.warn(`%c❌ All fallback strategies failed for: ${elementType}`, 'color: #DC3545');
+    }
     return null;
   }
 }
