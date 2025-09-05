@@ -482,6 +482,35 @@ Rollback: Safe to previous commit
 
 ## Recent Changes (v0.0.19)
 
+### Phase 2: Consumer-Focused Features (2025-01-06)
+- ✅ **Task 2.1: Personal Stats Dashboard** 
+  - Comprehensive usage analytics with 30-day rolling statistics
+  - Shows total replies, success rate, top personalities/vocabulary/rhetoric
+  - Time-based recommendations for optimal tweet timing
+  - CSS-only charts for lightweight visualization
+  - Files: `src/services/statsAggregator.ts` (new), `src/content/unifiedSelector.ts`
+
+- ✅ **Task 2.2: Quick Start Presets**
+  - One-click presets for common scenarios (Work, Friendly, Casual, Debate, Creative)
+  - Instant configuration without navigation
+  - Persistent recent settings with quick restore
+  - Files: `src/content/unifiedSelector.ts`, `src/content/contentScript.scss`
+
+- ✅ **Task 2.3: Your Top 5 Display**
+  - Shows 5 most-used template/personality combinations in Favorites tab
+  - One-click application with usage counts
+  - Visual ranking (#1-#5) with active state indication
+  - Responsive grid layout with hover effects
+  - Files: `src/content/unifiedSelector.ts`, `src/content/contentScript.scss`
+
+- ✅ **Task 2.4: Arsenal Quick Access**
+  - Quick Arsenal button in Smart tab for instant access
+  - Modal displays top 5 most-used arsenal replies
+  - One-click insertion into tweet textarea
+  - Shows usage count and category per reply
+  - Direct link to full Arsenal Mode
+  - Files: `src/content/unifiedSelector.ts`, `src/content/contentScript.scss`
+
 ### Phase 1: Quick Wins Implementation
 - ✅ **Task 1.1: Group Personalities Visually** (2025-01-06)
   - Grouped 24 personalities into 5 visual categories with icons
