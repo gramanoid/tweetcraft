@@ -9,7 +9,11 @@ import {
   TEMPLATES,
   PERSONALITIES,
 } from "@/config/templatesAndTones";
-import { VocabularyStyle, getAllVocabularyStyles, VOCABULARY_STYLES } from "@/config/vocabulary";
+import {
+  VocabularyStyle,
+  getAllVocabularyStyles,
+  VOCABULARY_STYLES,
+} from "@/config/vocabulary";
 import {
   LengthPacingStyle,
   getAllLengthPacingStyles,
@@ -44,13 +48,7 @@ export interface SelectionResult {
   personality?: string;
   rhetoric?: string;
   // Tab type for proper prompt routing
-  tabType?:
-    | "personas"
-    | "all"
-    | "smart"
-    | "favorites"
-    | "custom"
-    | "compose";
+  tabType?: "personas" | "all" | "smart" | "favorites" | "custom" | "compose";
   // Additional configs for prompt architecture
   personaConfig?: {
     personality: string;
@@ -409,7 +407,7 @@ export class UnifiedSelector {
     if (guidedTour.shouldShowTour()) {
       // Inject styles for tour
       GuidedTour.injectStyles();
-      
+
       // Start tour after a short delay to let UI settle
       setTimeout(() => {
         if (this.container) {
@@ -1296,51 +1294,47 @@ export class UnifiedSelector {
     personalities: Personality[];
   }> {
     const allPersonalities = PERSONALITIES;
-    
+
     // Group by category as defined in personalities.ts
     // Categories: 'positive' | 'neutral' | 'humorous' | 'critical' | 'naughty'
     return [
       {
-        id: 'professional',
-        icon: '💼',
-        label: 'Professional',
-        personalities: allPersonalities.filter(p => 
-          p.category === 'neutral'
-        )
+        id: "professional",
+        icon: "💼",
+        label: "Professional",
+        personalities: allPersonalities.filter((p) => p.category === "neutral"),
       },
       {
-        id: 'friendly',
-        icon: '😊',
-        label: 'Friendly',
-        personalities: allPersonalities.filter(p => 
-          p.category === 'positive'
-        )
+        id: "friendly",
+        icon: "😊",
+        label: "Friendly",
+        personalities: allPersonalities.filter(
+          (p) => p.category === "positive",
+        ),
       },
       {
-        id: 'humorous',
-        icon: '😄',
-        label: 'Humorous',
-        personalities: allPersonalities.filter(p => 
-          p.category === 'humorous'
-        )
+        id: "humorous",
+        icon: "😄",
+        label: "Humorous",
+        personalities: allPersonalities.filter(
+          (p) => p.category === "humorous",
+        ),
       },
       {
-        id: 'spicy',
-        icon: '🔥',
-        label: 'Spicy',
-        personalities: allPersonalities.filter(p => 
-          p.category === 'critical'
-        )
+        id: "spicy",
+        icon: "🔥",
+        label: "Spicy",
+        personalities: allPersonalities.filter(
+          (p) => p.category === "critical",
+        ),
       },
       {
-        id: 'creative',
-        icon: '🎭',
-        label: 'Creative',
-        personalities: allPersonalities.filter(p => 
-          p.category === 'naughty'
-        )
-      }
-    ].filter(group => group.personalities.length > 0);
+        id: "creative",
+        icon: "🎭",
+        label: "Creative",
+        personalities: allPersonalities.filter((p) => p.category === "naughty"),
+      },
+    ].filter((group) => group.personalities.length > 0);
   }
 
   /**
@@ -1349,7 +1343,7 @@ export class UnifiedSelector {
   private isPersonalityGroupCollapsed(groupId: string): boolean {
     try {
       const collapsedGroups = JSON.parse(
-        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]"
+        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]",
       );
       return collapsedGroups.includes(groupId);
     } catch {
@@ -1363,7 +1357,7 @@ export class UnifiedSelector {
   private togglePersonalityGroup(groupId: string): void {
     try {
       const collapsedGroups = JSON.parse(
-        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]"
+        localStorage.getItem("tweetcraft_collapsed_personality_groups") || "[]",
       );
       const index = collapsedGroups.indexOf(groupId);
       if (index > -1) {
@@ -1373,7 +1367,7 @@ export class UnifiedSelector {
       }
       localStorage.setItem(
         "tweetcraft_collapsed_personality_groups",
-        JSON.stringify(collapsedGroups)
+        JSON.stringify(collapsedGroups),
       );
     } catch (error) {
       console.warn("Failed to toggle personality group:", error);
@@ -1434,10 +1428,10 @@ export class UnifiedSelector {
         `
             : ""
         }
-        
+
         <!-- Quick Start Presets -->
         ${this.renderQuickStartPresets()}
-        
+
         <!-- Part 1: Personality (Who is talking) -->
         <div class="part-section personalities-section ${this.selectedPersonality ? "section-completed" : ""}">
           <h3>
@@ -1450,7 +1444,9 @@ export class UnifiedSelector {
             ${this.getPersonalityGroups()
               .map((group) => {
                 const isCollapsed = this.isPersonalityGroupCollapsed(group.id);
-                const hasSelection = group.personalities.some(p => p.id === this.selectedPersonality?.id);
+                const hasSelection = group.personalities.some(
+                  (p) => p.id === this.selectedPersonality?.id,
+                );
                 return `
                 <div class="personality-group ${hasSelection ? "has-selection" : ""}" data-group-id="${group.id}">
                   <div class="group-header ${isCollapsed ? "collapsed" : ""}" data-personality-group="${group.id}">
@@ -1462,7 +1458,9 @@ export class UnifiedSelector {
                   <div class="personality-grid selection-grid ${isCollapsed ? "collapsed" : ""}">
                     ${group.personalities
                       .map((personality) => {
-                        const usageCount = this.getPersonalityUsageCount(personality.id);
+                        const usageCount = this.getPersonalityUsageCount(
+                          personality.id,
+                        );
                         const isFrequent = usageCount > 5;
                         return `
                         <div class="item-wrapper">
@@ -2072,55 +2070,60 @@ export class UnifiedSelector {
   private renderQuickStartPresets(): string {
     // Define quick start presets for common scenarios
     const QUICK_STARTS = [
-      { 
-        id: 'work',
-        personality: 'professional', 
-        vocabulary: 'corporate',
-        rhetoric: 'agree_and_build',
-        lengthPacing: 'concise',
-        icon: '💼',
-        label: 'Work'
+      {
+        id: "work",
+        personality: "professional",
+        vocabulary: "corporate",
+        rhetoric: "agree_and_build",
+        lengthPacing: "concise",
+        icon: "💼",
+        label: "Work",
       },
-      { 
-        id: 'friendly',
-        personality: 'supportive', 
-        vocabulary: 'plain_english',
-        rhetoric: 'empathetic',
-        lengthPacing: 'balanced',
-        icon: '😊',
-        label: 'Friendly'
+      {
+        id: "friendly",
+        personality: "supportive",
+        vocabulary: "plain_english",
+        rhetoric: "empathetic",
+        lengthPacing: "balanced",
+        icon: "😊",
+        label: "Friendly",
       },
-      { 
-        id: 'funny',
-        personality: 'witty', 
-        vocabulary: 'gen_z',
-        rhetoric: 'hot_take',
-        lengthPacing: 'punchy',
-        icon: '😄',
-        label: 'Funny'
+      {
+        id: "funny",
+        personality: "witty",
+        vocabulary: "gen_z",
+        rhetoric: "hot_take",
+        lengthPacing: "punchy",
+        icon: "😄",
+        label: "Funny",
       },
-      { 
-        id: 'debate',
-        personality: 'contrarian', 
-        vocabulary: 'provocative',
-        rhetoric: 'devils_advocate',
-        lengthPacing: 'comprehensive',
-        icon: '🔥',
-        label: 'Debate'
-      }
+      {
+        id: "debate",
+        personality: "contrarian",
+        vocabulary: "provocative",
+        rhetoric: "devils_advocate",
+        lengthPacing: "comprehensive",
+        icon: "🔥",
+        label: "Debate",
+      },
     ];
 
     // Get recent combinations for "Recent" preset
     const stats = usageTracker.getStats();
-    const topCombination = stats.combinationUsage ? 
-      Array.from(stats.combinationUsage.entries())
-        .sort((a, b) => b[1] - a[1])[0] : null;
+    const topCombination = stats.combinationUsage
+      ? Array.from(stats.combinationUsage.entries()).sort(
+          (a, b) => b[1] - a[1],
+        )[0]
+      : null;
 
     // Get recommended preset based on context or time of day
     const hour = new Date().getHours();
-    const recommendedPreset = hour >= 9 && hour < 17 ? QUICK_STARTS[0] : // Work hours
-                             hour >= 17 && hour < 22 ? QUICK_STARTS[1] : // Evening
-                             QUICK_STARTS[2]; // Late night/early morning
+    const recommendedPreset =
+      hour >= 9 && hour < 17
+        ? QUICK_STARTS[0] // Work hours
+        : hour >= 17 && hour < 22
+          ? QUICK_STARTS[1] // Evening
+          : QUICK_STARTS[2]; // Late night/early morning
 
     return `
       <div class="quick-start-presets">
@@ -2142,7 +2145,9 @@ export class UnifiedSelector {
           </button>
 
           <!-- Top Combo Preset -->
-          ${topCombination ? `
+          ${
+            topCombination
+              ? `
             <button class="quick-start-btn top-combo"
                     data-combination="${topCombination[0]}"
                     title="Your most-used combination (${topCombination[1]} times)">
@@ -2150,7 +2155,9 @@ export class UnifiedSelector {
               <div class="preset-icon">⭐</div>
               <div class="preset-label">Most Used</div>
             </button>
-          ` : ''}
+          `
+              : ""
+          }
 
           <!-- Recent Preset -->
           <button class="quick-start-btn recent"
@@ -2162,7 +2169,8 @@ export class UnifiedSelector {
           </button>
 
           <!-- Scenario Presets -->
-          ${QUICK_STARTS.map(preset => `
+          ${QUICK_STARTS.map(
+            (preset) => `
             <button class="quick-start-btn scenario"
                     data-personality="${preset.personality}"
                     data-vocabulary="${preset.vocabulary}"
@@ -2172,7 +2180,8 @@ export class UnifiedSelector {
               <div class="preset-icon">${preset.icon}</div>
               <div class="preset-label">${preset.label}</div>
             </button>
-          `).join('')}
+          `,
+          ).join("")}
         </div>
       </div>
     `;
@@ -2350,10 +2359,11 @@ export class UnifiedSelector {
 
     // Get top 5 most-used combinations from usage tracker
     const stats = usageTracker.getStats();
-    const topCombinations = stats.combinationUsage ? 
-      Array.from(stats.combinationUsage.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5) : [];
+    const topCombinations = stats.combinationUsage
+      ? Array.from(stats.combinationUsage.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+      : [];
 
     // Auto-populate with suggestions when favorites is empty and no usage data
     if (
@@ -2366,26 +2376,31 @@ export class UnifiedSelector {
 
     return `
       <div class="selector-content favorites-view">
-        ${topCombinations.length > 0 ? `
+        ${
+          topCombinations.length > 0
+            ? `
           <div class="your-top-5-section">
             <div class="top-5-header">
               <span class="top-5-title">🔥 Your Top 5 Go-To Combos</span>
               <span class="top-5-subtitle">One-click to apply your most-used combinations</span>
             </div>
             <div class="top-5-grid">
-              ${topCombinations.map((combo, index) => {
-                const [templateId, personalityId] = combo[0].split(':');
-                const template = templates.find(t => t.id === templateId);
-                const personality = personalities.find(p => p.id === personalityId);
-                
-                if (!template || !personality) return '';
-                
-                const isCurrentSelection = 
-                  this.selectedTemplate?.id === templateId && 
-                  this.selectedPersonality?.id === personalityId;
-                
-                return `
-                  <button class="top-5-combo-btn ${isCurrentSelection ? 'active' : ''}"
+              ${topCombinations
+                .map((combo, index) => {
+                  const [templateId, personalityId] = combo[0].split(":");
+                  const template = templates.find((t) => t.id === templateId);
+                  const personality = personalities.find(
+                    (p) => p.id === personalityId,
+                  );
+
+                  if (!template || !personality) return "";
+
+                  const isCurrentSelection =
+                    this.selectedTemplate?.id === templateId &&
+                    this.selectedPersonality?.id === personalityId;
+
+                  return `
+                  <button class="top-5-combo-btn ${isCurrentSelection ? "active" : ""}"
                           data-combo-template="${templateId}"
                           data-combo-personality="${personalityId}"
                           title="Used ${combo[1]} times">
@@ -2402,14 +2417,17 @@ export class UnifiedSelector {
                         <span class="usage-label">uses</span>
                       </div>
                     </div>
-                    ${isCurrentSelection ? '<div class="active-indicator">✓</div>' : ''}
+                    ${isCurrentSelection ? '<div class="active-indicator">✓</div>' : ""}
                   </button>
                 `;
-              }).join('')}
+                })
+                .join("")}
             </div>
           </div>
           <div class="favorites-divider"></div>
-        ` : ''}
+        `
+            : ""
+        }
         ${
           favoriteTemplatesList.length > 0
             ? `
@@ -2705,7 +2723,7 @@ export class UnifiedSelector {
   private renderStatsView(): string {
     // Show loading state initially, stats will be loaded asynchronously
     this.loadStatsData();
-    
+
     return `
       <div class="selector-content stats-view">
         <div class="stats-dashboard" id="statsDashboard">
@@ -2717,17 +2735,17 @@ export class UnifiedSelector {
       </div>
     `;
   }
-  
+
   /**
    * Load stats data asynchronously and update the view
    */
   private async loadStatsData(): Promise<void> {
     try {
       const stats = await statsAggregator.getDashboardStats();
-      const dashboard = this.container?.querySelector('#statsDashboard');
-      
+      const dashboard = this.container?.querySelector("#statsDashboard");
+
       if (!dashboard) return;
-      
+
       dashboard.innerHTML = `
           <!-- Overall Performance -->
           <div class="stats-section overall-stats">
@@ -2755,11 +2773,13 @@ export class UnifiedSelector {
           <!-- Top Usage Patterns -->
           <div class="stats-section usage-patterns">
             <h3 class="stats-title">🎭 Your Favorites (Last 30 Days)</h3>
-            
+
             <div class="usage-subsection">
               <h4>Top Personalities</h4>
               <div class="usage-list">
-                ${stats.topPersonalities.map(item => `
+                ${stats.topPersonalities
+                  .map(
+                    (item) => `
                   <div class="usage-item">
                     <span class="usage-name">${item.name}</span>
                     <div class="usage-bar">
@@ -2767,15 +2787,19 @@ export class UnifiedSelector {
                     </div>
                     <span class="usage-count">${item.count}</span>
                   </div>
-                `).join('')}
-                ${stats.topPersonalities.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+                `,
+                  )
+                  .join("")}
+                ${stats.topPersonalities.length === 0 ? '<div class="no-data">No data yet</div>' : ""}
               </div>
             </div>
 
             <div class="usage-subsection">
               <h4>Top Vocabulary Styles</h4>
               <div class="usage-list">
-                ${stats.topVocabulary.map(item => `
+                ${stats.topVocabulary
+                  .map(
+                    (item) => `
                   <div class="usage-item">
                     <span class="usage-name">${item.name}</span>
                     <div class="usage-bar">
@@ -2783,15 +2807,19 @@ export class UnifiedSelector {
                     </div>
                     <span class="usage-count">${item.count}</span>
                   </div>
-                `).join('')}
-                ${stats.topVocabulary.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+                `,
+                  )
+                  .join("")}
+                ${stats.topVocabulary.length === 0 ? '<div class="no-data">No data yet</div>' : ""}
               </div>
             </div>
 
             <div class="usage-subsection">
               <h4>Top Rhetoric Styles</h4>
               <div class="usage-list">
-                ${stats.topRhetoric.map(item => `
+                ${stats.topRhetoric
+                  .map(
+                    (item) => `
                   <div class="usage-item">
                     <span class="usage-name">${item.name}</span>
                     <div class="usage-bar">
@@ -2799,8 +2827,10 @@ export class UnifiedSelector {
                     </div>
                     <span class="usage-count">${item.count}</span>
                   </div>
-                `).join('')}
-                ${stats.topRhetoric.length === 0 ? '<div class="no-data">No data yet</div>' : ''}
+                `,
+                  )
+                  .join("")}
+                ${stats.topRhetoric.length === 0 ? '<div class="no-data">No data yet</div>' : ""}
               </div>
             </div>
           </div>
@@ -2808,25 +2838,40 @@ export class UnifiedSelector {
           <!-- Time Patterns -->
           <div class="stats-section time-patterns">
             <h3 class="stats-title">📅 Activity Patterns</h3>
-            
+
             <div class="pattern-subsection">
               <h4>Peak Hours</h4>
               ${statsAggregator.createMiniBarChart(
-                stats.peakHours.map(h => ({ 
-                  label: h.hour < 12 ? `${h.hour || 12}am` : h.hour === 12 ? '12pm' : `${h.hour - 12}pm`,
-                  value: h.count 
-                }))
+                stats.peakHours.map((h) => ({
+                  label:
+                    h.hour < 12
+                      ? `${h.hour || 12}am`
+                      : h.hour === 12
+                        ? "12pm"
+                        : `${h.hour - 12}pm`,
+                  value: h.count,
+                })),
               )}
             </div>
 
             <div class="pattern-subsection">
               <h4>Daily Trend (Last 7 Days)</h4>
               ${statsAggregator.createMiniBarChart(
-                stats.dailyTrend.map(d => ({
-                  label: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                  value: d.count
-                }))
+                stats.dailyTrend.map((d) => ({
+                  label: new Date(d.date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                  }),
+                  value: d.count,
+                })),
               )}
+            </div>
+          </div>
+
+          <!-- Time-Based Recommendations -->
+          <div class="stats-section time-recommendations" id="timeRecommendations">
+            <h3 class="stats-title">⏰ Time-Based Recommendations</h3>
+            <div class="recommendations-loading">
+              <span class="loading-text">Analyzing your patterns...</span>
             </div>
           </div>
 
@@ -2863,20 +2908,28 @@ export class UnifiedSelector {
                 <span class="performance-label">Avg Response Time:</span>
                 <span class="performance-value">${stats.avgResponseTime}ms</span>
               </div>
-              ${stats.modelUsage.length > 0 ? `
+              ${
+                stats.modelUsage.length > 0
+                  ? `
                 <div class="performance-item">
                   <span class="performance-label">Top Model:</span>
-                  <span class="performance-value">${stats.modelUsage[0]?.model || 'N/A'}</span>
+                  <span class="performance-value">${stats.modelUsage[0]?.model || "N/A"}</span>
                 </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
           </div>
         </div>
       </div>
     `;
+    
+    // Load time-based recommendations after stats are loaded
+    this.loadTimeRecommendations();
+    
     } catch (error) {
-      console.error('%c📊 Failed to load stats', 'color: #DC3545', error);
-      const dashboard = this.container?.querySelector('#statsDashboard');
+      console.error("%c📊 Failed to load stats", "color: #DC3545", error);
+      const dashboard = this.container?.querySelector("#statsDashboard");
       if (dashboard) {
         dashboard.innerHTML = `
           <div class="stats-error">
@@ -2884,16 +2937,116 @@ export class UnifiedSelector {
             <button class="retry-stats-btn">Retry</button>
           </div>
         `;
-        
+
         // Add retry handler
-        const retryBtn = dashboard.querySelector('.retry-stats-btn');
+        const retryBtn = dashboard.querySelector(".retry-stats-btn");
         if (retryBtn) {
-          retryBtn.addEventListener('click', () => {
+          retryBtn.addEventListener("click", () => {
             this.loadStatsData();
           });
         }
       }
     }
+  }
+  
+  /**
+   * Load and display time-based recommendations
+   */
+  private async loadTimeRecommendations(): Promise<void> {
+    try {
+      const timePatterns = await smartDefaults.getTimeOfDayPatterns();
+      const recommendationsDiv = this.container?.querySelector("#timeRecommendations");
+      
+      if (!recommendationsDiv) return;
+      
+      if (!timePatterns) {
+        recommendationsDiv.innerHTML = `
+          <h3 class="stats-title">⏰ Time-Based Recommendations</h3>
+          <div class="no-recommendations">
+            <p>Need more data to provide time-based recommendations.</p>
+            <small>Use TweetCraft for a few days to see your patterns!</small>
+          </div>
+        `;
+        return;
+      }
+      
+      const currentHour = new Date().getHours();
+      let currentPeriod: string;
+      let recommendation: any;
+      
+      if (currentHour >= 6 && currentHour < 12) {
+        currentPeriod = 'morning';
+        recommendation = timePatterns.morning;
+      } else if (currentHour >= 12 && currentHour < 17) {
+        currentPeriod = 'afternoon';
+        recommendation = timePatterns.afternoon;
+      } else if (currentHour >= 17 && currentHour < 21) {
+        currentPeriod = 'evening';
+        recommendation = timePatterns.evening;
+      } else if (currentHour >= 21 && currentHour < 24) {
+        currentPeriod = 'night';
+        recommendation = timePatterns.night;
+      } else {
+        currentPeriod = 'late night';
+        recommendation = timePatterns.lateNight;
+      }
+      
+      recommendationsDiv.innerHTML = `
+        <h3 class="stats-title">⏰ Time-Based Recommendations</h3>
+        <div class="time-patterns-grid">
+          <div class="current-recommendation">
+            <h4>Right Now (${currentPeriod})</h4>
+            ${recommendation && recommendation.preferred ? `
+              <div class="recommended-personality">
+                <span class="rec-label">Recommended:</span>
+                <span class="rec-value">${recommendation.preferred}</span>
+                <span class="rec-success">${Math.round(recommendation.rate * 100)}% success</span>
+              </div>
+            ` : `
+              <div class="no-data-yet">No pattern detected yet for this time</div>
+            `}
+          </div>
+          
+          <div class="time-patterns-list">
+            <h4>Your Time Patterns</h4>
+            <div class="patterns-grid">
+              ${this.renderTimePeriodPattern('Morning (6am-12pm)', timePatterns.morning)}
+              ${this.renderTimePeriodPattern('Afternoon (12pm-5pm)', timePatterns.afternoon)}
+              ${this.renderTimePeriodPattern('Evening (5pm-9pm)', timePatterns.evening)}
+              ${this.renderTimePeriodPattern('Night (9pm-12am)', timePatterns.night)}
+              ${this.renderTimePeriodPattern('Late Night (12am-6am)', timePatterns.lateNight)}
+              ${timePatterns.weekend ? this.renderTimePeriodPattern('Weekend', timePatterns.weekend) : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      console.error('%c⏰ Failed to load time recommendations', 'color: #DC3545', error);
+    }
+  }
+  
+  /**
+   * Render a single time period pattern
+   */
+  private renderTimePeriodPattern(label: string, pattern: any): string {
+    if (!pattern || !pattern.preferred || pattern.count < 3) {
+      return `
+        <div class="time-pattern">
+          <div class="pattern-label">${label}</div>
+          <div class="pattern-value no-data">—</div>
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="time-pattern">
+        <div class="pattern-label">${label}</div>
+        <div class="pattern-value">
+          <span class="pattern-personality">${pattern.preferred}</span>
+          <span class="pattern-success">${Math.round(pattern.rate * 100)}%</span>
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -2901,9 +3054,11 @@ export class UnifiedSelector {
    */
   private renderExpandedView(): string {
     // Load saved preferences
-    const savedTransparency = localStorage.getItem('tweetcraft_expandedTransparency') || '100';
-    const savedDocking = localStorage.getItem('tweetcraft_expandedDocking') || 'float';
-    
+    const savedTransparency =
+      localStorage.getItem("tweetcraft_expandedTransparency") || "100";
+    const savedDocking =
+      localStorage.getItem("tweetcraft_expandedDocking") || "float";
+
     return `
       <div class="expanded-view-container">
         <div class="expanded-controls">
@@ -2913,12 +3068,12 @@ export class UnifiedSelector {
             <span class="transparency-value">${savedTransparency}%</span>
           </div>
           <div class="docking-control">
-            <button class="dock-btn ${savedDocking === 'float' ? 'active' : ''}" data-dock="float" title="Float">⬜</button>
-            <button class="dock-btn ${savedDocking === 'left' ? 'active' : ''}" data-dock="left" title="Dock Left">⬅️</button>
-            <button class="dock-btn ${savedDocking === 'right' ? 'active' : ''}" data-dock="right" title="Dock Right">➡️</button>
+            <button class="dock-btn ${savedDocking === "float" ? "active" : ""}" data-dock="float" title="Float">⬜</button>
+            <button class="dock-btn ${savedDocking === "left" ? "active" : ""}" data-dock="left" title="Dock Left">⬅️</button>
+            <button class="dock-btn ${savedDocking === "right" ? "active" : ""}" data-dock="right" title="Dock Right">➡️</button>
           </div>
         </div>
-        
+
         <div class="expanded-sections">
           <!-- Personas Section -->
           <div class="expanded-section">
@@ -2927,7 +3082,7 @@ export class UnifiedSelector {
               ${this.renderPersonaCards()}
             </div>
           </div>
-          
+
           <!-- Personalities Section -->
           <div class="expanded-section">
             <h3>🎭 Personalities</h3>
@@ -2935,7 +3090,7 @@ export class UnifiedSelector {
               ${this.renderPersonalityOptions()}
             </div>
           </div>
-          
+
           <!-- Vocabulary Section -->
           <div class="expanded-section">
             <h3>📚 Vocabulary</h3>
@@ -2943,7 +3098,7 @@ export class UnifiedSelector {
               ${this.renderVocabularyOptions()}
             </div>
           </div>
-          
+
           <!-- Rhetoric Section -->
           <div class="expanded-section">
             <h3>💬 Rhetoric</h3>
@@ -2951,7 +3106,7 @@ export class UnifiedSelector {
               ${this.renderRhetoricOptions()}
             </div>
           </div>
-          
+
           <!-- Length Section -->
           <div class="expanded-section">
             <h3>📏 Length & Pacing</h3>
@@ -2963,7 +3118,6 @@ export class UnifiedSelector {
       </div>
     `;
   }
-
 
   /**
    * Attach event listeners
@@ -2995,7 +3149,7 @@ export class UnifiedSelector {
           | "grid"
           | "smart"
           | "favorites"
-                | "custom"
+          | "custom"
           | "compose";
         this.view = view;
         if (view === "smart") {
@@ -3051,63 +3205,80 @@ export class UnifiedSelector {
       (btn as HTMLElement).addEventListener("click", (e) => {
         e.stopPropagation();
         const button = e.currentTarget as HTMLElement;
-        
+
         // Check if it's a combination preset
         if (button.dataset.combination) {
-          const combo = button.dataset.combination.split('+');
+          const combo = button.dataset.combination.split("+");
           if (combo.length >= 4) {
             const [personality, vocabulary, rhetoric, lengthPacing] = combo;
-            
-            this.selectedPersonality = PERSONALITIES.find(p => p.id === personality) || null;
-            this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === vocabulary) || null;
-            this.selectedTemplate = TEMPLATES.find(t => t.id === rhetoric) || null;
-            this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === lengthPacing) || null;
-            
+
+            this.selectedPersonality =
+              PERSONALITIES.find((p) => p.id === personality) || null;
+            this.selectedVocabulary =
+              getAllVocabularyStyles().find((v) => v.id === vocabulary) || null;
+            this.selectedTemplate =
+              TEMPLATES.find((t) => t.id === rhetoric) || null;
+            this.selectedLengthPacing =
+              getAllLengthPacingStyles().find((l) => l.id === lengthPacing) ||
+              null;
+
             // Track usage
             if (this.selectedPersonality) {
               usageTracker.trackPersonaSelection(personality, "favorite");
             }
-            
+
             // Show feedback
             if (this.anchorButton) {
-              visualFeedback.showSuccess(this.anchorButton, "Applied your top combo");
+              visualFeedback.showSuccess(
+                this.anchorButton,
+                "Applied your top combo",
+              );
             }
-            
+
             this.render();
             return;
           }
         }
-        
+
         // Check if it's a "recent" action
         if (button.dataset.action === "apply-recent") {
           this.applyRecentSettings();
           return;
         }
-        
+
         // Otherwise it's a regular preset with all attributes
         const personalityId = button.dataset.personality;
         const vocabularyId = button.dataset.vocabulary;
         const rhetoricId = button.dataset.rhetoric;
         const lengthPacingId = button.dataset.lengthPacing;
-        
+
         if (personalityId && vocabularyId && rhetoricId && lengthPacingId) {
           // Apply all selections
-          this.selectedPersonality = PERSONALITIES.find(p => p.id === personalityId) || null;
-          this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === vocabularyId) || null;
-          this.selectedTemplate = TEMPLATES.find(t => t.id === rhetoricId) || null;
-          this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === lengthPacingId) || null;
-          
+          this.selectedPersonality =
+            PERSONALITIES.find((p) => p.id === personalityId) || null;
+          this.selectedVocabulary =
+            getAllVocabularyStyles().find((v) => v.id === vocabularyId) || null;
+          this.selectedTemplate =
+            TEMPLATES.find((t) => t.id === rhetoricId) || null;
+          this.selectedLengthPacing =
+            getAllLengthPacingStyles().find((l) => l.id === lengthPacingId) ||
+            null;
+
           // Track usage
           if (this.selectedPersonality) {
             usageTracker.trackPersonaSelection(personalityId, "suggestion");
           }
-          
+
           // Show feedback
-          const presetLabel = button.querySelector('.preset-label')?.textContent || 'preset';
+          const presetLabel =
+            button.querySelector(".preset-label")?.textContent || "preset";
           if (this.anchorButton) {
-            visualFeedback.showSuccess(this.anchorButton, `Applied ${presetLabel} preset`);
+            visualFeedback.showSuccess(
+              this.anchorButton,
+              `Applied ${presetLabel} preset`,
+            );
           }
-          
+
           this.render();
         }
       });
@@ -3234,41 +3405,44 @@ export class UnifiedSelector {
       });
 
     // Quick Arsenal button handler
-    this.container
-      .querySelectorAll(".quick-arsenal-btn")
-      .forEach((btn) => {
-        (btn as HTMLElement).addEventListener("click", async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          console.log(
-            "%c⚡ Opening Quick Arsenal",
-            "color: #FFA500; font-weight: bold",
-          );
-          await this.showQuickArsenalModal();
-        });
-      });
-
-    // Personality group header toggle
-    this.container.querySelectorAll(".group-header[data-personality-group]").forEach((header) => {
-      (header as HTMLElement).addEventListener("click", (e) => {
+    this.container.querySelectorAll(".quick-arsenal-btn").forEach((btn) => {
+      (btn as HTMLElement).addEventListener("click", async (e) => {
         e.stopPropagation();
-        const groupId = (e.currentTarget as HTMLElement).dataset.personalityGroup!;
-        this.togglePersonalityGroup(groupId);
-        
-        // Toggle the collapsed class on the header and grid
-        const groupElement = (e.currentTarget as HTMLElement).closest(".personality-group");
-        if (groupElement) {
-          const header = groupElement.querySelector(".group-header");
-          const grid = groupElement.querySelector(".personality-grid");
-          const chevron = header?.querySelector(".group-chevron");
-          
-          const isCollapsed = this.isPersonalityGroupCollapsed(groupId);
-          if (header) header.classList.toggle("collapsed", isCollapsed);
-          if (grid) grid.classList.toggle("collapsed", isCollapsed);
-          if (chevron) chevron.textContent = isCollapsed ? "▶" : "▼";
-        }
+        e.preventDefault();
+        console.log(
+          "%c⚡ Opening Quick Arsenal",
+          "color: #FFA500; font-weight: bold",
+        );
+        await this.showQuickArsenalModal();
       });
     });
+
+    // Personality group header toggle
+    this.container
+      .querySelectorAll(".group-header[data-personality-group]")
+      .forEach((header) => {
+        (header as HTMLElement).addEventListener("click", (e) => {
+          e.stopPropagation();
+          const groupId = (e.currentTarget as HTMLElement).dataset
+            .personalityGroup!;
+          this.togglePersonalityGroup(groupId);
+
+          // Toggle the collapsed class on the header and grid
+          const groupElement = (e.currentTarget as HTMLElement).closest(
+            ".personality-group",
+          );
+          if (groupElement) {
+            const header = groupElement.querySelector(".group-header");
+            const grid = groupElement.querySelector(".personality-grid");
+            const chevron = header?.querySelector(".group-chevron");
+
+            const isCollapsed = this.isPersonalityGroupCollapsed(groupId);
+            if (header) header.classList.toggle("collapsed", isCollapsed);
+            if (grid) grid.classList.toggle("collapsed", isCollapsed);
+            if (chevron) chevron.textContent = isCollapsed ? "▶" : "▼";
+          }
+        });
+      });
 
     // Top 5 combo buttons (Favorites tab)
     this.container.querySelectorAll(".top-5-combo-btn").forEach((btn) => {
@@ -3277,25 +3451,29 @@ export class UnifiedSelector {
         const element = e.currentTarget as HTMLElement;
         const templateId = element.dataset.comboTemplate!;
         const personalityId = element.dataset.comboPersonality!;
-        
+
         // Select both template and personality
         this.selectTemplate(templateId);
         this.selectPersonality(personalityId);
-        
+
         // Track usage
-        usageTracker.trackTemplateSelection(templateId as any, 'favorite');
-        usageTracker.trackPersonaSelection(personalityId, 'favorite');
-        
+        usageTracker.trackTemplateSelection(templateId as any, "favorite");
+        usageTracker.trackPersonaSelection(personalityId, "favorite");
+
         // Update UI to show active state
-        this.container?.querySelectorAll(".top-5-combo-btn").forEach(b => {
+        this.container?.querySelectorAll(".top-5-combo-btn").forEach((b) => {
           b.classList.remove("active");
         });
         btn.classList.add("active");
-        
-        console.log('%c🔥 Top 5 Combo Applied', 'color: #FFA500; font-weight: bold', {
-          template: templateId,
-          personality: personalityId
-        });
+
+        console.log(
+          "%c🔥 Top 5 Combo Applied",
+          "color: #FFA500; font-weight: bold",
+          {
+            template: templateId,
+            personality: personalityId,
+          },
+        );
       });
     });
 
@@ -3372,9 +3550,10 @@ export class UnifiedSelector {
       });
     }
 
-
     // Expanded View toggle button
-    const expandedViewBtn = this.container.querySelector(".expanded-view-toggle-btn");
+    const expandedViewBtn = this.container.querySelector(
+      ".expanded-view-toggle-btn",
+    );
     if (expandedViewBtn) {
       expandedViewBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -3392,7 +3571,7 @@ export class UnifiedSelector {
         this.handleQuickGenerate();
       });
     }
-    
+
     // Settings button
     const settingsBtn = this.container.querySelector(".settings-btn");
     if (settingsBtn) {
@@ -3403,13 +3582,15 @@ export class UnifiedSelector {
     }
 
     // Collapsible sections functionality
-    this.container.querySelectorAll(".collapsible-header[data-toggle]").forEach((header) => {
-      (header as HTMLElement).addEventListener("click", (e) => {
-        e.stopPropagation();
-        const section = (e.currentTarget as HTMLElement).dataset.toggle!;
-        this.toggleSection(section);
+    this.container
+      .querySelectorAll(".collapsible-header[data-toggle]")
+      .forEach((header) => {
+        (header as HTMLElement).addEventListener("click", (e) => {
+          e.stopPropagation();
+          const section = (e.currentTarget as HTMLElement).dataset.toggle!;
+          this.toggleSection(section);
+        });
       });
-    });
 
     // Initialize collapsed states on first render
     if (this.view === "grid") {
@@ -3570,7 +3751,6 @@ export class UnifiedSelector {
       });
     });
 
-
     // Accept suggestion buttons in Favorites tab
     this.container
       .querySelectorAll("[data-suggestion-accept]")
@@ -3596,7 +3776,6 @@ export class UnifiedSelector {
           this.dismissSuggestion(index);
         });
       });
-
 
     // Collapsible section headers
     this.container.querySelectorAll(".collapsible-header").forEach((header) => {
@@ -3939,29 +4118,40 @@ export class UnifiedSelector {
   private applyRecentSettings(): void {
     try {
       // Get recent settings from localStorage
-      const recentSettings = localStorage.getItem('tweetcraft_recent_settings');
+      const recentSettings = localStorage.getItem("tweetcraft_recent_settings");
       if (recentSettings) {
         const settings = JSON.parse(recentSettings);
-        
+
         // Apply recent selections
         if (settings.personality) {
-          this.selectedPersonality = PERSONALITIES.find(p => p.id === settings.personality) || null;
+          this.selectedPersonality =
+            PERSONALITIES.find((p) => p.id === settings.personality) || null;
         }
         if (settings.vocabulary) {
-          this.selectedVocabulary = getAllVocabularyStyles().find(v => v.id === settings.vocabulary) || null;
+          this.selectedVocabulary =
+            getAllVocabularyStyles().find(
+              (v) => v.id === settings.vocabulary,
+            ) || null;
         }
         if (settings.rhetoric) {
-          this.selectedTemplate = TEMPLATES.find(t => t.id === settings.rhetoric) || null;
+          this.selectedTemplate =
+            TEMPLATES.find((t) => t.id === settings.rhetoric) || null;
         }
         if (settings.lengthPacing) {
-          this.selectedLengthPacing = getAllLengthPacingStyles().find(l => l.id === settings.lengthPacing) || null;
+          this.selectedLengthPacing =
+            getAllLengthPacingStyles().find(
+              (l) => l.id === settings.lengthPacing,
+            ) || null;
         }
-        
+
         // Show feedback
         if (this.anchorButton) {
-          visualFeedback.showSuccess(this.anchorButton, "Applied recent settings");
+          visualFeedback.showSuccess(
+            this.anchorButton,
+            "Applied recent settings",
+          );
         }
-        
+
         this.render();
       } else {
         // No recent settings, apply smart defaults instead
@@ -4346,9 +4536,12 @@ export class UnifiedSelector {
         vocabulary: this.selectedVocabulary?.id,
         rhetoric: this.selectedTemplate?.id,
         lengthPacing: this.selectedLengthPacing?.id,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      localStorage.setItem('tweetcraft_recent_settings', JSON.stringify(recentSettings));
+      localStorage.setItem(
+        "tweetcraft_recent_settings",
+        JSON.stringify(recentSettings),
+      );
     }
 
     // Hide the popup immediately when generating starts
@@ -4363,218 +4556,260 @@ export class UnifiedSelector {
    */
   private toggleExpandedView(): void {
     if (!this.container) return;
-    
-    const btn = this.container.querySelector('.expanded-view-toggle-btn') as HTMLButtonElement;
-    const isExpanded = btn?.getAttribute('data-expanded') === 'true';
-    
+
+    const btn = this.container.querySelector(
+      ".expanded-view-toggle-btn",
+    ) as HTMLButtonElement;
+    const isExpanded = btn?.getAttribute("data-expanded") === "true";
+
     if (!isExpanded) {
       // Show expanded view
-      btn?.setAttribute('data-expanded', 'true');
-      const icon = btn?.querySelector('.expand-icon');
-      if (icon) icon.textContent = '⊟';
-      
+      btn?.setAttribute("data-expanded", "true");
+      const icon = btn?.querySelector(".expand-icon");
+      if (icon) icon.textContent = "⊟";
+
       // Replace content with expanded view
-      const content = this.container.querySelector('.selector-content');
+      const content = this.container.querySelector(".selector-content");
       if (content) {
         content.innerHTML = this.renderExpandedView();
-        content.classList.add('expanded-view');
-        
+        content.classList.add("expanded-view");
+
         // Apply saved docking
-        const savedDocking = localStorage.getItem('tweetcraft_expandedDocking') || 'float';
+        const savedDocking =
+          localStorage.getItem("tweetcraft_expandedDocking") || "float";
         this.applyDocking(savedDocking);
-        
+
         // Apply saved transparency
-        const savedTransparency = localStorage.getItem('tweetcraft_expandedTransparency') || '100';
+        const savedTransparency =
+          localStorage.getItem("tweetcraft_expandedTransparency") || "100";
         this.applyTransparency(parseInt(savedTransparency));
-        
+
         // Attach expanded view event listeners
         this.attachExpandedViewListeners();
       }
-      
+
       // Make container larger for expanded view
-      this.container.style.width = '800px';
-      this.container.style.maxWidth = '90vw';
-      this.container.style.height = '600px';
-      this.container.style.maxHeight = '90vh';
-      
-      console.log('%c⊞ Expanded View activated', 'color: #1DA1F2; font-weight: bold');
+      this.container.style.width = "800px";
+      this.container.style.maxWidth = "90vw";
+      this.container.style.height = "600px";
+      this.container.style.maxHeight = "90vh";
+
+      console.log(
+        "%c⊞ Expanded View activated",
+        "color: #1DA1F2; font-weight: bold",
+      );
     } else {
       // Hide expanded view
-      btn?.setAttribute('data-expanded', 'false');
-      const icon = btn?.querySelector('.expand-icon');
-      if (icon) icon.textContent = '⊞';
-      
+      btn?.setAttribute("data-expanded", "false");
+      const icon = btn?.querySelector(".expand-icon");
+      if (icon) icon.textContent = "⊞";
+
       // Restore normal view
-      const content = this.container.querySelector('.selector-content');
+      const content = this.container.querySelector(".selector-content");
       if (content) {
-        content.classList.remove('expanded-view');
+        content.classList.remove("expanded-view");
         this.render(); // Re-render normal view
       }
-      
-      console.log('%c⊟ Expanded View deactivated', 'color: #1DA1F2');
+
+      console.log("%c⊟ Expanded View deactivated", "color: #1DA1F2");
     }
   }
-  
+
   private attachExpandedViewListeners(): void {
     if (!this.container) return;
-    
+
     // Transparency slider
-    const transparencySlider = this.container.querySelector('.transparency-slider') as HTMLInputElement;
-    const transparencyValue = this.container.querySelector('.transparency-value');
+    const transparencySlider = this.container.querySelector(
+      ".transparency-slider",
+    ) as HTMLInputElement;
+    const transparencyValue = this.container.querySelector(
+      ".transparency-value",
+    );
     if (transparencySlider) {
-      transparencySlider.addEventListener('input', (e) => {
+      transparencySlider.addEventListener("input", (e) => {
         const value = parseInt((e.target as HTMLInputElement).value);
         this.applyTransparency(value);
         if (transparencyValue) transparencyValue.textContent = `${value}%`;
-        localStorage.setItem('tweetcraft_expandedTransparency', value.toString());
+        localStorage.setItem(
+          "tweetcraft_expandedTransparency",
+          value.toString(),
+        );
       });
     }
-    
+
     // Docking buttons
-    this.container.querySelectorAll('.dock-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    this.container.querySelectorAll(".dock-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const dockType = (e.currentTarget as HTMLElement).getAttribute('data-dock')!;
+        const dockType = (e.currentTarget as HTMLElement).getAttribute(
+          "data-dock",
+        )!;
         this.applyDocking(dockType);
-        localStorage.setItem('tweetcraft_expandedDocking', dockType);
-        
+        localStorage.setItem("tweetcraft_expandedDocking", dockType);
+
         // Update active state
-        this.container?.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
-        (e.currentTarget as HTMLElement).classList.add('active');
+        this.container
+          ?.querySelectorAll(".dock-btn")
+          .forEach((b) => b.classList.remove("active"));
+        (e.currentTarget as HTMLElement).classList.add("active");
       });
     });
-    
+
     // Selection in expanded view
-    this.container.querySelectorAll('.expanded-grid .persona-card, .expanded-grid .option-btn').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const element = e.currentTarget as HTMLElement;
-        
-        // Handle different types of selections
-        if (element.dataset.persona) {
-          this.selectPersona(element.dataset.persona);
-        } else if (element.dataset.personality) {
-          this.selectedPersonality = PERSONALITIES.find(p => p.id === element.dataset.personality)!;
-        } else if (element.dataset.vocabulary) {
-          this.selectedVocabulary = element.dataset.vocabulary as any;
-        } else if (element.dataset.rhetoric) {
-          this.selectedRhetoric = element.dataset.rhetoric as any;
-        } else if (element.dataset.pacing) {
-          this.selectedLengthPacing = element.dataset.pacing as any;
-        }
-        
-        // Visual feedback
-        element.parentElement?.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        element.classList.add('selected');
+    this.container
+      .querySelectorAll(
+        ".expanded-grid .persona-card, .expanded-grid .option-btn",
+      )
+      .forEach((item) => {
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const element = e.currentTarget as HTMLElement;
+
+          // Handle different types of selections
+          if (element.dataset.persona) {
+            this.selectPersona(element.dataset.persona);
+          } else if (element.dataset.personality) {
+            this.selectedPersonality = PERSONALITIES.find(
+              (p) => p.id === element.dataset.personality,
+            )!;
+          } else if (element.dataset.vocabulary) {
+            this.selectedVocabulary = element.dataset.vocabulary as any;
+          } else if (element.dataset.rhetoric) {
+            this.selectedRhetoric = element.dataset.rhetoric as any;
+          } else if (element.dataset.pacing) {
+            this.selectedLengthPacing = element.dataset.pacing as any;
+          }
+
+          // Visual feedback
+          element.parentElement
+            ?.querySelectorAll(".selected")
+            .forEach((el) => el.classList.remove("selected"));
+          element.classList.add("selected");
+        });
       });
-    });
   }
-  
+
   private applyTransparency(value: number): void {
     if (!this.container) return;
     this.container.style.opacity = (value / 100).toString();
   }
-  
+
   private applyDocking(dockType: string): void {
     if (!this.container) return;
-    
+
     // Reset positioning
-    this.container.style.position = 'fixed';
-    this.container.style.top = '';
-    this.container.style.left = '';
-    this.container.style.right = '';
-    this.container.style.bottom = '';
-    this.container.style.transform = '';
-    
+    this.container.style.position = "fixed";
+    this.container.style.top = "";
+    this.container.style.left = "";
+    this.container.style.right = "";
+    this.container.style.bottom = "";
+    this.container.style.transform = "";
+
     switch (dockType) {
-      case 'left':
-        this.container.style.left = '10px';
-        this.container.style.top = '50%';
-        this.container.style.transform = 'translateY(-50%)';
-        this.container.style.width = '350px';
-        this.container.style.height = '90vh';
+      case "left":
+        this.container.style.left = "10px";
+        this.container.style.top = "50%";
+        this.container.style.transform = "translateY(-50%)";
+        this.container.style.width = "350px";
+        this.container.style.height = "90vh";
         break;
-        
-      case 'right':
-        this.container.style.right = '10px';
-        this.container.style.top = '50%';
-        this.container.style.transform = 'translateY(-50%)';
-        this.container.style.width = '350px';
-        this.container.style.height = '90vh';
+
+      case "right":
+        this.container.style.right = "10px";
+        this.container.style.top = "50%";
+        this.container.style.transform = "translateY(-50%)";
+        this.container.style.width = "350px";
+        this.container.style.height = "90vh";
         break;
-        
-      case 'float':
+
+      case "float":
       default:
         // Center floating
-        this.container.style.left = '50%';
-        this.container.style.top = '50%';
-        this.container.style.transform = 'translate(-50%, -50%)';
-        this.container.style.width = '800px';
-        this.container.style.maxWidth = '90vw';
-        this.container.style.height = '600px';
-        this.container.style.maxHeight = '90vh';
+        this.container.style.left = "50%";
+        this.container.style.top = "50%";
+        this.container.style.transform = "translate(-50%, -50%)";
+        this.container.style.width = "800px";
+        this.container.style.maxWidth = "90vw";
+        this.container.style.height = "600px";
+        this.container.style.maxHeight = "90vh";
         break;
     }
-    
+
     // Ensure proper z-index to avoid Twitter UI overlap
-    this.container.style.zIndex = '10000';
+    this.container.style.zIndex = "10000";
   }
-  
+
   /**
    * Render persona cards for expanded view
    */
   private renderPersonaCards(): string {
     const personas = getAllQuickPersonas();
-    return personas.map(persona => `
-      <div class="persona-card option-btn" data-persona="${persona.id}" ${(this.selectedPersona as any) === persona.id ? 'class="selected"' : ''}>
-        <span class="persona-icon">${(persona as any).icon || '👤'}</span>
+    return personas
+      .map(
+        (persona) => `
+      <div class="persona-card option-btn" data-persona="${persona.id}" ${(this.selectedPersona as any) === persona.id ? 'class="selected"' : ""}>
+        <span class="persona-icon">${(persona as any).icon || "👤"}</span>
         <span class="persona-name">${persona.name}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join("");
   }
-  
+
   /**
    * Render personality options for expanded view
    */
   private renderPersonalityOptions(): string {
-    return PERSONALITIES.map(p => `
-      <button class="option-btn" data-personality="${p.id}" ${this.selectedPersonality?.id === p.id ? 'class="selected"' : ''}>
+    return PERSONALITIES.map(
+      (p) => `
+      <button class="option-btn" data-personality="${p.id}" ${this.selectedPersonality?.id === p.id ? 'class="selected"' : ""}>
         ${p.label}
       </button>
-    `).join('');
+    `,
+    ).join("");
   }
-  
+
   /**
    * Render vocabulary options for expanded view
    */
   private renderVocabularyOptions(): string {
-    return Object.keys(VOCABULARY_STYLES).map(key => `
-      <button class="option-btn" data-vocabulary="${key}" ${(this.selectedVocabulary as any) === key ? 'class="selected"' : ''}>
+    return Object.keys(VOCABULARY_STYLES)
+      .map(
+        (key) => `
+      <button class="option-btn" data-vocabulary="${key}" ${(this.selectedVocabulary as any) === key ? 'class="selected"' : ""}>
         ${VOCABULARY_STYLES[key].label}
       </button>
-    `).join('');
+    `,
+      )
+      .join("");
   }
-  
+
   /**
    * Render rhetoric options for expanded view
    */
   private renderRhetoricOptions(): string {
-    return RHETORICAL_MOVES.map(move => `
-      <button class="option-btn" data-rhetoric="${move.id}" ${(this.selectedRhetoric as any) === move.id ? 'class="selected"' : ''}>
+    return RHETORICAL_MOVES.map(
+      (move) => `
+      <button class="option-btn" data-rhetoric="${move.id}" ${(this.selectedRhetoric as any) === move.id ? 'class="selected"' : ""}>
         ${move.name}
       </button>
-    `).join('');
+    `,
+    ).join("");
   }
-  
+
   /**
    * Render length/pacing options for expanded view
    */
   private renderLengthPacingOptions(): string {
-    return Object.keys(LENGTH_PACING_STYLES).map(key => `
-      <button class="option-btn" data-pacing="${key}" ${(this.selectedLengthPacing as any) === key ? 'class="selected"' : ''}>
+    return Object.keys(LENGTH_PACING_STYLES)
+      .map(
+        (key) => `
+      <button class="option-btn" data-pacing="${key}" ${(this.selectedLengthPacing as any) === key ? 'class="selected"' : ""}>
         ${LENGTH_PACING_STYLES[key].label}
       </button>
-    `).join('');
+    `,
+      )
+      .join("");
   }
 
   /**
@@ -4586,22 +4821,22 @@ export class UnifiedSelector {
   private openSettingsModal(): void {
     // Simply open the extension popup window
     // This is more maintainable than duplicating the settings UI
-    chrome.runtime.sendMessage({ action: 'openOptionsPage' }, (response) => {
+    chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error('Failed to open settings:', chrome.runtime.lastError);
+        console.error("Failed to open settings:", chrome.runtime.lastError);
         // Fallback: create a simple inline modal with link to extension settings
         this.showSettingsInlineModal();
       }
     });
   }
-  
+
   /**
    * Show inline settings modal as fallback
    */
   private showSettingsInlineModal(): void {
     // Create modal overlay
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'settings-modal-overlay';
+    const modalOverlay = document.createElement("div");
+    modalOverlay.className = "settings-modal-overlay";
     modalOverlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -4614,9 +4849,9 @@ export class UnifiedSelector {
       align-items: center;
       z-index: 999999;
     `;
-    
+
     // Create modal content
-    const modal = document.createElement('div');
+    const modal = document.createElement("div");
     modal.style.cssText = `
       background: #15202B;
       border-radius: 16px;
@@ -4626,7 +4861,7 @@ export class UnifiedSelector {
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       border: 1px solid #38444D;
     `;
-    
+
     modal.innerHTML = `
       <div style="text-align: center;">
         <h2 style="margin: 0 0 16px 0; color: #1DA1F2; font-size: 20px;">
@@ -4662,26 +4897,28 @@ export class UnifiedSelector {
         </button>
       </div>
     `;
-    
+
     modalOverlay.appendChild(modal);
     document.body.appendChild(modalOverlay);
-    
+
     // Close modal handlers
     const closeModal = () => {
       modalOverlay.remove();
     };
-    
-    modal.querySelector('.close-settings-modal')?.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', (e) => {
+
+    modal
+      .querySelector(".close-settings-modal")
+      ?.addEventListener("click", closeModal);
+    modalOverlay.addEventListener("click", (e) => {
       if (e.target === modalOverlay) closeModal();
     });
   }
-  
+
   private async showQuickArsenalModal(): Promise<void> {
     try {
       // Create modal overlay
-      const modalOverlay = document.createElement('div');
-      modalOverlay.className = 'quick-arsenal-overlay';
+      const modalOverlay = document.createElement("div");
+      modalOverlay.className = "quick-arsenal-overlay";
       modalOverlay.style.cssText = `
         position: fixed;
         top: 0;
@@ -4696,8 +4933,8 @@ export class UnifiedSelector {
       `;
 
       // Create modal container
-      const modal = document.createElement('div');
-      modal.className = 'quick-arsenal-modal';
+      const modal = document.createElement("div");
+      modal.className = "quick-arsenal-modal";
       modal.style.cssText = `
         background: #15202B;
         border-radius: 16px;
@@ -4723,8 +4960,12 @@ export class UnifiedSelector {
           </p>
         </div>
         <div class="quick-arsenal-content" style="flex: 1; overflow-y: auto; padding: 16px;">
-          ${replies.length > 0 ? replies.map((reply, index) => `
-            <div class="arsenal-reply-item" 
+          ${
+            replies.length > 0
+              ? replies
+                  .map(
+                    (reply, index) => `
+            <div class="arsenal-reply-item"
                  data-reply-id="${reply.id}"
                  style="
                    background: #192734;
@@ -4734,9 +4975,7 @@ export class UnifiedSelector {
                    margin-bottom: 12px;
                    cursor: pointer;
                    transition: all 0.2s;
-                 "
-                 onmouseover="this.style.background='#1C2938'; this.style.borderColor='#1DA1F2';"
-                 onmouseout="this.style.background='#192734'; this.style.borderColor='#38444D';">
+                 ">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <div style="display: flex; gap: 8px;">
                   <span style="background: #1C2938; color: #8899A6; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
@@ -4754,13 +4993,17 @@ export class UnifiedSelector {
                 ${reply.text}
               </div>
             </div>
-          `).join('') : `
+          `,
+                  )
+                  .join("")
+              : `
             <div style="text-align: center; padding: 32px; color: #8899A6;">
               <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
               <p>No arsenal replies yet!</p>
               <p style="font-size: 12px; margin-top: 8px;">Use the Arsenal Mode button to create pre-generated replies.</p>
             </div>
-          `}
+          `
+          }
         </div>
         <div class="quick-arsenal-footer" style="padding: 16px; border-top: 1px solid #38444D; display: flex; justify-content: space-between;">
           <button class="close-modal-btn" style="
@@ -4789,38 +5032,63 @@ export class UnifiedSelector {
       document.body.appendChild(modalOverlay);
 
       // Handle reply item clicks
-      modal.querySelectorAll('.arsenal-reply-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          const replyText = (e.currentTarget as HTMLElement).querySelector('div:last-child')?.textContent || '';
+      modal.querySelectorAll(".arsenal-reply-item").forEach((item) => {
+        const element = item as HTMLElement;
+
+        // Click handler
+        element.addEventListener("click", (e) => {
+          const replyText =
+            (e.currentTarget as HTMLElement).querySelector("div:last-child")
+              ?.textContent || "";
           this.insertReplyToTextarea(replyText);
           document.body.removeChild(modalOverlay);
+        });
+
+        // CSP-compliant hover effects (replacing inline onmouseover/onmouseout)
+        element.addEventListener("mouseenter", () => {
+          element.style.background = "#1C2938";
+          element.style.borderColor = "#1DA1F2";
+        });
+
+        element.addEventListener("mouseleave", () => {
+          element.style.background = "#192734";
+          element.style.borderColor = "#38444D";
         });
       });
 
       // Handle close button
-      modal.querySelector('.close-modal-btn')?.addEventListener('click', () => {
+      modal.querySelector(".close-modal-btn")?.addEventListener("click", () => {
         document.body.removeChild(modalOverlay);
       });
 
       // Handle open full arsenal button
-      modal.querySelector('.open-full-arsenal-btn')?.addEventListener('click', () => {
-        document.body.removeChild(modalOverlay);
-        // Trigger the Arsenal Mode
-        const event = new CustomEvent("tweetcraft:open-arsenal", {
-          detail: { textarea: document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root') },
+      modal
+        .querySelector(".open-full-arsenal-btn")
+        ?.addEventListener("click", () => {
+          document.body.removeChild(modalOverlay);
+          // Trigger the Arsenal Mode
+          const event = new CustomEvent("tweetcraft:open-arsenal", {
+            detail: {
+              textarea: document.querySelector(
+                '[data-testid="tweetTextarea_0"], .DraftEditor-root',
+              ),
+            },
+          });
+          document.dispatchEvent(event);
         });
-        document.dispatchEvent(event);
-      });
 
       // Close on overlay click
-      modalOverlay.addEventListener('click', (e) => {
+      modalOverlay.addEventListener("click", (e) => {
         if (e.target === modalOverlay) {
           document.body.removeChild(modalOverlay);
         }
       });
-
     } catch (error) {
-      console.error('%c⚡ Failed to show Quick Arsenal:', 'color: #DC3545', error);
+      console.error(
+        "%c⚡ Failed to show Quick Arsenal:",
+        "color: #DC3545",
+        error,
+      );
     }
   }
 
@@ -4829,21 +5097,21 @@ export class UnifiedSelector {
    */
   private async openArsenalDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('TweetCraftArsenal', 1);
-      
+      const request = indexedDB.open("TweetCraftArsenal", 1);
+
       request.onsuccess = () => {
         resolve(request.result);
       };
-      
+
       request.onerror = () => {
         reject(request.error);
       };
-      
+
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains('replies')) {
-          const store = db.createObjectStore('replies', { keyPath: 'id' });
-          store.createIndex('usageCount', 'usageCount', { unique: false });
+        if (!db.objectStoreNames.contains("replies")) {
+          const store = db.createObjectStore("replies", { keyPath: "id" });
+          store.createIndex("usageCount", "usageCount", { unique: false });
         }
       };
     });
@@ -4852,13 +5120,16 @@ export class UnifiedSelector {
   /**
    * Get top N arsenal replies by usage count
    */
-  private async getTopArsenalReplies(db: IDBDatabase, limit: number): Promise<any[]> {
+  private async getTopArsenalReplies(
+    db: IDBDatabase,
+    limit: number,
+  ): Promise<any[]> {
     return new Promise((resolve, reject) => {
       try {
-        const transaction = db.transaction(['replies'], 'readonly');
-        const store = transaction.objectStore('replies');
+        const transaction = db.transaction(["replies"], "readonly");
+        const store = transaction.objectStore("replies");
         const request = store.getAll();
-        
+
         request.onsuccess = () => {
           const replies = request.result as any[];
           // Sort by usage count and take top N
@@ -4867,7 +5138,7 @@ export class UnifiedSelector {
             .slice(0, limit);
           resolve(topReplies);
         };
-        
+
         request.onerror = () => {
           reject(request.error);
         };
@@ -4881,22 +5152,24 @@ export class UnifiedSelector {
    * Insert reply text into the active textarea
    */
   private insertReplyToTextarea(text: string): void {
-    const textarea = document.querySelector('[data-testid="tweetTextarea_0"], .DraftEditor-root') as HTMLElement;
+    const textarea = document.querySelector(
+      '[data-testid="tweetTextarea_0"], .DraftEditor-root',
+    ) as HTMLElement;
     if (textarea) {
       // For Twitter's contenteditable div
-      if (textarea.contentEditable === 'true') {
+      if (textarea.contentEditable === "true") {
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNodeContents(textarea);
         range.collapse(true);
         selection?.removeAllRanges();
         selection?.addRange(range);
-        
-        document.execCommand('insertText', false, text);
-        
-        const inputEvent = new InputEvent('input', { 
-          inputType: 'insertText', 
-          data: text 
+
+        document.execCommand("insertText", false, text);
+
+        const inputEvent = new InputEvent("input", {
+          inputType: "insertText",
+          data: text,
         });
         textarea.dispatchEvent(inputEvent);
       }
@@ -4917,20 +5190,26 @@ export class UnifiedSelector {
       const templates = TEMPLATES;
       const vocabularyStyles = getAllVocabularyStyles();
       const lengthPacingStyles = getAllLengthPacingStyles();
-      
+
       // Pick random selections
-      const randomPersonality = personalities[Math.floor(Math.random() * personalities.length)];
-      const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
-      const randomVocabulary = vocabularyStyles[Math.floor(Math.random() * vocabularyStyles.length)];
-      const randomLengthPacing = lengthPacingStyles[Math.floor(Math.random() * lengthPacingStyles.length)];
-      
+      const randomPersonality =
+        personalities[Math.floor(Math.random() * personalities.length)];
+      const randomTemplate =
+        templates[Math.floor(Math.random() * templates.length)];
+      const randomVocabulary =
+        vocabularyStyles[Math.floor(Math.random() * vocabularyStyles.length)];
+      const randomLengthPacing =
+        lengthPacingStyles[
+          Math.floor(Math.random() * lengthPacingStyles.length)
+        ];
+
       const selections = {
         personality: randomPersonality.id,
         vocabulary: randomVocabulary.id,
         rhetoric: randomTemplate.id,
         lengthPacing: randomLengthPacing.id,
       };
-      
+
       const source = "randomized";
 
       console.log("%c  Using randomized selections:", "color: #657786", {
@@ -5098,14 +5377,20 @@ export class UnifiedSelector {
       content.style.setProperty("visibility", "visible", "important");
       indicator.textContent = "−";
       header.classList.remove("collapsed");
-      localStorage.setItem(`tweetcraft-section-${sectionName}-collapsed`, "false");
+      localStorage.setItem(
+        `tweetcraft-section-${sectionName}-collapsed`,
+        "false",
+      );
       console.log(`%c📖 Expanded ${sectionName} section`, "color: #1DA1F2");
     } else {
       // Collapse
       content.style.setProperty("display", "none", "important");
       indicator.textContent = "+";
       header.classList.add("collapsed");
-      localStorage.setItem(`tweetcraft-section-${sectionName}-collapsed`, "true");
+      localStorage.setItem(
+        `tweetcraft-section-${sectionName}-collapsed`,
+        "true",
+      );
       console.log(`%c📕 Collapsed ${sectionName} section`, "color: #1DA1F2");
     }
   }
@@ -5115,15 +5400,21 @@ export class UnifiedSelector {
    */
   private initializeCollapsedStates(): void {
     const sections = ["vocabulary", "rhetoric", "lengthPacing"];
-    
-    sections.forEach(sectionName => {
+
+    sections.forEach((sectionName) => {
       // Default to collapsed for vocabulary, rhetoric, and lengthPacing to reduce overwhelm
-      const shouldCollapse = localStorage.getItem(`tweetcraft-section-${sectionName}-collapsed`) !== "false";
-      
+      const shouldCollapse =
+        localStorage.getItem(`tweetcraft-section-${sectionName}-collapsed`) !==
+        "false";
+
       if (shouldCollapse) {
-        const content = this.container?.querySelector(`#${sectionName}-content`) as HTMLElement;
-        const indicator = this.container?.querySelector(`.collapsible-header[data-toggle="${sectionName}"] .collapse-indicator`) as HTMLElement;
-        
+        const content = this.container?.querySelector(
+          `#${sectionName}-content`,
+        ) as HTMLElement;
+        const indicator = this.container?.querySelector(
+          `.collapsible-header[data-toggle="${sectionName}"] .collapse-indicator`,
+        ) as HTMLElement;
+
         if (content && indicator) {
           content.style.setProperty("display", "none", "important");
           indicator.textContent = "+";
@@ -6945,7 +7236,7 @@ export class UnifiedSelector {
           box-shadow: 0 4px 8px rgba(29, 155, 240, 0.4);
           transform: translateY(-1px);
         }
-        
+
         .settings-btn {
           display: flex;
           align-items: center;
@@ -6963,7 +7254,7 @@ export class UnifiedSelector {
           flex-shrink: 0;
           margin-right: 12px;
         }
-        
+
         .settings-btn:hover {
           background: rgba(29, 155, 240, 0.1);
           border-color: #1d9bf0;
@@ -7424,7 +7715,7 @@ export class UnifiedSelector {
         .personas-view {
           padding: 8px;
         }
-        
+
         /* Favorites view font normalization */
         .favorites-view .template-name,
         .favorites-view .personality-label {
@@ -8346,21 +8637,21 @@ export class UnifiedSelector {
           overflow-y: auto;
           padding-right: 8px;
         }
-        
+
         .smart-suggestions-list::-webkit-scrollbar {
           width: 6px;
         }
-        
+
         .smart-suggestions-list::-webkit-scrollbar-track {
           background: rgba(139, 152, 165, 0.1);
           border-radius: 3px;
         }
-        
+
         .smart-suggestions-list::-webkit-scrollbar-thumb {
           background: rgba(139, 152, 165, 0.3);
           border-radius: 3px;
         }
-        
+
         .smart-suggestions-list::-webkit-scrollbar-thumb:hover {
           background: rgba(139, 152, 165, 0.5);
         }
@@ -8824,7 +9115,7 @@ export class UnifiedSelector {
       document.head.appendChild(style);
     }
   }
-  
+
   /**
    * Destroy the component
    */

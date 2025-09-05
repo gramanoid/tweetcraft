@@ -20,6 +20,7 @@ import { ProgressiveEnhancement } from "@/utils/progressiveEnhancement";
 import { ContextRecovery } from "@/utils/contextRecovery";
 import { ContextExtractor, TweetContext } from "@/utils/contextExtractor";
 import { visionService, VisionService } from "@/services/visionService";
+import { smartDefaults } from "@/services/smartDefaults";
 import "./contentScript.scss";
 
 class SmartReplyContentScript {
@@ -3238,6 +3239,17 @@ class SmartReplyContentScript {
         
         // Start tracking whether user sends or cancels this reply
         DOMUtils.startTrackingSendAction(response.data.reply);
+        
+        // Track time-of-day patterns for personality usage
+        if (allTabConfig?.personality) {
+          // Success rate will be determined by send/cancel tracking
+          smartDefaults.trackTimePattern(allTabConfig.personality, true);
+          console.log('%c⏰ Time pattern tracked for personality:', 'color: #1DA1F2', allTabConfig.personality);
+        } else if (personaConfig?.id) {
+          // For persona tab, use the persona ID
+          smartDefaults.trackTimePattern(personaConfig.id, true);
+          console.log('%c⏰ Time pattern tracked for persona:', 'color: #1DA1F2', personaConfig.id);
+        }
 
         // Hide loading and show success toast only (no duplicate icon)
         visualFeedback.hideLoading();

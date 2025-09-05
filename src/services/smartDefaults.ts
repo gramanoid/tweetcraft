@@ -26,9 +26,26 @@ export interface LastUsedSelections {
   timestamp: number;
 }
 
+export interface TimePattern {
+  hour: number;
+  personality: string;
+  successRate: number;
+  count: number;
+}
+
+export interface TimeOfDayPatterns {
+  morning: { preferred: string; rate: number; count: number };    // 6am-12pm
+  afternoon: { preferred: string; rate: number; count: number };  // 12pm-5pm
+  evening: { preferred: string; rate: number; count: number };    // 5pm-9pm
+  night: { preferred: string; rate: number; count: number };      // 9pm-12am
+  lateNight: { preferred: string; rate: number; count: number };  // 12am-6am
+  weekend?: { preferred: string; rate: number; count: number };   // Sat-Sun
+}
+
 export class SmartDefaultsService {
   private readonly STORAGE_KEY = 'tweetcraft_smart_defaults';
   private readonly LAST_USED_KEY = 'tweetcraft_last_selections';
+  private readonly TIME_PATTERNS_KEY = 'tweetcraft_time_patterns';
   private readonly MIN_USAGE_FOR_HIGH_CONFIDENCE = 5;
   private readonly MIN_USAGE_FOR_MEDIUM_CONFIDENCE = 3;
 
@@ -37,6 +54,12 @@ export class SmartDefaultsService {
    */
   async getSmartDefaults(): Promise<SmartDefaults | null> {
     const stats = usageTracker.getStats();
+    
+    // Check time-based patterns first
+    const timeBasedDefaults = await this.getTimeBasedDefaults();
+    if (timeBasedDefaults && timeBasedDefaults.confidence !== 'low') {
+      return timeBasedDefaults;
+    }
     
     // Get most used combinations
     const topPersonalities = this.getTopUsed(stats.toneUsage);
@@ -278,6 +301,181 @@ export class SmartDefaultsService {
     // This would need to be implemented based on how patterns are tracked
     // For now, return 0 as placeholder
     return 0;
+  }
+
+  /**
+   * Track time-of-day usage patterns
+   */
+  async trackTimePattern(personality: string, wasSuccessful: boolean): Promise<void> {
+    try {
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      const result = await chrome.storage.local.get([this.TIME_PATTERNS_KEY]);
+      const patterns: TimePattern[] = result[this.TIME_PATTERNS_KEY] || [];
+
+      // Find existing pattern for this hour and personality
+      const existingIndex = patterns.findIndex(p => p.hour === hour && p.personality === personality);
+      
+      if (existingIndex >= 0) {
+        // Update existing pattern
+        const pattern = patterns[existingIndex];
+        pattern.count++;
+        if (wasSuccessful) {
+          pattern.successRate = ((pattern.successRate * (pattern.count - 1)) + 1) / pattern.count;
+        } else {
+          pattern.successRate = (pattern.successRate * (pattern.count - 1)) / pattern.count;
+        }
+      } else {
+        // Create new pattern
+        patterns.push({
+          hour,
+          personality,
+          successRate: wasSuccessful ? 1 : 0,
+          count: 1
+        });
+      }
+
+      await chrome.storage.local.set({ [this.TIME_PATTERNS_KEY]: patterns });
+      console.log('%c⏰ Time pattern tracked', 'color: #1DA1F2', { hour, personality, wasSuccessful });
+    } catch (error) {
+      console.error('Failed to track time pattern:', error);
+    }
+  }
+
+  /**
+   * Get time-based smart defaults
+   */
+  async getTimeBasedDefaults(): Promise<SmartDefaults | null> {
+    try {
+      const patterns = await this.getTimeOfDayPatterns();
+      if (!patterns) return null;
+
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      // Determine time period
+      let period: keyof TimeOfDayPatterns;
+      if (hour >= 6 && hour < 12) {
+        period = 'morning';
+      } else if (hour >= 12 && hour < 17) {
+        period = 'afternoon';
+      } else if (hour >= 17 && hour < 21) {
+        period = 'evening';
+      } else if (hour >= 21 && hour < 24) {
+        period = 'night';
+      } else {
+        period = 'lateNight';
+      }
+
+      // Check weekend patterns first if applicable
+      if (isWeekend && patterns.weekend && patterns.weekend.count >= 3) {
+        return {
+          personality: patterns.weekend.preferred,
+          vocabulary: 'plain_english',
+          rhetoric: 'agree_build',
+          lengthPacing: 'drive_by',
+          confidence: patterns.weekend.count >= 5 ? 'high' : 'medium',
+          reason: `Your weekend favorite (${Math.round(patterns.weekend.rate * 100)}% success rate)`
+        };
+      }
+
+      // Get pattern for current time period
+      const timePattern = patterns[period];
+      if (timePattern && timePattern.count >= 3) {
+        const timeLabel = period === 'lateNight' ? 'late night' : period;
+        return {
+          personality: timePattern.preferred,
+          vocabulary: 'plain_english',
+          rhetoric: 'agree_build',
+          lengthPacing: 'drive_by',
+          confidence: timePattern.count >= 5 ? 'high' : 'medium',
+          reason: `Your ${timeLabel} favorite (${Math.round(timePattern.rate * 100)}% success rate)`
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to get time-based defaults:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Analyze and return time-of-day patterns
+   */
+  async getTimeOfDayPatterns(): Promise<TimeOfDayPatterns | null> {
+    try {
+      const result = await chrome.storage.local.get([this.TIME_PATTERNS_KEY]);
+      const patterns: TimePattern[] = result[this.TIME_PATTERNS_KEY] || [];
+      
+      if (patterns.length < 10) return null; // Not enough data
+
+      const timeGroups: TimeOfDayPatterns = {
+        morning: { preferred: '', rate: 0, count: 0 },
+        afternoon: { preferred: '', rate: 0, count: 0 },
+        evening: { preferred: '', rate: 0, count: 0 },
+        night: { preferred: '', rate: 0, count: 0 },
+        lateNight: { preferred: '', rate: 0, count: 0 }
+      };
+
+      // Group patterns by time period
+      const periodPatterns: Record<keyof TimeOfDayPatterns, TimePattern[]> = {
+        morning: patterns.filter(p => p.hour >= 6 && p.hour < 12),
+        afternoon: patterns.filter(p => p.hour >= 12 && p.hour < 17),
+        evening: patterns.filter(p => p.hour >= 17 && p.hour < 21),
+        night: patterns.filter(p => p.hour >= 21 && p.hour < 24),
+        lateNight: patterns.filter(p => p.hour >= 0 && p.hour < 6),
+        weekend: [] // Will be calculated separately
+      };
+
+      // Find best personality for each period
+      for (const [period, periodData] of Object.entries(periodPatterns) as [keyof TimeOfDayPatterns, TimePattern[]][]) {
+        if (period === 'weekend') continue;
+        if (periodData.length === 0) continue;
+
+        // Group by personality and calculate weighted success
+        const personalityStats = new Map<string, { totalSuccess: number; count: number }>();
+        
+        periodData.forEach(pattern => {
+          const stats = personalityStats.get(pattern.personality) || { totalSuccess: 0, count: 0 };
+          stats.totalSuccess += pattern.successRate * pattern.count;
+          stats.count += pattern.count;
+          personalityStats.set(pattern.personality, stats);
+        });
+
+        // Find best performing personality
+        let bestPersonality = '';
+        let bestRate = 0;
+        let totalCount = 0;
+
+        personalityStats.forEach((stats, personality) => {
+          const avgRate = stats.totalSuccess / stats.count;
+          if (avgRate > bestRate || (avgRate === bestRate && stats.count > totalCount)) {
+            bestPersonality = personality;
+            bestRate = avgRate;
+            totalCount = stats.count;
+          }
+        });
+
+        if (bestPersonality) {
+          timeGroups[period] = {
+            preferred: bestPersonality,
+            rate: bestRate,
+            count: totalCount
+          };
+        }
+      }
+
+      return timeGroups;
+    } catch (error) {
+      console.error('Failed to get time patterns:', error);
+      return null;
+    }
   }
 }
 

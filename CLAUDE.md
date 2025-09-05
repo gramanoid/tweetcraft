@@ -523,6 +523,30 @@ Rollback: Safe to previous commit
   - 30-second learning curve
   - Files: `src/components/GuidedTour.ts` (new), `src/content/unifiedSelector.ts`
 
+### Console Error Fixes & Performance Optimization (2025-01-06)
+- ✅ **Smart Selector Throttling** - Reduced console spam from 100+ to ~10 messages per session
+  - Added error throttling mechanism with 5-second intervals per selector type
+  - Prevents DOM selector failure floods while maintaining diagnostic capability
+  - Files: `src/content/domUtils.ts`
+
+- ✅ **Enhanced Twitter DOM Selectors** - Improved reliability for modern Twitter/X interface
+  - Added contemporary CSS selectors: `[data-testid="tweet-text-area"]`, `[data-testid="reply-text-area"]`
+  - Enhanced fallback chains for better Twitter DOM mutation resilience
+  - Maintained all existing selectors for backward compatibility
+  - Files: `src/content/domUtils.ts`
+
+- ✅ **CSP-Compliant Event Handling** - Eliminated Content Security Policy violations
+  - Replaced inline event handlers (`onmouseover`, `onmouseout`) with proper event listeners
+  - Implemented event delegation for dynamic Quick Arsenal modal elements
+  - Improved security compliance and performance
+  - Files: `src/content/unifiedSelector.ts`
+
+- ✅ **DOM Cache Optimization** - Enhanced performance and cache hit rates
+  - Improved cache invalidation logic to balance performance with accuracy
+  - Better handling of Twitter DOM mutations and dynamic content loading
+  - Optimized cache cleanup for memory efficiency
+  - Files: `src/content/domUtils.ts`
+
 ### Bug Fixes
 - ✅ **Reduced fallback selector console noise**
   - Added context-aware warning logic for missing DOM elements
