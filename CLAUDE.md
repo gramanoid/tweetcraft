@@ -443,6 +443,32 @@ Rollback: Safe to previous commit
 - Include file list, breaking changes, rollback notes
 - Tag phase completions: `git tag v0.X.0 -m "Phase X: Description"`
 
+## Recent Changes (v0.0.23)
+
+### UI Cleanup and Tab Fixes (2025-01-10)
+
+#### Complete UI Refactoring and Old Code Removal ✅
+- **Restored Refactored UI as Single Source**
+  - Removed old unifiedSelector.ts (327KB) completely
+  - Renamed unifiedSelectorRefactored.ts → unifiedSelector.ts
+  - No more UI version confusion possible
+  - Files removed: old unifiedSelector.ts, templateSelector.ts
+
+- **Fixed All Tab Implementations**
+  - SmartTab: AI suggestions with refresh and Quick Arsenal buttons
+  - AllTab: Complete 4-part selection UI (Personality, Vocabulary, Rhetoric, Length)
+  - PersonasTab: Template selection with grouped personalities
+  - Arsenal: Added all message handlers (GET_ARSENAL_REPLIES, TRACK_USAGE, etc.)
+  - Settings: Fixed openOptionsPage handler
+  - Files: `src/components/tabs/*.ts`
+
+- **Technical Improvements**
+  - Removed selectorAdapter fallback logic
+  - Single UI implementation only
+  - Bundle size reduced: contentScript.js 481KB → 461KB
+  - No feature flags or conditional switching
+  - Cleaner, maintainable codebase
+
 ## Recent Changes (v0.0.22)
 
 ### Sprint 3-4: Comprehensive UI/UX Improvements (2025-01-10)

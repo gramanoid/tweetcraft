@@ -3,6 +3,6 @@
  * Update this single location when releasing new versions
  */
 
-export const APP_VERSION = '0.0.20';
+export const APP_VERSION = '0.0.23';
 export const APP_NAME = 'TweetCraft';
 export const FULL_NAME = `${APP_NAME} v${APP_VERSION}`;
