@@ -33,9 +33,14 @@ export enum MessageType {
   GET_TIME_RECOMMENDATIONS = 'GET_TIME_RECOMMENDATIONS',
   // Arsenal-related messages
   GET_ARSENAL_REPLIES = 'GET_ARSENAL_REPLIES',
+  SAVE_ARSENAL_REPLY = 'SAVE_ARSENAL_REPLY',
   TRACK_ARSENAL_USAGE = 'TRACK_ARSENAL_USAGE',
   TOGGLE_ARSENAL_FAVORITE = 'TOGGLE_ARSENAL_FAVORITE',
-  DELETE_ARSENAL_REPLIES = 'DELETE_ARSENAL_REPLIES'
+  DELETE_ARSENAL_REPLIES = 'DELETE_ARSENAL_REPLIES',
+  // Compose-related messages
+  COMPOSE_TWEET = 'COMPOSE_TWEET',
+  // Suggestions
+  GET_SUGGESTIONS = 'GET_SUGGESTIONS'
 }
 
 // Base message interface
@@ -121,7 +126,8 @@ export interface FetchTrendingTopicsMessage extends BaseMessage {
 
 export interface SuggestTemplateMessage extends BaseMessage {
   type: MessageType.SUGGEST_TEMPLATE;
-  tweetText: string;
+  tweetText?: string;
+  context?: any;
   patterns?: any;
 }
 
@@ -166,7 +172,20 @@ export interface ExaSearchMessage extends BaseMessage {
 // Arsenal-related messages
 export interface GetArsenalRepliesMessage extends BaseMessage {
   type: MessageType.GET_ARSENAL_REPLIES;
-  category?: string;
+  filters?: {
+    category?: string;
+    searchTerm?: string;
+    limit?: number;
+  };
+}
+
+export interface SaveArsenalReplyMessage extends BaseMessage {
+  type: MessageType.SAVE_ARSENAL_REPLY;
+  reply: {
+    text: string;
+    category: string;
+    metadata?: any;
+  };
 }
 
 export interface TrackArsenalUsageMessage extends BaseMessage {
@@ -183,6 +202,24 @@ export interface ToggleArsenalFavoriteMessage extends BaseMessage {
 export interface DeleteArsenalRepliesMessage extends BaseMessage {
   type: MessageType.DELETE_ARSENAL_REPLIES;
   replyIds: string[];
+}
+
+// Compose-related messages
+export interface ComposeTweetMessage extends BaseMessage {
+  type: MessageType.COMPOSE_TWEET;
+  config: {
+    topic?: string;
+    style?: string;
+    tone?: string;
+    draft?: string;
+    type: 'generate' | 'enhance' | 'suggest';
+  };
+}
+
+// Suggestions message
+export interface GetSuggestionsMessage extends BaseMessage {
+  type: MessageType.GET_SUGGESTIONS;
+  context: any;
 }
 
 // Union type of all messages
@@ -211,9 +248,12 @@ export type ExtensionMessage =
   | GetWeeklySummaryMessage
   | GetTimeRecommendationsMessage
   | GetArsenalRepliesMessage
+  | SaveArsenalReplyMessage
   | TrackArsenalUsageMessage
   | ToggleArsenalFavoriteMessage
-  | DeleteArsenalRepliesMessage;
+  | DeleteArsenalRepliesMessage
+  | ComposeTweetMessage
+  | GetSuggestionsMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -321,6 +361,11 @@ export function isGetArsenalRepliesMessage(msg: any): msg is GetArsenalRepliesMe
   return msg?.type === MessageType.GET_ARSENAL_REPLIES;
 }
 
+export function isSaveArsenalReplyMessage(msg: any): msg is SaveArsenalReplyMessage {
+  return msg?.type === MessageType.SAVE_ARSENAL_REPLY && 
+         msg?.reply !== undefined;
+}
+
 export function isTrackArsenalUsageMessage(msg: any): msg is TrackArsenalUsageMessage {
   return msg?.type === MessageType.TRACK_ARSENAL_USAGE && typeof msg?.replyId === 'string';
 }
@@ -333,6 +378,17 @@ export function isToggleArsenalFavoriteMessage(msg: any): msg is ToggleArsenalFa
 
 export function isDeleteArsenalRepliesMessage(msg: any): msg is DeleteArsenalRepliesMessage {
   return msg?.type === MessageType.DELETE_ARSENAL_REPLIES && Array.isArray(msg?.replyIds);
+}
+
+// Compose and suggestions type guards
+export function isComposeTweetMessage(msg: any): msg is ComposeTweetMessage {
+  return msg?.type === MessageType.COMPOSE_TWEET && 
+         msg?.config !== undefined;
+}
+
+export function isGetSuggestionsMessage(msg: any): msg is GetSuggestionsMessage {
+  return msg?.type === MessageType.GET_SUGGESTIONS && 
+         msg?.context !== undefined;
 }
 
 // Response types

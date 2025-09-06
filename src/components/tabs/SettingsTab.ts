@@ -3,11 +3,14 @@
  * SPRINT 2: Settings UI development and backend integration
  */
 
-import { TabComponent } from './TabManager';
+import { TabComponent, TabManager } from './TabManager';
 import { MessageType } from '@/types/messages';
+import { logger } from '@/utils/logger';
+import UIStateManager from '@/services/uiStateManager';
 
 export class SettingsTab implements TabComponent {
   private container: HTMLElement | null = null;
+  private tabManager: TabManager | null = null;
   private settings = {
     apiKey: '',
     defaultModel: 'gpt-4o-mini',
@@ -20,6 +23,10 @@ export class SettingsTab implements TabComponent {
     analytics: true,
     debugMode: false
   };
+
+  constructor(tabManager?: TabManager) {
+    this.tabManager = tabManager || null;
+  }
 
   async onShow(): Promise<void> {
     // Load current settings from storage
@@ -260,26 +267,57 @@ export class SettingsTab implements TabComponent {
 
   private async loadSettings(): Promise<void> {
     try {
-      const response = await chrome.runtime.sendMessage({ 
-        type: MessageType.GET_CONFIG 
-      });
-      if (response?.success && response.data) {
-        Object.assign(this.settings, response.data);
+      if (this.tabManager) {
+        // Use TabManager's getStorage method
+        const config = await this.tabManager.getStorage('config');
+        if (config) {
+          Object.assign(this.settings, config);
+        }
+      } else {
+        // Fallback to direct message
+        const response = await chrome.runtime.sendMessage({ 
+          type: MessageType.GET_CONFIG 
+        });
+        if (response?.success && response.data) {
+          Object.assign(this.settings, response.data);
+        }
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      logger.error('Failed to load settings:', error);
     }
   }
 
   private async saveSettings(): Promise<void> {
     try {
-      await chrome.runtime.sendMessage({
-        type: MessageType.SET_CONFIG,
-        config: this.settings
-      });
+      if (this.container) {
+        UIStateManager.setLoading(this.container, true, {
+          customText: 'Saving settings...',
+          animationType: 'pulse'
+        });
+      }
+
+      if (this.tabManager) {
+        // Use TabManager's setStorage method
+        await this.tabManager.setStorage({ config: this.settings });
+      } else {
+        // Fallback to direct message
+        await chrome.runtime.sendMessage({
+          type: MessageType.SET_CONFIG,
+          config: this.settings
+        });
+      }
+      
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showSuccess(this.container, 'Settings saved successfully!');
+      }
       this.showSaveStatus();
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      logger.error('Failed to save settings:', error);
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showError(this.container, 'Failed to save settings');
+      }
     }
   }
 
@@ -291,12 +329,21 @@ export class SettingsTab implements TabComponent {
     btn.disabled = true;
     
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: MessageType.VALIDATE_API_KEY,
-        apiKey: this.settings.apiKey
-      });
+      let isValid = false;
       
-      if (response?.success) {
+      if (this.tabManager) {
+        // Use TabManager's validateApiKey method
+        isValid = await this.tabManager.validateApiKey(this.settings.apiKey);
+      } else {
+        // Fallback to direct message
+        const response = await chrome.runtime.sendMessage({
+          type: MessageType.VALIDATE_API_KEY,
+          apiKey: this.settings.apiKey
+        });
+        isValid = response?.success || false;
+      }
+      
+      if (isValid) {
         btn.textContent = '✓ Valid';
         btn.classList.add('success');
       } else {
@@ -373,8 +420,29 @@ export class SettingsTab implements TabComponent {
   }
 
   private async clearAllData(): Promise<void> {
-    await chrome.runtime.sendMessage({ type: MessageType.CLEAR_DATA });
-    await this.resetToDefaults();
+    try {
+      if (this.container) {
+        UIStateManager.setLoading(this.container, true, {
+          customText: 'Clearing all data...',
+          animationType: 'pulse'
+        });
+      }
+
+      // Clear data via direct message (no TabManager method for this)
+      await chrome.runtime.sendMessage({ type: MessageType.CLEAR_DATA });
+      await this.resetToDefaults();
+      
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showSuccess(this.container, 'All data cleared successfully');
+      }
+    } catch (error) {
+      logger.error('Failed to clear data:', error);
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showError(this.container, 'Failed to clear data');
+      }
+    }
   }
 
   private async resetToDefaults(): Promise<void> {

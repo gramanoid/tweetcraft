@@ -4,7 +4,9 @@
  * Integrated from standalone Arsenal Mode into main popup
  */
 
-import { TabComponent } from './TabManager';
+import { TabComponent, TabManager } from './TabManager';
+import { logger } from '@/utils/logger';
+import UIStateManager from '@/services/uiStateManager';
 
 interface ArsenalReply {
   id: string;
@@ -30,6 +32,8 @@ interface ArsenalCategory {
 
 export class ArsenalTab implements TabComponent {
   private onSelectCallback: ((config: any) => void) | null;
+  private tabManager: TabManager | null = null;
+  private container: HTMLElement | null = null;
   private currentCategory: string = 'quick';
   private replies: ArsenalReply[] = [];
   private categories: ArsenalCategory[] = [
@@ -44,8 +48,9 @@ export class ArsenalTab implements TabComponent {
   private selectedReplies: Set<string> = new Set();
   private isLoading: boolean = false;
 
-  constructor(onSelectCallback: ((config: any) => void) | null) {
+  constructor(onSelectCallback: ((config: any) => void) | null, tabManager?: TabManager) {
     this.onSelectCallback = onSelectCallback;
+    this.tabManager = tabManager || null;
     this.loadArsenalData();
   }
 
@@ -65,6 +70,8 @@ export class ArsenalTab implements TabComponent {
   }
 
   public attachEventListeners(container: HTMLElement): void {
+    this.container = container;
+    
     // Category tab clicks
     container.querySelectorAll('.arsenal-category-tab').forEach((tab: Element) => {
       tab.addEventListener('click', (e: Event) => {
@@ -164,18 +171,28 @@ export class ArsenalTab implements TabComponent {
     this.isLoading = true;
     
     try {
-      // Send message to service worker to get Arsenal data
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_ARSENAL_REPLIES',
-        category: this.currentCategory
-      });
-      
-      if (response && response.success) {
-        this.replies = response.replies || [];
+      // Use TabManager to get Arsenal replies
+      if (this.tabManager) {
+        this.replies = await this.tabManager.getArsenalReplies({
+          category: this.currentCategory
+        }) as any[];
+      } else {
+        // Fallback to direct message
+        const response = await chrome.runtime.sendMessage({
+          type: 'GET_ARSENAL_REPLIES',
+          category: this.currentCategory
+        });
+        
+        if (response && response.success) {
+          this.replies = response.replies || [];
+        }
       }
     } catch (error) {
-      console.error('Failed to load Arsenal replies:', error);
+      logger.error('Failed to load Arsenal replies:', error);
       this.replies = [];
+      if (this.container) {
+        UIStateManager.showError(this.container, 'Failed to load Arsenal replies');
+      }
     }
     
     this.isLoading = false;
@@ -380,20 +397,33 @@ export class ArsenalTab implements TabComponent {
     const reply = this.replies.find(r => r.id === replyId);
     if (!reply) return;
 
-    // Send the reply text to the callback if available
-    if (this.onSelectCallback) {
-      this.onSelectCallback({
-        tab: 'arsenal',
-        text: reply.text,
-        replyId: reply.id
-      });
-    }
+    try {
+      // Send the reply text to the callback if available
+      if (this.onSelectCallback) {
+        this.onSelectCallback({
+          tab: 'arsenal',
+          text: reply.text,
+          replyId: reply.id
+        });
+      }
 
-    // Track usage
-    await chrome.runtime.sendMessage({
-      type: 'TRACK_ARSENAL_USAGE',
-      replyId: reply.id
-    });
+      // Track usage via TabManager
+      if (this.tabManager) {
+        await this.tabManager.trackArsenalUsage(replyId);
+      } else {
+        // Fallback to direct message
+        await chrome.runtime.sendMessage({
+          type: 'TRACK_ARSENAL_USAGE',
+          replyId: reply.id
+        });
+      }
+
+      // Update local usage count
+      reply.usageCount = (reply.usageCount || 0) + 1;
+      reply.lastUsed = new Date();
+    } catch (error) {
+      logger.error('Failed to select reply:', error);
+    }
   }
 
   private toggleReplySelection(replyId: string, isChecked: boolean): void {
@@ -408,23 +438,28 @@ export class ArsenalTab implements TabComponent {
     const reply = this.replies.find(r => r.id === replyId);
     if (!reply) return;
 
-    reply.isFavorite = !reply.isFavorite;
-    
-    // Update in backend
-    await chrome.runtime.sendMessage({
-      type: 'TOGGLE_ARSENAL_FAVORITE',
-      replyId: reply.id,
-      isFavorite: reply.isFavorite
-    });
+    try {
+      reply.isFavorite = !reply.isFavorite;
+      
+      // Update via direct message (TabManager doesn't have toggleFavorite method)
+      await chrome.runtime.sendMessage({
+        type: 'TOGGLE_ARSENAL_FAVORITE',
+        replyId: reply.id,
+        isFavorite: reply.isFavorite
+      });
 
-    // Update the card display
-    const card = container.querySelector(`[data-reply-id="${replyId}"]`);
-    if (card) {
-      const favBtn = card.querySelector('.arsenal-favorite-btn');
-      if (favBtn) {
-        favBtn.innerHTML = reply.isFavorite ? '❤️' : '🤍';
-        favBtn.classList.toggle('active', reply.isFavorite);
+      // Update the card display
+      const card = container.querySelector(`[data-reply-id="${replyId}"]`);
+      if (card) {
+        const favBtn = card.querySelector('.arsenal-favorite-btn');
+        if (favBtn) {
+          favBtn.innerHTML = reply.isFavorite ? '❤️' : '🤍';
+          favBtn.classList.toggle('active', reply.isFavorite);
+        }
       }
+    } catch (error) {
+      logger.error('Failed to toggle favorite:', error);
+      UIStateManager.showError(container, 'Failed to update favorite status');
     }
   }
 
@@ -435,19 +470,43 @@ export class ArsenalTab implements TabComponent {
       return;
     }
 
-    // Delete from backend
-    await chrome.runtime.sendMessage({
-      type: 'DELETE_ARSENAL_REPLIES',
-      replyIds: Array.from(this.selectedReplies)
-    });
+    try {
+      UIStateManager.setLoading(container, true, {
+        customText: 'Deleting replies...',
+        animationType: 'pulse'
+      });
 
-    // Remove from local array
-    this.replies = this.replies.filter(r => !this.selectedReplies.has(r.id));
-    this.selectedReplies.clear();
+      // Delete via TabManager
+      const replyIds = Array.from(this.selectedReplies);
+      
+      if (this.tabManager) {
+        // Delete each reply individually via TabManager
+        for (const replyId of replyIds) {
+          await this.tabManager.deleteArsenalReply(replyId);
+        }
+      } else {
+        // Fallback to direct message for bulk delete
+        await chrome.runtime.sendMessage({
+          type: 'DELETE_ARSENAL_REPLIES',
+          replyIds
+        });
+      }
 
-    // Re-render
-    container.innerHTML = this.render();
-    this.attachEventListeners(container);
+      // Remove from local array
+      this.replies = this.replies.filter(r => !this.selectedReplies.has(r.id));
+      this.selectedReplies.clear();
+
+      // Re-render
+      container.innerHTML = this.render();
+      this.attachEventListeners(container);
+      
+      UIStateManager.setLoading(container, false);
+      UIStateManager.showSuccess(container, 'Replies deleted successfully');
+    } catch (error) {
+      logger.error('Failed to delete replies:', error);
+      UIStateManager.setLoading(container, false);
+      UIStateManager.showError(container, 'Failed to delete replies');
+    }
   }
 
   private copySelectedReplies(): void {
@@ -472,9 +531,93 @@ export class ArsenalTab implements TabComponent {
   }
 
   private openAddReplyDialog(): void {
-    // This would open a dialog to add a new reply
-    // For now, we'll just show an alert
-    alert('Add Reply dialog would open here');
+    // Create a modal dialog for adding a new reply
+    const modal = document.createElement('div');
+    modal.className = 'arsenal-add-modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Add New Arsenal Reply</h3>
+          <button class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <textarea class="new-reply-text" placeholder="Enter your reply text..." rows="4"></textarea>
+          <select class="new-reply-category">
+            ${this.categories.map(cat => 
+              `<option value="${cat.id}">${cat.emoji} ${cat.name}</option>`
+            ).join('')}
+          </select>
+          <input type="text" class="new-reply-tags" placeholder="Tags (comma-separated)">
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel">Cancel</button>
+          <button class="btn-save-reply">Save Reply</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Attach event listeners
+    modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('.btn-cancel')?.addEventListener('click', () => modal.remove());
+    
+    const saveBtn = modal.querySelector('.btn-save-reply');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const text = (modal.querySelector('.new-reply-text') as HTMLTextAreaElement)?.value;
+        const category = (modal.querySelector('.new-reply-category') as HTMLSelectElement)?.value;
+        const tagsInput = (modal.querySelector('.new-reply-tags') as HTMLInputElement)?.value;
+        
+        if (text && category) {
+          await this.saveNewReply(text, category, tagsInput);
+          modal.remove();
+        }
+      });
+    }
+  }
+
+  private async saveNewReply(text: string, category: string, tagsInput: string): Promise<void> {
+    try {
+      const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+      
+      if (this.tabManager) {
+        const result = await this.tabManager.saveArsenalReply({
+          text,
+          category,
+          metadata: { tags }
+        });
+        
+        // Add to local array
+        const newReply: ArsenalReply = {
+          id: result.id,
+          templateId: '',
+          toneId: '',
+          text,
+          category,
+          tags,
+          usageCount: 0,
+          createdAt: new Date(),
+          temperature: 0.7,
+          isFavorite: false
+        };
+        
+        this.replies.push(newReply);
+        
+        // Refresh display
+        await this.loadArsenalData();
+        if (this.container) {
+          this.container.innerHTML = this.render();
+          this.attachEventListeners(this.container);
+          UIStateManager.showSuccess(this.container, 'Reply saved successfully!');
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to save new reply:', error);
+      if (this.container) {
+        UIStateManager.showError(this.container, 'Failed to save reply');
+      }
+    }
   }
 
   private toggleFavoritesFilter(container: HTMLElement): void {

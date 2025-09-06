@@ -3,8 +3,10 @@
  * SPRINT 3: Stats Dashboard with CSS-only visualizations
  */
 
-import { TabComponent } from './TabManager';
+import { TabComponent, TabManager } from './TabManager';
 import { smartDefaults } from '@/services/smartDefaults';
+import UIStateManager from '@/services/uiStateManager';
+import { logger } from '@/utils/logger';
 import './StatsTab.scss';
 
 interface StatsData {
@@ -21,6 +23,11 @@ interface StatsData {
 export class StatsTab implements TabComponent {
   private container: HTMLElement | null = null;
   private stats: StatsData | null = null;
+  private tabManager: TabManager | null = null;
+
+  constructor(tabManager?: TabManager) {
+    this.tabManager = tabManager || null;
+  }
 
   async onShow(): Promise<void> {
     // Load stats from smartDefaults service
@@ -146,7 +153,22 @@ export class StatsTab implements TabComponent {
 
   private async loadStats(): Promise<void> {
     try {
-      const stats = smartDefaults.getWeeklyStats();
+      if (this.container) {
+        UIStateManager.setLoading(this.container, true, {
+          customText: 'Loading analytics...',
+          animationType: 'pulse'
+        });
+      }
+
+      let stats;
+      if (this.tabManager) {
+        // Use TabManager to get stats from backend
+        const storage = await this.tabManager.getStorage('stats');
+        stats = storage?.weeklyStats || smartDefaults.getWeeklyStats();
+      } else {
+        // Fallback to smartDefaults
+        stats = smartDefaults.getWeeklyStats();
+      }
       
       this.stats = {
         totalReplies: stats.totalReplies,
@@ -158,14 +180,23 @@ export class StatsTab implements TabComponent {
         hourlyDistribution: this.getHourlyData(),
         recentActivity: this.getRecentData()
       };
+
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+      }
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      logger.error('Failed to load stats:', error);
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showError(this.container, 'Failed to load analytics');
+      }
       this.stats = this.getDefaultStats();
     }
   }
 
   private loadStatsSync(): void {
     try {
+      // For sync loading, use smartDefaults directly
       const stats = smartDefaults.getWeeklyStats();
       this.stats = {
         totalReplies: stats.totalReplies,
@@ -178,6 +209,7 @@ export class StatsTab implements TabComponent {
         recentActivity: this.getRecentData()
       };
     } catch (error) {
+      logger.warn('Failed to load stats synchronously:', error);
       this.stats = this.getDefaultStats();
     }
   }

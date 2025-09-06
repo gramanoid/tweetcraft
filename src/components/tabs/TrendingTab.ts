@@ -3,8 +3,10 @@
  * SPRINT 4: Live trends interface with real-time updates
  */
 
-import { TabComponent } from './TabManager';
+import { TabComponent, TabManager } from './TabManager';
 import { TrendService, TrendingTopic, ContentSuggestion } from '@/services/trendService';
+import UIStateManager from '@/services/uiStateManager';
+import { logger } from '@/utils/logger';
 
 interface TrendingState {
   topics: TrendingTopic[];
@@ -20,8 +22,10 @@ export class TrendingTab implements TabComponent {
   private container: HTMLElement | null = null;
   private state: TrendingState;
   private refreshTimer: NodeJS.Timeout | null = null;
+  private tabManager: TabManager | null = null;
 
-  constructor() {
+  constructor(tabManager?: TabManager) {
+    this.tabManager = tabManager || null;
     this.state = {
       topics: [],
       suggestions: [],
@@ -289,6 +293,13 @@ export class TrendingTab implements TabComponent {
     this.state.isLoading = true;
     this.updateUI();
 
+    if (this.container) {
+      UIStateManager.setLoading(this.container, true, {
+        customText: 'Fetching latest trends...',
+        animationType: 'pulse'
+      });
+    }
+
     try {
       // Load both topics and suggestions in parallel
       const [topics, suggestions] = await Promise.all([
@@ -301,12 +312,21 @@ export class TrendingTab implements TabComponent {
       this.state.lastUpdate = new Date();
       this.state.isLoading = false;
 
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+      }
+
       this.updateUI();
       this.saveToCache();
 
     } catch (error) {
-      console.error('Failed to load trends:', error);
+      logger.error('Failed to load trends:', error);
       this.state.isLoading = false;
+      
+      if (this.container) {
+        UIStateManager.setLoading(this.container, false);
+        UIStateManager.showError(this.container, 'Failed to fetch trends');
+      }
       
       // Try to load from cache as fallback
       this.loadFromCache();
@@ -316,6 +336,23 @@ export class TrendingTab implements TabComponent {
 
   private async loadTrendingTopics(): Promise<TrendingTopic[]> {
     const category = this.state.selectedCategory === 'all' ? undefined : this.state.selectedCategory;
+    
+    // Try TabManager first if available
+    if (this.tabManager) {
+      try {
+        // Check if TabManager has a method for fetching trends
+        const storage = await this.tabManager.getStorage('trendingTopics');
+        if (storage && storage.lastUpdate && 
+            Date.now() - new Date(storage.lastUpdate).getTime() < 5 * 60 * 1000) {
+          // Use cached data if less than 5 minutes old
+          return storage.topics || [];
+        }
+      } catch (error) {
+        logger.warn('Failed to get trends from TabManager:', error);
+      }
+    }
+    
+    // Fallback to TrendService
     return await TrendService.getTrendingTopics(category);
   }
 
@@ -369,8 +406,13 @@ export class TrendingTab implements TabComponent {
       }
     });
 
-    // Could also trigger compose tab with this topic
-    console.log('Using topic:', topic);
+    // If TabManager available, could switch to compose tab with this topic
+    if (this.tabManager) {
+      // Store the topic for compose tab to use
+      this.tabManager.setStorage({ 'composeTopicSuggestion': topic });
+    }
+    
+    logger.info('Using trending topic:', topic);
   }
 
   private useSuggestion(title: string, summary: string): void {

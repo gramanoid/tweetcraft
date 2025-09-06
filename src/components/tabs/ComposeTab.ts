@@ -3,8 +3,10 @@
  * SPRINT 4: Enhanced compose functionality with AI generation
  */
 
-import { TabComponent } from './TabManager';
+import { TabComponent, TabManager } from './TabManager';
 import { SelectionResult } from '@/content/unifiedSelector';
+import { logger } from '@/utils/logger';
+import UIStateManager from '@/services/uiStateManager';
 import './ComposeTab.scss';
 
 interface ComposeDraft {
@@ -19,12 +21,14 @@ interface ComposeDraft {
 export class ComposeTab implements TabComponent {
   private container: HTMLElement | null = null;
   private onSelectCallback: ((result: SelectionResult) => void) | null;
+  private tabManager: TabManager | null = null;
   private currentDraft: ComposeDraft;
   private isGenerating: boolean = false;
   private savedDrafts: ComposeDraft[] = [];
 
-  constructor(onSelectCallback: ((result: SelectionResult) => void) | null) {
+  constructor(onSelectCallback: ((result: SelectionResult) => void) | null, tabManager?: TabManager) {
     this.onSelectCallback = onSelectCallback;
+    this.tabManager = tabManager || null;
     this.currentDraft = this.getDefaultDraft();
     this.loadSavedDrafts();
   }
@@ -278,125 +282,265 @@ export class ComposeTab implements TabComponent {
   }
 
   private async generateTweet(): Promise<void> {
-    if (this.isGenerating || !this.onSelectCallback) return;
+    if (this.isGenerating) return;
 
     this.isGenerating = true;
     this.updateGenerateButton();
 
-    const result: SelectionResult = {
-      tabType: 'compose',
-      personality: this.currentDraft.personality,
-      vocabulary: this.currentDraft.vocabulary,
-      rhetoric: this.currentDraft.rhetoric,
-      lengthPacing: this.currentDraft.lengthPacing,
-      combinedPrompt: this.currentDraft.text || 'Generate an engaging tweet',
-      template: { 
-        id: 'compose_generate', 
-        name: 'Generate Tweet', 
-        emoji: '✨',
-        prompt: 'Generate an engaging tweet',
-        description: 'Create new tweet content',
-        category: 'compose'
-      },
-      tone: { 
-        id: 'compose', 
-        emoji: '✍️',
-        label: 'Compose', 
-        description: 'Create new tweet',
-        category: 'neutral',
-        systemPrompt: 'You are helping to compose a new tweet.'
-      },
-      temperature: 0.8
-    };
+    try {
+      // Show loading state
+      UIStateManager.setLoading(this.container!, true, {
+        customText: 'Generating tweet...',
+        animationType: 'pulse'
+      });
 
-    // Call the callback to generate
-    this.onSelectCallback(result);
+      // Use TabManager for actual generation
+      if (this.tabManager) {
+        const tweet = await this.tabManager.composeTweet({
+          topic: this.currentDraft.text || '',
+          style: this.currentDraft.personality,
+          tone: this.currentDraft.vocabulary,
+          draft: this.currentDraft.text,
+          type: 'generate'
+        });
 
-    // Simulate generation time
-    setTimeout(() => {
+        // Update the textarea with the generated tweet
+        const textarea = this.container?.querySelector('.compose-textarea') as HTMLTextAreaElement;
+        if (textarea && typeof tweet === 'string') {
+          textarea.value = tweet;
+          this.currentDraft.text = tweet;
+          this.updateCharCounter(textarea);
+          this.saveDraftToStorage();
+        }
+
+        UIStateManager.setLoading(this.container!, false);
+        UIStateManager.showSuccess(this.container!, 'Tweet generated!');
+      } else if (this.onSelectCallback) {
+        // Fallback to old callback method
+        const result: SelectionResult = {
+          tabType: 'compose',
+          personality: this.currentDraft.personality,
+          vocabulary: this.currentDraft.vocabulary,
+          rhetoric: this.currentDraft.rhetoric,
+          lengthPacing: this.currentDraft.lengthPacing,
+          combinedPrompt: this.currentDraft.text || 'Generate an engaging tweet',
+          template: { 
+            id: 'compose_generate', 
+            name: 'Generate Tweet', 
+            emoji: '✨',
+            prompt: 'Generate an engaging tweet',
+            description: 'Create new tweet content',
+            category: 'compose'
+          },
+          tone: { 
+            id: 'compose', 
+            emoji: '✍️',
+            label: 'Compose', 
+            description: 'Create new tweet',
+            category: 'neutral',
+            systemPrompt: 'You are helping to compose a new tweet.'
+          } as any,
+          temperature: 0.8
+        };
+        this.onSelectCallback(result);
+      }
+    } catch (error) {
+      logger.error('Failed to generate tweet:', error);
+      UIStateManager.setLoading(this.container!, false);
+      UIStateManager.showError(this.container!, 'Failed to generate tweet');
+    } finally {
       this.isGenerating = false;
       this.updateGenerateButton();
-    }, 2000);
+    }
   }
 
   private async enhanceText(): Promise<void> {
-    if (!this.currentDraft.text || this.isGenerating || !this.onSelectCallback) return;
+    if (!this.currentDraft.text || this.isGenerating) return;
 
     this.isGenerating = true;
     this.updateGenerateButton();
 
-    const result: SelectionResult = {
-      tabType: 'compose',
-      personality: this.currentDraft.personality,
-      vocabulary: this.currentDraft.vocabulary,
-      rhetoric: this.currentDraft.rhetoric,
-      lengthPacing: this.currentDraft.lengthPacing,
-      combinedPrompt: `Enhance this tweet: "${this.currentDraft.text}"`,
-      template: { 
-        id: 'compose_enhance', 
-        name: 'Enhance Tweet', 
-        emoji: '🔧',
-        prompt: 'Enhance and improve this tweet',
-        description: 'Improve existing tweet',
-        category: 'compose'
-      },
-      tone: { 
-        id: 'enhance', 
-        emoji: '✨',
-        label: 'Enhance', 
-        description: 'Improve existing tweet',
-        category: 'positive',
-        systemPrompt: 'You are helping to enhance and improve an existing tweet.'
-      },
-      temperature: 0.7
-    };
+    try {
+      // Show loading state
+      UIStateManager.setLoading(this.container!, true, {
+        customText: 'Enhancing tweet...',
+        animationType: 'pulse'
+      });
 
-    this.onSelectCallback(result);
+      // Use TabManager for enhancement
+      if (this.tabManager) {
+        const enhancedTweet = await this.tabManager.composeTweet({
+          draft: this.currentDraft.text,
+          style: this.currentDraft.personality,
+          tone: this.currentDraft.vocabulary,
+          type: 'enhance'
+        });
 
-    setTimeout(() => {
+        // Update the textarea with the enhanced tweet
+        const textarea = this.container?.querySelector('.compose-textarea') as HTMLTextAreaElement;
+        if (textarea && typeof enhancedTweet === 'string') {
+          textarea.value = enhancedTweet;
+          this.currentDraft.text = enhancedTweet;
+          this.updateCharCounter(textarea);
+          this.saveDraftToStorage();
+        }
+
+        UIStateManager.setLoading(this.container!, false);
+        UIStateManager.showSuccess(this.container!, 'Tweet enhanced!');
+      } else if (this.onSelectCallback) {
+        // Fallback to old callback method
+        const result: SelectionResult = {
+          tabType: 'compose',
+          personality: this.currentDraft.personality,
+          vocabulary: this.currentDraft.vocabulary,
+          rhetoric: this.currentDraft.rhetoric,
+          lengthPacing: this.currentDraft.lengthPacing,
+          combinedPrompt: `Enhance this tweet: "${this.currentDraft.text}"`,
+          template: { 
+            id: 'compose_enhance', 
+            name: 'Enhance Tweet', 
+            emoji: '🔧',
+            prompt: 'Enhance and improve this tweet',
+            description: 'Improve existing tweet',
+            category: 'compose'
+          },
+          tone: { 
+            id: 'enhance', 
+            emoji: '✨',
+            label: 'Enhance', 
+            description: 'Improve existing tweet',
+            category: 'positive',
+            systemPrompt: 'You are helping to enhance and improve an existing tweet.'
+          } as any,
+          temperature: 0.7
+        };
+        this.onSelectCallback(result);
+      }
+    } catch (error) {
+      logger.error('Failed to enhance tweet:', error);
+      UIStateManager.setLoading(this.container!, false);
+      UIStateManager.showError(this.container!, 'Failed to enhance tweet');
+    } finally {
       this.isGenerating = false;
       this.updateGenerateButton();
-    }, 2000);
+    }
   }
 
   private async suggestTopics(): Promise<void> {
-    if (this.isGenerating || !this.onSelectCallback) return;
+    if (this.isGenerating) return;
 
     this.isGenerating = true;
     this.updateGenerateButton();
 
-    const result: SelectionResult = {
-      tabType: 'compose',
-      personality: this.currentDraft.personality,
-      vocabulary: this.currentDraft.vocabulary,
-      rhetoric: this.currentDraft.rhetoric,
-      lengthPacing: this.currentDraft.lengthPacing,
-      combinedPrompt: 'Suggest 5 trending topics to tweet about',
-      template: { 
-        id: 'compose_suggest', 
-        name: 'Suggest Topics', 
-        emoji: '💡',
-        prompt: 'Suggest trending topics',
-        description: 'Topic suggestions',
-        category: 'compose'
-      },
-      tone: { 
-        id: 'suggest', 
-        emoji: '💡',
-        label: 'Suggest', 
-        description: 'Topic suggestions',
-        category: 'neutral',
-        systemPrompt: 'You are helping to suggest trending topics to tweet about.'
-      },
-      temperature: 0.9
-    };
+    try {
+      // Show loading state
+      UIStateManager.setLoading(this.container!, true, {
+        customText: 'Getting suggestions...',
+        animationType: 'pulse'
+      });
 
-    this.onSelectCallback(result);
+      // Use TabManager for suggestions
+      if (this.tabManager) {
+        const suggestions = await this.tabManager.getTweetSuggestions(
+          this.currentDraft.text || 'trending topics'
+        );
 
-    setTimeout(() => {
+        // Display suggestions in a modal or update UI
+        if (suggestions && suggestions.length > 0) {
+          this.displaySuggestions(suggestions);
+        }
+
+        UIStateManager.setLoading(this.container!, false);
+        UIStateManager.showSuccess(this.container!, 'Suggestions loaded!');
+      } else if (this.onSelectCallback) {
+        // Fallback to old callback method
+        const result: SelectionResult = {
+          tabType: 'compose',
+          personality: this.currentDraft.personality,
+          vocabulary: this.currentDraft.vocabulary,
+          rhetoric: this.currentDraft.rhetoric,
+          lengthPacing: this.currentDraft.lengthPacing,
+          combinedPrompt: 'Suggest 5 trending topics to tweet about',
+          template: { 
+            id: 'compose_suggest', 
+            name: 'Suggest Topics', 
+            emoji: '💡',
+            prompt: 'Suggest trending topics',
+            description: 'Topic suggestions',
+            category: 'compose'
+          },
+          tone: { 
+            id: 'suggest', 
+            emoji: '💡',
+            label: 'Suggest', 
+            description: 'Topic suggestions',
+            category: 'neutral',
+            systemPrompt: 'You are helping to suggest trending topics to tweet about.'
+          } as any,
+          temperature: 0.9
+        };
+        this.onSelectCallback(result);
+      }
+    } catch (error) {
+      logger.error('Failed to get suggestions:', error);
+      UIStateManager.setLoading(this.container!, false);
+      UIStateManager.showError(this.container!, 'Failed to get suggestions');
+    } finally {
       this.isGenerating = false;
       this.updateGenerateButton();
-    }, 2000);
+    }
+  }
+
+  private displaySuggestions(suggestions: string[]): void {
+    if (!this.container) return;
+
+    // Create a modal or update the UI to show suggestions
+    const suggestionsHtml = suggestions.map((suggestion, index) => `
+      <div class="suggestion-item" data-index="${index}">
+        <span class="suggestion-number">${index + 1}.</span>
+        <span class="suggestion-text">${suggestion}</span>
+        <button class="btn-use-suggestion" data-suggestion="${suggestion}">Use</button>
+      </div>
+    `).join('');
+
+    // Find or create suggestions container
+    let suggestionsContainer = this.container.querySelector('.suggestions-container');
+    if (!suggestionsContainer) {
+      suggestionsContainer = document.createElement('div');
+      suggestionsContainer.className = 'suggestions-container';
+      this.container.querySelector('.compose-content')?.appendChild(suggestionsContainer);
+    }
+
+    suggestionsContainer.innerHTML = `
+      <div class="suggestions-header">
+        <h4>💡 Topic Suggestions</h4>
+        <button class="btn-close-suggestions">✕</button>
+      </div>
+      <div class="suggestions-list">
+        ${suggestionsHtml}
+      </div>
+    `;
+
+    // Attach event listeners for suggestion buttons
+    suggestionsContainer.querySelectorAll('.btn-use-suggestion').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const suggestion = (e.target as HTMLElement).dataset.suggestion;
+        if (suggestion) {
+          const textarea = this.container?.querySelector('.compose-textarea') as HTMLTextAreaElement;
+          if (textarea) {
+            textarea.value = suggestion;
+            this.currentDraft.text = suggestion;
+            this.updateCharCounter(textarea);
+          }
+          suggestionsContainer?.remove();
+        }
+      });
+    });
+
+    // Close button
+    suggestionsContainer.querySelector('.btn-close-suggestions')?.addEventListener('click', () => {
+      suggestionsContainer?.remove();
+    });
   }
 
   private updateGenerateButton(): void {
