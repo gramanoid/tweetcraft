@@ -6,7 +6,21 @@
 import { SelectionResult } from '@/content/unifiedSelector';
 import { logger } from '@/utils/logger';
 
-export type TabType = 'personas' | 'grid' | 'smart' | 'favorites' | 'custom' | 'compose' | 'stats' | 'weekly' | 'timing' | 'trending' | 'engagement' | 'abtest' | 'cache' | 'arsenal';
+// Static imports for all tabs to prevent chunk loading issues in Chrome extension
+import { PersonasTab } from './PersonasTab';
+import { AllTab } from './AllTab';
+import { SmartTab } from './SmartTab';
+import UnifiedFavoritesTab from './UnifiedFavoritesTab';
+import { ComposeTab } from './ComposeTab';
+import { SettingsTab } from './SettingsTab';
+import { StatsTab } from './StatsTab';
+import { TrendingTab } from './TrendingTab';
+import { EngagementTab } from './EngagementTab';
+import { ABTestTab } from './ABTestTab';
+import { CacheTab } from './CacheTab';
+import { ArsenalTab } from './ArsenalTab';
+
+export type TabType = 'personas' | 'grid' | 'smart' | 'favorites' | 'compose' | 'settings' | 'stats' | 'trending' | 'engagement' | 'abtest' | 'cache' | 'arsenal';
 
 export interface TabComponent {
   render(): string;
@@ -26,8 +40,8 @@ export class TabManager {
   constructor() {
     // Initialize with null components - will be lazy loaded
     const tabTypes: TabType[] = [
-      'personas', 'grid', 'smart', 'favorites', 'custom', 
-      'compose', 'stats', 'weekly', 'timing', 'trending', 
+      'personas', 'grid', 'smart', 'favorites', 
+      'compose', 'settings', 'stats', 'trending', 
       'engagement', 'abtest', 'cache', 'arsenal'
     ];
     
@@ -99,7 +113,7 @@ export class TabManager {
   /**
    * Lazy load a tab component
    */
-  private async loadTabComponent(tabType: TabType): Promise<TabComponent | null> {
+  async loadTabComponent(tabType: TabType): Promise<TabComponent | null> {
     // Check if already loaded
     let component = this.tabComponents.get(tabType);
     if (component) return component;
@@ -117,75 +131,53 @@ export class TabManager {
     this.isLoading.set(tabType, true);
 
     try {
-      // Dynamic import based on tab type
+      // Use static imports - components are already imported at the top
       switch (tabType) {
         case 'personas':
-          const { PersonasTab } = await import('./PersonasTab');
-          component = new PersonasTab(this.onSelectCallback);
+          component = new PersonasTab(this.onSelectCallback || (() => {}));
           break;
 
         case 'grid':
-          const { AllTab } = await import('./AllTab');
-          component = new AllTab(this.onSelectCallback);
+          component = new AllTab(this.onSelectCallback || (() => {}));
           break;
 
         case 'smart':
-          const { SmartTab } = await import('./SmartTab');
-          component = new SmartTab(this.onSelectCallback);
+          component = new SmartTab(this.onSelectCallback || (() => {}));
           break;
 
         case 'favorites':
-          const { FavoritesTab } = await import('./FavoritesTab');
-          component = new FavoritesTab(this.onSelectCallback);
-          break;
-
-        case 'custom':
-          const { CustomTab } = await import('./CustomTab');
-          component = new CustomTab(this.onSelectCallback);
+          component = new UnifiedFavoritesTab();
           break;
 
         case 'compose':
-          const { ComposeTab } = await import('./ComposeTab');
           component = new ComposeTab(this.onSelectCallback);
           break;
 
+        case 'settings':
+          component = new SettingsTab();
+          break;
+
         case 'stats':
-          const { StatsTab } = await import('./StatsTab');
           component = new StatsTab();
           break;
 
-        case 'weekly':
-          const { WeeklyTab } = await import('./WeeklyTab');
-          component = new WeeklyTab();
-          break;
-
-        case 'timing':
-          const { TimingTab } = await import('./TimingTab');
-          component = new TimingTab();
-          break;
-
         case 'trending':
-          const { TrendingTab } = await import('./TrendingTab');
           component = new TrendingTab();
           break;
 
         case 'engagement':
-          const { EngagementTab } = await import('./EngagementTab');
           component = new EngagementTab();
           break;
 
         case 'abtest':
-          const { ABTestTab } = await import('./ABTestTab');
           component = new ABTestTab();
           break;
 
         case 'cache':
-          const { CacheTab } = await import('./CacheTab');
           component = new CacheTab();
           break;
 
         case 'arsenal':
-          const { ArsenalTab } = await import('./ArsenalTab');
           component = new ArsenalTab(this.onSelectCallback);
           break;
 

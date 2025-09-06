@@ -1,7 +1,42 @@
-// TweetCraft CSS Variables - Phase 3: Visual Polish
-// Consumer-friendly design tokens for consistent UI
+// TweetCraft Design System - SPRINT 3: Design Language Standardization
+// Based on Apple Human Interface Guidelines for consistency and clarity
+// Consumer-friendly design tokens for unified UI
 
 :root {
+  // Background Colors (Light Mode)
+  --tweet-bg-primary: #FFFFFF;
+  --tweet-bg-secondary: #F7F9FA;
+  --tweet-bg-tertiary: #EFF3F4;
+  --tweet-bg-hover: rgba(29, 161, 242, 0.1);
+  --tweet-bg-active: rgba(29, 161, 242, 0.2);
+  
+  // Text Colors
+  --tweet-text-primary: #0F1419;
+  --tweet-text-secondary: #536471;
+  --tweet-text-tertiary: #8B98A5;
+  --tweet-text-link: #1DA1F2;
+  --tweet-text-white: #FFFFFF;
+  
+  // Border Colors
+  --tweet-border: #EFF3F4;
+  --tweet-border-hover: #CFD9DE;
+  --tweet-border-active: #1DA1F2;
+  
+  // Accent Colors
+  --tweet-accent: #1DA1F2;
+  --tweet-accent-hover: #1A8CD8;
+  --tweet-accent-active: #177CC0;
+  --tweet-accent-alpha: rgba(29, 161, 242, 0.1);
+  
+  // Semantic Colors
+  --tweet-success: #00BA7C;
+  --tweet-success-bg: rgba(0, 186, 124, 0.1);
+  --tweet-error: #F4212E;
+  --tweet-error-bg: rgba(244, 33, 46, 0.1);
+  --tweet-warning: #FFA500;
+  --tweet-warning-bg: rgba(255, 165, 0, 0.1);
+  
+  // Updated existing variables to match new system
   // Spacing (tighter than current 12px)
   --tweet-spacing-xs: 4px;
   --tweet-spacing-sm: 8px;   // Default tight spacing

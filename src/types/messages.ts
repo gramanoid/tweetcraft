@@ -27,9 +27,8 @@ export enum MessageType {
   SUGGEST_TEMPLATE = 'SUGGEST_TEMPLATE',
   GENERATE_IMAGE = 'GENERATE_IMAGE',
   ANALYZE_TWEET_LLM = 'ANALYZE_TWEET_LLM',
-  IMAGE_SEARCH_PERPLEXITY = 'IMAGE_SEARCH_PERPLEXITY',
-  IMAGE_EXTRACT_CONTEXT = 'IMAGE_EXTRACT_CONTEXT',
-  IMAGE_GENERATE_PROMPT = 'IMAGE_GENERATE_PROMPT',
+  // Removed orphaned message types that have no handlers:
+  // IMAGE_SEARCH_PERPLEXITY, IMAGE_EXTRACT_CONTEXT, IMAGE_GENERATE_PROMPT
   GET_WEEKLY_SUMMARY = 'GET_WEEKLY_SUMMARY',
   GET_TIME_RECOMMENDATIONS = 'GET_TIME_RECOMMENDATIONS',
   // Arsenal-related messages
@@ -161,23 +160,8 @@ export interface ExaSearchMessage extends BaseMessage {
   };
 }
 
-export interface ImageSearchPerplexityMessage extends BaseMessage {
-  type: MessageType.IMAGE_SEARCH_PERPLEXITY;
-  query: string;
-  safeSearch?: boolean;
-  limit?: number;
-}
-
-export interface ImageExtractContextMessage extends BaseMessage {
-  type: MessageType.IMAGE_EXTRACT_CONTEXT;
-  text: string;
-}
-
-export interface ImageGeneratePromptMessage extends BaseMessage {
-  type: MessageType.IMAGE_GENERATE_PROMPT;
-  tweetText: string;
-  replyText: string;
-}
+// Removed orphaned message interfaces:
+// ImageSearchPerplexityMessage, ImageExtractContextMessage, ImageGeneratePromptMessage
 
 // Arsenal-related messages
 export interface GetArsenalRepliesMessage extends BaseMessage {
@@ -226,9 +210,6 @@ export type ExtensionMessage =
   | AnalyzeTweetLLMMessage
   | GetWeeklySummaryMessage
   | GetTimeRecommendationsMessage
-  | ImageSearchPerplexityMessage
-  | ImageExtractContextMessage
-  | ImageGeneratePromptMessage
   | GetArsenalRepliesMessage
   | TrackArsenalUsageMessage
   | ToggleArsenalFavoriteMessage

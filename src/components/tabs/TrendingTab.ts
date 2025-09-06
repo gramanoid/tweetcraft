@@ -1,174 +1,478 @@
-// TrendingTab.ts - Trending topics and hashtags
+/**
+ * Trending Tab Component
+ * SPRINT 4: Live trends interface with real-time updates
+ */
+
 import { TabComponent } from './TabManager';
+import { TrendService, TrendingTopic, ContentSuggestion } from '@/services/trendService';
+
+interface TrendingState {
+  topics: TrendingTopic[];
+  suggestions: ContentSuggestion[];
+  selectedCategory: string;
+  isLoading: boolean;
+  lastUpdate: Date | null;
+  autoRefresh: boolean;
+  refreshInterval: number;
+}
 
 export class TrendingTab implements TabComponent {
-  private eventListeners: Array<{ element: Element; event: string; handler: EventListener }> = [];
-  
-  constructor() {}
-  
+  private container: HTMLElement | null = null;
+  private state: TrendingState;
+  private refreshTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    this.state = {
+      topics: [],
+      suggestions: [],
+      selectedCategory: 'all',
+      isLoading: false,
+      lastUpdate: null,
+      autoRefresh: true,
+      refreshInterval: 5 * 60 * 1000 // 5 minutes
+    };
+  }
+
+  async onShow(): Promise<void> {
+    await this.loadTrends();
+    if (this.state.autoRefresh) {
+      this.startAutoRefresh();
+    }
+  }
+
   render(): string {
+    const categories = [
+      { value: 'all', label: '🌐 All Topics', icon: '🌐' },
+      { value: 'tech', label: '💻 Tech', icon: '💻' },
+      { value: 'news', label: '📰 News', icon: '📰' },
+      { value: 'sports', label: '⚽ Sports', icon: '⚽' },
+      { value: 'entertainment', label: '🎬 Entertainment', icon: '🎬' },
+      { value: 'business', label: '💼 Business', icon: '💼' },
+      { value: 'science', label: '🔬 Science', icon: '🔬' },
+      { value: 'politics', label: '🏛️ Politics', icon: '🏛️' }
+    ];
+
     return `
       <div class="trending-tab">
+        <!-- Header -->
         <div class="trending-header">
-          <h3>🔥 Trending Topics</h3>
-          <button class="btn-refresh-trends">🔄 Refresh</button>
-        </div>
-        
-        <div class="trending-categories">
-          <button class="category-btn active" data-category="all">All</button>
-          <button class="category-btn" data-category="tech">Tech</button>
-          <button class="category-btn" data-category="business">Business</button>
-          <button class="category-btn" data-category="entertainment">Entertainment</button>
-          <button class="category-btn" data-category="sports">Sports</button>
-        </div>
-        
-        <div class="trending-list">
-          <div class="trend-item">
-            <div class="trend-rank">#1</div>
-            <div class="trend-content">
-              <div class="trend-title">Loading trends...</div>
-              <div class="trend-stats">Check back soon</div>
-            </div>
-            <button class="btn-use-trend">Use</button>
+          <div class="header-title">
+            <h2>🔥 Live Trends</h2>
+            ${this.state.lastUpdate ? `
+              <span class="last-update">
+                Updated ${this.getRelativeTime(this.state.lastUpdate)}
+              </span>
+            ` : ''}
           </div>
           
-          <div class="trend-placeholder">
-            <p>🔍 Fetching trending topics...</p>
-            <p class="trend-hint">Connect to Twitter API to see real-time trends</p>
+          <div class="header-controls">
+            <button class="btn-refresh ${this.state.isLoading ? 'loading' : ''}" 
+                    title="Refresh trends">
+              ${this.state.isLoading ? '⟲' : '🔄'}
+            </button>
+            
+            <label class="auto-refresh-toggle">
+              <input type="checkbox" 
+                     ${this.state.autoRefresh ? 'checked' : ''}
+                     data-auto-refresh>
+              <span>Auto-refresh</span>
+            </label>
           </div>
         </div>
-        
-        <div class="trending-hashtags">
-          <h4>#️⃣ Popular Hashtags</h4>
-          <div class="hashtag-cloud">
-            <span class="hashtag">#AI</span>
-            <span class="hashtag">#Tech</span>
-            <span class="hashtag">#Web3</span>
-            <span class="hashtag">#Startup</span>
-            <span class="hashtag">#Innovation</span>
+
+        <!-- Category Filters -->
+        <div class="category-filters">
+          ${categories.map(cat => `
+            <button class="category-btn ${this.state.selectedCategory === cat.value ? 'active' : ''}"
+                    data-category="${cat.value}">
+              <span class="category-icon">${cat.icon}</span>
+              <span class="category-label">${cat.label.split(' ')[1]}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Loading State -->
+        ${this.state.isLoading ? `
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Fetching latest trends...</p>
           </div>
-        </div>
-        
-        <div class="trending-suggestions">
-          <h4>💡 Reply Ideas</h4>
-          <ul class="suggestions-list">
-            <li>Join conversations about trending topics for maximum visibility</li>
-            <li>Use 1-2 relevant hashtags in your replies</li>
-            <li>Add value to trending discussions with unique insights</li>
-          </ul>
-        </div>
-        
-        <div class="trending-actions">
-          <button class="btn-analyze-trend">Analyze Trend</button>
-          <button class="btn-monitor-topics">Monitor Topics</button>
+        ` : ''}
+
+        <!-- Trending Topics Section -->
+        ${!this.state.isLoading && this.state.topics.length > 0 ? `
+          <div class="trending-section">
+            <h3 class="section-title">📈 Trending Now</h3>
+            <div class="topics-grid">
+              ${this.state.topics.map(topic => `
+                <div class="topic-card" data-topic="${this.escapeHtml(topic.topic)}">
+                  <div class="topic-header">
+                    <span class="topic-name">${this.escapeHtml(topic.topic)}</span>
+                    ${topic.volume ? `
+                      <span class="topic-volume" title="Tweet volume">
+                        ${this.formatNumber(topic.volume)}
+                      </span>
+                    ` : ''}
+                  </div>
+                  
+                  ${topic.description ? `
+                    <p class="topic-description">
+                      ${this.escapeHtml(topic.description)}
+                    </p>
+                  ` : ''}
+                  
+                  ${topic.relatedKeywords && topic.relatedKeywords.length > 0 ? `
+                    <div class="topic-keywords">
+                      ${topic.relatedKeywords.slice(0, 3).map(kw => `
+                        <span class="keyword-tag">#${this.escapeHtml(kw)}</span>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                  
+                  <button class="btn-use-topic" data-topic="${this.escapeHtml(topic.topic)}">
+                    ✍️ Write about this
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Content Suggestions Section -->
+        ${!this.state.isLoading && this.state.suggestions.length > 0 ? `
+          <div class="suggestions-section">
+            <h3 class="section-title">💡 Content Ideas</h3>
+            <div class="suggestions-list">
+              ${this.state.suggestions.map(suggestion => `
+                <div class="suggestion-card">
+                  <h4 class="suggestion-title">
+                    ${this.escapeHtml(suggestion.title)}
+                  </h4>
+                  
+                  ${suggestion.summary ? `
+                    <p class="suggestion-summary">
+                      ${this.escapeHtml(suggestion.summary)}
+                    </p>
+                  ` : ''}
+                  
+                  <div class="suggestion-footer">
+                    ${suggestion.publishedDate ? `
+                      <span class="suggestion-date">
+                        ${new Date(suggestion.publishedDate).toLocaleDateString()}
+                      </span>
+                    ` : ''}
+                    
+                    <div class="suggestion-actions">
+                      ${suggestion.url ? `
+                        <a href="${suggestion.url}" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           class="btn-view-source">
+                          🔗 Source
+                        </a>
+                      ` : ''}
+                      
+                      <button class="btn-use-suggestion" 
+                              data-title="${this.escapeHtml(suggestion.title)}"
+                              data-summary="${this.escapeHtml(suggestion.summary || '')}">
+                        ✍️ Use this
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Empty State -->
+        ${!this.state.isLoading && this.state.topics.length === 0 && this.state.suggestions.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <h3>No trends available</h3>
+            <p>Try refreshing or selecting a different category</p>
+            <button class="btn-primary btn-retry">
+              🔄 Refresh Now
+            </button>
+          </div>
+        ` : ''}
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-label">Topics</span>
+            <span class="stat-value">${this.state.topics.length}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Suggestions</span>
+            <span class="stat-value">${this.state.suggestions.length}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Category</span>
+            <span class="stat-value">${this.state.selectedCategory}</span>
+          </div>
         </div>
       </div>
     `;
   }
-  
-  cleanup(): void {
-    // Remove event listeners
-    this.eventListeners.forEach(({ element, event, handler }) => {
-      element.removeEventListener(event, handler);
-    });
-    this.eventListeners = [];
-  }
-  
-  destroy(): void {
-    this.cleanup();
-  }
-  
-  attachEventListeners(): void {
-    const container = document.querySelector('.trending-tab');
-    if (!container) return;
-    
+
+  attachEventListeners(container: HTMLElement): void {
+    this.container = container;
+
     // Refresh button
-    const refreshBtn = container.querySelector('.btn-refresh-trends');
+    const refreshBtn = container.querySelector('.btn-refresh');
     if (refreshBtn) {
-      const handler = () => this.refreshTrends();
-      refreshBtn.addEventListener('click', handler);
-      this.eventListeners.push({ element: refreshBtn, event: 'click', handler });
+      refreshBtn.addEventListener('click', () => this.loadTrends());
     }
-    
-    // Category buttons
-    const categoryBtns = container.querySelectorAll('.category-btn');
-    categoryBtns.forEach(btn => {
-      const handler = (e: Event) => this.filterByCategory(e);
-      btn.addEventListener('click', handler);
-      this.eventListeners.push({ element: btn, event: 'click', handler });
-    });
-    
-    // Use trend buttons
-    const useTrendBtns = container.querySelectorAll('.btn-use-trend');
-    useTrendBtns.forEach(btn => {
-      const handler = (e: Event) => this.useTrend(e);
-      btn.addEventListener('click', handler);
-      this.eventListeners.push({ element: btn, event: 'click', handler });
-    });
-    
-    // Hashtag clicks
-    const hashtags = container.querySelectorAll('.hashtag');
-    hashtags.forEach(tag => {
-      const handler = (e: Event) => this.useHashtag(e);
-      tag.addEventListener('click', handler);
-      this.eventListeners.push({ element: tag, event: 'click', handler });
-    });
-    
-    // Action buttons
-    const analyzeBtn = container.querySelector('.btn-analyze-trend');
-    if (analyzeBtn) {
-      const handler = () => this.analyzeTrend();
-      analyzeBtn.addEventListener('click', handler);
-      this.eventListeners.push({ element: analyzeBtn, event: 'click', handler });
+
+    // Retry button (empty state)
+    const retryBtn = container.querySelector('.btn-retry');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => this.loadTrends());
     }
-    
-    const monitorBtn = container.querySelector('.btn-monitor-topics');
-    if (monitorBtn) {
-      const handler = () => this.monitorTopics();
-      monitorBtn.addEventListener('click', handler);
-      this.eventListeners.push({ element: monitorBtn, event: 'click', handler });
-    }
-  }
-  
-  private refreshTrends(): void {
-    console.log('🔄 Refreshing trends...');
-    // Implementation would fetch latest trends from API
-  }
-  
-  private filterByCategory(event: Event): void {
-    const target = event.target as HTMLElement;
-    const category = target.dataset.category;
-    console.log(`📂 Filtering by category: ${category}`);
-    
-    // Update active state
-    const container = document.querySelector('.trending-tab');
-    if (container) {
-      container.querySelectorAll('.category-btn').forEach(btn => {
-        btn.classList.remove('active');
+
+    // Auto-refresh toggle
+    const autoRefreshInput = container.querySelector('[data-auto-refresh]') as HTMLInputElement;
+    if (autoRefreshInput) {
+      autoRefreshInput.addEventListener('change', (e) => {
+        this.state.autoRefresh = (e.target as HTMLInputElement).checked;
+        if (this.state.autoRefresh) {
+          this.startAutoRefresh();
+        } else {
+          this.stopAutoRefresh();
+        }
+        this.saveSettings();
       });
-      target.classList.add('active');
+    }
+
+    // Category buttons
+    container.querySelectorAll('.category-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const category = (e.currentTarget as HTMLElement).dataset.category;
+        if (category && category !== this.state.selectedCategory) {
+          this.state.selectedCategory = category;
+          this.loadTrends();
+        }
+      });
+    });
+
+    // Use topic buttons
+    container.querySelectorAll('.btn-use-topic').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const topic = (e.currentTarget as HTMLElement).dataset.topic;
+        if (topic) {
+          this.useTopic(topic);
+        }
+      });
+    });
+
+    // Use suggestion buttons
+    container.querySelectorAll('.btn-use-suggestion').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const title = (e.currentTarget as HTMLElement).dataset.title;
+        const summary = (e.currentTarget as HTMLElement).dataset.summary;
+        if (title) {
+          this.useSuggestion(title, summary || '');
+        }
+      });
+    });
+  }
+
+  destroy(): void {
+    this.stopAutoRefresh();
+    this.container = null;
+  }
+
+  private async loadTrends(): Promise<void> {
+    if (this.state.isLoading) return;
+
+    this.state.isLoading = true;
+    this.updateUI();
+
+    try {
+      // Load both topics and suggestions in parallel
+      const [topics, suggestions] = await Promise.all([
+        this.loadTrendingTopics(),
+        this.loadContentSuggestions()
+      ]);
+
+      this.state.topics = topics;
+      this.state.suggestions = suggestions;
+      this.state.lastUpdate = new Date();
+      this.state.isLoading = false;
+
+      this.updateUI();
+      this.saveToCache();
+
+    } catch (error) {
+      console.error('Failed to load trends:', error);
+      this.state.isLoading = false;
+      
+      // Try to load from cache as fallback
+      this.loadFromCache();
+      this.updateUI();
     }
   }
-  
-  private useTrend(event: Event): void {
-    console.log('🎯 Using trend in reply...');
-    // Implementation would insert trend into reply
+
+  private async loadTrendingTopics(): Promise<TrendingTopic[]> {
+    const category = this.state.selectedCategory === 'all' ? undefined : this.state.selectedCategory;
+    return await TrendService.getTrendingTopics(category);
   }
-  
-  private useHashtag(event: Event): void {
-    const target = event.target as HTMLElement;
-    const hashtag = target.textContent;
-    console.log(`#️⃣ Using hashtag: ${hashtag}`);
-    // Implementation would insert hashtag into reply
+
+  private async loadContentSuggestions(): Promise<ContentSuggestion[]> {
+    const query = this.state.selectedCategory === 'all' 
+      ? 'trending topics today'
+      : `trending ${this.state.selectedCategory} news`;
+    
+    return await TrendService.searchContent(query, {
+      numResults: 10,
+      useAutoprompt: true,
+      type: 'neural'
+    });
   }
-  
-  private analyzeTrend(): void {
-    console.log('📊 Analyzing trend sentiment and engagement...');
-    // Implementation would analyze trend data
+
+  private startAutoRefresh(): void {
+    this.stopAutoRefresh();
+    
+    this.refreshTimer = setInterval(() => {
+      this.loadTrends();
+    }, this.state.refreshInterval);
   }
-  
-  private monitorTopics(): void {
-    console.log('👁️ Setting up topic monitoring...');
-    // Implementation would set up topic alerts
+
+  private stopAutoRefresh(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private updateUI(): void {
+    if (!this.container) return;
+    
+    const parent = this.container.parentElement;
+    if (parent) {
+      parent.innerHTML = this.render();
+      this.attachEventListeners(parent.firstElementChild as HTMLElement);
+    }
+  }
+
+  private useTopic(topic: string): void {
+    // Copy topic to clipboard
+    navigator.clipboard.writeText(topic).then(() => {
+      // Show success feedback
+      const btn = this.container?.querySelector(`[data-topic="${topic}"] .btn-use-topic`);
+      if (btn) {
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          btn.textContent = '✍️ Write about this';
+        }, 2000);
+      }
+    });
+
+    // Could also trigger compose tab with this topic
+    console.log('Using topic:', topic);
+  }
+
+  private useSuggestion(title: string, summary: string): void {
+    const content = summary ? `${title}\n\n${summary}` : title;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(content).then(() => {
+      // Show success feedback
+      const btn = this.container?.querySelector(`[data-title="${title}"] .btn-use-suggestion`);
+      if (btn) {
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          btn.textContent = '✍️ Use this';
+        }, 2000);
+      }
+    });
+
+    console.log('Using suggestion:', title);
+  }
+
+  private saveSettings(): void {
+    try {
+      localStorage.setItem('tweetcraft_trending_settings', JSON.stringify({
+        autoRefresh: this.state.autoRefresh,
+        selectedCategory: this.state.selectedCategory
+      }));
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }
+
+  private loadSettings(): void {
+    try {
+      const saved = localStorage.getItem('tweetcraft_trending_settings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        this.state.autoRefresh = settings.autoRefresh ?? true;
+        this.state.selectedCategory = settings.selectedCategory ?? 'all';
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  }
+
+  private saveToCache(): void {
+    try {
+      localStorage.setItem('tweetcraft_trending_cache', JSON.stringify({
+        topics: this.state.topics,
+        suggestions: this.state.suggestions,
+        lastUpdate: this.state.lastUpdate,
+        category: this.state.selectedCategory
+      }));
+    } catch (error) {
+      console.error('Failed to save cache:', error);
+    }
+  }
+
+  private loadFromCache(): void {
+    try {
+      const cached = localStorage.getItem('tweetcraft_trending_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        
+        // Only use cache if it's for the same category and less than 30 min old
+        if (data.category === this.state.selectedCategory) {
+          const age = Date.now() - new Date(data.lastUpdate).getTime();
+          if (age < 30 * 60 * 1000) {
+            this.state.topics = data.topics || [];
+            this.state.suggestions = data.suggestions || [];
+            this.state.lastUpdate = new Date(data.lastUpdate);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load cache:', error);
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  private formatNumber(num: number): string {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K`;
+    }
+    return num.toString();
+  }
+
+  private getRelativeTime(date: Date): string {
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    
+    return date.toLocaleDateString();
   }
 }

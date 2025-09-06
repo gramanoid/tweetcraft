@@ -1,0 +1,279 @@
+/**
+ * Compose Tab Styles
+ * SPRINT 4: Enhanced compose functionality with AI generation
+ */
+
+@use '../../styles/design-system.scss';
+
+.compose-tab {
+  padding: 20px;
+  max-width: 100%;
+
+  .compose-header {
+    margin-bottom: 24px;
+
+    .compose-title {
+      @extend .heading-2;
+      margin-bottom: 4px;
+    }
+
+    .compose-subtitle {
+      @extend .caption-text;
+    }
+  }
+
+  // Main compose area
+  .compose-area {
+    @extend .card;
+    margin-bottom: 20px;
+    padding: 16px;
+
+    .compose-textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      background: var(--tweet-bg-primary);
+      border: 1px solid var(--tweet-border);
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--tweet-text-primary);
+      resize: vertical;
+      transition: all 0.2s ease;
+
+      &::placeholder {
+        color: var(--tweet-text-tertiary);
+      }
+
+      &:hover {
+        border-color: var(--tweet-border-hover);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: var(--tweet-accent);
+        box-shadow: 0 0 0 3px var(--tweet-accent-alpha);
+      }
+    }
+
+    .compose-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--tweet-border);
+
+      .char-counter {
+        font-size: 14px;
+        color: var(--tweet-text-secondary);
+        font-weight: 500;
+      }
+
+      .compose-actions {
+        display: flex;
+        gap: 8px;
+
+        button {
+          @extend .btn-ghost;
+          padding: 6px 12px;
+          font-size: 16px;
+          min-width: auto;
+
+          &:hover {
+            transform: scale(1.05);
+          }
+        }
+      }
+    }
+  }
+
+  // AI Enhancement section
+  .ai-enhancement {
+    @extend .card;
+    margin-bottom: 20px;
+
+    .section-title {
+      @extend .heading-3;
+      margin-bottom: 16px;
+    }
+
+    .enhancement-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+
+      .option-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--tweet-text-secondary);
+        }
+
+        select {
+          @extend .input-field;
+          padding: 8px 12px;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .generate-section {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+
+      button {
+        flex: 1;
+        min-width: 140px;
+
+        &.btn-primary {
+          @extend .btn-primary;
+          
+          .spinner {
+            @extend .spinner;
+            @extend .spinner-small;
+            display: inline-block;
+            margin-right: 6px;
+            border-color: rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+          }
+        }
+
+        &.btn-secondary {
+          @extend .btn-secondary;
+        }
+
+        &.btn-ghost {
+          @extend .btn-ghost;
+        }
+      }
+    }
+  }
+
+  // Quick Templates
+  .quick-templates {
+    @extend .card;
+    margin-bottom: 20px;
+
+    .section-title {
+      @extend .heading-3;
+      margin-bottom: 16px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+
+      .template-btn {
+        @extend .btn-secondary;
+        padding: 12px 8px;
+        font-size: 13px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          border-color: var(--tweet-accent);
+          background: var(--tweet-accent-alpha);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+      }
+    }
+  }
+
+  // Saved Drafts
+  .saved-drafts {
+    @extend .card;
+
+    .section-title {
+      @extend .heading-3;
+      margin-bottom: 16px;
+    }
+
+    .drafts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .draft-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        background: var(--tweet-bg-secondary);
+        border: 1px solid var(--tweet-border);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: var(--tweet-border-hover);
+          background: var(--tweet-bg-hover);
+        }
+
+        .draft-preview {
+          flex: 1;
+          font-size: 14px;
+          color: var(--tweet-text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin-right: 12px;
+        }
+
+        .draft-meta {
+          font-size: 12px;
+          color: var(--tweet-text-tertiary);
+          margin-right: 12px;
+        }
+
+        .btn-load-draft {
+          @extend .btn-ghost;
+          padding: 4px 12px;
+          font-size: 12px;
+          min-width: auto;
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 480px) {
+  .compose-tab {
+    padding: 16px;
+
+    .ai-enhancement {
+      .enhancement-options {
+        grid-template-columns: 1fr;
+      }
+
+      .generate-section {
+        flex-direction: column;
+
+        button {
+          width: 100%;
+        }
+      }
+    }
+
+    .quick-templates {
+      .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  }
+}

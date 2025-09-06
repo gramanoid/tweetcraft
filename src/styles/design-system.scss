@@ -1,0 +1,493 @@
+/**
+ * TweetCraft Design System Components
+ * SPRINT 3: Standardized UI components following Apple HIG
+ */
+
+@import './variables.scss';
+
+// Base Typography
+.heading-1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--tweet-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.heading-2 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tweet-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.heading-3 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--tweet-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.body-text {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--tweet-text-primary);
+}
+
+.caption-text {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--tweet-text-secondary);
+}
+
+.footnote-text {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--tweet-text-tertiary);
+}
+
+// Button Styles
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--tweet-accent);
+    outline-offset: 2px;
+  }
+}
+
+.btn-primary {
+  @extend .btn;
+  background: var(--tweet-accent);
+  color: var(--tweet-text-white);
+  
+  &:hover:not(:disabled) {
+    background: var(--tweet-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(29, 161, 242, 0.3);
+  }
+  
+  &:active:not(:disabled) {
+    background: var(--tweet-accent-active);
+    transform: translateY(0);
+  }
+}
+
+.btn-secondary {
+  @extend .btn;
+  background: var(--tweet-bg-secondary);
+  color: var(--tweet-text-primary);
+  border: 1px solid var(--tweet-border);
+  
+  &:hover:not(:disabled) {
+    background: var(--tweet-bg-tertiary);
+    border-color: var(--tweet-border-hover);
+  }
+  
+  &:active:not(:disabled) {
+    background: var(--tweet-bg-active);
+  }
+}
+
+.btn-ghost {
+  @extend .btn;
+  background: transparent;
+  color: var(--tweet-accent);
+  
+  &:hover:not(:disabled) {
+    background: var(--tweet-accent-alpha);
+  }
+  
+  &:active:not(:disabled) {
+    background: var(--tweet-bg-active);
+  }
+}
+
+.btn-danger {
+  @extend .btn;
+  background: var(--tweet-error-bg);
+  color: var(--tweet-error);
+  
+  &:hover:not(:disabled) {
+    background: var(--tweet-error);
+    color: var(--tweet-text-white);
+  }
+}
+
+// Card Component
+.card {
+  background: var(--tweet-bg-primary);
+  border: 1px solid var(--tweet-border);
+  border-radius: 16px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  
+  &.card-interactive {
+    cursor: pointer;
+    
+    &:hover {
+      border-color: var(--tweet-border-hover);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+  }
+  
+  &.card-selected {
+    border-color: var(--tweet-accent);
+    background: var(--tweet-accent-alpha);
+  }
+}
+
+// Input Styles
+.input-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--tweet-bg-primary);
+  border: 1px solid var(--tweet-border);
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--tweet-text-primary);
+  transition: all 0.2s ease;
+  
+  &::placeholder {
+    color: var(--tweet-text-tertiary);
+  }
+  
+  &:hover {
+    border-color: var(--tweet-border-hover);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--tweet-accent);
+    box-shadow: 0 0 0 3px var(--tweet-accent-alpha);
+  }
+  
+  &:disabled {
+    background: var(--tweet-bg-tertiary);
+    cursor: not-allowed;
+  }
+}
+
+// Toggle Switch
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    
+    &:checked + .toggle-slider {
+      background: var(--tweet-accent);
+      
+      &::before {
+        transform: translateX(20px);
+      }
+    }
+    
+    &:focus + .toggle-slider {
+      box-shadow: 0 0 0 3px var(--tweet-accent-alpha);
+    }
+  }
+  
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--tweet-bg-tertiary);
+    transition: 0.3s;
+    border-radius: 31px;
+    
+    &::before {
+      position: absolute;
+      content: "";
+      height: 27px;
+      width: 27px;
+      left: 2px;
+      bottom: 2px;
+      background: white;
+      transition: 0.3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+// Badge Component
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  
+  &.badge-primary {
+    background: var(--tweet-accent-alpha);
+    color: var(--tweet-accent);
+  }
+  
+  &.badge-success {
+    background: var(--tweet-success-bg);
+    color: var(--tweet-success);
+  }
+  
+  &.badge-error {
+    background: var(--tweet-error-bg);
+    color: var(--tweet-error);
+  }
+  
+  &.badge-warning {
+    background: var(--tweet-warning-bg);
+    color: var(--tweet-warning);
+  }
+}
+
+// Tab Navigation
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--tweet-bg-tertiary);
+  border-radius: 12px;
+  
+  .tab-item {
+    flex: 1;
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tweet-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: var(--tweet-text-primary);
+    }
+    
+    &.active {
+      background: var(--tweet-bg-primary);
+      color: var(--tweet-text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+// List Component
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  
+  .list-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--tweet-border);
+    transition: background 0.2s ease;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    &.list-item-interactive {
+      cursor: pointer;
+      
+      &:hover {
+        background: var(--tweet-bg-hover);
+      }
+      
+      &:active {
+        background: var(--tweet-bg-active);
+      }
+    }
+  }
+}
+
+// Divider
+.divider {
+  height: 1px;
+  background: var(--tweet-border);
+  margin: 16px 0;
+  
+  &.divider-thick {
+    height: 8px;
+    background: var(--tweet-bg-tertiary);
+  }
+}
+
+// Loading Spinner
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--tweet-border);
+  border-top-color: var(--tweet-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  &.spinner-small {
+    width: 16px;
+    height: 16px;
+  }
+  
+  &.spinner-large {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Empty State
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  .empty-title {
+    @extend .heading-3;
+    margin-bottom: 8px;
+  }
+  
+  .empty-description {
+    @extend .body-text;
+    color: var(--tweet-text-secondary);
+    max-width: 300px;
+  }
+}
+
+// Tooltip
+.tooltip {
+  position: relative;
+  
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: var(--tweet-z-tooltip);
+  }
+  
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+// Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// Utility Classes
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mt-1 { margin-top: var(--tweet-spacing-xs); }
+.mt-2 { margin-top: var(--tweet-spacing-sm); }
+.mt-3 { margin-top: var(--tweet-spacing-md); }
+.mt-4 { margin-top: var(--tweet-spacing-lg); }
+
+.mb-1 { margin-bottom: var(--tweet-spacing-xs); }
+.mb-2 { margin-bottom: var(--tweet-spacing-sm); }
+.mb-3 { margin-bottom: var(--tweet-spacing-md); }
+.mb-4 { margin-bottom: var(--tweet-spacing-lg); }
+
+.p-1 { padding: var(--tweet-spacing-xs); }
+.p-2 { padding: var(--tweet-spacing-sm); }
+.p-3 { padding: var(--tweet-spacing-md); }
+.p-4 { padding: var(--tweet-spacing-lg); }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: var(--tweet-spacing-xs); }
+.gap-2 { gap: var(--tweet-spacing-sm); }
+.gap-3 { gap: var(--tweet-spacing-md); }
+
+.hidden { display: none !important; }
+.visible { visibility: visible; }
+.invisible { visibility: hidden; }

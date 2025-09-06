@@ -24,7 +24,7 @@ const validateUrl = (url, defaultUrl) => {
 module.exports = {
   entry: {
     contentScript: './src/content/contentScript.ts',
-    serviceWorker: './src/background/serviceWorker.ts',
+    serviceWorker: './src/background/serviceWorkerEntry.ts',
     popup: './src/popup/popup-simple.ts'
   },
   module: {
@@ -50,6 +50,21 @@ module.exports = {
     filename: '[name].js',
     path: path.resolve(__dirname, '../dist'),
     clean: true,
+    // CRITICAL: Set publicPath to empty string so __webpack_public_path__ override works
+    // 'auto' prevents manual override in Chrome extension context
+    publicPath: '',
+    // Use chunk ID for filename to match webpack's internal mapping
+    chunkFilename: '[id].chunk.js',
+    // Service workers need different chunk loading than web pages
+    // This ensures service worker uses importScripts instead of DOM-based loading
+    chunkLoadingGlobal: 'webpackChunkTweetCraft',
+    // Set environment-specific chunk loading
+    environment: {
+      // Service workers don't have DOM access
+      document: false,
+      // Use importScripts for chunk loading in workers
+      dynamicImport: true,
+    },
   },
   plugins: [
     new webpack.DefinePlugin({
@@ -72,12 +87,53 @@ module.exports = {
     }),
   ],
   optimization: {
-    // CRITICAL: Chrome extensions require each context to be self-contained
-    // DO NOT enable chunk splitting - it breaks isolated contexts
-    splitChunks: false,
+    // Enable code splitting for better bundle size management
+    splitChunks: {
+      chunks: (chunk) => {
+        // Don't split the service worker or content script - they need to be single files
+        // Only split lazy-loaded chunks
+        return chunk.name !== 'serviceWorker' && chunk.name !== 'contentScript' && chunk.name !== 'popup';
+      },
+      minSize: 10000, // 10KB minimum chunk size
+      maxSize: 100000, // 100KB maximum chunk size for optimal loading
+      cacheGroups: {
+        // Group large tab components separately
+        tabs: {
+          test: /[\\/]components[\\/]tabs[\\/]/,
+          name: (module, chunks, cacheGroupKey) => {
+            // Use consistent naming for tabs chunks
+            return `tabs`;
+          },
+          priority: 10,
+          reuseExistingChunk: true,
+        },
+        // Group services separately
+        services: {
+          test: /[\\/]services[\\/]/,
+          name: (module, chunks, cacheGroupKey) => {
+            // Use consistent naming for services chunks
+            return `services`;
+          },
+          priority: 5,
+          reuseExistingChunk: true,
+        },
+        // Vendor code splitting
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendor',
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+      },
+    },
+    // Use deterministic chunk IDs for consistent naming
+    chunkIds: 'deterministic',
+    moduleIds: 'deterministic',
     // Enable tree shaking and minification for production
     usedExports: true,
     sideEffects: false,
     minimize: process.env.NODE_ENV === 'production',
+    // Module concatenation for scope hoisting
+    concatenateModules: true,
   },
 };

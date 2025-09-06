@@ -1,7 +1,7 @@
 {
   "name": "TweetCraft",
   "description": "AI-powered Twitter/X reply assistant with multiple tones and custom prompts",
-  "version": "0.0.20",
+  "version": "0.0.22",
   "manifest_version": 3,
   "background": {
     "service_worker": "serviceWorker.js"
@@ -36,6 +36,16 @@
     "https://images.pexels.com/*",
     "https://picsum.photos/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js", "*.css", "icons/*"],
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*",
+        "https://app.hypefury.com/*"
+      ]
+    }
+  ],
   "options_page": "config.html",
   "action": {
     "default_title": "Smart Reply Settings",
@@ -62,15 +72,5 @@
     "128": "icons/icon_128.png",
     "256": "icons/icon_256.png",
     "512": "icons/icon_512.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/*"],
-      "matches": [
-        "https://twitter.com/*",
-        "https://x.com/*",
-        "https://app.hypefury.com/*"
-      ]
-    }
-  ]
+  }
 }

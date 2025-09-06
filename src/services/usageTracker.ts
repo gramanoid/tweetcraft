@@ -468,20 +468,29 @@ export class UsageTracker {
    */
   private async saveToStorage(): Promise<void> {
     try {
-      // Keep only recent events to avoid quota issues
-      const recentEvents = this.events.slice(-500);
-      
-      await chrome.storage.local.set({
-        [this.STORAGE_KEY]: {
-          events: recentEvents,
-          metrics: this.performanceMetrics,
-          savedAt: Date.now()
+      // Check if we're in a content script or service worker context
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        try {
+          // Keep only recent events to avoid quota issues
+          const recentEvents = this.events.slice(-500);
+          
+          await chrome.storage.local.set({
+            [this.STORAGE_KEY]: {
+              events: recentEvents,
+              metrics: this.performanceMetrics,
+              savedAt: Date.now()
+            }
+          });
+          
+          console.log('%c📊 Usage data saved', 'color: #17BF63');
+        } catch (directError) {
+          // If direct access fails, we're in a content script
+          // For now, just skip saving - we could implement message passing later
+          console.log('📊 UsageTracker: Running in content script context, skipping storage save');
         }
-      });
-      
-      console.log('%c📊 Usage data saved', 'color: #17BF63');
+      }
     } catch (error) {
-      console.error('Failed to save usage data:', error);
+      console.warn('Failed to save usage data (expected in content script):', (error as Error).message || error);
     }
   }
 
@@ -490,17 +499,27 @@ export class UsageTracker {
    */
   private async loadFromStorage(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get([this.STORAGE_KEY]);
-      
-      if (result[this.STORAGE_KEY]) {
-        const data = result[this.STORAGE_KEY];
-        this.events = data.events || [];
-        this.performanceMetrics = data.metrics || this.performanceMetrics;
-        
-        console.log(`%c📊 Loaded ${this.events.length} events from storage`, 'color: #17BF63');
+      // Check if we're in a content script or service worker context
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        // Try direct access first (for service worker)
+        try {
+          const result = await chrome.storage.local.get([this.STORAGE_KEY]);
+          
+          if (result[this.STORAGE_KEY]) {
+            const data = result[this.STORAGE_KEY];
+            this.events = data.events || [];
+            this.performanceMetrics = data.metrics || this.performanceMetrics;
+            
+            console.log(`%c📊 Loaded ${this.events.length} events from storage`, 'color: #17BF63');
+          }
+        } catch (directError) {
+          // If direct access fails, we're likely in a content script
+          // For now, just skip loading - the service worker will handle persistence
+          console.log('📊 UsageTracker: Running in content script context, skipping storage load');
+        }
       }
     } catch (error) {
-      console.error('Failed to load usage data:', error);
+      console.warn('Failed to load usage data (expected in content script):', (error as Error).message || error);
     }
   }
 

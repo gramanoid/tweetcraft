@@ -17,10 +17,10 @@ module.exports = merge(common, {
       new TerserPlugin({
         terserOptions: {
           compress: {
-            drop_console: true, // Remove console logs in production
+            drop_console: false, // KEEP console logs for debugging
             drop_debugger: true,
             passes: 3, // More passes for better compression
-            pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+            pure_funcs: [], // Don't remove console functions
             collapse_vars: true,
             reduce_vars: true,
             dead_code: true,

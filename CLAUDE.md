@@ -443,7 +443,58 @@ Rollback: Safe to previous commit
 - Include file list, breaking changes, rollback notes
 - Tag phase completions: `git tag v0.X.0 -m "Phase X: Description"`
 
-## Recent Changes (v0.0.21)
+## Recent Changes (v0.0.22)
+
+### Sprint 3-4: Comprehensive UI/UX Improvements (2025-01-10)
+
+#### Toolbar Redesign & Settings Integration ✅
+- **Compact Toolbar with Dropdown Menu**
+  - Reduced toolbar from 11 buttons to 3 essential actions
+  - Implemented dropdown menu for secondary features
+  - Progressive disclosure pattern for better UX
+  - Files: `src/content/unifiedSelectorRefactored.ts`
+
+- **Comprehensive Settings Tab**
+  - Full configuration UI with all backend features exposed
+  - API key management, model selection, temperature controls
+  - Privacy settings, auto-refresh toggles, theme preferences
+  - Export/import settings functionality
+  - Files: `src/components/tabs/SettingsTab.ts`, `src/components/tabs/SettingsTab.scss`
+
+#### Design System Implementation ✅
+- **40+ Reusable Components**
+  - Following Apple Human Interface Guidelines
+  - Consistent buttons, cards, inputs, toggles, badges
+  - Semantic color system with CSS variables
+  - Responsive breakpoints and animations
+  - Files: `src/styles/design-system.scss`, `src/styles/variables.scss`
+
+#### Stats Dashboard with CSS-Only Visualizations ✅
+- **Pure CSS Charts and Metrics**
+  - Bar charts using flexbox and gradients
+  - Donut charts with conic-gradient
+  - Heatmaps for time-based patterns
+  - Activity timelines with CSS animations
+  - Real-time data from smartDefaults service
+  - Files: `src/components/tabs/StatsTab.ts`, `src/components/tabs/StatsTab.scss`
+
+#### Enhanced Compose Tab ✅
+- **AI-Powered Tweet Composition**
+  - Generate, enhance, and suggest features
+  - Quick templates for common tweet types
+  - Draft management with localStorage persistence
+  - Character counter with visual feedback
+  - Style/tone/purpose selectors
+  - Files: `src/components/tabs/ComposeTab.ts`, `src/components/tabs/ComposeTab.scss`
+
+#### Live Trends Interface ✅
+- **Real-Time Trending Topics**
+  - Category filtering (Tech, News, Sports, etc.)
+  - Auto-refresh with configurable intervals
+  - Topic volumes and related keywords
+  - Content suggestions from EXA API
+  - Cache fallback for offline/API failures
+  - Files: `src/components/tabs/TrendingTab.ts`
 
 ### Sprint 1: Architectural Consolidation (2025-01-09)
 

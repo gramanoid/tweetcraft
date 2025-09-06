@@ -1,4 +1,5 @@
 // Log at the very start of service worker loading
+// Note: webpack public path is now set in serviceWorkerEntry.ts before this file is imported
 console.log('%c🚀 SERVICE WORKER LOADING', 'color: #FF0000; font-weight: bold; font-size: 16px');
 console.log('Service Worker: Script execution starting...');
 
@@ -11,6 +12,8 @@ import { usageTracker } from '@/services/usageTracker';
 import { smartDefaults } from '@/services/smartDefaults';
 import { apiClient } from '@/services/apiClient';
 import { arsenalService } from '@/services/arsenalService';
+// Import twitterAPI statically to avoid dynamic import issues in service worker
+import { twitterAPI } from '@/services/twitterAPI';
 
 // Log after imports
 console.log('Service Worker: Imports completed');
@@ -904,103 +907,10 @@ Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pi
           break;
         }
 
-        case MessageType.IMAGE_SEARCH_PERPLEXITY: {
-          console.log('Service Worker: Handling Perplexity image search request');
-          
-          try {
-            const query = (message as any).query || '';
-            const safeSearch = (message as any).safeSearch || false;
-            const limit = (message as any).limit || 5;
-            
-            // Retrieve API key from secure storage
-            const apiKeyData = await chrome.storage.local.get(['apiKey']);
-            const apiKey = apiKeyData.apiKey || '';
-            
-            if (!apiKey) {
-              throw new Error('API key not configured');
-            }
-            
-            const prompt = `Find and return real image URLs for: "${query}"
+        // Removed orphaned IMAGE_SEARCH_PERPLEXITY handler
 
-Search the web for actual images related to this query. Look for:
-- News images from Reuters, AP, Getty Images
-- Stock photos from Unsplash, Pexels, Shutterstock  
-- Relevant memes or reaction images
-- Political cartoons if applicable
-- Real photographs that match the search terms
-
-Return a JSON array with ${limit} REAL image URLs that actually exist:
-[
-  {
-    "url": "https://actual-image-url.jpg",
-    "thumbnail": "thumbnail URL or same as url",
-    "alt": "what the image shows",
-    "source": "website name"
-  }
-]
-
-IMPORTANT: Return only REAL, working image URLs that you find on the web. No placeholders.
-Return ONLY the JSON array, no explanations.`;
-
-            // Use resilient API client for image search
-            const response = await apiClient.openRouterRequest('chat/completions', {
-              model: 'perplexity/llama-3.1-sonar-small-128k-online',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are an image search assistant. Return only valid JSON arrays of image results.'
-                },
-                {
-                  role: 'user',
-                  content: prompt
-                }
-              ],
-              temperature: 0.3,
-              max_tokens: 800
-            });
-            
-            if (!response.ok) {
-              throw new Error(`Image search failed: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            const content = data.choices?.[0]?.message?.content;
-            
-            if (content) {
-              try {
-                // Extract JSON array from the response
-                const jsonMatch = content.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                  const results = JSON.parse(jsonMatch[0]);
-                  const imageResults = results.map((item: any) => ({
-                    url: item.url,
-                    thumbnail: item.thumbnail || item.url,
-                    alt: item.alt || item.description || query,
-                    source: 'web' as const,
-                    width: 800,
-                    height: 600
-                  }));
-                  
-                  sendResponse({ success: true, data: imageResults });
-                  return;
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse search results:', parseError);
-              }
-            }
-            
-            // Return empty array on failure
-            sendResponse({ success: true, data: [] });
-          } catch (error) {
-            console.error('Service Worker: Image search failed:', error);
-            sendResponse({ 
-              success: false, 
-              error: error instanceof Error ? error.message : 'Image search failed' 
-            });
-          }
-          break;
-        }
-
+        // Removed orphaned IMAGE_EXTRACT_CONTEXT handler
+        /*
         case MessageType.IMAGE_EXTRACT_CONTEXT: {
           console.log('Service Worker: Handling image context extraction request');
           
@@ -1074,7 +984,10 @@ Return ONLY the search terms, separated by commas. No explanation.`;
           }
           break;
         }
+        */
 
+        // Removed orphaned IMAGE_GENERATE_PROMPT handler
+        /*
         case MessageType.IMAGE_GENERATE_PROMPT: {
           console.log('Service Worker: Handling image prompt generation request');
           
@@ -1143,6 +1056,7 @@ Return ONLY the image generation prompt, no explanation.`;
           }
           break;
         }
+        */
 
         case MessageType.ANALYZE_TWEET_LLM: {
           console.log('Service Worker: Handling LLM tweet analysis request');
@@ -1257,9 +1171,93 @@ Return ONLY the image generation prompt, no explanation.`;
           break;
         }
 
+        // Arsenal-related message handlers
+        case MessageType.GET_ARSENAL_REPLIES: {
+          try {
+            // Get all categories which include all replies
+            const categories = arsenalService.getCategories();
+            const allReplies: any[] = [];
+            
+            // Extract all replies from categories
+            categories.forEach(category => {
+              category.replies.forEach(reply => {
+                allReplies.push(reply);
+              });
+            });
+            
+            sendResponse({ success: true, data: allReplies });
+          } catch (error) {
+            console.error('Service Worker: Failed to get arsenal replies:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get arsenal replies' });
+          }
+          break;
+        }
+
+        case MessageType.TRACK_ARSENAL_USAGE: {
+          if ('replyId' in message && typeof (message as any).replyId === 'string') {
+            try {
+              await arsenalService.trackUsage((message as any).replyId);
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('Service Worker: Failed to track arsenal usage:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to track arsenal usage' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Invalid message format for TRACK_ARSENAL_USAGE' });
+          }
+          break;
+        }
+
+        case MessageType.TOGGLE_ARSENAL_FAVORITE: {
+          if ('replyId' in message && typeof (message as any).replyId === 'string') {
+            try {
+              // toggleFavorite only takes id, not isFavorite boolean
+              const newFavoriteStatus = await arsenalService.toggleFavorite((message as any).replyId);
+              sendResponse({ success: true, data: newFavoriteStatus });
+            } catch (error) {
+              console.error('Service Worker: Failed to toggle arsenal favorite:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to toggle arsenal favorite' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Invalid message format for TOGGLE_ARSENAL_FAVORITE' });
+          }
+          break;
+        }
+
+        case MessageType.DELETE_ARSENAL_REPLIES: {
+          if ('replyIds' in message && Array.isArray((message as any).replyIds)) {
+            try {
+              // Delete replies one by one since deleteReply only takes single id
+              for (const replyId of (message as any).replyIds) {
+                await arsenalService.deleteReply(replyId);
+              }
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('Service Worker: Failed to delete arsenal replies:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to delete arsenal replies' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Invalid message format for DELETE_ARSENAL_REPLIES' });
+          }
+          break;
+        }
+
         default:
-          console.warn('Smart Reply: Unknown message type:', (message as any).type);
-          sendResponse({ success: false, error: 'Unknown message type' });
+          // Check for legacy action-based messages
+          if ('action' in message && (message as any).action === 'openOptionsPage') {
+            // Open the extension's options page
+            chrome.runtime.openOptionsPage(() => {
+              if (chrome.runtime.lastError) {
+                console.error('Failed to open options page:', chrome.runtime.lastError);
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+              } else {
+                sendResponse({ success: true });
+              }
+            });
+          } else {
+            console.warn('Smart Reply: Unknown message type:', (message as any).type);
+            sendResponse({ success: false, error: 'Unknown message type' });
+          }
       }
     } catch (error) {
       console.error('Smart Reply: Error handling message:', error);
@@ -2119,7 +2117,7 @@ Return ONLY the image generation prompt, no explanation.`;
     console.log('%c📈 Processing engagement checks', 'color: #1DA1F2');
     
     try {
-      const { twitterAPI } = await import('../services/twitterAPI');
+      // Use statically imported twitterAPI
       const config = await twitterAPI.getConfig();
       
       if (!config.enabled) {

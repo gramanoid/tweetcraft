@@ -1,9 +1,9 @@
 /**
  * Selector Adapter for TweetCraft
- * Provides backward compatibility while transitioning to unified selector
+ * Provides the unified selector interface
  */
 
-import { TemplateSelector } from './templateSelector';
+// Static import for UnifiedSelector to prevent chunk loading issues in Chrome extension
 import { UnifiedSelector } from './unifiedSelector';
 import { PresetTemplate } from './presetTemplates';
 import { ToneOption } from './toneSelector';
@@ -12,39 +12,20 @@ import { ToneOption } from './toneSelector';
 type CustomTemplate = PresetTemplate;
 
 export class SelectorAdapter {
-  private useUnifiedSelector: boolean;
-  private templateSelector: TemplateSelector | null = null;
   private unifiedSelector: UnifiedSelector | null = null;
   
   constructor() {
-    // Check feature flag from storage or default to unified
-    this.useUnifiedSelector = this.checkFeatureFlag();
-    
-    if (this.useUnifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
-    } else {
-      this.templateSelector = new TemplateSelector();
-    }
+    // Always use unified selector - no fallback to old system
+    this.unifiedSelector = new UnifiedSelector();
   }
   
   /**
-   * Check if unified selector should be used
+   * Show the unified selector
    */
-  private checkFeatureFlag(): boolean {
-    // Check localStorage for feature flag
-    const flag = localStorage.getItem('tweetcraft_unified_selector');
-    
-    // Default to true (use unified selector)
-    return flag !== 'false';
-  }
-  
-  /**
-   * Show the selector (unified or traditional)
-   */
-  show(
+  async show(
     button: HTMLElement,
     callback: (
-      template: PresetTemplate  , 
+      template: PresetTemplate, 
       tone: ToneOption, 
       vocabulary?: string, 
       lengthPacing?: string,
@@ -53,9 +34,8 @@ export class SelectorAdapter {
       allTabConfig?: any,
       customConfig?: any
     ) => void
-  ): void {
-    if (this.useUnifiedSelector && this.unifiedSelector) {
-      // Use unified selector
+  ): Promise<void> {
+    if (this.unifiedSelector) {
       this.unifiedSelector.show(button, (result) => {
         // Convert unified result to traditional format
         const template: PresetTemplate = {
@@ -88,11 +68,6 @@ export class SelectorAdapter {
           result.customConfig
         );
       });
-    } else if (this.templateSelector) {
-      // Use traditional two-popup flow (no 4-part structure or prompt architecture)
-      this.templateSelector.show(button, (template, tone) => {
-        callback(template, tone);
-      });
     }
   }
   
@@ -100,55 +75,16 @@ export class SelectorAdapter {
    * Hide the selector
    */
   hide(): void {
-    if (this.useUnifiedSelector && this.unifiedSelector) {
-      this.unifiedSelector.hide();
-    } else if (this.templateSelector) {
-      // Template selector handles its own hiding
-    }
-  }
-  
-  /**
-   * Enable unified selector
-   */
-  enableUnifiedSelector(): void {
-    localStorage.setItem('tweetcraft_unified_selector', 'true');
-    this.useUnifiedSelector = true;
-    
-    // Clean up old selector
-    if (this.templateSelector) {
-      this.templateSelector = null;
-    }
-    
-    // Initialize unified selector
-    if (!this.unifiedSelector) {
-      this.unifiedSelector = new UnifiedSelector();
-    }
-  }
-  
-  /**
-   * Disable unified selector (fallback to traditional)
-   */
-  disableUnifiedSelector(): void {
-    localStorage.setItem('tweetcraft_unified_selector', 'false');
-    this.useUnifiedSelector = false;
-    
-    // Clean up unified selector
     if (this.unifiedSelector) {
       this.unifiedSelector.hide();
-      this.unifiedSelector = null;
-    }
-    
-    // Initialize traditional selector
-    if (!this.templateSelector) {
-      this.templateSelector = new TemplateSelector();
     }
   }
   
   /**
-   * Check which selector is active
+   * Check if unified selector is active (always true now)
    */
   isUnifiedSelectorActive(): boolean {
-    return this.useUnifiedSelector;
+    return true;
   }
 }
 

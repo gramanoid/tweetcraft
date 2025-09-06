@@ -1,3 +1,15 @@
+// CRITICAL: Set webpack public path for Chrome extension context
+// This ensures dynamic imports load from the extension, not the page domain
+declare let __webpack_public_path__: string;
+// @ts-ignore
+__webpack_public_path__ = chrome.runtime.getURL('');
+console.log('Webpack public path set to:', __webpack_public_path__);
+
+// Immediate debug log to verify script is loading
+console.log('%c🔵 TweetCraft: Content script loaded!', 'color: #1DA1F2; font-weight: bold; font-size: 14px');
+console.log('Current URL:', window.location.href);
+console.log('Chrome runtime available:', typeof chrome !== 'undefined' && chrome.runtime);
+
 import { DOMUtils, DOMCache } from "./domUtils";
 // OpenRouter service now handled by service worker
 import { StorageService } from "@/services/storage";
@@ -11,8 +23,9 @@ import { selectorAdapter } from "./selectorAdapter";
 import { visualFeedback } from "@/ui/visualFeedback";
 // Bundle size optimization: templateSuggester lazy-loaded to reduce initial bundle
 import { visionService, VisionService } from "@/services/visionService";
-import { arsenalModeUI } from "./arsenalMode";
-import { imageAttachment } from "./imageAttachment";
+// Lazy load large UI components to reduce initial bundle size
+// import { arsenalModeUI } from "./arsenalMode";
+// import { imageAttachment } from "./imageAttachment";
 // import { templateSuggester } from "@/services/templateSuggester"; // -> Lazy loaded on demand
 
 import { TEMPLATES } from "./presetTemplates";
@@ -211,10 +224,10 @@ class SmartReplyContentScript {
     // Check if already destroyed
     if (this.isDestroyed) return;
 
-    // Initialize Arsenal Mode UI (ensures event listeners are set up)
-    if (arsenalModeUI) {
-      console.log("%c⚔️ Arsenal Mode initialized", "color: #1DA1F2");
-    }
+    // Arsenal Mode UI will be lazy loaded when needed
+    // if (arsenalModeUI) {
+    //   console.log("%c⚔️ Arsenal Mode initialized", "color: #1DA1F2");
+    // }
 
     // Initialize vision service first
     try {
@@ -2047,7 +2060,7 @@ class SmartReplyContentScript {
         console.log("  Parent element:", parent);
       }
 
-      // Show unified selector
+      // Show unified selector (now async with lazy loading)
       // Show unified selector using the selector adapter
       selectorAdapter.show(
         button,
@@ -2077,7 +2090,10 @@ class SmartReplyContentScript {
             customConfig,
           );
         },
-      );
+      ).catch(error => {
+        console.error('%c❌ Failed to load selector:', 'color: #DC3545', error);
+        visualFeedback.showError(button, 'Failed to load UI');
+      });
     });
 
     container.appendChild(button);
@@ -2619,7 +2635,10 @@ class SmartReplyContentScript {
                 customConfig,
               );
             },
-          );
+          ).catch(error => {
+            console.error('%c❌ Failed to load selector:', 'color: #DC3545', error);
+            visualFeedback.showError(button, 'Failed to load UI');
+          });
 
           return false; // Prevent any default action
         },
@@ -2631,32 +2650,8 @@ class SmartReplyContentScript {
       // const suggestButton = null; // this.createSmartSuggestButton(textarea, context);
       // const imageButton = null; // imageAttachment.createButton(textarea, '');
 
-      // Set callback for when image is selected (keeping for potential future use)
-      imageAttachment.onSelect((image) => {
-          if (image) {
-            console.log(
-              "%c🖼️ IMAGE SELECTED",
-              "color: #9146FF; font-weight: bold; font-size: 14px",
-            );
-            console.log("%c  URL:", "color: #657786", image.url);
-            console.log("%c  Alt:", "color: #657786", image.alt);
-            console.log("%c  Source:", "color: #657786", image.source);
-
-            // Store the image URL for later use
-            button.setAttribute("data-image-url", image.url);
-            button.setAttribute("data-image-alt", image.alt);
-
-          // Update button to show image is attached
-          const imgIndicator = button.querySelector(".image-indicator");
-          if (!imgIndicator) {
-            const indicator = document.createElement("span");
-            indicator.className = "image-indicator";
-            indicator.style.cssText = "margin-left: 4px; color: #9146FF;";
-            indicator.textContent = "🖼️";
-            button.appendChild(indicator);
-          }
-        }
-      });
+      // Image attachment functionality will be lazy loaded when needed
+      // imageAttachment.onSelect((image) => { ... });
 
       // Create Arsenal Mode button
       const arsenalButton = this.createArsenalButton(textarea);
@@ -4400,10 +4395,19 @@ class SmartReplyContentScript {
   }
 }
 
-// Initialize the content script
-const smartReply = new SmartReplyContentScript();
+// Initialize the content script with error handling
+console.log('%c🟢 TweetCraft: Starting initialization...', 'color: #17BF63; font-weight: bold');
 
-// Clean up on page unload
-window.addEventListener("beforeunload", () => {
-  smartReply.destroy();
-});
+try {
+  const smartReply = new SmartReplyContentScript();
+  console.log('%c✅ TweetCraft: Successfully initialized!', 'color: #17BF63; font-weight: bold');
+  
+  // Clean up on page unload
+  window.addEventListener("beforeunload", () => {
+    smartReply.destroy();
+  });
+} catch (error) {
+  console.error('%c❌ TweetCraft: Failed to initialize!', 'color: #DC3545; font-weight: bold');
+  console.error('Initialization error:', error);
+  console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
+}

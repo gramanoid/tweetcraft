@@ -456,14 +456,18 @@ export class ArsenalTab implements TabComponent {
       .map(r => r.text)
       .join('\n\n---\n\n');
     
+    // Skip clipboard operations in non-DOM environments
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      console.log(`[Arsenal] Would copy ${this.selectedReplies.size} replies to clipboard`);
+      return;
+    }
+    
     navigator.clipboard.writeText(selectedTexts).then(() => {
-      // Show success feedback
-      const notification = document.createElement('div');
-      notification.className = 'arsenal-notification';
-      notification.textContent = `Copied ${this.selectedReplies.size} replies to clipboard!`;
-      document.body.appendChild(notification);
-      
-      setTimeout(() => notification.remove(), 3000);
+      console.log(`✅ Copied ${this.selectedReplies.size} replies to clipboard!`);
+      this.showNotification(`Copied ${this.selectedReplies.size} replies to clipboard!`, 'success');
+    }).catch(error => {
+      console.error('Failed to copy to clipboard:', error);
+      this.showNotification('Failed to copy to clipboard', 'error');
     });
   }
 
@@ -502,8 +506,46 @@ export class ArsenalTab implements TabComponent {
   }
 
   private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Use string replacement instead of DOM for service worker compatibility
+    const htmlEscapes: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+      '/': '&#x2F;'
+    };
+    
+    return text.replace(/[&<>"'\/]/g, (char) => htmlEscapes[char]);
+  }
+
+  /**
+   * Show notification for actions - safely handles both DOM and non-DOM environments
+   */
+  private showNotification(message: string, type: 'success' | 'error' = 'success'): void {
+    // Always log to console for debugging
+    console.log(`[Arsenal ${type}] ${message}`);
+    
+    // Skip DOM operations in non-DOM environments (e.g., service worker)
+    if (typeof document === 'undefined' || !document.body) {
+      return;
+    }
+    
+    try {
+      const notification = document.createElement('div');
+      notification.className = `arsenal-notification ${type}`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('show');
+        setTimeout(() => {
+          notification.classList.remove('show');
+          setTimeout(() => notification.remove(), 300);
+        }, 2000);
+      }, 10);
+    } catch (error) {
+      console.error('Failed to show notification:', error);
+    }
   }
 }

@@ -165,9 +165,19 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
       // Enhanced modern Twitter selectors (2025)
       '[data-testid="tweetTextarea_0"][contenteditable="true"]', // Current pattern
       '[data-testid="tweetTextarea_1"][contenteditable="true"]', // Thread replies
+      '[data-testid="tweetTextarea_2"][contenteditable="true"]', // Additional reply levels
+      '[data-testid="tweet-text-area"][contenteditable="true"]', // Alternative naming
+      '[data-testid="reply-text-area"][contenteditable="true"]', // Reply specific
       'div[contenteditable="true"][data-text="true"]', // New data attribute
       'div[contenteditable="true"][role="textbox"][aria-label*="post" i]', // Updated aria labels
+      'div[contenteditable="true"][role="textbox"][aria-label*="reply" i]', // Reply specific
 
+      // January 2025 Twitter/X patterns
+      'div.public-DraftEditor-content[contenteditable="true"]', // DraftJS editor
+      'div.DraftEditor-editorContainer [contenteditable="true"]', // DraftJS container
+      '[data-block="true"][contenteditable="true"]', // Block editor pattern
+      'div[data-contents="true"] [contenteditable="true"]', // Content wrapper
+      
       // Existing fallbacks
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"][aria-label*="tweet"]',
@@ -178,6 +188,11 @@ const SELECTOR_CHAINS: Record<string, SelectorChain> = {
       '[contenteditable="true"][spellcheck="true"]',
       'div[contenteditable="true"][dir="auto"]',
       'div[contenteditable="true"]:not([aria-label*="Search"])',
+      
+      // Absolute last resort - any contenteditable in reply context
+      'form [contenteditable="true"]',
+      'div[role="dialog"] [contenteditable="true"]', // Modal replies
+      'main [contenteditable="true"]:not([aria-label*="Search"])', // Main area editable
     ],
   },
   toolbar: {
@@ -560,6 +575,24 @@ class FallbackStrategies {
           `%c❌ All fallback strategies failed for: ${elementType}`,
           "color: #DC3545",
         );
+        
+        // Enhanced debug info for reply textarea failures
+        if (elementType === 'replyTextarea') {
+          // Log what contenteditable elements ARE present for debugging
+          const editables = container.querySelectorAll('[contenteditable="true"]');
+          if (editables.length > 0) {
+            console.log('%c  Found contenteditable elements:', 'color: #FFA500');
+            editables.forEach((el, i) => {
+              const testId = el.getAttribute('data-testid');
+              const role = el.getAttribute('role');
+              const ariaLabel = el.getAttribute('aria-label');
+              console.log(`    [${i}] testid="${testId}" role="${role}" aria-label="${ariaLabel}"`);
+            });
+          } else {
+            console.log('%c  No contenteditable elements found in container', 'color: #FFA500');
+          }
+        }
+        
         FallbackStrategies.errorThrottle.set(elementType, now);
       }
     }
