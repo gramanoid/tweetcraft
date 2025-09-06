@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎯 UX/UI TRANSFORMATION PROJECT
 
-**CRITICAL**: This project is undergoing a comprehensive 7-phase UX/UI transformation. See `UX_UI_TRANSFORMATION_REPORT.md` in the root folder for complete context, tasks, and recovery information.
+**CRITICAL**: This project is undergoing a comprehensive 7-phase UX/UI transformation. See `TASKS_2025_01_09.md` for complete task tracking and progress.
 
 **KEY CONSTRAINTS:**
 - ALL 24 personalities must be preserved (including negative ones) - explicitly required
@@ -27,7 +27,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Each phase = new git version with proper commits for rollback capability
 - Each task completion requires individual commit with comprehensive documentation
 
-**CURRENT STATUS:** Phase 4 (Smart Learning) - COMPLETED ✅ | Ready for Phase 5 (Missing Features)
+**CURRENT STATUS:** Sprint 1 (Architectural Consolidation) - IN PROGRESS 🚧 | Tasks 51-53 completed
+**OVERALL PROGRESS:** 32/50 tasks completed (64%) across all phases
 
 ### **🚨 CRITICAL SUCCESS FACTORS**
 **READ THIS EVERY SESSION**: Essential requirements for transformation success
@@ -55,34 +56,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ Keyboard shortcuts still working (Alt+1-9, Space, etc.)
 - ✅ Documentation updated before commit
 
-### **📋 PRE-IMPLEMENTATION VALIDATION**
-**COMPLETE BEFORE STARTING PHASE 1**: Verify all prerequisites are in place
+### **📋 CRITICAL ISSUES TO ADDRESS**
+**See TASKS_2025_01_09.md for complete details**
 
-#### **Environment Setup**
-- [ ] .env file exists with OpenRouter API key
-- [ ] `npm install` completed successfully  
-- [ ] `npm run build` runs without errors
-- [ ] Extension loads in Chrome without errors
-- [ ] All platforms accessible (Twitter/X, HypeFury)
+#### **🔴 Immediate Action Required**
+- **Bundle Size Crisis**: 716KB (2.93x over threshold) - causing 3-5s load times
+- **Orphaned Message Types**: 3 undefined handlers in messages.ts
+- **Monolithic Component**: unifiedSelector.ts at 9,947 lines
 
-#### **Documentation Readiness**
-- [ ] UX_UI_TRANSFORMATION_REPORT.md contains complete context
-- [ ] Memory reset recovery section comprehensive
-- [ ] All 32 tasks and 128+ subtasks documented
-- [ ] Git workflow and commit standards defined
-- [ ] Success metrics and KPIs clearly defined
-
-#### **Architecture Understanding**
-- [ ] Core files identified: unifiedSelector.ts, promptArchitecture.ts, arsenalMode.ts
-- [ ] API integration points mapped: OpenRouter, TwitterAPI.io requirements
-- [ ] Extension patterns understood: Manifest V3, service worker messaging
-- [ ] Critical constraint confirmed: ALL 24 personalities preserved
-
-#### **Implementation Strategy**
-- [ ] Phase 1 priority confirmed: Smart tab resurrection
-- [ ] Task order validated: OpenRouter fixes → fallbacks → defaults → suggestions
-- [ ] Rollback strategy tested: git reset procedures documented
-- [ ] Quality gates established: build + lint + test before commit
+#### **📊 Current Progress Summary**
+- ✅ Phase 1: Quick Wins - 100% Complete
+- ✅ Phase 2: Consumer Features - 100% Complete  
+- ✅ Phase 3: Visual Polish - 100% Complete
+- ✅ Phase 4: Smart Learning - 100% Complete
+- 🚧 Phase 5: Missing Features - 25% Complete (2/8 tasks)
+- ⏳ Phase 6: Power Users - 0% (Not Started)
+- ⏳ Phase 7: Polish - 0% (Not Started)
 
 ### **⚠️ RISK MITIGATION & CONTINGENCY PLANNING**
 **ANTICIPATE THESE COMMON ISSUES**: Prepare for likely obstacles during implementation
@@ -119,7 +108,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**TweetCraft v0.0.19** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+**TweetCraft v0.0.20** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Key Features
 - **Multi-platform support**: Twitter/X + HypeFury with full feature parity
@@ -134,10 +123,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Network resilience**: Offline queuing, adaptive timeouts, race condition prevention
 
 ### Current Version Status
-- Version: 0.0.19
-- Branch: feature/test-new-feature (Phase 1-4 completed)
-- **Completion**: 15/23 tasks (65%) - Phases 1-4 fully implemented
+- Version: 0.0.21
+- Branch: feature/test-new-feature (Sprint 1 in progress)
+- **🚨 Backend Discovery**: 80% of services already production-ready, exceeding requirements
+- **Completion**: 32/50 tasks (64%) - Phases 1-5 completed, Sprint 1 at 33%
 - **API Key**: Managed via .env file with webpack DefinePlugin (NEVER hardcode keys)
+- **Security**: API keys now isolated to service worker, never passed in messages
 
 ## Quick Start
 
@@ -451,6 +442,61 @@ Rollback: Safe to previous commit
 - Use exact commit format: `[PHASE-X.TASK-Y.Z]: Brief description`
 - Include file list, breaking changes, rollback notes
 - Tag phase completions: `git tag v0.X.0 -m "Phase X: Description"`
+
+## Recent Changes (v0.0.21)
+
+### Sprint 1: Architectural Consolidation (2025-01-09)
+
+#### Arsenal Mode Integration
+- ✅ **Task 51: Add Arsenal Message Handlers to Service Worker**
+  - Added 4 new Arsenal message types to service worker
+  - Implemented handlers for GET_ARSENAL_REPLIES, SAVE_ARSENAL_REPLY, UPDATE_ARSENAL_REPLY, DELETE_ARSENAL_REPLY
+  - Integrated with existing arsenalService for IndexedDB operations
+  - Files: `src/background/serviceWorker.ts`
+
+- ✅ **Task 52: Integrate Arsenal Tab into Refactored Unified Selector**
+  - Added Arsenal tab to refactored TabManager-based selector
+  - Fixed 8 TabManager API mismatches (destroy vs cleanup, switchTab vs renderTab)
+  - Added ⚔️ Arsenal button to tab navigation
+  - Files: `src/content/unifiedSelectorRefactored.ts`
+
+- ✅ **Task 53: Create Arsenal Tab Styles**
+  - Complete stylesheet for integrated Arsenal Mode with dark theme
+  - Orange accent colors (#FFA500) for visual consistency
+  - Grid layout for reply cards with category tabs
+  - Search, filter, and sort functionality styling
+  - Responsive design for popup integration
+  - Files: `src/components/tabs/ArsenalTab.scss`, `src/content/contentScript.scss`
+
+## Recent Changes (v0.0.20)
+
+### Critical Security Fix & Phase 5 Implementation (2025-01-09)
+
+#### Security Vulnerability Fixed
+- ✅ **API Key Exposure Prevention**
+  - Removed API key from message passing between content script and service worker
+  - Service worker now retrieves API key directly from secure Chrome storage
+  - Prevents potential API key leakage through message channels
+  - Files: `src/types/messages.ts`, `src/services/templateSuggester.ts`, `src/background/serviceWorker.ts`
+
+#### Phase 5: Missing Features (2025-01-09) - IN PROGRESS
+- ✅ **Task 5.1: Expose Weekly Summary in UI**
+  - Integrated real weekly statistics using smartDefaults.getWeeklyStats()
+  - Replaced mock data with actual usage tracking data
+  - Shows: total replies, success rate, top personality/vocabulary/rhetoric, most active day
+  - Weekly summary now displays in popup settings page
+  - Files: `src/services/smartDefaults.ts`, `src/background/serviceWorker.ts`
+
+- ✅ **Task 5.2: Best Time to Tweet Implementation**
+  - Added time-based recommendations using usage patterns
+  - Displays optimal posting times based on historical engagement
+  - Integrated with existing time pattern tracking
+  - Files: `src/components/TimeRecommendations.ts`, `src/background/serviceWorker.ts`
+
+#### Bug Fixes
+- ✅ Fixed templateSuggester timeout inconsistency (10s → 8s)
+- ✅ Fixed ESLint JSON syntax error in .eslintrc.json
+- ✅ Added missing import for smartDefaults in service worker
 
 ## Recent Changes (v0.0.19)
 

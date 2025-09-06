@@ -31,7 +31,12 @@ export enum MessageType {
   IMAGE_EXTRACT_CONTEXT = 'IMAGE_EXTRACT_CONTEXT',
   IMAGE_GENERATE_PROMPT = 'IMAGE_GENERATE_PROMPT',
   GET_WEEKLY_SUMMARY = 'GET_WEEKLY_SUMMARY',
-  GET_TIME_RECOMMENDATIONS = 'GET_TIME_RECOMMENDATIONS'
+  GET_TIME_RECOMMENDATIONS = 'GET_TIME_RECOMMENDATIONS',
+  // Arsenal-related messages
+  GET_ARSENAL_REPLIES = 'GET_ARSENAL_REPLIES',
+  TRACK_ARSENAL_USAGE = 'TRACK_ARSENAL_USAGE',
+  TOGGLE_ARSENAL_FAVORITE = 'TOGGLE_ARSENAL_FAVORITE',
+  DELETE_ARSENAL_REPLIES = 'DELETE_ARSENAL_REPLIES'
 }
 
 // Base message interface
@@ -135,6 +140,7 @@ export interface AnalyzeTweetLLMMessage extends BaseMessage {
 
 export interface GetWeeklySummaryMessage extends BaseMessage {
   type: MessageType.GET_WEEKLY_SUMMARY;
+  weekOffset?: number; // 0 = current week, -1 = last week, -2 = two weeks ago, etc.
 }
 
 export interface GetTimeRecommendationsMessage extends BaseMessage {
@@ -153,6 +159,46 @@ export interface ExaSearchMessage extends BaseMessage {
     useAutoprompt?: boolean;
     type?: 'neural' | 'keyword';
   };
+}
+
+export interface ImageSearchPerplexityMessage extends BaseMessage {
+  type: MessageType.IMAGE_SEARCH_PERPLEXITY;
+  query: string;
+  safeSearch?: boolean;
+  limit?: number;
+}
+
+export interface ImageExtractContextMessage extends BaseMessage {
+  type: MessageType.IMAGE_EXTRACT_CONTEXT;
+  text: string;
+}
+
+export interface ImageGeneratePromptMessage extends BaseMessage {
+  type: MessageType.IMAGE_GENERATE_PROMPT;
+  tweetText: string;
+  replyText: string;
+}
+
+// Arsenal-related messages
+export interface GetArsenalRepliesMessage extends BaseMessage {
+  type: MessageType.GET_ARSENAL_REPLIES;
+  category?: string;
+}
+
+export interface TrackArsenalUsageMessage extends BaseMessage {
+  type: MessageType.TRACK_ARSENAL_USAGE;
+  replyId: string;
+}
+
+export interface ToggleArsenalFavoriteMessage extends BaseMessage {
+  type: MessageType.TOGGLE_ARSENAL_FAVORITE;
+  replyId: string;
+  isFavorite: boolean;
+}
+
+export interface DeleteArsenalRepliesMessage extends BaseMessage {
+  type: MessageType.DELETE_ARSENAL_REPLIES;
+  replyIds: string[];
 }
 
 // Union type of all messages
@@ -179,7 +225,14 @@ export type ExtensionMessage =
   | GenerateImageMessage
   | AnalyzeTweetLLMMessage
   | GetWeeklySummaryMessage
-  | GetTimeRecommendationsMessage;
+  | GetTimeRecommendationsMessage
+  | ImageSearchPerplexityMessage
+  | ImageExtractContextMessage
+  | ImageGeneratePromptMessage
+  | GetArsenalRepliesMessage
+  | TrackArsenalUsageMessage
+  | ToggleArsenalFavoriteMessage
+  | DeleteArsenalRepliesMessage;
 
 // Type guard functions
 export function isGetConfigMessage(msg: any): msg is GetConfigMessage {
@@ -280,6 +333,25 @@ export function isPingMessage(msg: any): msg is PingMessage {
 
 export function isExaSearchMessage(msg: any): msg is ExaSearchMessage {
   return msg?.type === MessageType.EXA_SEARCH && typeof msg?.query === 'string';
+}
+
+// Arsenal message type guards
+export function isGetArsenalRepliesMessage(msg: any): msg is GetArsenalRepliesMessage {
+  return msg?.type === MessageType.GET_ARSENAL_REPLIES;
+}
+
+export function isTrackArsenalUsageMessage(msg: any): msg is TrackArsenalUsageMessage {
+  return msg?.type === MessageType.TRACK_ARSENAL_USAGE && typeof msg?.replyId === 'string';
+}
+
+export function isToggleArsenalFavoriteMessage(msg: any): msg is ToggleArsenalFavoriteMessage {
+  return msg?.type === MessageType.TOGGLE_ARSENAL_FAVORITE && 
+         typeof msg?.replyId === 'string' && 
+         typeof msg?.isFavorite === 'boolean';
+}
+
+export function isDeleteArsenalRepliesMessage(msg: any): msg is DeleteArsenalRepliesMessage {
+  return msg?.type === MessageType.DELETE_ARSENAL_REPLIES && Array.isArray(msg?.replyIds);
 }
 
 // Response types

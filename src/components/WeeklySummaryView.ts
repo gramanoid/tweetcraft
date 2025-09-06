@@ -25,6 +25,7 @@ export interface WeeklySummaryData {
 
 export class WeeklySummaryView {
   private container: HTMLElement | null = null;
+  private currentWeekOffset: number = 0; // 0 = current week, -1 = last week, etc.
 
   /**
    * Create the weekly summary view
@@ -36,6 +37,7 @@ export class WeeklySummaryView {
     
     this.container = container;
     this.attachEventListeners();
+    this.updateNavigationState();
     this.loadSummaryData();
     
     return container;
@@ -48,9 +50,18 @@ export class WeeklySummaryView {
     return `
       <div class="weekly-summary-container">
         <div class="summary-header">
-          <h3>📊 Weekly Summary</h3>
-          <span class="summary-date-range"></span>
-          <button class="summary-refresh" title="Refresh">🔄</button>
+          <div class="header-left">
+            <h3>📊 Weekly Summary</h3>
+            <span class="summary-date-range"></span>
+          </div>
+          <div class="header-right">
+            <div class="week-navigation">
+              <button class="nav-btn prev-week" title="Previous Week" data-offset="-1">◀</button>
+              <button class="nav-btn current-week" title="Current Week" data-offset="0">📅</button>
+              <button class="nav-btn next-week" title="Next Week" data-offset="1">▶</button>
+            </div>
+            <button class="summary-refresh" title="Refresh">🔄</button>
+          </div>
         </div>
         
         <div class="summary-stats">
@@ -114,27 +125,27 @@ export class WeeklySummaryView {
   }
 
   /**
-   * Calculate weekly summary from stored data
+   * Calculate weekly summary from stored data for specific week
    */
   private async calculateWeeklySummary(): Promise<WeeklySummaryData> {
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() + (this.currentWeekOffset * 7)); // Apply offset
     weekStart.setHours(0, 0, 0, 0);
     
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
 
-    // Get stats from usageTracker
+    // Get stats from smartDefaults for the specific week
+    const weeklyStats = smartDefaults.getWeeklyStats(this.currentWeekOffset);
     const stats = usageTracker.getStats();
     const patterns = await smartDefaults.getTimeOfDayPatterns();
     
-    // Calculate success rate from stats
-    const totalReplies = stats.eventsByType?.reply_generated || 0;
-    const repliesSent = stats.eventsByType?.reply_sent || 0;
-    const successRate = totalReplies > 0 
-      ? Math.round((repliesSent / totalReplies) * 100)
-      : 0;
+    // Use weekly stats data (which includes historical calculation)
+    const totalReplies = weeklyStats.totalReplies;
+    const repliesSent = weeklyStats.totalSent;
+    const successRate = Math.round(weeklyStats.successRate);
 
     // Find most active day
     const dayUsage = new Map<string, number>();
@@ -179,8 +190,8 @@ export class WeeklySummaryView {
     return {
       totalReplies: repliesSent,
       successRate,
-      topPersonality: this.getTopItem(stats.personalityUsage) || 'Professional',
-      mostActiveDay,
+      topPersonality: weeklyStats.topPersonality || 'Professional',
+      mostActiveDay: weeklyStats.mostActiveDay || 'Monday',
       bestTime,
       topCombinations,
       weekStart,
@@ -194,12 +205,16 @@ export class WeeklySummaryView {
   private displaySummaryData(data: WeeklySummaryData): void {
     if (!this.container) return;
 
-    // Update date range
+    // Update date range with historical context
     const dateRange = this.container.querySelector('.summary-date-range');
     if (dateRange) {
       const start = data.weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const end = data.weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRange.textContent = `${start} - ${end}`;
+      const contextLabel = this.currentWeekOffset === 0 ? 'This Week' :
+                          this.currentWeekOffset === -1 ? 'Last Week' :
+                          `${Math.abs(this.currentWeekOffset)} weeks ago`;
+      
+      dateRange.innerHTML = `<span class="week-context">${contextLabel}</span><br><span class="week-dates">${start} - ${end}</span>`;
     }
 
     // Update stats
@@ -312,6 +327,18 @@ export class WeeklySummaryView {
       });
     }
 
+    // Week navigation buttons
+    const navButtons = this.container.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const offsetStr = target.getAttribute('data-offset');
+        if (offsetStr !== null) {
+          this.navigateToWeek(parseInt(offsetStr));
+        }
+      });
+    });
+
     // View details button
     const detailsBtn = this.container.querySelector('.btn-view-details');
     if (detailsBtn) {
@@ -327,6 +354,51 @@ export class WeeklySummaryView {
     if (exportBtn) {
       exportBtn.addEventListener('click', () => this.exportSummary());
     }
+  }
+
+  /**
+   * Navigate to specific week
+   */
+  private navigateToWeek(offset: number): void {
+    // Prevent navigating to future weeks
+    if (offset > 0) {
+      console.log('%c📅 Cannot navigate to future weeks', 'color: #FFA500; font-weight: bold');
+      return;
+    }
+
+    // Limit historical navigation to 12 weeks back
+    if (offset < -12) {
+      console.log('%c📅 Historical data limited to 12 weeks', 'color: #FFA500; font-weight: bold');
+      return;
+    }
+
+    this.currentWeekOffset = offset;
+    this.updateNavigationState();
+    this.loadSummaryData();
+    
+    console.log(`%c📅 Navigated to week ${offset === 0 ? 'current' : offset}`, 'color: #1DA1F2; font-weight: bold');
+  }
+
+  /**
+   * Update navigation button states
+   */
+  private updateNavigationState(): void {
+    if (!this.container) return;
+
+    const navButtons = this.container.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+      const offset = parseInt(btn.getAttribute('data-offset') || '0');
+      btn.classList.toggle('active', offset === this.currentWeekOffset);
+      
+      // Disable next button if at current week, prev button if at limit
+      if (offset > 0 && this.currentWeekOffset >= 0) {
+        (btn as HTMLButtonElement).disabled = true;
+      } else if (offset < -12) {
+        (btn as HTMLButtonElement).disabled = true;
+      } else {
+        (btn as HTMLButtonElement).disabled = false;
+      }
+    });
   }
 
   /**

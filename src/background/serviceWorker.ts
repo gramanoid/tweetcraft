@@ -9,6 +9,8 @@ import { cleanupReply } from '@/utils/textUtils';
 import { buildFourPartPrompt, logPromptComponents, validatePromptComponents } from '@/services/promptBuilder';
 import { usageTracker } from '@/services/usageTracker';
 import { smartDefaults } from '@/services/smartDefaults';
+import { apiClient } from '@/services/apiClient';
+import { arsenalService } from '@/services/arsenalService';
 
 // Log after imports
 console.log('Service Worker: Imports completed');
@@ -39,7 +41,12 @@ import {
   isTestApiKeyMessage,
   isFetchModelsMessage,
   isResetUsageStatsMessage,
-  isAnalyzeImagesMessage
+  isAnalyzeImagesMessage,
+  GetWeeklySummaryMessage,
+  isGetArsenalRepliesMessage,
+  isTrackArsenalUsageMessage,
+  isToggleArsenalFavoriteMessage,
+  isDeleteArsenalRepliesMessage
 } from '@/types/messages';
 import { ReplyGenerationRequest, TwitterContext, AppConfig } from '@/types';
 
@@ -311,14 +318,8 @@ class SmartReplyServiceWorker {
                 break;
               }
               
-              // Test the API key by making a simple request
-              const testResponse = await fetch('https://openrouter.ai/api/v1/models', {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json'
-                }
-              });
+              // Test the API key using the resilient API client
+              const testResponse = await apiClient.openRouterGet('models', apiKey);
               
               if (testResponse.ok) {
                 sendResponse({ success: true, data: { valid: true } });
@@ -550,16 +551,8 @@ class SmartReplyServiceWorker {
 
               console.log('%c  Request Body:', 'color: #657786', JSON.stringify(requestBody, null, 2));
 
-              const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json',
-                  'HTTP-Referer': 'https://tweetcraft.com',
-                  'X-Title': 'TweetCraft Vision Analysis'
-                },
-                body: JSON.stringify(requestBody)
-              });
+              // Use resilient API client for vision analysis
+              const response = await apiClient.openRouterRequest('chat/completions', requestBody, message.modelId);
 
               if (!response.ok) {
                 const errorText = await response.text();
@@ -806,28 +799,346 @@ class SmartReplyServiceWorker {
 
         case MessageType.GENERATE_IMAGE: {
           console.log('Service Worker: Handling image generation request');
-          const { ImageService } = await import('@/services/imageService');
-          const imageService = new ImageService();
           
           try {
             const prompt = (message as any).prompt || '';
             const options = (message as any).options || {};
             
-            const result = await imageService.generateImage({ 
-              prompt, 
-              ...options 
-            });
-            console.log('Service Worker: Image generated successfully');
+            // Retrieve API key from secure storage
+            const apiKeyData = await chrome.storage.local.get(['apiKey']);
+            const apiKey = apiKeyData.apiKey || '';
             
-            sendResponse({ 
-              success: true, 
-              data: result 
+            if (!apiKey) {
+              throw new Error('API key not configured');
+            }
+            
+            // Generate image using AI with fallback chain
+            const searchPrompt = `Find high-quality ${options.style || 'realistic'} images for: "${prompt}"
+            
+Return a JSON array of 4-6 image results with this exact format:
+[
+  {
+    "url": "direct image URL (must be a real, accessible image URL)",
+    "alt": "brief description",
+    "source": "website name"
+  }
+]
+
+Focus on finding actual direct image URLs from sources like Unsplash, Pexels, Pixabay, or other free image sites. Return ONLY the JSON array.`;
+
+            // Use resilient API client for image generation
+            const response = await apiClient.openRouterRequest('chat/completions', {
+              model: 'perplexity/llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are an image search assistant. Find and return real, accessible image URLs.'
+                },
+                {
+                  role: 'user',
+                  content: searchPrompt
+                }
+              ],
+              temperature: 0.3,
+              max_tokens: 300
             });
+            
+            if (!response.ok) {
+              throw new Error(`Image search failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+            
+            if (content) {
+              try {
+                // Extract JSON array from the response
+                const jsonMatch = content.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                  const results = JSON.parse(jsonMatch[0]);
+                  if (Array.isArray(results) && results.length > 0) {
+                    // Prefer reliable image hosts
+                    const allowedHosts = ['images.unsplash.com', 'unsplash.com', 'images.pexels.com', 'pexels.com', 'pixabay.com', 'cdn.pixabay.com'];
+                    const pick = results.find((r: any) => {
+                      try {
+                        const u = new URL(r.url);
+                        return allowedHosts.some(h => u.hostname.endsWith(h));
+                      } catch { return false; }
+                    }) || results[0];
+
+                    const result = {
+                      url: pick.url,
+                      alt: pick.alt || prompt,
+                      source: 'generated' as const,
+                      width: parseInt(options.size?.split('x')[0] || '512'),
+                      height: parseInt(options.size?.split('x')[1] || '512')
+                    };
+                    
+                    console.log('Service Worker: Image generated successfully');
+                    sendResponse({ success: true, data: result });
+                    return;
+                  }
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse image results:', parseError);
+              }
+            }
+            
+            // Fallback placeholder
+            const result = {
+              url: `https://picsum.photos/seed/${prompt.replace(/\s+/g, '-')}/512/512`,
+              alt: prompt,
+              source: 'generated' as const,
+              width: parseInt(options.size?.split('x')[0] || '512'),
+              height: parseInt(options.size?.split('x')[1] || '512')
+            };
+            
+            sendResponse({ success: true, data: result });
           } catch (error) {
             console.error('Service Worker: Image generation failed:', error);
             sendResponse({ 
               success: false, 
               error: error instanceof Error ? error.message : 'Image generation failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.IMAGE_SEARCH_PERPLEXITY: {
+          console.log('Service Worker: Handling Perplexity image search request');
+          
+          try {
+            const query = (message as any).query || '';
+            const safeSearch = (message as any).safeSearch || false;
+            const limit = (message as any).limit || 5;
+            
+            // Retrieve API key from secure storage
+            const apiKeyData = await chrome.storage.local.get(['apiKey']);
+            const apiKey = apiKeyData.apiKey || '';
+            
+            if (!apiKey) {
+              throw new Error('API key not configured');
+            }
+            
+            const prompt = `Find and return real image URLs for: "${query}"
+
+Search the web for actual images related to this query. Look for:
+- News images from Reuters, AP, Getty Images
+- Stock photos from Unsplash, Pexels, Shutterstock  
+- Relevant memes or reaction images
+- Political cartoons if applicable
+- Real photographs that match the search terms
+
+Return a JSON array with ${limit} REAL image URLs that actually exist:
+[
+  {
+    "url": "https://actual-image-url.jpg",
+    "thumbnail": "thumbnail URL or same as url",
+    "alt": "what the image shows",
+    "source": "website name"
+  }
+]
+
+IMPORTANT: Return only REAL, working image URLs that you find on the web. No placeholders.
+Return ONLY the JSON array, no explanations.`;
+
+            // Use resilient API client for image search
+            const response = await apiClient.openRouterRequest('chat/completions', {
+              model: 'perplexity/llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are an image search assistant. Return only valid JSON arrays of image results.'
+                },
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0.3,
+              max_tokens: 800
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Image search failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+            
+            if (content) {
+              try {
+                // Extract JSON array from the response
+                const jsonMatch = content.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                  const results = JSON.parse(jsonMatch[0]);
+                  const imageResults = results.map((item: any) => ({
+                    url: item.url,
+                    thumbnail: item.thumbnail || item.url,
+                    alt: item.alt || item.description || query,
+                    source: 'web' as const,
+                    width: 800,
+                    height: 600
+                  }));
+                  
+                  sendResponse({ success: true, data: imageResults });
+                  return;
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse search results:', parseError);
+              }
+            }
+            
+            // Return empty array on failure
+            sendResponse({ success: true, data: [] });
+          } catch (error) {
+            console.error('Service Worker: Image search failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Image search failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.IMAGE_EXTRACT_CONTEXT: {
+          console.log('Service Worker: Handling image context extraction request');
+          
+          try {
+            const text = (message as any).text || '';
+            
+            // Retrieve API key from secure storage
+            const apiKeyData = await chrome.storage.local.get(['apiKey']);
+            const apiKey = apiKeyData.apiKey || '';
+            
+            if (!apiKey) {
+              throw new Error('API key not configured');
+            }
+            
+            const prompt = `Analyze this text and extract the most relevant image search terms. Focus on the underlying meaning, emotions, and implications rather than just literal keywords.
+
+Text: "${text}"
+
+Provide 3-5 highly relevant search terms that would find appropriate images for this context. Consider:
+- The actual topic being discussed
+- Emotional undertones and implications
+- Visual metaphors that match the sentiment
+- Related concepts that aren't explicitly mentioned
+
+For example:
+- "Trump is old and sick" → "elderly politician, hospital bed, medical care, frail leader"
+- "Biden cognitive decline" → "confused elderly, dementia symptoms, nursing home, memory loss"
+- "Economic collapse coming" → "stock market crash, recession graph, empty shelves, unemployment line"
+
+Return ONLY the search terms, separated by commas. No explanation.`;
+
+            // Use resilient API client for context extraction
+            const response = await apiClient.openRouterRequest('chat/completions', {
+              model: 'anthropic/claude-3-haiku',
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0.8,
+              max_tokens: 150
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Context extraction failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const searchTerms = data.choices?.[0]?.message?.content?.trim();
+            
+            if (searchTerms) {
+              // Clean up and return the first few terms
+              const terms = searchTerms
+                .split(',')
+                .map((term: string) => term.trim())
+                .filter((term: string) => term.length > 0)
+                .slice(0, 4)
+                .join(' ');
+              
+              sendResponse({ success: true, data: terms });
+            } else {
+              sendResponse({ success: true, data: null });
+            }
+          } catch (error) {
+            console.error('Service Worker: Context extraction failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Context extraction failed' 
+            });
+          }
+          break;
+        }
+
+        case MessageType.IMAGE_GENERATE_PROMPT: {
+          console.log('Service Worker: Handling image prompt generation request');
+          
+          try {
+            const tweetText = (message as any).tweetText || '';
+            const replyText = (message as any).replyText || '';
+            
+            // Retrieve API key from secure storage
+            const apiKeyData = await chrome.storage.local.get(['apiKey']);
+            const apiKey = apiKeyData.apiKey || '';
+            
+            if (!apiKey) {
+              throw new Error('API key not configured');
+            }
+            
+            const combinedText = `${tweetText} ${replyText}`.trim() || 'general topic';
+            
+            const prompt = `Based on this Twitter conversation, generate a creative and relevant image generation prompt that captures the essence of what's being discussed.
+
+Context: "${combinedText}"
+
+Create a detailed, visual prompt for image generation that:
+- Captures the main theme or sentiment
+- Includes relevant visual elements
+- Specifies style, mood, and composition
+- Is appropriate for social media
+
+Example outputs:
+- "Professional photo of elderly politician in hospital bed, concerned doctors nearby, dramatic lighting"
+- "Digital art of stock market crash chart, red arrows pointing down, panicked traders in background"
+- "Realistic photo of empty store shelves, dystopian atmosphere, worried shoppers"
+
+Return ONLY the image generation prompt, no explanation.`;
+
+            // Use resilient API client for prompt generation
+            const response = await apiClient.openRouterRequest('chat/completions', {
+              model: 'anthropic/claude-3-haiku',
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0.9,
+              max_tokens: 200
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Prompt generation failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const generatedPrompt = data.choices?.[0]?.message?.content?.trim();
+            
+            if (generatedPrompt) {
+              sendResponse({ success: true, data: generatedPrompt });
+            } else {
+              throw new Error('Failed to generate prompt: No content in response');
+            }
+          } catch (error) {
+            console.error('Service Worker: Prompt generation failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Prompt generation failed' 
             });
           }
           break;
@@ -923,10 +1234,12 @@ class SmartReplyServiceWorker {
         }
 
         case MessageType.GET_WEEKLY_SUMMARY: {
-          console.log('Service Worker: Fetching weekly summary');
+          const summaryMessage = message as GetWeeklySummaryMessage;
+          const weekOffset = summaryMessage.weekOffset || 0;
+          console.log(`Service Worker: Fetching weekly summary for week ${weekOffset}`);
           try {
-            // Get real stats from smartDefaults service
-            const summary = smartDefaults.getWeeklyStats();
+            // Get real stats from smartDefaults service with week offset
+            const summary = smartDefaults.getWeeklyStats(weekOffset);
             
             console.log('Service Worker: Weekly summary retrieved', summary);
             
@@ -1139,16 +1452,8 @@ class SmartReplyServiceWorker {
       console.log('%c  Reply Length Preset:', 'color: #657786', request.replyLength || 'auto');
 
       const startTime = Date.now();
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://github.com/gramanoid/tweetcraft',
-          'X-Title': 'TweetCraft - AI-powered Twitter/X Reply Chrome Extension'
-        },
-        body: JSON.stringify(openRouterRequest)
-      });
+      // Use resilient API client for reply generation
+      const response = await apiClient.openRouterRequest('chat/completions', openRouterRequest, openRouterRequest.model);
 
       const responseTime = Date.now() - startTime;
       
@@ -1527,23 +1832,14 @@ class SmartReplyServiceWorker {
       
       // Images are already base64 converted in content script, no need to convert again
       
-      // Make the vision API call
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://tweetcraft.app',
-          'X-Title': 'TweetCraft Vision'
-        },
-        body: JSON.stringify({
-          model: modelId,
-          messages: messages,
-          max_tokens: 500,
-          temperature: 0.3,
-          stream: false
-        })
-      });
+      // Make the vision API call using resilient API client
+      const response = await apiClient.openRouterRequest('chat/completions', {
+        model: modelId,
+        messages: messages,
+        max_tokens: 500,
+        temperature: 0.3,
+        stream: false
+      }, modelId);
       
       if (!response.ok) {
         const error = await response.text();

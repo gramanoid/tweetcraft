@@ -75,5 +75,9 @@ module.exports = {
     // CRITICAL: Chrome extensions require each context to be self-contained
     // DO NOT enable chunk splitting - it breaks isolated contexts
     splitChunks: false,
+    // Enable tree shaking and minification for production
+    usedExports: true,
+    sideEffects: false,
+    minimize: process.env.NODE_ENV === 'production',
   },
 };

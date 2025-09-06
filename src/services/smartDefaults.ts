@@ -563,8 +563,9 @@ export class SmartDefaultsService {
 
   /**
    * Get weekly statistics from usage tracker
+   * @param weekOffset 0 = current week, -1 = last week, -2 = two weeks ago, etc.
    */
-  getWeeklyStats(): {
+  getWeeklyStats(weekOffset: number = 0): {
     totalReplies: number;
     totalSent: number;
     successRate: number;
@@ -578,7 +579,7 @@ export class SmartDefaultsService {
     const stats = usageTracker.getStats();
     const now = new Date();
     const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setDate(now.getDate() - now.getDay() + (weekOffset * 7)); // Apply week offset
     weekStart.setHours(0, 0, 0, 0);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);

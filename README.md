@@ -6,12 +6,12 @@
 
 <div align="center">
   
-![Version](https://img.shields.io/badge/version-0.0.19-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.0.21-blue?style=flat-square)
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-purple?style=flat-square)
-![MVP](https://img.shields.io/badge/status-MVP-orange?style=flat-square)
-![Features](https://img.shields.io/badge/roadmap-5%20focused%20features-blue?style=flat-square)
+![Progress](https://img.shields.io/badge/progress-55%25%20complete-yellow?style=flat-square)
+![Phase](https://img.shields.io/badge/phase_5-25%25%20done-orange?style=flat-square)
 
 </div>
 
@@ -21,15 +21,37 @@
   <strong>🚀 AI-powered Twitter/X & HypeFury assistant • 🎭 12 unique tones • 🧵 Thread context awareness • ⚙️ OpenRouter integration</strong>
 </div>
 
-## 🚀 **TweetCraft: Current MVP + Future Roadmap**
+## 🚀 **TweetCraft: Current MVP + Development Status**
 
-### ✅ **Currently Working (v0.0.19 - Latest: Security & Architecture Improvements)**
+### 📊 **Development Progress**
+- **Overall Completion:** 17/31 tasks (55%)
+- **Current Phase:** Phase 5 - Missing Features (25% complete)
+- **Critical Issues:** Bundle size optimization needed (see TASKS_2025_01_09.md)
+- **Next Milestone:** v0.1.0 after Phase 5 completion
+
+### ✅ **Currently Working (v0.0.21 - Latest: Arsenal Mode Integration)**
 
 #### 🌐 Multi-Platform Support
 - **Twitter/X** - Full feature support on twitter.com and x.com
 - **HypeFury** - Complete feature parity on app.hypefury.com
 
-#### 🔒 **NEW: Security & Architecture Improvements (v0.0.19)**
+#### ⚔️ **NEW: Arsenal Mode Integration (v0.0.21)**
+- **Integrated Arsenal Mode** - Pre-generated reply storage now integrated into main popup UI
+- **Reduced Bundle Size** - Eliminated duplicate UI code by consolidating Arsenal into TabManager architecture
+- **Seamless Tab Navigation** - Arsenal tab (⚔️) now available alongside existing 6 tabs in unified selector
+- **Dark Theme Consistency** - Arsenal styling matches existing dark theme with orange accent colors (#FFA500)
+- **Complete Feature Parity** - All Arsenal features (categories, search, filter, usage tracking) preserved in integration
+- **TabManager Architecture** - Arsenal now follows standardized TabComponent interface for maintainability
+
+#### 🔒 **Critical Security Fix & Analytics (v0.0.20)**
+- **API Key Security Hardening** - API keys now isolated to service worker, never passed in messages
+- **Weekly Summary Analytics** - Real-time stats display: success rate, top personality, most active day
+- **Best Time to Tweet** - AI-powered recommendations based on your engagement patterns
+- **Enhanced Data Protection** - Service worker retrieves API keys directly from secure Chrome storage
+- **Real Usage Tracking** - Replaced mock data with actual user behavior analytics
+- **Time Pattern Analysis** - Tracks optimal posting times by personality and engagement
+
+#### 🔒 **Security & Architecture (v0.0.19)**
 - **API Key Security** - All API keys now exclusively managed via .env file
 - **Type-Safe Messaging** - MessageType enum enforced throughout for compile-time safety
 - **Complete Data Cleanup** - Clear Data now removes both chrome.storage AND IndexedDB
@@ -355,6 +377,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## 📝 Documentation
 
+- [TASKS_2025_01_09.md](TASKS_2025_01_09.md) - **📋 Complete task tracking and development roadmap (150+ tasks)**
 - [CHANGELOG.md](CHANGELOG.md) - Version history and changes
 - [CLAUDE.md](CLAUDE.md) - Development guide for AI assistants
 
@@ -384,6 +407,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**TweetCraft v0.0.18** - Production-ready AI reply assistant with streamlined extension popup, LLM-first Smart suggestions, Vision API image understanding, comprehensive analytics, and 40+ features 🚀
+**TweetCraft v0.0.21** - Production-ready AI reply assistant with integrated Arsenal Mode, enhanced security, weekly analytics, real-time usage tracking, and 40+ features. See [TASKS_2025_01_09.md](TASKS_2025_01_09.md) for development roadmap 🚀
 
 Made with ❤️ by the TweetCraft team

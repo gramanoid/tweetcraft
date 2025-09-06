@@ -4,6 +4,8 @@
 @import '../components/TimeRecommendations.scss';
 @import '../components/TrendingTopics.scss';
 @import '../components/CacheDebugView.scss';
+@import '../components/ABTestingView.scss';
+@import '../components/tabs/ArsenalTab.scss';
 
 // Smart Reply Extension Styles
 .smart-reply-container {
@@ -1701,5 +1703,112 @@ body[style*="background-color: rgb(21, 32, 43)"] {
         color: var(--tweet-neutral);
       }
     }
+  }
+}
+
+// Model Fallback Indicator
+.model-fallback-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 1px solid #ffd32a;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.15);
+  animation: slideInRight 0.3s ease-out;
+  max-width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  .fallback-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+
+    .fallback-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .fallback-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .fallback-title {
+        font-weight: 600;
+        color: #856404;
+        font-size: 14px;
+        line-height: 1.3;
+      }
+
+      .fallback-details {
+        color: #856404;
+        font-size: 12px;
+        line-height: 1.4;
+        opacity: 0.9;
+      }
+    }
+
+    .fallback-close {
+      background: none;
+      border: none;
+      color: #856404;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      line-height: 1;
+
+      &:hover {
+        background: rgba(133, 100, 4, 0.1);
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    
+    .fallback-content {
+      padding: 10px 12px;
+      
+      .fallback-text {
+        .fallback-title {
+          font-size: 13px;
+        }
+        
+        .fallback-details {
+          font-size: 11px;
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }

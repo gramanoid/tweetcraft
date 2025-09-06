@@ -9,17 +9,19 @@ import { globalAsyncManager } from "@/utils/asyncOperationManager";
 import { KeyboardShortcutManager } from "@/utils/keyboardShortcuts";
 import { selectorAdapter } from "./selectorAdapter";
 import { visualFeedback } from "@/ui/visualFeedback";
-import { templateSuggester } from "@/services/templateSuggester";
+// Bundle size optimization: templateSuggester lazy-loaded to reduce initial bundle
+import { visionService, VisionService } from "@/services/visionService";
+import { arsenalModeUI } from "./arsenalMode";
+import { imageAttachment } from "./imageAttachment";
+// import { templateSuggester } from "@/services/templateSuggester"; // -> Lazy loaded on demand
+
 import { TEMPLATES } from "./presetTemplates";
 import { TONES } from "./toneSelector";
-import { imageAttachment } from "./imageAttachment";
-import { arsenalModeUI } from "./arsenalMode";
 import { APP_VERSION } from "@/config/version";
 import { HypeFuryPlatform, HYPEFURY_SELECTORS } from "@/platforms/hypefury";
 import { ProgressiveEnhancement } from "@/utils/progressiveEnhancement";
 import { ContextRecovery } from "@/utils/contextRecovery";
 import { ContextExtractor, TweetContext } from "@/utils/contextExtractor";
-import { visionService, VisionService } from "@/services/visionService";
 import { smartDefaults } from "@/services/smartDefaults";
 import { topicTracker } from "@/services/topicTracker";
 import "./contentScript.scss";
@@ -43,6 +45,9 @@ class SmartReplyContentScript {
   private cleanupIntervalMs: number = 30000; // Default to 30 seconds (reduced frequency)
   private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
   private navigationTimerId: ReturnType<typeof setTimeout> | null = null;
+
+  // Bundle size optimization: Some modules are now lazy-loaded on demand
+
   private readonly MIN_CLEANUP_INTERVAL = 5000; // 5 seconds minimum
   private readonly MAX_CLEANUP_INTERVAL = 600000; // 10 minutes maximum
 
@@ -377,6 +382,9 @@ class SmartReplyContentScript {
       "tweetcraft:generate-reply",
       generateReplyListener,
     );
+
+    // Task 5.4: Enhanced keyboard shortcuts event listeners
+    this.setupEnhancedKeyboardShortcuts();
   }
 
   // Task 5.1: Settings Auto-Sync - listen for settings changes from service worker
@@ -395,15 +403,100 @@ class SmartReplyContentScript {
     this.customEventListeners.set('settings-change', settingsChangeListener);
     
     // Also listen for chrome runtime messages
-    const runtimeMessageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+    const runtimeMessageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void): boolean | void => {
       if (message.type === 'SETTINGS_CHANGED') {
         console.log('%c📡 Settings changed (runtime):', 'color: #17BF63; font-weight: bold', message.changes);
         this.handleSettingsChange(message.changes);
+        return false;
+      } else if (message.type === 'EXPORT_COMPREHENSIVE') {
+        this.handleExportComprehensive().then(sendResponse);
+        return true; // Keep message channel open
+      } else if (message.type === 'EXPORT_ANALYTICS') {
+        this.handleExportAnalytics().then(sendResponse);
+        return true;
+      } else if (message.type === 'EXPORT_ARSENAL') {
+        this.handleExportArsenal().then(sendResponse);
+        return true;
+      } else if (message.type === 'GET_EXPORT_INFO') {
+        this.handleGetExportInfo().then(sendResponse);
+        return true;
       }
+      return false; // Default return value
     };
     
     // Listen for runtime messages from service worker
     chrome.runtime.onMessage.addListener(runtimeMessageListener);
+  }
+
+  // Task 5.4: Enhanced keyboard shortcuts - Set up event listeners for new keyboard shortcuts
+  private setupEnhancedKeyboardShortcuts(): void {
+    console.log('%c⌨️ Setting up enhanced keyboard shortcuts', 'color: #1DA1F2; font-weight: bold');
+
+    // Export functionality shortcuts
+    const exportComprehensiveListener = ((event: Event) => {
+      console.log('%c📤 Triggering comprehensive export via keyboard shortcut', 'color: #17BF63');
+      this.handleExportComprehensive();
+    }) as EventListener;
+
+    const exportAnalyticsListener = ((event: Event) => {
+      console.log('%c📊 Triggering analytics export via keyboard shortcut', 'color: #17BF63');
+      this.handleExportAnalytics();
+    }) as EventListener;
+
+    const exportArsenalListener = ((event: Event) => {
+      console.log('%c🎯 Triggering arsenal export via keyboard shortcut', 'color: #17BF63');
+      this.handleExportArsenal();
+    }) as EventListener;
+
+    // AB Testing shortcut
+    const abTestListener = ((event: Event) => {
+      console.log('%c🧪 Running A/B test via keyboard shortcut', 'color: #FFA500');
+      this.runABTest();
+    }) as EventListener;
+
+    // Weekly summary shortcut
+    const weeklySummaryListener = ((event: Event) => {
+      console.log('%c📈 Showing weekly summary via keyboard shortcut', 'color: #17BF63');
+      this.showWeeklySummary();
+    }) as EventListener;
+
+    // Best time recommendations shortcut
+    const bestTimeListener = ((event: Event) => {
+      console.log('%c⏰ Showing best time recommendations via keyboard shortcut', 'color: #17BF63');
+      this.showBestTimeRecommendations();
+    }) as EventListener;
+
+    // Toggle UI shortcut
+    const toggleUIListener = ((event: Event) => {
+      console.log('%c🎛️ Toggling UI via keyboard shortcut', 'color: #657786');
+      this.toggleTweetCraftUI();
+    }) as EventListener;
+
+    // Focus textarea shortcut
+    const focusListener = ((event: Event) => {
+      console.log('%c🎯 Focusing textarea via keyboard shortcut', 'color: #657786');
+      this.focusReplyTextarea();
+    }) as EventListener;
+
+    // Store all listeners for cleanup
+    const listeners = [
+      { event: 'tweetcraft:trigger-export', listener: exportComprehensiveListener },
+      { event: 'tweetcraft:export-analytics', listener: exportAnalyticsListener },
+      { event: 'tweetcraft:export-arsenal', listener: exportArsenalListener },
+      { event: 'tweetcraft:run-ab-test', listener: abTestListener },
+      { event: 'tweetcraft:weekly-summary', listener: weeklySummaryListener },
+      { event: 'tweetcraft:best-time', listener: bestTimeListener },
+      { event: 'tweetcraft:toggle-ui', listener: toggleUIListener },
+      { event: 'tweetcraft:focus-textarea', listener: focusListener }
+    ];
+
+    // Add all event listeners
+    listeners.forEach(({ event, listener }) => {
+      this.customEventListeners.set(event, listener);
+      document.addEventListener(event, listener);
+    });
+
+    console.log('%c✅ Enhanced keyboard shortcuts initialized', 'color: #17BF63');
   }
 
   private handleSettingsChange(changes: {[key: string]: chrome.storage.StorageChange}): void {
@@ -2540,18 +2633,18 @@ class SmartReplyContentScript {
 
       // Set callback for when image is selected (keeping for potential future use)
       imageAttachment.onSelect((image) => {
-        if (image) {
-          console.log(
-            "%c🖼️ IMAGE SELECTED",
-            "color: #9146FF; font-weight: bold; font-size: 14px",
-          );
-          console.log("%c  URL:", "color: #657786", image.url);
-          console.log("%c  Alt:", "color: #657786", image.alt);
-          console.log("%c  Source:", "color: #657786", image.source);
+          if (image) {
+            console.log(
+              "%c🖼️ IMAGE SELECTED",
+              "color: #9146FF; font-weight: bold; font-size: 14px",
+            );
+            console.log("%c  URL:", "color: #657786", image.url);
+            console.log("%c  Alt:", "color: #657786", image.alt);
+            console.log("%c  Source:", "color: #657786", image.source);
 
-          // Store the image URL for later use
-          button.setAttribute("data-image-url", image.url);
-          button.setAttribute("data-image-alt", image.alt);
+            // Store the image URL for later use
+            button.setAttribute("data-image-url", image.url);
+            button.setAttribute("data-image-alt", image.alt);
 
           // Update button to show image is attached
           const imgIndicator = button.querySelector(".image-indicator");
@@ -2756,7 +2849,8 @@ class SmartReplyContentScript {
       console.log("%c  Analyzing context...", "color: #657786");
 
       try {
-        // Get smart suggestions based on context
+        // Get smart suggestions based on context - LAZY LOADED to reduce initial bundle
+        const { templateSuggester } = await import("@/services/templateSuggester");
         const suggestions = await templateSuggester.getSuggestions({
           tweetText,
           isReply: true,
@@ -2771,6 +2865,7 @@ class SmartReplyContentScript {
             suggestions,
             textarea,
             context,
+            templateSuggester,
           );
         } else {
           visualFeedback.showToast(
@@ -2801,6 +2896,7 @@ class SmartReplyContentScript {
     suggestions: any[],
     textarea: HTMLElement,
     context: any,
+    templateSuggester: any,
   ): void {
     // Remove any existing popup
     const existingPopup = document.querySelector(".tweetcraft-suggest-popup");
@@ -3150,44 +3246,50 @@ class SmartReplyContentScript {
 
         // Check if image understanding is enabled and we have images
         if (ContextExtractor.hasVisualContent(fullContext)) {
-          const visionEnabled = await visionService.isEnabled();
+          try {
+            // Use imported visionService directly
+            await visionService.initialize(); // Initialize on first use
+            const visionEnabled = await visionService.isEnabled();
 
-          if (visionEnabled) {
-            console.log(
-              "%c👁️ Analyzing images for context...",
-              "color: #794BC4; font-weight: bold",
-            );
+            if (visionEnabled) {
+              console.log(
+                "%c👁️ Analyzing images for context...",
+                "color: #794BC4; font-weight: bold",
+              );
 
-            // Get image URLs for analysis
-            const { imageUrls, needsVision } =
-              ContextExtractor.prepareForVisionAnalysis(fullContext);
+              // Get image URLs for analysis
+              const { imageUrls, needsVision } =
+                ContextExtractor.prepareForVisionAnalysis(fullContext);
 
-            if (needsVision && imageUrls.length > 0) {
-              // Convert images to base64 in content script where we have Twitter auth
-              const base64Images = await this.convertImagesToBase64(imageUrls);
+              if (needsVision && imageUrls.length > 0) {
+                // Convert images to base64 in content script where we have Twitter auth
+                const base64Images = await this.convertImagesToBase64(imageUrls);
 
-              if (base64Images.length > 0) {
-                // Analyze images with vision service (now with base64 data)
-                const visionResult = await visionService.analyzeImages(
-                  base64Images,
-                  context.tweetText,
-                );
-
-                if (visionResult.success) {
-                  // Format the vision context for inclusion in prompt
-                  visualContext =
-                    VisionService.formatVisionContext(visionResult);
-                  console.log(
-                    "%c✅ Visual context added to prompt",
-                    "color: #17BF63",
+                if (base64Images.length > 0) {
+                  // Analyze images with vision service (now with base64 data)
+                  const visionResult = await visionService.analyzeImages(
+                    base64Images,
+                    context.tweetText,
                   );
+
+                  if (visionResult.success) {
+                    // Format the vision context for inclusion in prompt
+                    visualContext =
+                      VisionService.formatVisionContext(visionResult);
+                    console.log(
+                      "%c✅ Visual context added to prompt",
+                      "color: #17BF63",
+                    );
+                  } else {
+                    console.warn("Vision analysis failed:", visionResult.error);
+                  }
                 } else {
-                  console.warn("Vision analysis failed:", visionResult.error);
+                  console.warn("Failed to convert images to base64");
                 }
-              } else {
-                console.warn("Failed to convert images to base64");
               }
             }
+          } catch (visionError) {
+            console.warn('Failed to load vision service:', visionError);
           }
         }
       } catch (error) {
@@ -3314,6 +3416,9 @@ class SmartReplyContentScript {
 
         // Update character count
         DOMUtils.updateCharCount(response.data.reply.length);
+
+        // Show model fallback indicator if a fallback was used
+        this.showModelFallbackIndicator(response.modelUsed, response.modelFallbackIndex);
 
         console.log(
           "Smart Reply: Reply generated successfully:",
@@ -3998,6 +4103,299 @@ class SmartReplyContentScript {
         error,
       );
       return false;
+    }
+  }
+
+  /**
+   * Show model fallback indicator when a fallback model was used
+   */
+  private showModelFallbackIndicator(modelUsed?: string, fallbackIndex?: number): void {
+    // Only show indicator if a fallback was actually used (index > 0)
+    if (!modelUsed || fallbackIndex === undefined || fallbackIndex === 0) {
+      return;
+    }
+
+    // Remove any existing indicators first
+    const existingIndicator = document.querySelector('.model-fallback-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+
+    // Create fallback indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'model-fallback-indicator';
+    indicator.innerHTML = `
+      <div class="fallback-content">
+        <span class="fallback-icon">🔄</span>
+        <div class="fallback-text">
+          <span class="fallback-title">Fallback Model Used</span>
+          <span class="fallback-details">Primary model unavailable, used ${this.getModelDisplayName(modelUsed)}</span>
+        </div>
+        <button class="fallback-close" aria-label="Close">×</button>
+      </div>
+    `;
+
+    // Add click handler to close the indicator
+    const closeBtn = indicator.querySelector('.fallback-close');
+    closeBtn?.addEventListener('click', () => {
+      indicator.remove();
+    });
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (indicator.parentElement) {
+        indicator.remove();
+      }
+    }, 8000);
+
+    // Try to insert near the Smart Reply UI
+    const smartReplyContainer = document.querySelector('.smart-reply-container, .smart-reply-btn');
+    if (smartReplyContainer && smartReplyContainer.parentElement) {
+      smartReplyContainer.parentElement.insertBefore(indicator, smartReplyContainer.nextSibling);
+    } else {
+      // Fallback: append to body
+      document.body.appendChild(indicator);
+    }
+
+    // Log for debugging
+    console.log(`%c🔄 Model Fallback Indicator: ${modelUsed} (fallback #${fallbackIndex})`, 
+                'color: #FFA500; font-weight: bold');
+  }
+
+  /**
+   * Get user-friendly display name for model
+   */
+  private getModelDisplayName(model: string): string {
+    const modelMap: Record<string, string> = {
+      'openai/gpt-4o-mini': 'GPT-4O Mini',
+      'anthropic/claude-3-haiku': 'Claude 3 Haiku',
+      'meta-llama/llama-3.1-8b-instruct': 'Llama 3.1 8B',
+      'openai/gpt-4o': 'GPT-4O',
+      'anthropic/claude-3-5-sonnet': 'Claude 3.5 Sonnet'
+    };
+    
+    return modelMap[model] || model.split('/').pop() || model;
+  }
+
+  /**
+   * Handle comprehensive data export
+   */
+  private async handleExportComprehensive(): Promise<void> {
+    try {
+      console.log('%c📊 Starting comprehensive data export', 'color: #1DA1F2; font-weight: bold');
+      
+      // Import exportService dynamically to reduce bundle size
+      const { exportService } = await import('@/services/exportService');
+      
+      await exportService.exportComprehensiveData({
+        includeUsageStats: true,
+        includeArsenalData: true,
+        includeWeeklyStats: true,
+        includeCacheStats: true,
+        includeSettings: true,
+        formatType: 'json'
+      });
+      
+      console.log('%c✅ Comprehensive export completed', 'color: #17BF63; font-weight: bold');
+    } catch (error) {
+      console.error('%c❌ Comprehensive export failed:', 'color: #DC3545', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle analytics export
+   */
+  private async handleExportAnalytics(): Promise<void> {
+    try {
+      console.log('%c📈 Starting analytics export', 'color: #1DA1F2; font-weight: bold');
+      
+      const { exportService } = await import('@/services/exportService');
+      await exportService.exportUsageAnalytics();
+      
+      console.log('%c✅ Analytics export completed', 'color: #17BF63; font-weight: bold');
+    } catch (error) {
+      console.error('%c❌ Analytics export failed:', 'color: #DC3545', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle Arsenal data export
+   */
+  private async handleExportArsenal(): Promise<void> {
+    try {
+      console.log('%c🎯 Starting Arsenal export', 'color: #1DA1F2; font-weight: bold');
+      
+      const { exportService } = await import('@/services/exportService');
+      await exportService.exportArsenalData();
+      
+      console.log('%c✅ Arsenal export completed', 'color: #17BF63; font-weight: bold');
+    } catch (error) {
+      console.error('%c❌ Arsenal export failed:', 'color: #DC3545', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get export information
+   */
+  private async handleGetExportInfo(): Promise<any> {
+    try {
+      const { exportService } = await import('@/services/exportService');
+      const info = await exportService.getExportInfo();
+      
+      console.log('%cℹ️ Export info retrieved:', 'color: #657786', info);
+      return info;
+    } catch (error) {
+      console.error('%c❌ Failed to get export info:', 'color: #DC3545', error);
+      return {
+        availableExports: ['Basic export available'],
+        dataSizes: { comprehensive: 0, analytics: 0, arsenal: 0 },
+        recommendations: ['Please refresh the page and try again']
+      };
+    }
+  }
+
+  // Task 5.4: Enhanced keyboard shortcuts - New utility methods
+  
+  /**
+   * Run A/B test for keyboard shortcut
+   */
+  private async runABTest(): Promise<void> {
+    try {
+      console.log('%c🧪 Running A/B test', 'color: #FFA500; font-weight: bold');
+      
+      // A/B testing functionality is not yet implemented
+      visualFeedback.showToast('A/B testing feature coming soon!', { 
+        type: 'info',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('%c❌ A/B test failed:', 'color: #DC3545', error);
+      visualFeedback.showToast('A/B test failed', { type: 'error' });
+    }
+  }
+
+  /**
+   * Show weekly summary in notification
+   */
+  private async showWeeklySummary(): Promise<void> {
+    try {
+      console.log('%c📈 Showing weekly summary', 'color: #17BF63; font-weight: bold');
+      
+      // Get weekly summary data from service worker
+      const response = await chrome.runtime.sendMessage({
+        type: MessageType.GET_WEEKLY_SUMMARY
+      });
+
+      if (response && response.success) {
+        const summary = response.data;
+        const message = `📊 This Week: ${summary.totalReplies} replies (${summary.successRate}% sent)
+🎭 Top: ${summary.topPersonality || 'N/A'} 
+📅 Most active: ${summary.mostActiveDay || 'N/A'}`;
+        
+        visualFeedback.showToast(message, {
+          type: 'info',
+          duration: 8000
+        });
+      } else {
+        visualFeedback.showToast('No weekly data available', { type: 'warning' });
+      }
+    } catch (error) {
+      console.error('%c❌ Weekly summary failed:', 'color: #DC3545', error);
+      visualFeedback.showToast('Weekly summary unavailable', { type: 'error' });
+    }
+  }
+
+  /**
+   * Show best time recommendations
+   */
+  private async showBestTimeRecommendations(): Promise<void> {
+    try {
+      console.log('%c⏰ Showing best time recommendations', 'color: #17BF63; font-weight: bold');
+      
+      // Get time recommendations from service worker
+      const response = await chrome.runtime.sendMessage({
+        type: MessageType.GET_TIME_RECOMMENDATIONS
+      });
+
+      if (response && response.success) {
+        const rec = response.data;
+        const message = `⏰ Best time to tweet: ${rec.currentPeriod}
+📊 Confidence: ${rec.confidence}
+💡 ${rec.reason || 'Based on your usage patterns'}`;
+        
+        visualFeedback.showToast(message, {
+          type: 'info',
+          duration: 8000
+        });
+      } else {
+        visualFeedback.showToast('No timing recommendations available', { type: 'warning' });
+      }
+    } catch (error) {
+      console.error('%c❌ Best time recommendations failed:', 'color: #DC3545', error);
+      visualFeedback.showToast('Timing recommendations unavailable', { type: 'error' });
+    }
+  }
+
+  /**
+   * Toggle TweetCraft UI visibility
+   */
+  private toggleTweetCraftUI(): void {
+    try {
+      console.log('%c🎛️ Toggling TweetCraft UI', 'color: #657786; font-weight: bold');
+      
+      const selector = document.querySelector('.tweetcraft-unified-selector') as HTMLElement;
+      if (selector) {
+        const isVisible = selector.style.display !== 'none';
+        selector.style.display = isVisible ? 'none' : 'block';
+        
+        const status = isVisible ? 'hidden' : 'shown';
+        visualFeedback.showToast(`TweetCraft UI ${status}`, { 
+          type: 'info',
+          duration: 2000
+        });
+      } else {
+        visualFeedback.showToast('TweetCraft UI not found', { type: 'warning' });
+      }
+    } catch (error) {
+      console.error('%c❌ Toggle UI failed:', 'color: #DC3545', error);
+      visualFeedback.showToast('Toggle UI failed', { type: 'error' });
+    }
+  }
+
+  /**
+   * Focus reply textarea
+   */
+  private focusReplyTextarea(): void {
+    try {
+      console.log('%c🎯 Focusing reply textarea', 'color: #657786; font-weight: bold');
+      
+      const textarea = DOMUtils.findWithFallback("replyTextarea");
+      if (textarea) {
+        (textarea as HTMLElement).focus();
+        
+        // If it's a contentEditable div, place cursor at end
+        if ((textarea as HTMLElement).contentEditable === 'true') {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(textarea);
+          range.collapse(false); // Collapse to end
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+        
+        visualFeedback.showToast('Textarea focused', { 
+          type: 'success',
+          duration: 1500
+        });
+      } else {
+        visualFeedback.showToast('No reply textarea found', { type: 'warning' });
+      }
+    } catch (error) {
+      console.error('%c❌ Focus textarea failed:', 'color: #DC3545', error);
+      visualFeedback.showToast('Focus failed', { type: 'error' });
     }
   }
 }

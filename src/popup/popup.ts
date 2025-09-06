@@ -107,6 +107,9 @@ class SmartReplyPopup {
       console.error('Model select not found');
     }
 
+    // Export buttons
+    this.bindExportButtons();
+
     // Temperature slider change
     if (this.elements.temperature && this.elements.temperatureValue) {
       this.elements.temperature.addEventListener('input', (e) => {
@@ -139,6 +142,125 @@ class SmartReplyPopup {
         this.saveSettings();
       }
     });
+  }
+
+  private bindExportButtons(): void {
+    // Export comprehensive data
+    const exportComprehensiveBtn = document.getElementById('export-comprehensive');
+    if (exportComprehensiveBtn) {
+      exportComprehensiveBtn.addEventListener('click', () => this.exportComprehensiveData());
+    }
+
+    // Export analytics only
+    const exportAnalyticsBtn = document.getElementById('export-analytics');
+    if (exportAnalyticsBtn) {
+      exportAnalyticsBtn.addEventListener('click', () => this.exportAnalytics());
+    }
+
+    // Export arsenal data
+    const exportArsenalBtn = document.getElementById('export-arsenal');
+    if (exportArsenalBtn) {
+      exportArsenalBtn.addEventListener('click', () => this.exportArsenalData());
+    }
+
+    // Show export info
+    const exportInfoBtn = document.getElementById('export-info');
+    if (exportInfoBtn) {
+      exportInfoBtn.addEventListener('click', () => this.showExportInfo());
+    }
+  }
+
+  private async exportComprehensiveData(): Promise<void> {
+    try {
+      console.log('Smart Reply Popup: Exporting comprehensive data');
+      this.showMessage('Starting comprehensive data export...', 'info');
+      
+      // Send message to content script to trigger export
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        await chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'EXPORT_COMPREHENSIVE'
+        });
+        this.showMessage('Comprehensive export initiated', 'success');
+      } else {
+        this.showMessage('Please open Twitter/X or HypeFury to export data', 'warning');
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      this.showMessage('Export failed: ' + (error as Error).message, 'error');
+    }
+  }
+
+  private async exportAnalytics(): Promise<void> {
+    try {
+      console.log('Smart Reply Popup: Exporting analytics');
+      this.showMessage('Starting analytics export...', 'info');
+      
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        await chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'EXPORT_ANALYTICS'
+        });
+        this.showMessage('Analytics export initiated', 'success');
+      } else {
+        this.showMessage('Please open Twitter/X or HypeFury to export analytics', 'warning');
+      }
+    } catch (error) {
+      console.error('Analytics export failed:', error);
+      this.showMessage('Analytics export failed', 'error');
+    }
+  }
+
+  private async exportArsenalData(): Promise<void> {
+    try {
+      console.log('Smart Reply Popup: Exporting Arsenal data');
+      this.showMessage('Starting Arsenal export...', 'info');
+      
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        await chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'EXPORT_ARSENAL'
+        });
+        this.showMessage('Arsenal export initiated', 'success');
+      } else {
+        this.showMessage('Please open Twitter/X or HypeFury to export Arsenal data', 'warning');
+      }
+    } catch (error) {
+      console.error('Arsenal export failed:', error);
+      this.showMessage('Arsenal export failed', 'error');
+    }
+  }
+
+  private async showExportInfo(): Promise<void> {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        const response = await chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'GET_EXPORT_INFO'
+        });
+        
+        if (response) {
+          const info = `
+Available Exports:
+• Complete Export: All TweetCraft data (${(response.dataSizes?.comprehensive || 0)} KB)
+• Analytics: Usage patterns and statistics (${(response.dataSizes?.analytics || 0)} KB)
+• Arsenal: Saved replies and categories (${response.dataSizes?.arsenal || 0} items)
+
+Recommendations:
+${response.recommendations?.join('\n') || 'Standard export recommended'}
+          `;
+          
+          alert(info.trim());
+        } else {
+          alert('Export information not available. Please refresh the page and try again.');
+        }
+      } else {
+        this.showMessage('Please open Twitter/X or HypeFury to view export info', 'warning');
+      }
+    } catch (error) {
+      console.error('Failed to get export info:', error);
+      alert('Export info unavailable. Please refresh the page and try again.');
+    }
   }
 
   private async loadSettings(): Promise<void> {
@@ -273,51 +395,129 @@ class SmartReplyPopup {
     
     if (!apiKey) {
       resultDiv.className = 'test-result error';
-      resultDiv.textContent = 'Please enter an API key first';
+      resultDiv.innerHTML = '<strong>✗ API Key Required</strong><div class="validation-details">Please enter your OpenRouter API key first</div>';
       return;
     }
 
     // Show testing state
     testButton.disabled = true;
-    testButton.textContent = 'Testing...';
+    testButton.textContent = 'Validating...';
     resultDiv.className = 'test-result testing';
-    resultDiv.textContent = 'Validating API key with OpenRouter...';
+    resultDiv.innerHTML = '<div class="validation-spinner">⏳</div> Validating API key with OpenRouter...';
 
+    const startTime = Date.now();
+    
     try {
+      // First validate format
+      const formatValid = this.validateApiKeyFormat(apiKey);
+      if (!formatValid) {
+        throw new Error('Invalid API key format. Expected format: sk-or-v1-[64 hex characters]');
+      }
+      
       const isValid = await OpenRouterService.validateApiKey(apiKey);
+      const responseTime = Date.now() - startTime;
       
       if (isValid) {
         resultDiv.className = 'test-result success';
-        resultDiv.textContent = '✓ API key is valid and working!';
+        resultDiv.innerHTML = `
+          <div class="validation-success">
+            <strong>✓ API Key Valid!</strong>
+            <div class="validation-details">
+              <div>• Connection established successfully</div>
+              <div>• Response time: ${responseTime}ms</div>
+              <div>• Access to OpenRouter models confirmed</div>
+            </div>
+          </div>
+        `;
         this.elements.apiKey?.classList.remove('invalid');
         this.elements.apiKey?.classList.add('valid');
+        
+        // Try to fetch available models count for additional verification
+        try {
+          const models = await OpenRouterService.fetchAvailableModels();
+          if (models && models.length > 0) {
+            const detailsDiv = resultDiv.querySelector('.validation-details');
+            if (detailsDiv) {
+              detailsDiv.innerHTML += `<div>• ${models.length} models available</div>`;
+            }
+          }
+        } catch (modelError) {
+          console.warn('Could not fetch model count:', modelError);
+        }
+        
       } else {
         resultDiv.className = 'test-result error';
-        resultDiv.textContent = '✗ Invalid API key. Get your key at openrouter.ai/keys';
+        resultDiv.innerHTML = `
+          <div class="validation-error">
+            <strong>✗ API Key Invalid</strong>
+            <div class="validation-details">
+              <div>• Authentication failed with OpenRouter</div>
+              <div>• Response time: ${responseTime}ms</div>
+              <div>• <a href="https://openrouter.ai/keys" target="_blank">Get a valid key →</a></div>
+            </div>
+          </div>
+        `;
         this.elements.apiKey?.classList.remove('valid');
         this.elements.apiKey?.classList.add('invalid');
       }
     } catch (error: any) {
       console.error('Smart Reply Popup: API key test failed:', error);
+      const responseTime = Date.now() - startTime;
+      
       resultDiv.className = 'test-result error';
       
-      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
-        resultDiv.textContent = '✗ Connection failed. Check your internet connection';
+      // Enhanced error messaging
+      let errorMessage = '';
+      let errorDetails = '';
+      
+      if (error.message.includes('Invalid API key format')) {
+        errorMessage = '✗ Invalid Format';
+        errorDetails = `
+          <div>• Expected: sk-or-v1-[64 hex characters]</div>
+          <div>• Received: ${apiKey.length} characters</div>
+          <div>• Check your key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></div>
+        `;
+      } else if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+        errorMessage = '✗ Connection Failed';
+        errorDetails = `
+          <div>• Cannot reach OpenRouter servers</div>
+          <div>• Check your internet connection</div>
+          <div>• Response time: ${responseTime}ms (timeout)</div>
+        `;
+      } else if (error?.message?.includes('403') || error?.message?.includes('401')) {
+        errorMessage = '✗ Authentication Failed';
+        errorDetails = `
+          <div>• API key rejected by OpenRouter</div>
+          <div>• Key may be expired or invalid</div>
+          <div>• Get a new key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></div>
+        `;
       } else {
-        resultDiv.textContent = '✗ Test failed. Check your connection and try again';
+        errorMessage = '✗ Validation Failed';
+        errorDetails = `
+          <div>• ${error.message || 'Unknown error occurred'}</div>
+          <div>• Response time: ${responseTime}ms</div>
+          <div>• Try again in a moment</div>
+        `;
       }
+      
+      resultDiv.innerHTML = `
+        <div class="validation-error">
+          <strong>${errorMessage}</strong>
+          <div class="validation-details">${errorDetails}</div>
+        </div>
+      `;
       
       this.elements.apiKey?.classList.remove('valid');
       this.elements.apiKey?.classList.add('invalid');
     } finally {
       testButton.disabled = false;
-      testButton.textContent = 'Test';
+      testButton.textContent = 'Validate API Key';
       
-      // Hide the result after 5 seconds
+      // Hide the result after 8 seconds (longer for detailed results)
       setTimeout(() => {
         resultDiv.className = 'test-result';
-        resultDiv.textContent = '';
-      }, 5000);
+        resultDiv.innerHTML = '';
+      }, 8000);
     }
   }
 

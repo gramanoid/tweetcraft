@@ -3190,7 +3190,7 @@ export class UnifiedSelector {
     
     return `
       <div class="selector-content abtest-view">
-        <div class="ab-testing-container" id="abTestContainer">
+        <div class="tweetcraft-ab-testing" id="abTestContainer">
           <div class="ab-loading">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading A/B test data...</div>

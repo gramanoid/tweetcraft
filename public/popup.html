@@ -37,6 +37,21 @@
         </div>
         
         <div class="setting-group">
+          <h3>🔑 API Configuration</h3>
+          <label for="api-key">OpenRouter API Key:</label>
+          <div class="api-key-input-row">
+            <input type="password" id="api-key" placeholder="sk-or-v1-...">
+            <button id="toggle-api-key" class="btn-secondary toggle-visibility" title="Show/Hide API Key" type="button">👁</button>
+          </div>
+          <small>Get your free API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></small>
+          
+          <div class="api-validation-section">
+            <button id="test-api-key" class="btn-secondary" style="margin-top: 8px;">Validate API Key</button>
+            <div id="api-test-result" style="margin-top: 8px; font-size: 0.9em;"></div>
+          </div>
+        </div>
+        
+        <div class="setting-group">
           <label for="system-prompt">System Prompt (Your Identity):</label>
           <textarea id="system-prompt" placeholder="e.g., I'm a tech entrepreneur who writes concise, helpful replies with occasional humor. I focus on practical advice and avoid corporate speak." rows="4" style="resize: vertical;"></textarea>
           <small>Define who you are and your general personality (no length limit)</small>
@@ -104,6 +119,21 @@
           <h3>⏰ Best Time to Tweet</h3>
           <div id="best-time-indicator">
             <div class="time-loading">Analyzing patterns...</div>
+          </div>
+        </div>
+        
+        <div class="setting-group">
+          <h3>📤 Data Export</h3>
+          <small>Export your TweetCraft data for backup or analysis</small>
+          <div class="export-buttons" style="margin-top: 10px;">
+            <div class="export-row">
+              <button id="export-comprehensive" class="btn-secondary export-btn" title="Export all TweetCraft data">📊 Complete Export</button>
+              <button id="export-analytics" class="btn-secondary export-btn" title="Export usage analytics">📈 Analytics Only</button>
+            </div>
+            <div class="export-row" style="margin-top: 8px;">
+              <button id="export-arsenal" class="btn-secondary export-btn" title="Export Arsenal replies">🎯 Arsenal Data</button>
+              <button id="export-info" class="btn-secondary export-btn" title="View export information">ℹ️ Export Info</button>
+            </div>
           </div>
         </div>
         

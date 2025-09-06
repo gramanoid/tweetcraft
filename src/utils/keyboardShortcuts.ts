@@ -45,10 +45,43 @@ export class KeyboardShortcutManager {
     { key: 'c', alt: true, action: 'copy_reply', description: 'Copy generated reply' },
     { key: 'e', alt: true, action: 'edit_mode', description: 'Edit generated reply' },
     
-    // Navigation
+    // Tab Navigation (Ctrl + Shift + Number)
+    { key: '1', ctrl: true, shift: true, action: 'tab_personas', description: 'Switch to Personas tab' },
+    { key: '2', ctrl: true, shift: true, action: 'tab_all', description: 'Switch to All tab' },
+    { key: '3', ctrl: true, shift: true, action: 'tab_smart', description: 'Switch to Smart tab' },
+    { key: '4', ctrl: true, shift: true, action: 'tab_favorites', description: 'Switch to Favorites tab' },
+    { key: '5', ctrl: true, shift: true, action: 'tab_custom', description: 'Switch to Custom tab' },
+    { key: '6', ctrl: true, shift: true, action: 'tab_compose', description: 'Switch to Compose tab' },
+    { key: '7', ctrl: true, shift: true, action: 'tab_stats', description: 'Switch to Stats tab' },
+    { key: '8', ctrl: true, shift: true, action: 'tab_weekly', description: 'Switch to Weekly Summary tab' },
+    { key: '9', ctrl: true, shift: true, action: 'tab_timing', description: 'Switch to Timing tab' },
+    
+    // Extended Tab Navigation (Ctrl + Alt + Letter)
+    { key: 't', ctrl: true, alt: true, action: 'tab_trending', description: 'Switch to Trending tab' },
+    { key: 'e', ctrl: true, alt: true, action: 'tab_engagement', description: 'Switch to Engagement tab' },
+    { key: 'a', ctrl: true, alt: true, action: 'tab_abtest', description: 'Switch to A/B Test tab' },
+    { key: 'c', ctrl: true, alt: true, action: 'tab_cache', description: 'Switch to Cache Debug tab' },
+    
+    // Advanced Features (Alt + Shift + Letter)
+    { key: 'x', alt: true, shift: true, action: 'export_comprehensive', description: 'Export all data' },
+    { key: 'a', alt: true, shift: true, action: 'export_analytics', description: 'Export analytics only' },
+    { key: 'r', alt: true, shift: true, action: 'export_arsenal', description: 'Export Arsenal data' },
+    { key: 'w', alt: true, shift: true, action: 'show_weekly_summary', description: 'Show weekly summary' },
+    { key: 'b', alt: true, shift: true, action: 'run_ab_test', description: 'Run A/B test on current reply' },
+    { key: 's', alt: true, shift: true, action: 'open_settings', description: 'Open extension settings' },
+    
+    // Navigation Enhancement
     { key: 'ArrowLeft', alt: true, action: 'prev_suggestion', description: 'Previous suggestion' },
     { key: 'ArrowRight', alt: true, action: 'next_suggestion', description: 'Next suggestion' },
-    { key: 'Escape', alt: false, action: 'close_all', description: 'Close all dropdowns' }
+    { key: 'ArrowUp', alt: true, action: 'prev_tab', description: 'Previous tab' },
+    { key: 'ArrowDown', alt: true, action: 'next_tab', description: 'Next tab' },
+    { key: 'Tab', alt: true, action: 'cycle_tabs', description: 'Cycle through tabs' },
+    
+    // Quick Utilities
+    { key: 'h', alt: true, action: 'show_help', description: 'Show keyboard shortcuts help' },
+    { key: 'u', alt: true, action: 'toggle_ui', description: 'Toggle UI visibility' },
+    { key: 'f', alt: true, action: 'focus_textarea', description: 'Focus reply textarea' },
+    { key: 'Escape', alt: false, action: 'close_all', description: 'Close all dropdowns and modals' }
   ];
   
   /**
@@ -161,6 +194,67 @@ export class KeyboardShortcutManager {
         
       case 'close_all':
         this.closeAllDropdowns();
+        break;
+
+      // Tab Navigation
+      case 'tab_personas':
+      case 'tab_all':
+      case 'tab_smart':
+      case 'tab_favorites':
+      case 'tab_custom':
+      case 'tab_compose':
+      case 'tab_stats':
+      case 'tab_weekly':
+      case 'tab_timing':
+      case 'tab_trending':
+      case 'tab_engagement':
+      case 'tab_abtest':
+      case 'tab_cache':
+        this.switchToTab(action);
+        break;
+
+      // Export Actions
+      case 'export_comprehensive':
+        this.triggerExport('comprehensive');
+        break;
+      case 'export_analytics':
+        this.triggerExport('analytics');
+        break;
+      case 'export_arsenal':
+        this.triggerExport('arsenal');
+        break;
+
+      // Advanced Features
+      case 'show_weekly_summary':
+        this.showWeeklySummary();
+        break;
+      case 'run_ab_test':
+        this.runABTest();
+        break;
+      case 'open_settings':
+        this.openExtensionSettings();
+        break;
+
+      // Enhanced Navigation
+      case 'prev_tab':
+        this.navigateTab(-1);
+        break;
+      case 'next_tab':
+        this.navigateTab(1);
+        break;
+      case 'cycle_tabs':
+        this.cycleToNextTab();
+        break;
+
+      // Utilities
+      case 'show_help':
+        this.showKeyboardHelp();
+        break;
+      case 'toggle_ui':
+        this.toggleUIVisibility();
+        break;
+      case 'focus_textarea':
+        this.focusReplyTextarea();
         break;
         
       default:
@@ -389,6 +483,283 @@ export class KeyboardShortcutManager {
     if (arsenalButton) {
       arsenalButton.click();
     }
+  }
+
+  /**
+   * Switch to a specific tab
+   */
+  private static switchToTab(tabAction: string): void {
+    const tabMap: Record<string, string> = {
+      'tab_personas': 'personas',
+      'tab_all': 'grid', 
+      'tab_smart': 'smart',
+      'tab_favorites': 'favorites',
+      'tab_custom': 'custom',
+      'tab_compose': 'compose',
+      'tab_stats': 'stats',
+      'tab_weekly': 'weekly',
+      'tab_timing': 'timing',
+      'tab_trending': 'trending',
+      'tab_engagement': 'engagement',
+      'tab_abtest': 'abtest',
+      'tab_cache': 'cache'
+    };
+
+    const tabName = tabMap[tabAction];
+    if (!tabName) return;
+
+    console.log(`%c📋 Switching to ${tabName} tab`, 'color: #9146FF; font-weight: bold');
+    
+    // Click the corresponding tab button
+    const tabButton = document.querySelector(`[data-view="${tabName}"]`) as HTMLElement;
+    if (tabButton) {
+      tabButton.click();
+    }
+  }
+
+  /**
+   * Trigger export functionality
+   */
+  private static triggerExport(exportType: string): void {
+    console.log(`%c📤 Triggering ${exportType} export`, 'color: #17BF63; font-weight: bold');
+    
+    // Dispatch custom event for export
+    const event = new CustomEvent('tweetcraft:trigger-export', {
+      detail: { type: exportType }
+    });
+    document.dispatchEvent(event);
+  }
+
+  /**
+   * Show weekly summary
+   */
+  private static showWeeklySummary(): void {
+    console.log('%c📅 Showing weekly summary', 'color: #1DA1F2; font-weight: bold');
+    
+    // Switch to weekly tab first
+    this.switchToTab('tab_weekly');
+  }
+
+  /**
+   * Run A/B test
+   */
+  private static runABTest(): void {
+    console.log('%c🧪 Running A/B test', 'color: #FFA500; font-weight: bold');
+    
+    // Switch to A/B test tab and trigger test
+    this.switchToTab('tab_abtest');
+    
+    // Trigger A/B test event
+    setTimeout(() => {
+      const event = new CustomEvent('tweetcraft:run-ab-test');
+      document.dispatchEvent(event);
+    }, 200);
+  }
+
+  /**
+   * Open extension settings
+   */
+  private static openExtensionSettings(): void {
+    console.log('%c⚙️ Opening extension settings', 'color: #1DA1F2; font-weight: bold');
+    
+    // First try to click the settings button in the UI
+    const settingsButton = document.querySelector('.settings-button, [data-action="settings"]') as HTMLElement;
+    if (settingsButton) {
+      settingsButton.click();
+      return;
+    }
+
+    // Fallback: Open Chrome extension options page
+    if (chrome?.runtime?.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      // Last resort: show in-page notification
+      this.showNotification('⚙️ Right-click extension icon → Options to access settings');
+    }
+  }
+
+  /**
+   * Navigate between tabs
+   */
+  private static navigateTab(direction: number): void {
+    const tabs = ['personas', 'grid', 'smart', 'favorites', 'custom', 'compose', 'stats', 'weekly', 'timing', 'trending', 'engagement', 'abtest', 'cache'];
+    
+    // Find current active tab
+    const activeTab = document.querySelector('.tab-btn.active') as HTMLElement;
+    if (!activeTab) return;
+    
+    const currentView = activeTab.getAttribute('data-view');
+    const currentIndex = tabs.indexOf(currentView || '');
+    if (currentIndex === -1) return;
+    
+    // Calculate next tab index
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = tabs.length - 1;
+    if (nextIndex >= tabs.length) nextIndex = 0;
+    
+    // Click the next tab
+    const nextTab = document.querySelector(`[data-view="${tabs[nextIndex]}"]`) as HTMLElement;
+    if (nextTab) {
+      console.log(`%c🔄 Navigating to ${tabs[nextIndex]} tab`, 'color: #9146FF');
+      nextTab.click();
+    }
+  }
+
+  /**
+   * Cycle to next tab
+   */
+  private static cycleToNextTab(): void {
+    this.navigateTab(1);
+  }
+
+  /**
+   * Show keyboard shortcuts help
+   */
+  private static showKeyboardHelp(): void {
+    console.log('%c❓ Showing keyboard shortcuts help', 'color: #1DA1F2; font-weight: bold');
+    
+    const shortcuts = this.getShortcuts();
+    const helpText = shortcuts.map(s => {
+      const keys = [];
+      if (s.ctrl) keys.push('Ctrl');
+      if (s.alt) keys.push('Alt'); 
+      if (s.shift) keys.push('Shift');
+      keys.push(s.key);
+      return `${keys.join('+')} - ${s.description}`;
+    }).join('\n');
+    
+    // Create help modal
+    const modal = document.createElement('div');
+    modal.className = 'tweetcraft-help-modal';
+    modal.innerHTML = `
+      <div class="help-modal-content">
+        <div class="help-modal-header">
+          <h3>⌨️ TweetCraft Keyboard Shortcuts</h3>
+          <button class="help-close">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <pre>${helpText}</pre>
+        </div>
+      </div>
+    `;
+    
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    modal.querySelector('.help-modal-content')!.setAttribute('style', `
+      background: white;
+      border-radius: 8px;
+      max-width: 600px;
+      max-height: 70vh;
+      overflow: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    `);
+    
+    modal.querySelector('.help-modal-header')!.setAttribute('style', `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #e1e8ed;
+    `);
+    
+    modal.querySelector('.help-modal-body')!.setAttribute('style', `
+      padding: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    `);
+    
+    modal.querySelector('.help-close')!.setAttribute('style', `
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 5px;
+    `);
+    
+    document.body.appendChild(modal);
+    
+    // Close handlers
+    const closeModal = () => modal.remove();
+    modal.querySelector('.help-close')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+    
+    // Auto-close after 10 seconds
+    setTimeout(closeModal, 10000);
+  }
+
+  /**
+   * Toggle UI visibility
+   */
+  private static toggleUIVisibility(): void {
+    console.log('%c👁️ Toggling UI visibility', 'color: #9146FF; font-weight: bold');
+    
+    const selector = document.querySelector('.tweetcraft-unified-selector') as HTMLElement;
+    if (selector) {
+      const isHidden = selector.style.display === 'none';
+      selector.style.display = isHidden ? '' : 'none';
+      this.showNotification(isHidden ? '👁️ UI Shown' : '🙈 UI Hidden');
+    }
+  }
+
+  /**
+   * Focus reply textarea
+   */
+  private static focusReplyTextarea(): void {
+    console.log('%c📝 Focusing reply textarea', 'color: #1DA1F2; font-weight: bold');
+    
+    const textarea = document.querySelector('[data-testid^="tweetTextarea_"], [placeholder*="reply"], [placeholder*="Tweet"]') as HTMLElement;
+    if (textarea) {
+      textarea.focus();
+      
+      // Move cursor to end if there's content
+      if (textarea.textContent) {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(textarea);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }
+  }
+
+  /**
+   * Show brief notification
+   */
+  private static showNotification(message: string, duration = 2000): void {
+    const notification = document.createElement('div');
+    notification.className = 'tweetcraft-keyboard-notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgb(29, 161, 242);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      z-index: 10000;
+      animation: slideInRight 0.3s ease;
+      box-shadow: 0 4px 12px rgba(29, 161, 242, 0.3);
+    `;
+    
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), duration);
   }
   
   /**

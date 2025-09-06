@@ -75,6 +75,9 @@ export interface ReplyGenerationResponse {
     lengthPacing?: string;
     combined?: string;
   };
+  // Model fallback tracking
+  modelUsed?: string;
+  modelFallbackIndex?: number;
 }
 
 export interface ThreadTweet {
