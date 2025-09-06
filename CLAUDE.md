@@ -108,7 +108,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**TweetCraft v0.0.20** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
+**TweetCraft v0.0.23** - AI-powered Twitter/X and HypeFury reply generator Chrome extension
 
 ### Key Features
 - **Multi-platform support**: Twitter/X + HypeFury with full feature parity
@@ -123,7 +123,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Network resilience**: Offline queuing, adaptive timeouts, race condition prevention
 
 ### Current Version Status
-- Version: 0.0.21
+- Version: 0.0.23
 - Branch: feature/test-new-feature (Sprint 1 in progress)
 - **🚨 Backend Discovery**: 80% of services already production-ready, exceeding requirements
 - **Completion**: 32/50 tasks (64%) - Phases 1-5 completed, Sprint 1 at 33%
@@ -444,6 +444,16 @@ Rollback: Safe to previous commit
 - Tag phase completions: `git tag v0.X.0 -m "Phase X: Description"`
 
 ## Recent Changes (v0.0.23)
+
+### Tab Component CSS Fix (2025-01-11)
+- ✅ **Fixed tabs displaying as static text**
+  - Added comprehensive CSS styles for all tab component cards
+  - Implemented .suggestion-card, .template-card, .personality-card, .option-card styles
+  - Added hover effects, active states, and proper visual feedback
+  - Grid layouts with responsive design for better UX
+  - Styled Quick Arsenal and Refresh buttons with interactions
+  - Applied design system variables for consistency
+  - Files: `src/content/contentScript.scss`
 
 ### UI Cleanup and Tab Fixes (2025-01-10)
 
